@@ -6,54 +6,138 @@
 	<a href="/" class="back-link">← Back to KoalaTower</a>
 	<div class="privacy-card glass-panel">
 		<div class="privacy-header">
-			<h1>Privacy Policy</h1>
+			<h1>Privacy Policy / Datenschutzerklärung</h1>
 			<p class="last-updated">Last updated: June 2026</p>
 		</div>
 
 		<section>
-			<h2>🔒 Your Data Stays With You</h2>
-			<p>KoalaTower does <strong>not</strong> collect, transmit, or store any personal data on external servers. There are no analytics, no cookies, no tracking scripts, and no backend services whatsoever.</p>
+			<h2>🔒 Overview</h2>
+			<p>
+				KoalaTower is a static web application. It does <strong>not</strong> operate any backend servers,
+				databases, or user accounts. All game data is processed and stored exclusively
+				in your browser. No personal data is transmitted to us or to any third party.
+			</p>
 		</section>
 
 		<section>
-			<h2>💾 Local Storage Only</h2>
-			<p>All game data — including your save progress, settings, and statistics — is stored exclusively in your browser's IndexedDB database. This data <strong>never leaves your device</strong>.</p>
-		</section>
-
-		<section>
-			<h2>📦 What We Store</h2>
+			<h2>📁 Local Storage (IndexedDB)</h2>
+			<p>
+				KoalaTower uses your browser's <strong>IndexedDB</strong> to store:
+			</p>
 			<ul>
-				<li>Your current save data (coins, upgrade levels, progress)</li>
+				<li>Your game save data (coins, upgrade levels, progress, settings)</li>
+				<li>Lab research progress (timestamps, levels)</li>
 				<li>Game settings (reduced motion, effects preferences)</li>
-				<li>Milestone and achievement progress</li>
-				<li>Challenge high scores</li>
+				<li>High scores and statistics</li>
 			</ul>
-			<p>We do <strong>not</strong> store any personally identifiable information, email addresses, or authentication data.</p>
+			<p>
+				This data <strong>never leaves your device</strong>. You can export it as JSON,
+				import previously exported saves, or reset all data at any time from the
+				in-game settings menu or the Hub.
+			</p>
 		</section>
 
 		<section>
-			<h2>📤 Export & Import</h2>
-			<p>You can export your save data as a formatted JSON file at any time from the in-game settings menu. This allows you to create backups or transfer your progress between devices. Importing a previously exported save will replace your current progress.</p>
+			<h2>🌐 Hosting & Server Logs</h2>
+			<p>
+				The website is hosted as a static site and served via a standard web server.
+				When you access the site, the server may temporarily record:
+			</p>
+			<ul>
+				<li>Your IP address</li>
+				<li>Browser type and version</li>
+				<li>Date and time of access</li>
+				<li>Pages accessed</li>
+			</ul>
+			<p>
+				These are standard server access logs. They are:
+			</p>
+			<ul>
+				<li><strong>Not linked</strong> to individual identities</li>
+				<li>Used solely for operational stability and security</li>
+				<li><strong>Automatically deleted after 7 days</strong></li>
+				<li>Never shared with third parties</li>
+			</ul>
 		</section>
 
 		<section>
-			<h2>🗑 Reset Your Data</h2>
-			<p>You can reset all game data at any time from the settings menu. This will permanently delete all progress from your browser's local storage. Export your save first if you want to keep a backup.</p>
+			<h2>🍪 Cookies</h2>
+			<p>
+				KoalaTower does <strong>not</strong> use cookies. No tracking cookies, no
+				session cookies, no analytics cookies. The application is fully functional
+				without any cookies.
+			</p>
 		</section>
 
 		<section>
-			<h2>🌐 No External Resources</h2>
-			<p>KoalaTower does not load any external fonts, scripts, images, or other resources from content delivery networks (CDNs) or third-party servers. All assets are bundled with the application. The app functions entirely offline after the initial page load.</p>
+			<h2>📡 No Third-Party Services</h2>
+			<p>
+				KoalaTower does <strong>not</strong> integrate any third-party services:
+			</p>
+			<ul>
+				<li>No analytics (no Google Analytics, no Plausible, no Fathom, etc.)</li>
+				<li>No tracking pixels or beacons</li>
+				<li>No advertising or affiliate links</li>
+				<li>No social media embeds or widgets</li>
+				<li>No external fonts (all fonts are system fonts)</li>
+				<li>No external CDN resources</li>
+				<li>No external images or assets</li>
+			</ul>
 		</section>
 
 		<section>
-			<h2>📡 No Network Requests</h2>
-			<p>During normal gameplay, KoalaTower makes <strong>zero</strong> network requests. There is no telemetry, no error reporting, no analytics pings, and no update checks. The application is fully self-contained.</p>
+			<h2>📤 No Network Requests</h2>
+			<p>
+				During normal gameplay, KoalaTower makes <strong>zero</strong> network requests.
+				There is no telemetry, no error reporting, no update checks, and no analytics
+				pings. The application is fully self-contained and works offline after the
+				initial page load (except for the initial load of the static files).
+			</p>
+		</section>
+
+		<section>
+			<h2>🧒 Children's Privacy</h2>
+			<p>
+				KoalaTower does not knowingly collect any personal data from children under
+				the age of 16. Since no personal data is collected at all, this is inherently
+				compliant with children's privacy regulations.
+			</p>
+		</section>
+
+		<section>
+			<h2>🔐 Data Security</h2>
+			<p>
+				Since all data resides exclusively in your browser's IndexedDB, data security
+				is handled by your browser's built-in security model. No data is transmitted
+				over the network, eliminating common attack vectors such as man-in-the-middle
+				interception or server-side breaches.
+			</p>
+		</section>
+
+		<section>
+			<h2>📤 Your Rights</h2>
+			<p>
+				Under applicable data protection law, you have the right to:
+			</p>
+			<ul>
+				<li>Information about what data is stored</li>
+				<li>Export your data (use the Export Save function)</li>
+				<li>Delete your data (use the Reset Save function)</li>
+			</ul>
+			<p>
+				Since we do not store any personal data on servers, we cannot link any data
+				to individuals. Your game save is yours alone and under your full control.
+			</p>
 		</section>
 
 		<section>
 			<h2>📬 Contact</h2>
-			<p>If you have questions about this privacy policy, please open an issue on the project's repository.</p>
+			<p>
+				If you have questions about this privacy policy, please open an issue on
+				<a href="https://github.com/Shik3i/KoalaTower/issues" target="_blank" rel="noopener">GitHub</a>
+				or contact via Mastodon:
+				<a href="https://hachyderm.io/@koalastuff" target="_blank" rel="noopener">@koalastuff</a>
+			</p>
 		</section>
 
 		<div class="privacy-footer">
@@ -96,6 +180,7 @@
 		padding: 0.35rem 0.75rem;
 		border-radius: var(--radius-sm);
 		border: 1px solid transparent;
+		text-decoration: none;
 	}
 
 	.back-link:hover {
@@ -181,6 +266,13 @@
 		border-radius: 50%;
 	}
 
+	a {
+		color: var(--cyan);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		text-decoration-color: rgba(0, 255, 255, 0.2);
+	}
+
 	.privacy-footer {
 		margin-top: 2.5rem;
 		padding-top: 1.5rem;
@@ -203,9 +295,6 @@
 		}
 		h1 {
 			font-size: 1.4rem;
-		}
-		section {
-			margin-bottom: 1.5rem;
 		}
 	}
 </style>

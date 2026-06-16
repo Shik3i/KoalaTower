@@ -93,7 +93,11 @@
 
 	<footer class="footer">
 		<p>All data stored locally in your browser. No tracking, no cookies.</p>
-		<a href="/privacy" class="footer-link">Privacy Policy</a>
+		<div class="footer-links">
+			<a href="/privacy" class="footer-link">Privacy Policy</a>
+			<span class="footer-sep">·</span>
+			<a href="/imprint" class="footer-link">Imprint</a>
+		</div>
 	</footer>
 </div>
 
@@ -411,9 +415,21 @@
 		text-align: center;
 		z-index: 1;
 		display: flex;
-		gap: 0.75rem;
+		flex-direction: column;
+		gap: 0.5rem;
 		align-items: center;
 		justify-content: center;
+	}
+
+	.footer-links {
+		display: flex;
+		gap: 0.4rem;
+		align-items: center;
+	}
+
+	.footer-sep {
+		color: var(--text-dim);
+		opacity: 0.3;
 	}
 
 	.footer-link {
