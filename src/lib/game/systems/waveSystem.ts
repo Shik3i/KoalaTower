@@ -1,9 +1,10 @@
 import { GAME_CONFIG, WAVE_CONFIG } from '../engine/gameConfig';
 import { EnemyType, type Enemy, type GameState } from '../engine/gameTypes';
-import { createEnemy, getEnemyTypeForWave, getEnemyCountForWave, getSpawnIntervalForWave, resetEnemyIdCounter } from '../balance/enemies';
+import { createEnemy, getEnemyTypeForWave, getEnemyCountForWave, getSpawnIntervalForWave, resetEnemyIdCounter, hasBossEscortsRemaining, consumeBossEscort, getEscortTypeForWave, resetBossEscortCounter } from '../balance/enemies';
 
 export function startNewWave(state: GameState): void {
 	state.wave.currentWave++;
+	resetBossEscortCounter();
 	state.wave.enemiesInWave = getEnemyCountForWave(state.wave.currentWave);
 	state.wave.enemiesSpawned = 0;
 	state.wave.enemiesKilled = 0;
@@ -40,10 +41,23 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 }
 
 function spawnEnemy(state: GameState): void {
-	const types = getEnemyTypeForWave(state.wave.currentWave);
-	const type = types.length === 1
-		? types[0]!
-		: types[Math.floor(Math.random() * types.length)]!;
+	const isBossWave = state.wave.currentWave % WAVE_CONFIG.BOSS_INTERVAL === 0;
+	let type: EnemyType;
+
+	if (isBossWave && hasBossEscortsRemaining()) {
+		// Spawn escort enemies first, faster than normal
+		consumeBossEscort();
+		type = getEscortTypeForWave(state.wave.currentWave);
+		// Boss escorts spawn faster
+		state.wave.spawnInterval = getSpawnIntervalForWave(state.wave.currentWave) * 0.6;
+	} else {
+		// Normal wave or boss time
+		const types = getEnemyTypeForWave(state.wave.currentWave);
+		type = types.length === 1
+			? types[0]!
+			: types[Math.floor(Math.random() * types.length)]!;
+		state.wave.spawnInterval = getSpawnIntervalForWave(state.wave.currentWave);
+	}
 
 	const { x, y } = getSpawnPosition(state);
 	const enemy = createEnemy(type, state.wave.currentWave, x, y);

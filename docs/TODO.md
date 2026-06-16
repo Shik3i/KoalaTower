@@ -1,19 +1,23 @@
 # KoalaTower TODO
 
 ## Polish & UX
-- [ ] Add enemy kill count per wave display in run info
+- [x] Add boss count to run summary
+- [x] Polish wave announcement animation (boss-specific pink theme)
+- [x] Add boss warning before boss wave (escort-first spawning signals danger)
+- [x] Improve damage number overlap handling (better sizing, stroke for readability)
+- [x] Improve coin/cash gain popups (larger, color-coded)
 - [ ] Add boss health bar at top of screen during boss waves
-- [ ] Improve damage number overlap handling (spread them out)
-- [ ] Add coin/cash gain popups when earning currency
 - [ ] Add wave milestone notifications with reward popup
-- [ ] Polish wave announcement animation (scale-in + glow)
-- [ ] Add boss warning 3 seconds before boss wave starts
 - [ ] Improve multishot spread angle visualization
 - [ ] Add crit hit screen flash effect
 - [ ] Add tower firing muzzle flash
 - [ ] Draw enemy path indicators (subtle lines from spawn to tower)
 
 ## Gameplay
+- [x] Boss waves now include escort enemies before the boss
+- [x] Improved first-50-waves balancing (gentler start, progressive ramp)
+- [x] Battle upgrade costs lowered, effects increased for better early-game feel
+- [x] Workshop upgrade costs lowered, more achievable after first runs
 - [ ] Fix enemy attack cooldown — ranged enemies should actually shoot
 - [ ] Implement proper tower HP bar on game canvas
 - [ ] Add defense upgrade damage reduction calculation to enemy damage
@@ -22,7 +26,6 @@
 - [ ] Implement challenge mode modifiers in game engine
 - [ ] Add tier unlock logic based on highest wave
 - [ ] Implement milestone rewards with coin payouts
-- [ ] Add boss count to run summary
 
 ## Performance
 - [ ] Add object pooling for projectiles and particles
@@ -32,6 +35,8 @@
 - [ ] Handle tab visibility properly (pause/fps-limit when hidden)
 
 ## Mobile
+- [x] Bottom upgrade drawer for mobile (thumb-friendly)
+- [x] Portrait-optimized layout, canvas stays focused
 - [ ] Add swipe gesture to close mobile panels
 - [ ] Make upgrade cards larger on small screens
 - [ ] Improve touch response on canvas (no-op area for UI toggles)

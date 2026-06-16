@@ -44,32 +44,39 @@ export const ENEMY_BASE_STATS = {
 	fast: { hp: 10, speed: 120, reward: 3, damage: 3, attackRange: 25, attackCooldown: 1.0, size: 12 },
 	tank: { hp: 80, speed: 35, reward: 12, damage: 8, attackRange: 30, attackCooldown: 2.0, size: 24 },
 	ranged: { hp: 15, speed: 50, reward: 8, damage: 6, attackRange: 200, attackCooldown: 2.5, size: 14 },
-	boss: { hp: 500, speed: 30, reward: 100, damage: 20, attackRange: 40, attackCooldown: 1.0, size: 36 },
+	boss: { hp: 500, speed: 30, reward: 100, damage: 25, attackRange: 40, attackCooldown: 1.0, size: 40 },
 } as const;
 
 export const WAVE_CONFIG = {
-	BASE_ENEMIES: 5,
-	ENEMIES_PER_WAVE: 2,
+	BASE_ENEMIES: 4,
+	ENEMIES_PER_WAVE: 1.5,
+	BOSS_ESCORT_COUNT: 4,
 	SPAWN_INTERVAL_BASE: 1.2,
 	SPAWN_INTERVAL_MIN: 0.15,
 	SPAWN_INTERVAL_DECAY: 0.995,
 	BETWEEN_WAVE_TIME: 3.0,
 	BOSS_INTERVAL: 10,
-	BONUS_CASH_PER_WAVE: 10,
+	BONUS_CASH_PER_WAVE: 15,
 };
 
-/** Compute enemy stat multiplier for a given wave (supports 10k+). */
+/** Compute enemy stat multiplier for a given wave (supports 10k+).
+ *  Early waves (1-10) are very gentle, then ramp up.
+ */
 export function getWaveHpMultiplier(wave: number): number {
+	if (wave <= 5) return 1 + wave * 0.05;
+	if (wave <= 10) return 1.25 + (wave - 5) * 0.08;
 	return 1 + wave * 0.04 + wave * wave * 0.00005;
 }
 export function getWaveDamageMultiplier(wave: number): number {
+	if (wave <= 10) return 1 + wave * 0.02;
 	return 1 + wave * 0.025;
 }
 export function getWaveSpeedMultiplier(wave: number): number {
 	return 1 + Math.log10(wave + 1) * 0.15;
 }
 export function getWaveRewardMultiplier(wave: number): number {
-	return 1 + wave * 0.03 + wave * wave * 0.00002;
+	if (wave <= 10) return 1 + wave * 0.08;
+	return 1 + wave * 0.05 + wave * wave * 0.00003;
 }
 /** Enemy armour reduces incoming damage — diminishing returns, approaches 0.85 asymptotically. */
 export function getWaveArmor(wave: number): number {

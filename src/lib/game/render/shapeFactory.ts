@@ -4,8 +4,11 @@ import type { Enemy, Particle, DamageNumber } from '../engine/gameTypes';
 /** Draw an octagonal tower. Only projectiles are round. */
 export function drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, hp: number, maxHp: number): void {
 	const t = Date.now() / 1000;
-	const pulse = Math.sin(t * 1.2) * 0.2 + 0.8;
-	const glowPulse = Math.sin(t * 0.8) * 0.3 + 0.7;
+	const pulse = Math.sin(t * 1.2) * 0.15 + 0.85;
+	const glowPulse = Math.sin(t * 0.8) * 0.25 + 0.75;
+	const hpPct = Math.max(0, hp / maxHp);
+	const hpDanger = hpPct < 0.3;
+	const dangerPulse = Math.sin(t * 4) * 0.3 + 0.7;
 
 	// Helper: octagon path centered at (cx, cy) with given radius
 	function octPath(cx: number, cy: number, r: number) {
@@ -20,10 +23,13 @@ export function drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, s
 	}
 
 	// === Outer atmospheric glow (radial, can stay round) ===
+	const glowColor = hpDanger ? '255, 68, 68' : '0, 255, 255';
+	const glowAlpha = hpDanger ? 0.12 : 0.06;
+	const pulsingGlow = hpDanger ? dangerPulse : glowPulse;
 	const atmos = ctx.createRadialGradient(x, y, 0, x, y, size * 4);
-	atmos.addColorStop(0, `rgba(0, 255, 255, ${0.06 * glowPulse})`);
-	atmos.addColorStop(0.3, `rgba(68, 136, 255, ${0.04 * glowPulse})`);
-	atmos.addColorStop(0.6, `rgba(136, 68, 255, ${0.02 * glowPulse})`);
+	atmos.addColorStop(0, `rgba(${glowColor}, ${glowAlpha * pulsingGlow})`);
+	atmos.addColorStop(0.3, `rgba(68, 136, 255, ${0.04 * pulsingGlow})`);
+	atmos.addColorStop(0.6, `rgba(136, 68, 255, ${0.02 * pulsingGlow})`);
 	atmos.addColorStop(1, 'rgba(0, 0, 0, 0)');
 	ctx.fillStyle = atmos;
 	ctx.beginPath();
@@ -32,17 +38,25 @@ export function drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, s
 
 	// === Outer glow octagons ===
 	ctx.save();
-	ctx.shadowColor = 'rgba(0, 255, 255, 0.5)';
-	ctx.shadowBlur = 25 * pulse;
-	ctx.strokeStyle = `rgba(0, 255, 255, ${0.12 * pulse})`;
+	const outerGlowColor = hpDanger ? 'rgba(255, 68, 68, 0.7)' : 'rgba(0, 255, 255, 0.6)';
+	ctx.shadowColor = outerGlowColor;
+	ctx.shadowBlur = 30 * pulse;
+	ctx.strokeStyle = hpDanger
+		? `rgba(255, 68, 68, ${0.2 * dangerPulse})`
+		: `rgba(0, 255, 255, ${0.14 * pulse})`;
 	ctx.lineWidth = 1.5;
 	octPath(x, y, size * 1.35);
 	ctx.stroke();
-	ctx.strokeStyle = `rgba(68, 136, 255, ${0.08 * pulse})`;
-	octPath(x, y, size * 1.6);
-	ctx.stroke();
 	ctx.shadowBlur = 0;
 	ctx.restore();
+
+	// Second outer ring
+	ctx.strokeStyle = hpDanger
+		? `rgba(255, 136, 68, ${0.1 * dangerPulse})`
+		: `rgba(68, 136, 255, ${0.08 * pulse})`;
+	ctx.lineWidth = 1;
+	octPath(x, y, size * 1.6);
+	ctx.stroke();
 
 	// === Tower body: octagon with gradient ===
 	const bodyGrad = ctx.createRadialGradient(x - size * 0.2, y - size * 0.25, 0, x, y, size);
@@ -57,27 +71,35 @@ export function drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, s
 
 	// === Neon border with glow ===
 	ctx.save();
-	ctx.shadowColor = 'rgba(0, 255, 255, 0.5)';
-	ctx.shadowBlur = 15 * pulse;
-	ctx.strokeStyle = `rgba(0, 255, 255, ${0.7 * pulse})`;
-	ctx.lineWidth = 2;
+	const borderColor = hpDanger ? 'rgba(255, 68, 68, 0.9)' : 'rgba(0, 255, 255, 0.8)';
+	ctx.shadowColor = borderColor;
+	ctx.shadowBlur = hpDanger ? 25 * dangerPulse : 18 * pulse;
+	ctx.strokeStyle = hpDanger
+		? `rgba(255, 68, 68, ${0.85 * dangerPulse})`
+		: `rgba(0, 255, 255, ${0.75 * pulse})`;
+	ctx.lineWidth = hpDanger ? 2.5 : 2;
 	octPath(x, y, size);
 	ctx.stroke();
 	ctx.shadowBlur = 0;
 	ctx.restore();
 
 	// === Inner octagon rings ===
-	ctx.strokeStyle = `rgba(0, 255, 255, ${0.12 * pulse})`;
+	ctx.strokeStyle = hpDanger
+		? `rgba(255, 136, 68, ${0.18 * dangerPulse})`
+		: `rgba(0, 255, 255, ${0.12 * pulse})`;
 	ctx.lineWidth = 1;
 	octPath(x, y, size * 0.55);
 	ctx.stroke();
-	ctx.strokeStyle = `rgba(68, 136, 255, ${0.08 * pulse})`;
+	ctx.strokeStyle = hpDanger
+		? `rgba(255, 68, 68, ${0.1 * dangerPulse})`
+		: `rgba(68, 136, 255, ${0.08 * pulse})`;
 	octPath(x, y, size * 0.3);
 	ctx.stroke();
 
 	// === Center core (small octagon) ===
+	const coreColor = hpDanger ? `rgba(255, 68, 68, ${0.6 * dangerPulse})` : `rgba(0, 255, 255, ${0.5 * pulse})`;
 	const coreGrad = ctx.createRadialGradient(x, y, 0, x, y, size * 0.2);
-	coreGrad.addColorStop(0, `rgba(0, 255, 255, ${0.5 * pulse})`);
+	coreGrad.addColorStop(0, coreColor);
 	coreGrad.addColorStop(1, 'rgba(0, 255, 255, 0)');
 	ctx.fillStyle = coreGrad;
 	octPath(x, y, size * 0.2);
@@ -88,7 +110,10 @@ export function drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, s
 	ctx.save();
 	ctx.translate(x, y);
 	ctx.rotate(rot);
-	ctx.strokeStyle = `rgba(0, 255, 255, ${0.08 * pulse})`;
+	const crossColor = hpDanger
+		? `rgba(255, 136, 68, ${0.15 * dangerPulse})`
+		: `rgba(0, 255, 255, ${0.10 * pulse})`;
+	ctx.strokeStyle = crossColor;
 	ctx.lineWidth = 1;
 	for (let i = 0; i < 4; i++) {
 		const a = (Math.PI / 2) * i;
@@ -99,28 +124,41 @@ export function drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, s
 	}
 	ctx.restore();
 
-	// === HP bar ===
-	const barW = size * 2.6;
-	const barH = 4;
+	// === HP bar (always visible, more prominent) ===
+	const barW = size * 2.8;
+	const barH = 5;
 	const barX = x - barW / 2;
-	const barY = y - size - 14;
-	const hpPct = Math.max(0, hp / maxHp);
+	const barY = y - size - 16;
 
-	ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+	// Background
+	ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
 	ctx.beginPath();
-	ctx.roundRect?.(barX, barY, barW, barH, 2) ?? ctx.rect(barX, barY, barW, barH);
+	ctx.roundRect?.(barX, barY, barW, barH, 2.5) ?? ctx.rect(barX, barY, barW, barH);
 	ctx.fill();
 
+	// Fill
 	const hpColor = hpPct > 0.5 ? 'rgb(68, 255, 136)' : hpPct > 0.25 ? 'rgb(255, 136, 68)' : 'rgb(255, 68, 68)';
 	ctx.fillStyle = hpColor;
 	ctx.beginPath();
-	ctx.roundRect?.(barX, barY, barW * hpPct, barH, 2) ?? ctx.rect(barX, barY, barW * hpPct, barH);
+	ctx.roundRect?.(barX, barY, barW * hpPct, barH, 2.5) ?? ctx.rect(barX, barY, barW * hpPct, barH);
 	ctx.fill();
 
-	ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
+	// Glow on fill
+	ctx.save();
+	ctx.shadowColor = hpColor;
+	ctx.shadowBlur = hpDanger ? 12 : 6;
+	ctx.fillStyle = hpColor;
+	ctx.beginPath();
+	ctx.roundRect?.(barX, barY, barW * hpPct, barH, 2.5) ?? ctx.rect(barX, barY, barW * hpPct, barH);
+	ctx.fill();
+	ctx.shadowBlur = 0;
+	ctx.restore();
+
+	// Border
+	ctx.strokeStyle = hpDanger ? `rgba(255, 68, 68, 0.3)` : 'rgba(0, 255, 255, 0.2)';
 	ctx.lineWidth = 1;
 	ctx.beginPath();
-	ctx.roundRect?.(barX, barY, barW, barH, 2) ?? ctx.rect(barX, barY, barW, barH);
+	ctx.roundRect?.(barX, barY, barW, barH, 2.5) ?? ctx.rect(barX, barY, barW, barH);
 	ctx.stroke();
 }
 
@@ -140,15 +178,24 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy): void {
 
 	// === Outer glow ===
 	if (enemy.isBoss) {
-		const p = Math.sin(Date.now() / 500) * 0.2 + 0.8;
-		const g = ctx.createRadialGradient(0, 0, s * 0.2, 0, 0, s * 2.5);
-		g.addColorStop(0, hexToRgba(enemy.color, 0.2 * p));
-		g.addColorStop(0.5, hexToRgba(enemy.color, 0.08 * p));
+		const p = Math.sin(Date.now() / 500) * 0.25 + 0.75;
+		const g = ctx.createRadialGradient(0, 0, s * 0.2, 0, 0, s * 3);
+		g.addColorStop(0, hexToRgba(enemy.color, 0.25 * p));
+		g.addColorStop(0.4, hexToRgba(enemy.color, 0.12 * p));
 		g.addColorStop(1, 'rgba(0,0,0,0)');
 		ctx.fillStyle = g;
 		ctx.beginPath();
-		ctx.arc(0, 0, s * 2.5, 0, Math.PI * 2);
+		ctx.arc(0, 0, s * 3, 0, Math.PI * 2);
 		ctx.fill();
+
+		// Boss outer aura ring
+		ctx.strokeStyle = hexToRgba(enemy.color, 0.15 * p);
+		ctx.lineWidth = 1.5;
+		ctx.setLineDash([4, 6]);
+		ctx.beginPath();
+		ctx.arc(0, 0, s * 2, 0, Math.PI * 2);
+		ctx.stroke();
+		ctx.setLineDash([]);
 	} else {
 		const g = ctx.createRadialGradient(0, 0, s * 0.1, 0, 0, s * 1.5);
 		g.addColorStop(0, hexToRgba(enemy.color, 0.1));
@@ -159,7 +206,11 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy): void {
 		ctx.fill();
 	}
 
-	// === Shape fill ===
+	// === Shape fill with shadow glow ===
+	ctx.save();
+	ctx.shadowColor = flash ? 'rgba(255,255,255,0.8)' : hexToRgba(enemy.color, 0.4);
+	ctx.shadowBlur = flash ? 20 : (enemy.isBoss ? 15 : 6);
+
 	ctx.globalAlpha = alpha;
 	ctx.fillStyle = color;
 	ctx.strokeStyle = strokeColor;
@@ -206,6 +257,8 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy): void {
 	}
 	ctx.fill();
 	ctx.stroke();
+	ctx.shadowBlur = 0;
+	ctx.restore();
 
 	// === Inner shape detail ===
 	ctx.globalAlpha = alpha * 0.4;
@@ -252,28 +305,77 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy): void {
 
 	ctx.globalAlpha = 1;
 
-	// === HP bar ===
-	if (enemy.hp < enemy.maxHp && !enemy.isBoss) {
-		const barW = s * 1.6;
-		const barH = 3;
+	// === HP bar (always visible when damaged, more readable) ===
+	if (enemy.hp < enemy.maxHp) {
+		const barW = enemy.isBoss ? s * 2.2 : s * 1.8;
+		const barH = enemy.isBoss ? 4 : 3;
 		const barX = -barW / 2;
-		const barY = -s / 2 - 7;
+		const barY = -s / 2 - 8;
 		const hpPct = enemy.hp / enemy.maxHp;
 
-		ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-		ctx.fillRect(barX, barY, barW, barH);
-		ctx.fillStyle = hexToRgba(enemy.color);
-		ctx.fillRect(barX, barY, barW * hpPct, barH);
+		// Background
+		ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+		ctx.beginPath();
+		ctx.roundRect?.(barX, barY, barW, barH, 1.5) ?? ctx.rect(barX, barY, barW, barH);
+		ctx.fill();
+
+		// Fill with color based on HP%
+		const hpColor = hpPct > 0.5 ? hexToRgba(enemy.color) : hpPct > 0.25 ? '#FF8844' : '#FF4444';
+		ctx.fillStyle = hpColor;
+		ctx.beginPath();
+		ctx.roundRect?.(barX, barY, barW * hpPct, barH, 1.5) ?? ctx.rect(barX, barY, barW * hpPct, barH);
+		ctx.fill();
+
+		// Glow on fill
+		ctx.save();
+		ctx.shadowColor = hpColor;
+		ctx.shadowBlur = 4;
+		ctx.fillStyle = hpColor;
+		ctx.beginPath();
+		ctx.roundRect?.(barX, barY, barW * hpPct, barH, 1.5) ?? ctx.rect(barX, barY, barW * hpPct, barH);
+		ctx.fill();
+		ctx.shadowBlur = 0;
+		ctx.restore();
 	}
 
-	// === Boss extra glow ring ===
+	// === Boss: larger HP bar always shown ===
 	if (enemy.isBoss) {
 		const p = Math.sin(Date.now() / 400) * 0.15 + 0.85;
-		ctx.strokeStyle = hexToRgba(enemy.color, 0.3 * p);
+
+		// Extra glow ring
+		ctx.strokeStyle = hexToRgba(enemy.color, 0.25 * p);
 		ctx.lineWidth = 2;
 		ctx.beginPath();
-		ctx.arc(0, 0, s * 0.7, 0, Math.PI * 2);
+		ctx.arc(0, 0, s * 0.75, 0, Math.PI * 2);
 		ctx.stroke();
+
+		// Boss HP bar (always visible)
+		const barW = s * 2.4;
+		const barH = 5;
+		const barX = -barW / 2;
+		const barY = s / 2 + 6;
+		const hpPct = enemy.hp / enemy.maxHp;
+
+		ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+		ctx.beginPath();
+		ctx.roundRect?.(barX, barY, barW, barH, 2) ?? ctx.rect(barX, barY, barW, barH);
+		ctx.fill();
+
+		const hpColor = hpPct > 0.5 ? hexToRgba(enemy.color) : hpPct > 0.25 ? '#FF8844' : '#FF4444';
+		ctx.fillStyle = hpColor;
+		ctx.beginPath();
+		ctx.roundRect?.(barX, barY, barW * hpPct, barH, 2) ?? ctx.rect(barX, barY, barW * hpPct, barH);
+		ctx.fill();
+
+		ctx.save();
+		ctx.shadowColor = hpColor;
+		ctx.shadowBlur = 6;
+		ctx.fillStyle = hpColor;
+		ctx.beginPath();
+		ctx.roundRect?.(barX, barY, barW * hpPct, barH, 2) ?? ctx.rect(barX, barY, barW * hpPct, barH);
+		ctx.fill();
+		ctx.shadowBlur = 0;
+		ctx.restore();
 	}
 
 	ctx.restore();
@@ -287,12 +389,25 @@ export function drawProjectile(
 	isCrit: boolean
 ): void {
 	const c = hexToRgba(color);
-	const size = isCrit ? 5 : 3;
+	const size = isCrit ? 6 : 3.5;
 
-	// === Glow ===
+	// === Trail (draw behind projectile) ===
+	if (trail.length > 1) {
+		for (let i = trail.length - 1; i >= 0; i--) {
+			const t = i / trail.length;
+			const alpha = t * (isCrit ? 0.5 : 0.35);
+			const tSize = size * (0.3 + t * 0.5);
+			ctx.fillStyle = hexToRgba(color, alpha);
+			ctx.beginPath();
+			ctx.arc(trail[i]!.x, trail[i]!.y, tSize, 0, Math.PI * 2);
+			ctx.fill();
+		}
+	}
+
+	// === Outer glow ===
 	ctx.save();
 	ctx.shadowColor = c;
-	ctx.shadowBlur = isCrit ? 20 : 10;
+	ctx.shadowBlur = isCrit ? 25 : 12;
 	ctx.fillStyle = c;
 	ctx.beginPath();
 	ctx.arc(position.x, position.y, size, 0, Math.PI * 2);
@@ -306,24 +421,13 @@ export function drawProjectile(
 	ctx.fill();
 	ctx.restore();
 
-	// === Trail ===
-	if (trail.length > 1) {
-		for (let i = 1; i < trail.length; i++) {
-			const alpha = (i / trail.length) * (isCrit ? 0.6 : 0.4);
-			const tSize = isCrit ? (2 + i / trail.length * 2) : (1 + i / trail.length * 1.5);
-			ctx.fillStyle = hexToRgba(color, alpha);
-			ctx.beginPath();
-			ctx.arc(trail[i]!.x, trail[i]!.y, tSize, 0, Math.PI * 2);
-			ctx.fill();
-		}
-	}
-
-	// === Crit flash ===
+	// === Crit ring ===
 	if (isCrit) {
-		ctx.strokeStyle = hexToRgba(color, 0.3);
-		ctx.lineWidth = 1;
+		const pulse = Math.sin(Date.now() / 100) * 0.15 + 0.85;
+		ctx.strokeStyle = hexToRgba(color, 0.3 * pulse);
+		ctx.lineWidth = 1.5;
 		ctx.beginPath();
-		ctx.arc(position.x, position.y, size * 2.5, 0, Math.PI * 2);
+		ctx.arc(position.x, position.y, size * 2.8, 0, Math.PI * 2);
 		ctx.stroke();
 	}
 }
@@ -332,10 +436,17 @@ export function drawParticle(ctx: CanvasRenderingContext2D, p: Particle): void {
 	ctx.save();
 	ctx.globalAlpha = p.alpha;
 	ctx.fillStyle = hexToRgba(p.color, p.alpha);
-	ctx.shadowColor = hexToRgba(p.color, p.alpha * 0.5);
-	ctx.shadowBlur = 6;
+	ctx.shadowColor = hexToRgba(p.color, p.alpha * 0.6);
+	ctx.shadowBlur = 8;
 	ctx.beginPath();
-	ctx.arc(p.x, p.y, p.size * p.alpha, 0, Math.PI * 2);
+	ctx.arc(p.x, p.y, p.size * (0.5 + p.alpha * 0.5), 0, Math.PI * 2);
+	ctx.fill();
+
+	// Bright center
+	ctx.globalAlpha = p.alpha * 0.5;
+	ctx.fillStyle = '#FFFFFF';
+	ctx.beginPath();
+	ctx.arc(p.x, p.y, p.size * 0.3 * p.alpha, 0, Math.PI * 2);
 	ctx.fill();
 	ctx.restore();
 }
@@ -344,22 +455,34 @@ export function drawDamageNumber(ctx: CanvasRenderingContext2D, n: DamageNumber)
 	ctx.save();
 	ctx.globalAlpha = n.alpha;
 	const isCritText = n.color === GAME_CONFIG.NEON_YELLOW;
-	ctx.fillStyle = hexToRgba(n.color);
-	ctx.font = isCritText
-		? 'bold 18px "SF Mono", "Fira Code", monospace'
-		: 'bold 14px "SF Mono", "Fira Code", monospace';
+	const isCoinText = n.color === GAME_CONFIG.NEON_GREEN;
+
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.shadowColor = hexToRgba(n.color, 0.6);
-	ctx.shadowBlur = isCritText ? 12 : 6;
 
+	// Glow shadow
+	ctx.shadowColor = hexToRgba(n.color, 0.7);
+	ctx.shadowBlur = isCritText ? 16 : isCoinText ? 10 : 8;
+
+	// Font sizes
 	if (isCritText) {
-		ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-		ctx.lineWidth = 2;
-		ctx.strokeText(n.text, n.x, n.y);
+		ctx.font = 'bold 20px "SF Mono", "Fira Code", monospace';
+	} else if (isCoinText) {
+		ctx.font = 'bold 13px "SF Mono", "Fira Code", monospace';
+	} else {
+		ctx.font = 'bold 15px "SF Mono", "Fira Code", monospace';
 	}
 
+	// Stroke for readability
+	ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+	ctx.lineWidth = isCritText ? 3 : 2;
+	ctx.strokeText(n.text, n.x, n.y);
+
+	// Fill
+	ctx.fillStyle = hexToRgba(n.color);
 	ctx.fillText(n.text, n.x, n.y);
+
+	ctx.shadowBlur = 0;
 	ctx.restore();
 }
 

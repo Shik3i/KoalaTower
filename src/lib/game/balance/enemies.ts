@@ -1,6 +1,6 @@
 import { EnemyType } from '../engine/gameTypes';
 import { ENEMY_BASE_STATS, GAME_CONFIG, WAVE_CONFIG, getWaveHpMultiplier, getWaveDamageMultiplier, getWaveSpeedMultiplier, getWaveRewardMultiplier, getWaveArmor } from '../engine/gameConfig';
-import type { Enemy, EnemyConfig } from '../engine/gameTypes';
+import type { Enemy, EnemyConfig, GameState } from '../engine/gameTypes';
 
 let nextEnemyId = 1;
 
@@ -80,24 +80,69 @@ export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawn
 	};
 }
 
+/** Track the boss-wave escort spawn separately from the boss itself. */
+let _bossEscortRemaining = 0;
+
+export function resetBossEscortCounter(): void {
+	_bossEscortRemaining = 0;
+}
+
+/** Returns the current wave's enemy composition via weighted random.
+ *  Boss waves return [EnemyType.Boss] for the boss, but escort enemies
+ *  are spawned separately before the boss via getBossEscortCount().
+ */
 export function getEnemyTypeForWave(wave: number): EnemyType[] {
-	if (wave % WAVE_CONFIG.BOSS_INTERVAL === 0) return [EnemyType.Boss];
+	if (wave % WAVE_CONFIG.BOSS_INTERVAL === 0) {
+		// On boss wave, return only boss type (escorts handled separately)
+		return [EnemyType.Boss];
+	}
 
 	const types: EnemyType[] = [EnemyType.Normal];
 	if (wave >= 3) types.push(EnemyType.Fast);
 	if (wave >= 5) types.push(EnemyType.Tank);
 	if (wave >= 8) types.push(EnemyType.Ranged);
-
-	// Later waves get heavier compositions
-	// After wave 50, sometimes spawn multiple types per wave (handled by spawner via weighted random)
+	if (wave >= 15) { types.push(EnemyType.Normal); types.push(EnemyType.Fast); } // more density
+	if (wave >= 25) types.push(EnemyType.Tank);
 	return types;
 }
 
+/** How many escort enemies appear before a boss on boss waves. */
+export function getBossEscortCount(wave: number): number {
+	return Math.min(3 + Math.floor(wave / 15), WAVE_CONFIG.BOSS_ESCORT_COUNT);
+}
+
+/** Whether we still need to spawn boss escorts. */
+export function hasBossEscortsRemaining(): boolean {
+	return _bossEscortRemaining > 0;
+}
+
+export function consumeBossEscort(): boolean {
+	if (_bossEscortRemaining > 0) {
+		_bossEscortRemaining--;
+		return true;
+	}
+	return false;
+}
+
 export function getEnemyCountForWave(wave: number): number {
-	if (wave % WAVE_CONFIG.BOSS_INTERVAL === 0) return 1;
+	if (wave % WAVE_CONFIG.BOSS_INTERVAL === 0) {
+		const escorts = getBossEscortCount(wave);
+		_bossEscortRemaining = escorts;
+		// Total enemies: escorts + 1 boss
+		return escorts + 1;
+	}
 	// Gradually increase enemy count, cap at reasonable max
 	const base = WAVE_CONFIG.BASE_ENEMIES + Math.floor(wave * WAVE_CONFIG.ENEMIES_PER_WAVE * 0.5);
 	return Math.min(base, 200);
+}
+
+/** Pick a random enemy type for escorts based on wave. */
+export function getEscortTypeForWave(wave: number): EnemyType {
+	const escortTypes: EnemyType[] = [EnemyType.Normal];
+	if (wave >= 3) escortTypes.push(EnemyType.Fast);
+	if (wave >= 5) escortTypes.push(EnemyType.Tank);
+	if (wave >= 10) escortTypes.push(EnemyType.Ranged);
+	return escortTypes[Math.floor(Math.random() * escortTypes.length)]!;
 }
 
 export function getSpawnIntervalForWave(wave: number): number {

@@ -32,8 +32,8 @@ describe('Battle Upgrades', () => {
 	});
 
 	it('getBattleUpgradeEffect should return correct values', () => {
-		expect(getBattleUpgradeEffect(UpgradeId.Damage, 10)).toBe(50);
-		expect(getBattleUpgradeEffect(UpgradeId.CritChance, 5)).toBeCloseTo(0.1);
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 10)).toBe(80);
+		expect(getBattleUpgradeEffect(UpgradeId.CritChance, 5)).toBeCloseTo(0.125);
 		expect(getBattleUpgradeEffect(UpgradeId.Multishot, 3)).toBe(3);
 	});
 });

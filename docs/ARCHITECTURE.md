@@ -100,5 +100,6 @@ koala-tower/
 
 - Waves increase enemy HP, damage, speed, armor, and reward.
 - Armor reduces incoming damage (caps at 80%).
-- Boss waves every 10 waves.
+- Boss waves every 10 waves — boss is preceded by 3–4 escort enemies.
+- Early waves (1–10) use a gentler scaling curve for onboarding.
 - Supports 10,000+ waves with piecewise scaling formulas.

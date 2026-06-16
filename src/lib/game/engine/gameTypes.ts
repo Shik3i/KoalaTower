@@ -245,6 +245,7 @@ export interface GameState {
 	elapsedTime: number;
 	waveStartTime: number;
 	killCount: number;
+	bossesDefeated: number;
 	totalDamageDealt: number;
 	highestWave: number;
 	totalRuns: number;
@@ -275,6 +276,7 @@ export interface GameSnapshot {
 	cash: number;
 	coins: number;
 	killCount: number;
+	bossesDefeated: number;
 	elapsedTime: number;
 	gameOver: boolean;
 	runActive: boolean;

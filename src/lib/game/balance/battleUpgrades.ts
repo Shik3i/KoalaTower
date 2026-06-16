@@ -12,7 +12,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 		description: 'Increases damage per shot',
 		category: 'offense',
 		level: 0, maxLevel: 50,
-		cost: (level) => defaultCost(level, 20, 1.25),
+		cost: (level) => defaultCost(level, 15, 1.22),
 		icon: '⚡',
 	},
 	{
@@ -21,7 +21,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 		description: 'Increases attacks per second',
 		category: 'offense',
 		level: 0, maxLevel: 40,
-		cost: (level) => defaultCost(level, 25, 1.28),
+		cost: (level) => defaultCost(level, 20, 1.25),
 		icon: '🔥',
 	},
 	{
@@ -30,7 +30,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 		description: 'Increases attack range',
 		category: 'offense',
 		level: 0, maxLevel: 30,
-		cost: (level) => defaultCost(level, 30, 1.3),
+		cost: (level) => defaultCost(level, 25, 1.28),
 		icon: '🎯',
 	},
 	{
@@ -39,7 +39,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 		description: 'Extra projectiles per shot',
 		category: 'offense',
 		level: 0, maxLevel: 20,
-		cost: (level) => defaultCost(level, 50, 1.35),
+		cost: (level) => defaultCost(level, 40, 1.32),
 		icon: '💥',
 	},
 	{
@@ -48,7 +48,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 		description: 'Chance to deal 2x damage',
 		category: 'offense',
 		level: 0, maxLevel: 30,
-		cost: (level) => defaultCost(level, 35, 1.3),
+		cost: (level) => defaultCost(level, 25, 1.28),
 		icon: '⭐',
 	},
 	// ── Defense ──
@@ -58,7 +58,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 		description: 'Flat damage reduction per hit',
 		category: 'defense',
 		level: 0, maxLevel: 30,
-		cost: (level) => defaultCost(level, 30, 1.28),
+		cost: (level) => defaultCost(level, 20, 1.25),
 		icon: '🛡️',
 	},
 	{
@@ -67,7 +67,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 		description: 'Increases maximum tower HP',
 		category: 'defense',
 		level: 0, maxLevel: 30,
-		cost: (level) => defaultCost(level, 25, 1.3),
+		cost: (level) => defaultCost(level, 20, 1.28),
 		icon: '❤️',
 	},
 	// ── Utility ──
@@ -77,7 +77,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 		description: '+5% Gold per kill per level',
 		category: 'utility',
 		level: 0, maxLevel: 30,
-		cost: (level) => defaultCost(level, 35, 1.3),
+		cost: (level) => defaultCost(level, 30, 1.28),
 		icon: '💰',
 	},
 	{
@@ -86,7 +86,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 		description: 'Ignores 2% more enemy armor per level',
 		category: 'utility',
 		level: 0, maxLevel: 30,
-		cost: (level) => defaultCost(level, 40, 1.32),
+		cost: (level) => defaultCost(level, 35, 1.30),
 		icon: '🔱',
 	},
 ];
@@ -99,14 +99,14 @@ export function getBattleUpgradeCost(id: UpgradeId, level: number): number {
 
 export function getBattleUpgradeEffect(id: UpgradeId, level: number): number {
 	switch (id) {
-		case UpgradeId.Damage: return level * 5;
-		case UpgradeId.FireRate: return level * 0.08;
-		case UpgradeId.Range: return level * 10;
+		case UpgradeId.Damage: return level * 8;
+		case UpgradeId.FireRate: return level * 0.10;
+		case UpgradeId.Range: return level * 12;
 		case UpgradeId.Multishot: return Math.min(level, 20);
-		case UpgradeId.CritChance: return level * 0.02;
-		case UpgradeId.Defense: return level * 1.5;
-		case UpgradeId.MaxHp: return level * 10;
-		case UpgradeId.GoldAmp: return level * 0.05;
-		case UpgradeId.Piercing: return level * 0.02;
+		case UpgradeId.CritChance: return level * 0.025;
+		case UpgradeId.Defense: return level * 2;
+		case UpgradeId.MaxHp: return level * 15;
+		case UpgradeId.GoldAmp: return level * 0.06;
+		case UpgradeId.Piercing: return level * 0.025;
 	}
 }

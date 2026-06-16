@@ -20,7 +20,7 @@ npm test         # run tests
 - Central neon tower with auto-targeting and 5 enemy types (Normal, Fast, Tank, Ranged, Boss)
 - Endless wave progression with scaling difficulty (supports 10k+ waves)
 - Enemy armor system — armor reduces incoming damage, scales with wave
-- Battle upgrades (Gold) — 7 upgrades per run
+- Battle upgrades (Gold) — 9 upgrades per run
 - Workshop upgrades (KoalaCoins) — 8 permanent upgrades between runs
 - Lab research system — real-time research with timers (progresses offline)
 - Tier system — 5 tiers with progression requirements

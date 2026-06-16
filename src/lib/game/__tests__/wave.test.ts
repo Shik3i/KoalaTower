@@ -12,9 +12,10 @@ describe('Wave Scaling', () => {
 		expect(count9).toBeGreaterThan(count5);
 	});
 
-	it('boss waves should have exactly 1 enemy', () => {
+	it('boss waves should include escorts + boss', () => {
 		const bossWaveCount = getEnemyCountForWave(10);
-		expect(bossWaveCount).toBe(1);
+		// Boss wave has escorts (3 at wave 10) + 1 boss = 4
+		expect(bossWaveCount).toBe(4);
 	});
 
 	it('should have decreasing spawn intervals', () => {

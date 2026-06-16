@@ -112,6 +112,7 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 			if (target.hp <= 0) {
 				target.alive = false;
 				state.killCount++;
+				if (target.isBoss) state.bossesDefeated++;
 				state.wave.enemiesKilled++;
 
 				// Death particles

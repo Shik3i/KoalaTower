@@ -21,7 +21,11 @@
 	let gameOverCoins = $state(0);
 	let gameOverWave = $state(0);
 	let gameOverKills = $state(0);
+	let gameOverBosses = $state(0);
+	let gameOverCash = $state(0);
 	let upgradeCategory = $state<'offense' | 'defense' | 'utility'>('offense');
+	let purchasedUpgrade = $state<string | null>(null);
+	let showMobileUpgrades = $state(false);
 
 	let snap = $state<GameSnapshot>(null!);
 	let coins = $state(0);
@@ -32,6 +36,7 @@
 	let paused = $state(false);
 
 	let showSaveMenu = $state(false);
+	let showSaveIndicator = $state(false);
 	let importText = $state('');
 	let showImportDialog = $state(false);
 	let showResetConfirm = $state(false);
@@ -125,6 +130,8 @@
 				gameOverCoins = koalaCoins;
 				gameOverWave = _w;
 				gameOverKills = engine?.state.killCount ?? 0;
+				gameOverBosses = engine?.state.bossesDefeated ?? 0;
+				gameOverCash = engine?.state.cash ?? 0;
 				showGameOver = true;
 				const save = getCachedSave();
 				if (save && engine) {
@@ -135,6 +142,8 @@
 					highestWaveStore.set(save.highestWave);
 					totalRunsStore.set(save.totalRuns);
 					persistSave(save);
+					showSaveIndicator = true;
+					setTimeout(() => { showSaveIndicator = false; }, 1500);
 				}
 				toast('💀 Game Over — Wave ' + _w, 'warning');
 			},
@@ -149,6 +158,7 @@
 		if (!engine) initEngine();
 		if (!engine) return;
 		showGameOver = false;
+		showMobileUpgrades = false;
 		speed = 1; paused = false;
 		const save = getCachedSave();
 		engine.startRun(save?.workshopUpgrades ?? {}, save?.labLevels ?? {}, coins);
@@ -189,7 +199,12 @@
 	function buyBattleUpgrade(id: UpgradeId) {
 		if (!engine) return;
 		const lv = engine.state.battleUpgrades[id] ?? 0;
-		if (engine.buyBattleUpgrade(id)) { refreshSnap(); toast('⬆ Upgraded!', 'success'); }
+		if (engine.buyBattleUpgrade(id)) {
+			refreshSnap();
+			purchasedUpgrade = id;
+			setTimeout(() => { purchasedUpgrade = null; }, 400);
+			toast('⬆ ' + (BATTLE_UPGRADES.find(u => u.id === id)?.name ?? '') + ' Lv.' + (lv + 1), 'success');
+		}
 		else { toast(lv >= 50 ? '⚠ Max level!' : '💰 Not enough Gold!', lv >= 50 ? 'warning' : 'error'); }
 	}
 	function bLv(id: UpgradeId): number { return snap?.upgradeLevels[id] ?? 0; }
@@ -241,7 +256,8 @@
 			<div class="tb-pill coin-pill"><span>🪙</span><span>{coins.toLocaleString()}</span></div>
 			{#if snap?.runActive}
 				<div class="tb-pill cash-pill"><span>💰</span><span>{Math.floor(snap.cash).toLocaleString()}</span></div>
-				<div class="tb-pill hp-pill"><span>❤️</span><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
+				<div class="tb-pill hp-pill" class:low={snap.towerHp / snap.towerMaxHp < 0.3}><span>❤️</span><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
+				<div class="tb-pill kill-pill"><span>☠</span><span>{snap.killCount}</span></div>
 			{/if}
 		</div>
 		<div class="tb-actions">
@@ -250,8 +266,10 @@
 					<button class="spd-btn" class:on={paused} onclick={() => handleSpeed(0)} title="Pause (Space)">⏸</button>
 					{#each [1,2,3] as s}<button class="spd-btn spd-n" class:on={!paused && speed === s} onclick={() => handleSpeed(s)} title="{s}× ({s})">{s}×</button>{/each}
 					<button class="spd-btn spd-n" class:on={!paused && speed === 5} onclick={() => handleSpeed(4)} title="5× (4)">5×</button>
+					<div class="spd-status" class:paused={paused}>{paused ? '⏸' : speed + '×'}</div>
 				</div>
 			{/if}
+			<div class="save-indicator" class:saving={showSaveIndicator}>{showSaveIndicator ? '💾' : ''}</div>
 			<div class="sv-wrap">
 				<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu">💾</button>
 				{#if showSaveMenu}
@@ -285,15 +303,22 @@
 		<div class="overlay" role="dialog" aria-modal="true">
 			<div class="go-panel">
 				<div class="go-glow"></div>
-				<div class="go-icon">💀</div>
-				<h2 class="go-title">Run Over</h2>
-				<div class="go-wave">Reached Wave <strong>{gameOverWave}</strong></div>
+				<div class="go-icon">{gameOverWave >= highestWave && highestWave > 0 ? '🏆' : '💀'}</div>
+				<h2 class="go-title">{gameOverWave >= highestWave && highestWave > 0 ? 'New Record!' : 'Run Over'}</h2>
+				<div class="go-wave">Reached <strong>Wave {gameOverWave}</strong></div>
+				{#if highestWave > 0 && gameOverWave < highestWave}
+					<div class="go-wave-sub">Best: Wave {highestWave} ({(gameOverWave / highestWave * 100).toFixed(0)}%)</div>
+				{/if}
 				<div class="go-stats">
-					<div class="go-s"><span class="go-si">🪙</span><span class="go-sv">+{gameOverCoins.toLocaleString()}</span><span class="go-sl">KoalaCoins</span></div>
+					<div class="go-s"><span class="go-si">🪙</span><span class="go-sv">+{gameOverCoins.toLocaleString()}</span><span class="go-sl">Coins</span></div>
 					<div class="go-sd"></div>
-					<div class="go-s"><span class="go-si">💀</span><span class="go-sv">{gameOverKills.toLocaleString()}</span><span class="go-sl">Kills</span></div>
+					<div class="go-s"><span class="go-si">☠</span><span class="go-sv">{gameOverKills.toLocaleString()}</span><span class="go-sl">Kills</span></div>
 					<div class="go-sd"></div>
-					<div class="go-s"><span class="go-si">🏆</span><span class="go-sv">{highestWave}</span><span class="go-sl">Best Wave</span></div>
+					<div class="go-s"><span class="go-si">👑</span><span class="go-sv">{gameOverBosses}</span><span class="go-sl">Bosses</span></div>
+				</div>
+				<div class="go-stats-sub">
+					<span>💰 {Math.floor(gameOverCash).toLocaleString()} Gold earned</span>
+					<span>🏆 Best: Wave {highestWave}</span>
 				</div>
 				<button class="go-btn" onclick={startRun}>▶ Play Again</button>
 				<div class="go-row2">
@@ -409,7 +434,8 @@
 										{@const cost = u.cost(lv)}
 										{@const aff = snap.cash >= cost}
 										{@const mx = lv >= u.maxLevel}
-										<button class="uc" class:aff={aff && !mx} class:mx={mx} disabled={!aff || mx || !snap?.runActive} onclick={() => buyBattleUpgrade(u.id)} title={'Current: ' + upgradeCurrentValue(u.id, lv) + '\nNext: ' + upgradeNextValue(u.id, lv) + '\nCost: ' + cost + ' Gold'}>
+										{@const justBought = purchasedUpgrade === u.id}
+										<button class="uc" class:aff={aff && !mx} class:mx={mx} class:purchased={justBought} disabled={!aff || mx || !snap?.runActive} onclick={() => buyBattleUpgrade(u.id)} title={'Current: ' + upgradeCurrentValue(u.id, lv) + '\nNext: ' + upgradeNextValue(u.id, lv) + '\nCost: ' + cost + ' Gold'}>
 											<div class="uc-t"><span class="uci">{u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">Lv.{lv}</span></div>
 											<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
 											<div class="uc-eff">{upgradeCurrentValue(u.id, lv)}</div>
@@ -426,12 +452,42 @@
 		{/if}
 	</div>
 
-	<!-- Mobile: only battle tab -->
+	<!-- Mobile: battle upgrades drawer + nav -->
 	{#if isMobile}
 		<nav class="mn">
-			<button class="mnb on"><span class="mni">⚔</span><span class="mnl">Battle</span></button>
+			<button class="mnb" class:on={!showMobileUpgrades} onclick={() => showMobileUpgrades = false}><span class="mni">🎮</span><span class="mnl">Game</span></button>
+			<button class="mnb" class:on={showMobileUpgrades} onclick={() => showMobileUpgrades = !showMobileUpgrades}><span class="mni">⚔</span><span class="mnl">Upgrades</span></button>
 			<a href="/hub" class="mnb"><span class="mni">🏪</span><span class="mnl">Workshop</span></a>
 		</nav>
+		{#if showMobileUpgrades && snap?.runActive}
+			<div class="mob-upgrade-drawer">
+				<div class="mob-ug-header">
+					<span>⚔ Battle Upgrades</span>
+					<button class="mob-ug-close" onclick={() => showMobileUpgrades = false}>✕</button>
+				</div>
+				<div class="cat-tabs">
+					<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'}>⚔ Offense</button>
+					<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'}>🛡️ Defense</button>
+					<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'}>🔧 Utility</button>
+				</div>
+				<div class="ug mob-ug-list">
+					{#each BATTLE_UPGRADES.filter(u => u.category === upgradeCategory) as u}
+						{@const lv = bLv(u.id)}
+						{@const nl = Math.min(lv + 1, u.maxLevel)}
+						{@const cost = u.cost(lv)}
+						{@const aff = snap.cash >= cost}
+						{@const mx = lv >= u.maxLevel}
+						{@const justBought = purchasedUpgrade === u.id}
+						<button class="uc" class:aff={aff && !mx} class:mx={mx} class:purchased={justBought} disabled={!aff || mx || !snap?.runActive} onclick={() => buyBattleUpgrade(u.id)}>
+							<div class="uc-t"><span class="uci">{u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">Lv.{lv}</span></div>
+							<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
+							<div class="uc-eff">{upgradeCurrentValue(u.id, lv)}</div>
+							<div class="uc-b"><span class="ucc">💰{cost}</span><span class="ucnx">{mx ? 'MAXED' : '→ ' + upgradeNextValue(u.id, lv)}</span></div>
+						</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -457,7 +513,14 @@
 	.coin-pill span:last-child { color:var(--yellow); }
 	.cash-pill span:last-child { color:var(--green); }
 	.hp-pill span:nth-child(2) { color:#FF9988; }
+	.hp-pill.low span:nth-child(2) { color:#FF4444; animation:hpDanger 0.5s ease-in-out infinite; }
+	@keyframes hpDanger { 0%,100%{opacity:1} 50%{opacity:0.5} }
+	.kill-pill span:last-child { color:var(--violet); }
 	.spd-grp { display:flex; gap:1px; align-items:center; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:100px; padding:1px; }
+	.spd-status { font-size:.5rem; color:var(--cyan); font-family:var(--font-mono); padding:0 .25rem; }
+	.spd-status.paused { color:var(--yellow); }
+	.save-indicator { width:8px; height:8px; border-radius:50%; background:rgba(68,255,136,0); transition:all .3s ease; flex-shrink:0; }
+	.save-indicator.saving { background:rgba(68,255,136,0.6); box-shadow:0 0 6px rgba(68,255,136,0.4); }
 	.spd-btn { padding:.15rem .4rem; font-size:.58rem; font-family:var(--font-mono); color:var(--text-dim); border-radius:100px; transition:all var(--transition-fast); line-height:1; cursor:pointer; }
 	.spd-btn:hover { color:var(--text-secondary); background:rgba(255,255,255,.04); }
 	.spd-btn.on { color:var(--cyan); background:rgba(0,255,255,.1); }
@@ -517,6 +580,8 @@
 	.uc { display:flex; flex-direction:column; gap:.12rem; padding:.3rem .4rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition-fast); text-align:left; width:100%; }
 	.uc.aff { border-color:rgba(68,255,136,.25); }
 	.uc.aff:hover { border-color:var(--cyan); background:rgba(0,255,255,.05); box-shadow:0 0 8px rgba(0,255,255,.06); }
+	.uc.purchased { animation:purchaseGlow .4s ease-out; }
+	@keyframes purchaseGlow { 0%{box-shadow:0 0 0 rgba(0,255,255,0)} 30%{box-shadow:0 0 20px rgba(0,255,255,0.6),0 0 40px rgba(0,255,255,0.2)} 100%{box-shadow:0 0 0 rgba(0,255,255,0)} }
 	.uc.mx { opacity:.35; cursor:default; }
 	.uc:disabled:not(.mx) { opacity:.5; cursor:default; }
 	.uc-t { display:flex; align-items:center; gap:.2rem; }
@@ -539,18 +604,20 @@
 	.hub-shortcut { margin-top:.5rem; text-align:center; font-size:.65rem; }
 	.hub-shortcut a { color:var(--text-dim); text-decoration:none; transition:all var(--transition-fast); }
 	.hub-shortcut a:hover { color:var(--cyan); }
-	.go-panel { position:relative; text-align:center; padding:2rem 1.75rem 1.5rem; background:var(--bg-secondary); border:1px solid rgba(255,68,170,.2); border-radius:var(--radius-xl); max-width:320px; width:100%; overflow:hidden; animation:si .3s ease; box-shadow:0 0 60px rgba(255,68,170,.06); }
+	.go-panel { position:relative; text-align:center; padding:2rem 1.75rem 1.5rem; background:var(--bg-secondary); border:1px solid rgba(255,68,170,.2); border-radius:var(--radius-xl); max-width:340px; width:90%; overflow:hidden; animation:si .3s ease; box-shadow:0 0 60px rgba(255,68,170,.06); }
 	.go-glow { position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:radial-gradient(circle at center,rgba(255,68,170,.04) 0%,transparent 60%); pointer-events:none; }
 	.go-icon { font-size:2.6rem; margin-bottom:.3rem; display:block; }
 	.go-title { font-size:1.5rem; color:var(--pink); margin-bottom:.1rem; }
-	.go-wave { font-size:.8rem; color:var(--text-dim); margin-bottom:1.1rem; font-family:var(--font-mono); }
+	.go-wave { font-size:.8rem; color:var(--text-dim); margin-bottom:.1rem; font-family:var(--font-mono); }
 	.go-wave strong { color:var(--text-primary); }
-	.go-stats { display:flex; align-items:center; justify-content:center; gap:.8rem; margin-bottom:1.1rem; padding:.75rem; background:rgba(0,0,0,.12); border-radius:var(--radius-md); }
+	.go-wave-sub { font-size:.65rem; color:var(--text-dim); margin-bottom:1rem; font-family:var(--font-mono); }
+	.go-stats { display:flex; align-items:center; justify-content:center; gap:.8rem; margin-bottom:.5rem; padding:.6rem .75rem; background:rgba(0,0,0,.12); border-radius:var(--radius-md); }
+	.go-stats-sub { display:flex; justify-content:center; gap:1rem; font-size:.55rem; color:var(--text-dim); margin-bottom:1rem; font-family:var(--font-mono); }
 	.go-s { text-align:center; min-width:55px; }
 	.go-si { font-size:1rem; display:block; margin-bottom:.1rem; }
-	.go-sv { font-size:1.1rem; font-weight:700; font-family:var(--font-mono); color:var(--text-primary); }
-	.go-sl { font-size:.52rem; color:var(--text-dim); margin-top:.05rem; text-transform:uppercase; letter-spacing:.05em; }
-	.go-sd { width:1px; height:30px; background:var(--border-neon); }
+	.go-sv { font-size:1rem; font-weight:700; font-family:var(--font-mono); color:var(--text-primary); }
+	.go-sl { font-size:.5rem; color:var(--text-dim); margin-top:.05rem; text-transform:uppercase; letter-spacing:.05em; }
+	.go-sd { width:1px; height:28px; background:var(--border-neon); }
 	.go-btn { display:block; width:100%; padding:.65rem; background:linear-gradient(135deg,var(--cyan),var(--blue)); color:var(--bg-primary); font-weight:700; font-size:.9rem; border-radius:var(--radius-md); cursor:pointer; transition:all var(--transition-normal); box-shadow:0 0 20px rgba(0,255,255,.1); }
 	.go-btn:hover { box-shadow:0 0 30px rgba(0,255,255,.2); transform:translateY(-1px); }
 	.go-row2 { display:flex; gap:.4rem; margin-top:.45rem; }
@@ -571,8 +638,21 @@
 	.mnb { flex:1; display:flex; flex-direction:column; align-items:center; padding:.35rem .05rem; font-size:.5rem; color:var(--text-dim); text-decoration:none; gap:1px; position:relative; }
 	.mnb.on { color:var(--cyan); }
 	.mni { font-size:1rem; } .mnl { font-size:.48rem; }
+	.mob-upgrade-drawer { position:fixed; bottom:var(--mob-nav-h,48px); left:0; right:0; max-height:55vh; background:var(--bg-secondary); border-top:1px solid var(--border-neon-strong); border-radius:var(--radius-lg) var(--radius-lg) 0 0; z-index:150; overflow-y:auto; padding:.5rem .65rem .75rem; animation:si .2s ease; box-shadow:0 -8px 32px rgba(0,0,0,.4); }
+	.mob-ug-header { display:flex; justify-content:space-between; align-items:center; font-size:.7rem; color:var(--cyan); font-family:var(--font-mono); margin-bottom:.35rem; }
+	.mob-ug-close { color:var(--text-dim); font-size:.8rem; padding:.1rem .3rem; cursor:pointer; }
+	.mob-ug-list { max-height:35vh; overflow-y:auto; }
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	@keyframes si { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
-	@media(min-width:768px){ .mn,.mob-spd{display:none} }
-	@media(max-width:767px){ .topbar{padding:.25rem .4rem;gap:.25rem} .tb-brand{font-size:.7rem} .tb-div{display:none} .spd-grp{display:none} }
+	@media(min-width:768px){ .mn,.mob-spd,.mob-upgrade-drawer{display:none} }
+	@media(max-width:767px){
+		.topbar{padding:.2rem .3rem;gap:.2rem}
+		.tb-brand{font-size:.65rem}
+		.tb-div{display:none}
+		.tb-pill{padding:.08rem .3rem;font-size:.55rem;gap:.1rem}
+		.tb-max{display:none}
+		.spd-grp{display:none}
+		.save-indicator{display:none}
+		:root{--mob-nav-h:48px}
+	}
 </style>
