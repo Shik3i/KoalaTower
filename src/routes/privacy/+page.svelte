@@ -134,9 +134,11 @@
 			<h2>📬 Contact</h2>
 			<p>
 				If you have questions about this privacy policy, please open an issue on
-				<a href="https://github.com/Shik3i/KoalaTower/issues" target="_blank" rel="noopener">GitHub</a>
-				or contact via Mastodon:
-				<a href="https://hachyderm.io/@koalastuff" target="_blank" rel="noopener">@koalastuff</a>
+				<a href="https://github.com/Shik3i/KoalaTower/issues" target="_blank" rel="noopener">GitHub</a>,
+				contact via Mastodon:
+				<a href="https://hachyderm.io/@koalastuff" target="_blank" rel="noopener">@koalastuff</a>,
+				or email:
+				<a href="mailto:admin@koalastuff.net">admin@koalastuff.net</a>
 			</p>
 		</section>
 

@@ -24,7 +24,7 @@
 			<p>
 				Mastodon: <a href="https://hachyderm.io/@koalastuff" target="_blank" rel="noopener">@koalastuff</a><br>
 				GitHub Issues: <a href="https://github.com/Shik3i/KoalaTower/issues" target="_blank" rel="noopener">Shik3i/KoalaTower</a><br>
-				Email: <span class="obfuscated">admin [at] koalastuff [dot] net</span>
+				Email: <a href="mailto:admin@koalastuff.net">admin@koalastuff.net</a>
 			</p>
 		</section>
 
@@ -177,11 +177,6 @@
 		text-decoration: underline;
 		text-underline-offset: 3px;
 		text-decoration-color: rgba(0, 255, 255, 0.2);
-	}
-
-	.obfuscated {
-		unicode-bidi: bidi-override;
-		direction: rtl;
 	}
 
 	@media (max-width: 767px) {
