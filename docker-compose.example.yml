@@ -1,0 +1,31 @@
+# KoalaTower behind an existing Caddy reverse proxy
+#
+# Usage:
+#   docker compose -f docker-compose.example.yml up -d
+#
+# This example assumes you have a Caddy reverse proxy running on docker
+# network "caddy_net" that handles TLS termination and domain routing.
+#
+# Example Caddyfile snippet:
+#   koalatower.example.com {
+#       reverse_proxy koala-tower:8080
+#   }
+
+services:
+  koala-tower:
+    image: ghcr.io/shik3i/koalatower:latest
+    container_name: koala-tower
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks:
+      - caddy_net
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  caddy_net:
+    external: true

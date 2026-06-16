@@ -1,0 +1,14 @@
+node_modules/
+.svelte-kit/
+.git/
+.gitignore
+.dockerignore
+*.md
+.DS_Store
+*.local
+.env
+.env.*
+screenshots/
+tests/
+coverage/
+docker-compose*

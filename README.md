@@ -20,8 +20,8 @@ npm test         # run tests
 - Central neon tower with auto-targeting and 5 enemy types (Normal, Fast, Tank, Ranged, Boss)
 - Endless wave progression with scaling difficulty (supports 10k+ waves)
 - Enemy armor system — armor reduces incoming damage, scales with wave
-- Battle upgrades (Cash) — 7 upgrades per run
-- Workshop upgrades (Coins) — 8 permanent upgrades between runs
+- Battle upgrades (Gold) — 7 upgrades per run
+- Workshop upgrades (KoalaCoins) — 8 permanent upgrades between runs
 - Lab research system — real-time research with timers (progresses offline)
 - Tier system — 5 tiers with progression requirements
 - Challenge system — 3 challenge scaffolds
@@ -40,7 +40,7 @@ npm test         # run tests
 - Projectile trails with glow
 - Particle death bursts
 - Floating damage numbers with crit distinction
-- Cash popup feedback on enemy kills
+- Gold & KoalaCoin popup feedback on enemy kills
 - Screen shake on damage (configurable)
 - Animated starfield and grid background
 - Wave start and boss warning animations
@@ -61,23 +61,29 @@ npm test         # run tests
 - **idb-keyval** for IndexedDB storage
 - **@sveltejs/adapter-static** for static output
 - **Vitest** for game logic tests
+- **Docker** — multi-arch container (linux/amd64, linux/arm64)
 
 ## Project Structure
 
 ```
 koala-tower/
-├── LICENSE              # MIT license
+├── LICENSE                 # MIT license
 ├── README.md
+├── Dockerfile              # Multi-stage container build
+├── docker-compose.example.yml
+├── .dockerignore
+├── .github/workflows/
+│   └── docker-publish.yml  # Tag-triggered GHCR publish
 ├── package.json
 ├── tsconfig.json
 ├── svelte.config.js
 ├── vite.config.ts
 ├── .gitignore
 ├── docs/
-│   └── TODO.md          # Development roadmap & ideas
+│   └── TODO.md             # Development roadmap & ideas
 ├── src/
-│   ├── app.css          # Global styles & design tokens
-│   ├── app.html         # HTML shell
+│   ├── app.css             # Global styles & design tokens
+│   ├── app.html            # HTML shell
 │   ├── lib/
 │   │   ├── game/
 │   │   │   ├── engine/     # Core game engine (GameEngine.ts, types, config)
@@ -92,8 +98,8 @@ koala-tower/
 │       ├── play/           # Main game screen
 │       ├── hub/            # Workshop, Lab, Stats, Settings hub
 │       └── privacy/        # Privacy policy
-├── static/              # Static assets
-└── build/               # Production output (gitignored)
+├── static/                 # Static assets
+└── build/                  # Production output (gitignored)
 ```
 
 ## Architecture
@@ -117,7 +123,101 @@ koala-tower/
 └─────────────────────────────────────────────┘
 ```
 
-## Static Hosting (Caddy)
+## Docker
+
+### Build locally
+
+```bash
+docker build -t koala-tower .
+docker run -p 8080:8080 koala-tower
+# → http://localhost:8080
+```
+
+The multi-stage Dockerfile:
+1. **Build stage** — `node:22-alpine`, installs deps, runs checks/tests, builds static output
+2. **Runtime stage** — `ghcr.io/static-web-server/static-web-server:2-alpine`, serves `/public` on port 8080 with SPA fallback
+
+### Docker Compose (behind Caddy reverse proxy)
+
+```bash
+# 1. Ensure a Docker network named "caddy_net" exists
+docker network create caddy_net
+
+# 2. Start KoalaTower
+docker compose -f docker-compose.example.yml up -d
+```
+
+**`docker-compose.example.yml`**:
+
+```yaml
+services:
+  koala-tower:
+    image: ghcr.io/shik3i/koalatower:latest
+    container_name: koala-tower
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks:
+      - caddy_net
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  caddy_net:
+    external: true
+```
+
+**Caddy reverse proxy snippet**:
+
+```caddy
+koalatower.example.com {
+    reverse_proxy koala-tower:8080
+}
+```
+
+## GitHub Container Registry
+
+Docker images are published automatically when a version tag is pushed.
+
+### Trigger
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+This triggers `.github/workflows/docker-publish.yml` which:
+
+1. Runs checks, tests, and the SvelteKit build
+2. Builds a multi-arch Docker image (`linux/amd64` + `linux/arm64`)
+3. Pushes to `ghcr.io/shik3i/koalatower:v0.1.0`
+4. Attaches SBOM and provenance attestations
+5. Generates a GitHub artifact attestation
+
+Pushing code to `main` does **not** build or push Docker images.
+
+### Image tags
+
+| Tag pattern         | Example         | When created                     |
+|---------------------|-----------------|----------------------------------|
+| `v0.1.0`            | `:v0.1.0`       | Exact semver tag                 |
+| `v0.1`              | `:v0.1`         | Major.minor shorthand            |
+| `v0`                | `:v0`           | Major shorthand                  |
+| `latest`            | `:latest`       | Stable releases (no pre-release) |
+
+### Verify attestation
+
+```bash
+# Install GitHub CLI and authenticate, then:
+gh attestation verify oci://ghcr.io/shik3i/koalatower:v0.1.0 --repo shik3i/koalatower
+```
+
+This verifies the signed provenance attestation generated during the build, confirming the image was built by the expected GitHub Actions workflow.
+
+## Static Hosting (Caddy — direct)
 
 ```caddy
 example.com {
