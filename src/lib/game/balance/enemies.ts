@@ -28,9 +28,9 @@ export function getEnemyConfig(type: EnemyType, wave: number): EnemyConfig {
 
 	const shapes: Record<EnemyType, EnemyConfig['shape']> = {
 		[EnemyType.Normal]: 'square',
-		[EnemyType.Fast]: 'triangle',
+		[EnemyType.Fast]: 'diamond',
 		[EnemyType.Tank]: 'hexagon',
-		[EnemyType.Ranged]: 'diamond',
+		[EnemyType.Ranged]: 'triangle',
 		[EnemyType.Boss]: 'pentagon',
 	};
 

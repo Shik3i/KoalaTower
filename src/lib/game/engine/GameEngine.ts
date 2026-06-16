@@ -18,6 +18,8 @@ import { resetEnemyIdCounter } from '../balance/enemies';
 import { getBattleUpgradeCost, BATTLE_UPGRADES } from '../balance/battleUpgrades';
 import { setFeedbackHooks } from '../systems/enemySystem';
 
+export type MuzzleFlashCallback = () => void;
+
 export class GameEngine {
 	public state: GameState;
 	public particles: Particle[] = [];
@@ -32,13 +34,20 @@ export class GameEngine {
 	private onGameOver: ((coins: number, wave: number) => void) | null = null;
 	private onMilestone: ((text: string) => void) | null = null;
 	private onStateChange: (() => void) | null = null;
+	private muzzleFlashCallback: MuzzleFlashCallback | null = null;
 
 	constructor() {
 		this.state = this.createInitialState();
+	}
+
+	/** Call after PixiGameView is created to wire the muzzle flash */
+	public wireMuzzleFlash(cb: MuzzleFlashCallback): void {
+		this.muzzleFlashCallback = cb;
 		setFeedbackHooks(
 			(x, y, text, color) => this.addDamageNumber(x, y, text, color),
 			(x, y, color, count, speed) => this.addParticles(x, y, color, count, speed),
 			(amount) => this.addShake(amount),
+			() => this.muzzleFlashCallback?.(),
 		);
 	}
 
@@ -199,7 +208,8 @@ export class GameEngine {
 			towerDamage: t.stats.damage,
 			towerFireRate: t.stats.fireRate,
 			towerRange: t.stats.range,
-			towerMultishot: t.stats.multishot,
+			towerMultishotChance: t.stats.multishotChance,
+			towerMultishotCount: t.stats.multishotCount,
 			towerCritChance: t.stats.critChance,
 			upgradeLevels: { ...this.state.battleUpgrades as Record<string, number> },
 			enemiesInWave: w.enemiesInWave,

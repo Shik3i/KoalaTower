@@ -10,6 +10,7 @@ describe('Battle Upgrades', () => {
 		expect(ids).toContain(UpgradeId.FireRate);
 		expect(ids).toContain(UpgradeId.Range);
 		expect(ids).toContain(UpgradeId.Multishot);
+		expect(ids).toContain(UpgradeId.MultishotProjectiles);
 		expect(ids).toContain(UpgradeId.CritChance);
 		expect(ids).toContain(UpgradeId.Defense);
 		expect(ids).toContain(UpgradeId.MaxHp);
@@ -32,9 +33,14 @@ describe('Battle Upgrades', () => {
 	});
 
 	it('getBattleUpgradeEffect should return correct values', () => {
-		expect(getBattleUpgradeEffect(UpgradeId.Damage, 10)).toBe(80);
-		expect(getBattleUpgradeEffect(UpgradeId.CritChance, 5)).toBeCloseTo(0.125);
-		expect(getBattleUpgradeEffect(UpgradeId.Multishot, 3)).toBe(3);
+		// Polynomial: level 10 * 0.4 * 10^1.12 ≈ 0.4 * 13.2 = 5.3
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 10)).toBeCloseTo(5.3, 0);
+		// Capped linear: 100 * 0.001 = 0.10
+		expect(getBattleUpgradeEffect(UpgradeId.CritChance, 100)).toBeCloseTo(0.10);
+		// Capped linear: 20 * 0.005 = 0.10
+		expect(getBattleUpgradeEffect(UpgradeId.Multishot, 20)).toBeCloseTo(0.10);
+		// Premium linear: 3 * 1 = 3
+		expect(getBattleUpgradeEffect(UpgradeId.MultishotProjectiles, 3)).toBe(3);
 	});
 });
 
@@ -76,14 +82,11 @@ describe('Economy Scaling', () => {
 		expect(avgRatio).toBeLessThan(2.0);
 	});
 
-	it('battle upgrade costs should scale exponentially', () => {
-		const upgrade = BATTLE_UPGRADES[0]!;
-		const ratios: number[] = [];
-		for (let i = 1; i < 10; i++) {
-			ratios.push(upgrade.cost(i) / upgrade.cost(i - 1));
-		}
-		const avgRatio = ratios.reduce((a, b) => a + b, 0) / ratios.length;
-		expect(avgRatio).toBeGreaterThan(1.15);
-		expect(avgRatio).toBeLessThan(2.0);
+	it('battle upgrade costs should scale with level', () => {
+		const upgrade = BATTLE_UPGRADES[0]!; // Damage (polynomial cost)
+		expect(upgrade.cost(0)).toBe(10);
+		expect(upgrade.cost(5)).toBeGreaterThan(upgrade.cost(0));
+		expect(upgrade.cost(100)).toBeGreaterThan(upgrade.cost(10));
+		expect(upgrade.cost(100)).toBeGreaterThan(30); // should have grown meaningfully
 	});
 });

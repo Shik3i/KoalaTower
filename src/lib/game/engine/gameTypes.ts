@@ -68,7 +68,8 @@ export interface TowerStats {
 	damage: number;
 	fireRate: number;
 	range: number;
-	multishot: number;
+	multishotChance: number;
+	multishotCount: number;
 	critChance: number;
 	critMultiplier: number;
 }
@@ -87,6 +88,7 @@ export enum UpgradeId {
 	FireRate = 'fireRate',
 	Range = 'range',
 	Multishot = 'multishot',
+	MultishotProjectiles = 'multishotProjectiles',
 	CritChance = 'critChance',
 	Defense = 'defense',
 	MaxHp = 'maxHp',
@@ -286,7 +288,8 @@ export interface GameSnapshot {
 	towerDamage: number;
 	towerFireRate: number;
 	towerRange: number;
-	towerMultishot: number;
+	towerMultishotChance: number;
+	towerMultishotCount: number;
 	towerCritChance: number;
 	upgradeLevels: Record<string, number>;
 	enemiesInWave: number;

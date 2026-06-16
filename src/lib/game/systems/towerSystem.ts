@@ -37,7 +37,8 @@ export function createTowerState(state: GameState): TowerState {
 			damage: baseDamage,
 			fireRate: baseFireRate,
 			range: baseRange,
-			multishot: 1,
+			multishotChance: 0,
+			multishotCount: 1,
 			critChance: 0.05 + critBonus,
 			critMultiplier: 2.0,
 		},
@@ -60,7 +61,8 @@ export function applyBattleUpgrades(state: GameState): void {
 	const dmgLevel = bu[UpgradeId.Damage] ?? 0;
 	const frLevel = bu[UpgradeId.FireRate] ?? 0;
 	const rangeLevel = bu[UpgradeId.Range] ?? 0;
-	const multiLevel = bu[UpgradeId.Multishot] ?? 0;
+	const multiChanceLevel = bu[UpgradeId.Multishot] ?? 0;
+	const multiProjLevel = bu[UpgradeId.MultishotProjectiles] ?? 0;
 	const critLevel = bu[UpgradeId.CritChance] ?? 0;
 	const defLevel = bu[UpgradeId.Defense] ?? 0;
 	const hpLevel = bu[UpgradeId.MaxHp] ?? 0;
@@ -68,7 +70,8 @@ export function applyBattleUpgrades(state: GameState): void {
 	tower.stats.damage = baseDamage + getBattleUpgradeEffect(UpgradeId.Damage, dmgLevel);
 	tower.stats.fireRate = baseFireRate + getBattleUpgradeEffect(UpgradeId.FireRate, frLevel);
 	tower.stats.range = baseRange + getBattleUpgradeEffect(UpgradeId.Range, rangeLevel);
-	tower.stats.multishot = 1 + getBattleUpgradeEffect(UpgradeId.Multishot, multiLevel);
+	tower.stats.multishotChance = getBattleUpgradeEffect(UpgradeId.Multishot, multiChanceLevel);
+	tower.stats.multishotCount = 1 + getBattleUpgradeEffect(UpgradeId.MultishotProjectiles, multiProjLevel);
 	tower.stats.critChance = 0.05 + critBonus + getBattleUpgradeEffect(UpgradeId.CritChance, critLevel);
 
 	tower.maxHp = Math.floor((TOWER_HP_BASE

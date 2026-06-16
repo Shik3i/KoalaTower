@@ -63,10 +63,10 @@ describe('Enemy Config', () => {
 	});
 
 	it('should have correct shape assignments', () => {
-		expect(getEnemyConfig(EnemyType.Normal, 1).shape).toBe('square');
-		expect(getEnemyConfig(EnemyType.Fast, 5).shape).toBe('triangle');
-		expect(getEnemyConfig(EnemyType.Tank, 5).shape).toBe('hexagon');
-		expect(getEnemyConfig(EnemyType.Ranged, 8).shape).toBe('diamond');
+  expect(getEnemyConfig(EnemyType.Normal, 1).shape).toBe('square');
+  expect(getEnemyConfig(EnemyType.Fast, 5).shape).toBe('diamond');
+  expect(getEnemyConfig(EnemyType.Tank, 5).shape).toBe('hexagon');
+  expect(getEnemyConfig(EnemyType.Ranged, 8).shape).toBe('triangle');
 		expect(getEnemyConfig(EnemyType.Boss, 10).shape).toBe('pentagon');
 	});
 });

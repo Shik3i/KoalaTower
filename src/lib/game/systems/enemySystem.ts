@@ -4,20 +4,22 @@ import { damageTower } from './towerSystem';
 import { calculateGoldFromKill, getKoalaCoinPerKill } from './economySystem';
 import { getBattleUpgradeEffect } from '../balance/battleUpgrades';
 
-// Feedback helpers — called by the projectile system to spawn effects.
-// These are stored on the GameEngine instance; we provide a way to register them.
+// Feedback helpers
 let _addDmg: ((x: number, y: number, text: string, color: number) => void) | null = null;
 let _addParticles: ((x: number, y: number, color: number, count: number, speed?: number) => void) | null = null;
 let _addShake: ((amount: number) => void) | null = null;
+let _triggerMuzzleFlash: (() => void) | null = null;
 
 export function setFeedbackHooks(
 	addDmg: (x: number, y: number, text: string, color: number) => void,
 	addParticles: (x: number, y: number, color: number, count: number, speed?: number) => void,
 	addShake?: (amount: number) => void,
+	triggerMuzzleFlash?: () => void,
 ): void {
 	_addDmg = addDmg;
 	_addParticles = addParticles;
 	_addShake = addShake ?? null;
+	_triggerMuzzleFlash = triggerMuzzleFlash ?? null;
 }
 
 let nextProjectileId = 1;
@@ -104,7 +106,11 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 			const effectiveDmg = Math.max(1, Math.floor(proj.damage * (1 - effectiveArmor)));
 			target.hp -= effectiveDmg;
 			state.totalDamageDealt += effectiveDmg;
-			target.hitFlashTimer = 0.1;
+			target.hitFlashTimer = 0.12;
+
+			// Impact burst particles (sparks at hit point)
+			const impactColor = proj.isCrit ? GAME_CONFIG.NEON_YELLOW : proj.color;
+			_addParticles?.(target.position.x, target.position.y, impactColor, proj.isCrit ? 5 : 3, 120);
 
 			// Damage number popup
 			_addDmg?.(target.position.x, target.position.y - target.size * 0.5, '-' + effectiveDmg, proj.isCrit ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_CYAN);
@@ -115,26 +121,42 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 				if (target.isBoss) state.bossesDefeated++;
 				state.wave.enemiesKilled++;
 
-				// Death particles
-				const pCount = target.isBoss ? 20 : 6;
-				_addParticles?.(target.position.x, target.position.y, target.color, pCount, target.isBoss ? 120 : 60);
-				if (target.isBoss) _addShake?.(6);
+				// ── Death effects by enemy type ──
+				const deathColor = target.isBoss ? GAME_CONFIG.NEON_PINK : target.color;
+				let pCount = 6;
+				if (target.type === EnemyType.Tank || target.type === EnemyType.Boss) pCount = target.isBoss ? 25 : 12;
+				else if (target.type === EnemyType.Fast) pCount = 8;
+				else if (target.type === EnemyType.Ranged) pCount = 8;
 
-				// Gold (temporary run currency) — variable, based on wave + difficulty + GoldAmp
+				// Outer burst ring (bigger particles, slower)
+				_addParticles?.(target.position.x, target.position.y, 0xFFFFFF, target.isBoss ? 12 : 4, 60);
+
+				// Colored death particles (faster spread)
+				_addParticles?.(target.position.x, target.position.y, deathColor, pCount, target.isBoss ? 150 : 80);
+
+				// Boss: extra death effects
+				if (target.isBoss) {
+					_addShake?.(7);
+					// Ring of particles at boss death
+					_addParticles?.(target.position.x, target.position.y, GAME_CONFIG.NEON_CYAN, 8, 200);
+					_addParticles?.(target.position.x, target.position.y, GAME_CONFIG.NEON_YELLOW, 6, 180);
+				}
+
+				// Gold (temporary run currency)
 				let gold = calculateGoldFromKill(state, target.reward);
 				const goldAmpLevel = state.battleUpgrades[UpgradeId.GoldAmp] ?? 0;
 				const goldAmpBonus = getBattleUpgradeEffect(UpgradeId.GoldAmp, goldAmpLevel);
 				gold = Math.floor(gold * (1 + goldAmpBonus));
 				state.cash += gold;
 
-				// KoalaCoin (permanent currency) — 1 + workshop bonus per kill
+				// KoalaCoin (permanent currency)
 				const coin = getKoalaCoinPerKill(state);
 				state.coins += coin;
 
-				// Feedback popups
-				_addDmg?.(target.position.x, target.position.y + target.size * 0.5, '+' + gold + '💰', GAME_CONFIG.NEON_GREEN);
+				// Feedback popups — stagger them slightly for readability
+				_addDmg?.(target.position.x, target.position.y + target.size * 0.6, '+' + gold + ' 💰', GAME_CONFIG.NEON_GREEN);
 				if (coin > 0) {
-					_addDmg?.(target.position.x, target.position.y + target.size, '+' + coin + '🪙', GAME_CONFIG.NEON_YELLOW);
+					_addDmg?.(target.position.x, target.position.y + target.size * 1.1, '+' + coin + ' 🪙', GAME_CONFIG.NEON_YELLOW);
 				}
 			}
 			proj.alive = false;
@@ -169,27 +191,53 @@ export function updateTowerTargeting(state: GameState, dt: number): void {
 	if (!target) return;
 
 	state.tower.fireTimer = 1.0 / state.tower.stats.fireRate;
-	const multishot = Math.floor(state.tower.stats.multishot);
 
-	for (let i = 0; i < multishot; i++) {
-		const isCrit = Math.random() < state.tower.stats.critChance;
-		const damage = isCrit
-			? state.tower.stats.damage * state.tower.stats.critMultiplier
-			: state.tower.stats.damage;
+	// ── Muzzle flash ──
+	_triggerMuzzleFlash?.();
 
-		const offsetX = (Math.random() - 0.5) * 10;
-		const offsetY = (Math.random() - 0.5) * 10;
+	// ── Muzzle flash particles at tower edge ──
+	const angleToTarget = Math.atan2(target.position.y - towerPos.y, target.position.x - towerPos.x);
+	const towerEdgeX = towerPos.x + Math.cos(angleToTarget) * GAME_CONFIG.TOWER_SIZE * 0.9;
+	const towerEdgeY = towerPos.y + Math.sin(angleToTarget) * GAME_CONFIG.TOWER_SIZE * 0.9;
+	_addParticles?.(towerEdgeX, towerEdgeY, GAME_CONFIG.NEON_CYAN, 4, 60);
 
-		const proj = createProjectile(
-			towerPos.x + offsetX,
-			towerPos.y + offsetY,
-			target.id,
-			GAME_CONFIG.PROJECTILE_SPEED,
-			damage,
-			isCrit ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.BEAM_COLOR,
-			isCrit
-		);
-		state.projectiles.push(proj);
+	// Always fire one main projectile
+	const mainIsCrit = Math.random() < state.tower.stats.critChance;
+	const mainDamage = mainIsCrit
+		? state.tower.stats.damage * state.tower.stats.critMultiplier
+		: state.tower.stats.damage;
+	const mainProj = createProjectile(
+		towerPos.x, towerPos.y, target.id,
+		GAME_CONFIG.PROJECTILE_SPEED,
+		mainDamage,
+		mainIsCrit ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.BEAM_COLOR,
+		mainIsCrit
+	);
+	state.projectiles.push(mainProj);
+
+	// Roll for multishot: fire extra projectiles on success
+	if (Math.random() < state.tower.stats.multishotChance) {
+		const extraCount = Math.floor(state.tower.stats.multishotCount);
+		for (let i = 0; i < extraCount; i++) {
+			const isCrit = Math.random() < state.tower.stats.critChance;
+			const damage = isCrit
+				? state.tower.stats.damage * state.tower.stats.critMultiplier
+				: state.tower.stats.damage;
+
+			const offsetX = (Math.random() - 0.5) * 14;
+			const offsetY = (Math.random() - 0.5) * 14;
+
+			const proj = createProjectile(
+				towerPos.x + offsetX,
+				towerPos.y + offsetY,
+				target.id,
+				GAME_CONFIG.PROJECTILE_SPEED,
+				damage,
+				isCrit ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.BEAM_COLOR,
+				isCrit
+			);
+			state.projectiles.push(proj);
+		}
 	}
 }
 

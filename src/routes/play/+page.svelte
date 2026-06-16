@@ -6,6 +6,7 @@
 	import { GAME_CONFIG } from '$lib/game/engine/gameConfig';
 	import { UpgradeId, type GameSnapshot, type GameSettings } from '$lib/game/engine/gameTypes';
 	import { BATTLE_UPGRADES, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
+	import { formatEffect } from '$lib/game/balance/upgradeScaling';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { engineStore } from '$lib/stores/gameStore';
@@ -64,6 +65,7 @@
 				engine = e;
 				if (container && !gameView) {
 					gameView = new PixiGameView(container, e);
+					engine.wireMuzzleFlash(() => gameView?.triggerMuzzleFlash());
 					gameView.start();
 				}
 				refreshSnap();
@@ -107,7 +109,7 @@
 			elapsedTime: st.elapsedTime, gameOver: st.gameOver, runActive: st.runActive,
 			highestWave: st.highestWave, enemyCount: st.enemies.length, speed: engine.speedMultiplier,
 			towerDamage: t.stats.damage, towerFireRate: t.stats.fireRate, towerRange: t.stats.range,
-			towerMultishot: t.stats.multishot, towerCritChance: t.stats.critChance,
+			towerMultishotChance: t.stats.multishotChance, towerMultishotCount: t.stats.multishotCount, towerCritChance: t.stats.critChance,
 			upgradeLevels: { ...st.battleUpgrades as Record<string, number> },
 			enemiesInWave: w.enemiesInWave, enemiesSpawned: w.enemiesSpawned,
 			enemiesKilledThisWave: w.enemiesKilled, waveActive: w.waveActive,
@@ -151,6 +153,7 @@
 		});
 		if (!container) return;
 		gameView = new PixiGameView(container, engine);
+		engine.wireMuzzleFlash(() => gameView?.triggerMuzzleFlash());
 		gameView.start();
 	}
 
@@ -177,17 +180,7 @@
 	/** Show what the upgrade currently gives in readable form */
 	function upgradeCurrentValue(id: UpgradeId, lv: number): string {
 		if (lv === 0) return '—';
-		switch (id) {
-			case UpgradeId.Damage: return snap ? '+' + getBattleUpgradeEffect(id, lv) + ' DMG' : '';
-			case UpgradeId.FireRate: return snap ? '+' + (getBattleUpgradeEffect(id, lv) * 100).toFixed(0) + '% ATK/s' : '';
-			case UpgradeId.Range: return snap ? '+' + getBattleUpgradeEffect(id, lv) + ' range' : '';
-			case UpgradeId.Multishot: return '+' + getBattleUpgradeEffect(id, lv) + ' proj';
-			case UpgradeId.CritChance: return '+' + (getBattleUpgradeEffect(id, lv) * 100).toFixed(0) + '% crit';
-			case UpgradeId.Defense: return '-' + getBattleUpgradeEffect(id, lv) + ' dmg/hit';
-			case UpgradeId.MaxHp: return '+' + getBattleUpgradeEffect(id, lv) + ' max HP';
-			case UpgradeId.GoldAmp: return '+' + (getBattleUpgradeEffect(id, lv) * 100).toFixed(0) + '% gold';
-			case UpgradeId.Piercing: return '-' + (getBattleUpgradeEffect(id, lv) * 100).toFixed(0) + '% armor';
-		}
+		return formatEffect(id, getBattleUpgradeEffect(id, lv));
 	}
 
 	/** Show what the next level gives */
@@ -251,27 +244,27 @@
 		<div class="tb-div"></div>
 		<div class="tb-stats">
 			{#if snap?.runActive}
-				<div class="tb-pill wave-pill"><span>🌊</span><span>{snap.wave}</span></div>
+				<div class="tb-pill wave-pill" title="Current wave number"><span>🌊</span><span>{snap.wave}</span></div>
 			{/if}
-			<div class="tb-pill coin-pill"><span>🪙</span><span>{coins.toLocaleString()}</span></div>
+			<div class="tb-pill coin-pill" title="KoalaCoins — permanent currency, spend in Workshop"><span>🪙</span><span>{coins.toLocaleString()}</span></div>
 			{#if snap?.runActive}
-				<div class="tb-pill cash-pill"><span>💰</span><span>{Math.floor(snap.cash).toLocaleString()}</span></div>
-				<div class="tb-pill hp-pill" class:low={snap.towerHp / snap.towerMaxHp < 0.3}><span>❤️</span><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
-				<div class="tb-pill kill-pill"><span>☠</span><span>{snap.killCount}</span></div>
+				<div class="tb-pill cash-pill" title="Gold — temporary run currency, spend on Battle Upgrades"><span>💰</span><span>{Math.floor(snap.cash).toLocaleString()}</span></div>
+				<div class="tb-pill hp-pill" class:low={snap.towerHp / snap.towerMaxHp < 0.3} title="Tower HP — run ends when this reaches 0"><span>❤️</span><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
+				<div class="tb-pill kill-pill" title="Total enemies killed this run"><span>☠</span><span>{snap.killCount}</span></div>
 			{/if}
 		</div>
 		<div class="tb-actions">
 			{#if snap?.runActive}
-				<div class="spd-grp">
+				<div class="spd-grp" title="Game speed — also: keys 1-4, Space to pause">
 					<button class="spd-btn" class:on={paused} onclick={() => handleSpeed(0)} title="Pause (Space)">⏸</button>
-					{#each [1,2,3] as s}<button class="spd-btn spd-n" class:on={!paused && speed === s} onclick={() => handleSpeed(s)} title="{s}× ({s})">{s}×</button>{/each}
-					<button class="spd-btn spd-n" class:on={!paused && speed === 5} onclick={() => handleSpeed(4)} title="5× (4)">5×</button>
+					{#each [1,2,3] as s}<button class="spd-btn spd-n" class:on={!paused && speed === s} onclick={() => handleSpeed(s)} title="{s}× speed ({s})">{s}×</button>{/each}
+					<button class="spd-btn spd-n" class:on={!paused && speed === 5} onclick={() => handleSpeed(4)} title="5× speed (4)">5×</button>
 					<div class="spd-status" class:paused={paused}>{paused ? '⏸' : speed + '×'}</div>
 				</div>
 			{/if}
-			<div class="save-indicator" class:saving={showSaveIndicator}>{showSaveIndicator ? '💾' : ''}</div>
+			<div class="save-indicator" class:saving={showSaveIndicator} title="Auto-save indicator"></div>
 			<div class="sv-wrap">
-				<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu">💾</button>
+				<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu" title="Export / Import / Reset save data">💾</button>
 				{#if showSaveMenu}
 					<div class="sv-drop">
 						<button onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast('📋 Exported!', 'success'); showSaveMenu = false; }}>📋 Export</button>
@@ -281,7 +274,7 @@
 					</div>
 				{/if}
 			</div>
-			<a href="/hub" class="hub-link" aria-label="Workshop">🏪</a>
+			<a href="/hub" class="hub-link" aria-label="Workshop" title="Workshop — permanent upgrades, lab, tiers">🏪</a>
 		</div>
 	</header>
 
@@ -301,8 +294,9 @@
 	<!-- Game Over -->
 	{#if showGameOver}
 		<div class="overlay" role="dialog" aria-modal="true">
-			<div class="go-panel">
+			<div class="go-panel" class:go-record={gameOverWave >= highestWave && highestWave > 0}>
 				<div class="go-glow"></div>
+				<div class="go-glow-ring"></div>
 				<div class="go-icon">{gameOverWave >= highestWave && highestWave > 0 ? '🏆' : '💀'}</div>
 				<h2 class="go-title">{gameOverWave >= highestWave && highestWave > 0 ? 'New Record!' : 'Run Over'}</h2>
 				<div class="go-wave">Reached <strong>Wave {gameOverWave}</strong></div>
@@ -320,7 +314,7 @@
 					<span>💰 {Math.floor(gameOverCash).toLocaleString()} Gold earned</span>
 					<span>🏆 Best: Wave {highestWave}</span>
 				</div>
-				<button class="go-btn" onclick={startRun}>▶ Play Again</button>
+				<button class="go-btn" onclick={startRun} autofocus>▶ Play Again</button>
 				<div class="go-row2">
 					<a href="/hub" class="go-btn2">🏪 Workshop</a>
 					<button class="go-btn2" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast('📋 Exported!', 'success'); }}>💾 Export</button>
@@ -347,22 +341,22 @@
 						<div class="ps"><div class="pst">📊 Run Info</div>
 							{#if snap?.runActive}
 								<div class="ig">
-									<div class="ir"><span class="il">Wave</span><span class="iv">{snap.wave}</span></div>
-									<div class="ir"><span class="il">HP</span><span class="iv hp-iv">{Math.ceil(snap.towerHp)}<span class="im">/{snap.towerMaxHp}</span></span></div>
-									<div class="ir"><span class="il">Kills</span><span class="iv">{snap.killCount}</span></div>
-									<div class="ir"><span class="il">Time</span><span class="iv">{fmt(snap.elapsedTime)}</span></div>
-									<div class="ir"><span class="il">Speed</span><span class="iv">{paused ? '⏸' : speed + '×'}</span></div>
-									<div class="ir"><span class="il">Gold</span><span class="iv cash-iv">💰{Math.floor(snap.cash).toLocaleString()}</span></div>
+									<div class="ir" title="Current wave number"><span class="il">Wave</span><span class="iv">{snap.wave}</span></div>
+									<div class="ir" title="Tower HP — game over at 0"><span class="il">HP</span><span class="iv hp-iv">{Math.ceil(snap.towerHp)}<span class="im">/{snap.towerMaxHp}</span></span></div>
+									<div class="ir" title="Total kills this run"><span class="il">Kills</span><span class="iv">{snap.killCount}</span></div>
+									<div class="ir" title="Elapsed run time"><span class="il">Time</span><span class="iv">{fmt(snap.elapsedTime)}</span></div>
+									<div class="ir" title="Game speed multiplier"><span class="il">Speed</span><span class="iv">{paused ? '⏸' : speed + '×'}</span></div>
+									<div class="ir" title="Gold — temporary currency for Battle Upgrades"><span class="il">Gold</span><span class="iv cash-iv">💰{Math.floor(snap.cash).toLocaleString()}</span></div>
 								</div>
 								<div class="psd"></div>
 								<div class="pst">🌊 Wave Manager</div>
 								<div class="ig">
-									<div class="ir"><span class="il">Enemies</span><span class="iv">{snap.enemyCount} alive</span></div>
-									<div class="ir"><span class="il">Wave Total</span><span class="iv">{snap.enemiesInWave}</span></div>
-									<div class="ir"><span class="il">Spawned</span><span class="iv">{snap.enemiesSpawned}/{snap.enemiesInWave}</span></div>
-									<div class="ir"><span class="il">Killed</span><span class="iv">{snap.enemiesKilledThisWave}/{snap.enemiesInWave}</span></div>
-									<div class="ir"><span class="il">Spawn Rate</span><span class="iv">every {snap.spawnInterval.toFixed(1)}s</span></div>
-									<div class="ir"><span class="il">Status</span><span class="iv">{snap.waveActive ? '⚔ Active' : '⏳ Between waves'}</span></div>
+									<div class="ir" title="Enemies currently alive on screen"><span class="il">Enemies</span><span class="iv">{snap.enemyCount} alive</span></div>
+									<div class="ir" title="Total enemies this wave (including boss)"><span class="il">Wave Total</span><span class="iv">{snap.enemiesInWave}</span></div>
+									<div class="ir" title="Enemies spawned so far this wave"><span class="il">Spawned</span><span class="iv">{snap.enemiesSpawned}/{snap.enemiesInWave}</span></div>
+									<div class="ir" title="Enemies killed so far this wave"><span class="il">Killed</span><span class="iv">{snap.enemiesKilledThisWave}/{snap.enemiesInWave}</span></div>
+									<div class="ir" title="Time between enemy spawns"><span class="il">Spawn Rate</span><span class="iv">every {snap.spawnInterval.toFixed(1)}s</span></div>
+									<div class="ir" title="Wave status"><span class="il">Status</span><span class="iv">{snap.waveActive ? '⚔ Active' : '⏳ Between waves'}</span></div>
 								</div>
 							{:else}<div class="pe">Start a run.</div>{/if}
 						</div>
@@ -370,12 +364,12 @@
 						<div class="ps"><div class="pst">⚡ Tower Stats</div>
 							{#if snap?.runActive}
 								<div class="ig">
-									<div class="ir"><span class="il">Damage</span><span class="iv">{snap.towerDamage.toFixed(1)}</span></div>
-									<div class="ir"><span class="il">DPS</span><span class="iv">{(snap.towerDamage * snap.towerFireRate * snap.towerMultishot).toFixed(1)}</span></div>
-									<div class="ir"><span class="il">Fire Rate</span><span class="iv">{snap.towerFireRate.toFixed(2)}/s</span></div>
-									<div class="ir"><span class="il">Range</span><span class="iv">{snap.towerRange.toFixed(0)}</span></div>
-									<div class="ir"><span class="il">Multishot</span><span class="iv">×{snap.towerMultishot}</span></div>
-									<div class="ir"><span class="il">Crit</span><span class="iv">{(snap.towerCritChance * 100).toFixed(1)}%</span></div>
+									<div class="ir" title="Damage per projectile"><span class="il">Damage</span><span class="iv">{snap.towerDamage.toFixed(1)}</span></div>
+									<div class="ir" title="Expected damage per second (with multishot)"><span class="il">DPS</span><span class="iv">{(snap.towerDamage * snap.towerFireRate * (1 + snap.towerMultishotChance * snap.towerMultishotCount)).toFixed(1)}</span></div>
+									<div class="ir" title="Attacks per second"><span class="il">Fire Rate</span><span class="iv">{snap.towerFireRate.toFixed(2)}/s</span></div>
+									<div class="ir" title="Attack range (pixels)"><span class="il">Range</span><span class="iv">{snap.towerRange.toFixed(0)}</span></div>
+									<div class="ir" title="Chance × extra projectiles when triggered"><span class="il">Multishot</span><span class="iv">{(snap.towerMultishotChance * 100).toFixed(0)}% × {snap.towerMultishotCount}</span></div>
+									<div class="ir" title="Chance to deal 2× damage"><span class="il">Crit</span><span class="iv">{(snap.towerCritChance * 100).toFixed(1)}%</span></div>
 								</div>
 							{/if}
 						</div>
@@ -388,9 +382,9 @@
 		<div class="gcc" bind:this={container}>
 			{#if snap?.runActive && !leftPanelOpen}
 				<div class="hud">
-					<div class="hud-row"><span class="hud-wave">🌊 Wave {snap.wave}</span><span class="hud-enemies">👾 {snap.enemyCount}</span></div>
-					<div class="hud-row"><span class="hud-hp">❤️ {Math.ceil(snap.towerHp)}/{snap.towerMaxHp}</span><span class="hud-cash">💰 {Math.floor(snap.cash).toLocaleString()}</span></div>
-					<div class="hud-row hud-dmg"><span>⚔ {snap.towerDamage.toFixed(1)}</span><span>🎯 {snap.towerRange.toFixed(0)}</span><span>⚡ {(snap.towerCritChance * 100).toFixed(0)}%</span></div>
+					<div class="hud-row"><span class="hud-wave" title="Current wave">🌊 Wave {snap.wave}</span><span class="hud-enemies" title="Enemies alive on screen">👾 {snap.enemyCount}</span></div>
+					<div class="hud-row"><span class="hud-hp" title="Tower HP">❤️ {Math.ceil(snap.towerHp)}/{snap.towerMaxHp}</span><span class="hud-cash" title="Gold — spend on Battle Upgrades">💰 {Math.floor(snap.cash).toLocaleString()}</span></div>
+					<div class="hud-row hud-dmg"><span title="Damage per shot">⚔ {snap.towerDamage.toFixed(1)}</span><span title="Attack range">🎯 {snap.towerRange.toFixed(0)}</span><span title="Crit chance">⚡ {(snap.towerCritChance * 100).toFixed(1)}%</span></div>
 				</div>
 			{/if}
 			{#if !snap?.runActive && !showGameOver}
@@ -423,9 +417,9 @@
 						<div class="ps"><div class="pst">⚔ Battle Upgrades</div>
 							{#if snap?.runActive}
 								<div class="cat-tabs">
-									<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'}>⚔ Offense</button>
-									<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'}>🛡️ Defense</button>
-									<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'}>🔧 Utility</button>
+									<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'} title="Damage, Fire Rate, Range, Multishot, Crit, Piercing">⚔ Offense</button>
+									<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} title="Defense (flat reduction), Max HP">🛡️ Defense</button>
+									<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} title="Gold Amp (+% gold per kill)">🔧 Utility</button>
 								</div>
 								<div class="ug">
 									{#each BATTLE_UPGRADES.filter(u => u.category === upgradeCategory) as u}
@@ -455,9 +449,9 @@
 	<!-- Mobile: battle upgrades drawer + nav -->
 	{#if isMobile}
 		<nav class="mn">
-			<button class="mnb" class:on={!showMobileUpgrades} onclick={() => showMobileUpgrades = false}><span class="mni">🎮</span><span class="mnl">Game</span></button>
-			<button class="mnb" class:on={showMobileUpgrades} onclick={() => showMobileUpgrades = !showMobileUpgrades}><span class="mni">⚔</span><span class="mnl">Upgrades</span></button>
-			<a href="/hub" class="mnb"><span class="mni">🏪</span><span class="mnl">Workshop</span></a>
+			<button class="mnb" class:on={!showMobileUpgrades} onclick={() => showMobileUpgrades = false} title="Game canvas view"><span class="mni">🎮</span><span class="mnl">Game</span></button>
+			<button class="mnb" class:on={showMobileUpgrades} onclick={() => showMobileUpgrades = !showMobileUpgrades} title="Battle Upgrades panel"><span class="mni">⚔</span><span class="mnl">Upgrades</span></button>
+			<a href="/hub" class="mnb" title="Workshop — permanent upgrades & lab"><span class="mni">🏪</span><span class="mnl">Workshop</span></a>
 		</nav>
 		{#if showMobileUpgrades && snap?.runActive}
 			<div class="mob-upgrade-drawer">
@@ -466,9 +460,9 @@
 					<button class="mob-ug-close" onclick={() => showMobileUpgrades = false}>✕</button>
 				</div>
 				<div class="cat-tabs">
-					<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'}>⚔ Offense</button>
-					<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'}>🛡️ Defense</button>
-					<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'}>🔧 Utility</button>
+					<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'} title="Damage, Fire Rate, Range, Multishot, Crit, Piercing">⚔ Offense</button>
+					<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} title="Defense, Max HP">🛡️ Defense</button>
+					<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} title="Gold Amp">🔧 Utility</button>
 				</div>
 				<div class="ug mob-ug-list">
 					{#each BATTLE_UPGRADES.filter(u => u.category === upgradeCategory) as u}
@@ -580,8 +574,8 @@
 	.uc { display:flex; flex-direction:column; gap:.12rem; padding:.3rem .4rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition-fast); text-align:left; width:100%; }
 	.uc.aff { border-color:rgba(68,255,136,.25); }
 	.uc.aff:hover { border-color:var(--cyan); background:rgba(0,255,255,.05); box-shadow:0 0 8px rgba(0,255,255,.06); }
-	.uc.purchased { animation:purchaseGlow .4s ease-out; }
-	@keyframes purchaseGlow { 0%{box-shadow:0 0 0 rgba(0,255,255,0)} 30%{box-shadow:0 0 20px rgba(0,255,255,0.6),0 0 40px rgba(0,255,255,0.2)} 100%{box-shadow:0 0 0 rgba(0,255,255,0)} }
+	.uc.purchased { animation:purchaseGlow .5s ease-out; }
+	@keyframes purchaseGlow { 0%{box-shadow:0 0 0 rgba(0,255,255,0);transform:scale(1)} 25%{box-shadow:0 0 25px rgba(0,255,255,.8),0 0 50px rgba(0,255,255,.3);transform:scale(1.03)} 100%{box-shadow:0 0 0 rgba(0,255,255,0);transform:scale(1)} }
 	.uc.mx { opacity:.35; cursor:default; }
 	.uc:disabled:not(.mx) { opacity:.5; cursor:default; }
 	.uc-t { display:flex; align-items:center; gap:.2rem; }
@@ -604,9 +598,15 @@
 	.hub-shortcut { margin-top:.5rem; text-align:center; font-size:.65rem; }
 	.hub-shortcut a { color:var(--text-dim); text-decoration:none; transition:all var(--transition-fast); }
 	.hub-shortcut a:hover { color:var(--cyan); }
-	.go-panel { position:relative; text-align:center; padding:2rem 1.75rem 1.5rem; background:var(--bg-secondary); border:1px solid rgba(255,68,170,.2); border-radius:var(--radius-xl); max-width:340px; width:90%; overflow:hidden; animation:si .3s ease; box-shadow:0 0 60px rgba(255,68,170,.06); }
-	.go-glow { position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:radial-gradient(circle at center,rgba(255,68,170,.04) 0%,transparent 60%); pointer-events:none; }
-	.go-icon { font-size:2.6rem; margin-bottom:.3rem; display:block; }
+	.go-panel { position:relative; text-align:center; padding:2rem 1.75rem 1.5rem; background:var(--bg-secondary); border:1px solid rgba(255,68,170,.2); border-radius:var(--radius-xl); max-width:360px; width:90%; overflow:hidden; animation:goAppear .4s cubic-bezier(0.34,1.56,0.64,1); box-shadow:0 0 80px rgba(255,68,170,.08),0 0 160px rgba(0,0,0,.4); }
+	.go-panel.go-record { border-color:rgba(255,221,68,.3); box-shadow:0 0 80px rgba(255,221,68,.1),0 0 160px rgba(0,0,0,.4); }
+	@keyframes goAppear { from{opacity:0;transform:scale(.9) translateY(20px)} to{opacity:1;transform:scale(1) translateY(0)} }
+	.go-glow { position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:radial-gradient(circle at center,rgba(255,68,170,.05) 0%,transparent 60%); pointer-events:none; }
+	.go-glow-ring { position:absolute; top:50%; left:50%; width:200px; height:200px; transform:translate(-50%,-50%); border-radius:50%; border:1px solid rgba(255,68,170,.06); pointer-events:none; animation:goRingPulse 3s ease-in-out infinite; }
+	@keyframes goRingPulse { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.3} 50%{transform:translate(-50%,-50%) scale(1.8);opacity:0} }
+	.go-panel.go-record .go-glow-ring { border-color:rgba(255,221,68,.1); }
+	.go-icon { font-size:3rem; margin-bottom:.3rem; display:block; filter:drop-shadow(0 0 20px rgba(255,68,170,.3)); }
+	.go-panel.go-record .go-icon { filter:drop-shadow(0 0 20px rgba(255,221,68,.4)); }
 	.go-title { font-size:1.5rem; color:var(--pink); margin-bottom:.1rem; }
 	.go-wave { font-size:.8rem; color:var(--text-dim); margin-bottom:.1rem; font-family:var(--font-mono); }
 	.go-wave strong { color:var(--text-primary); }
@@ -634,16 +634,18 @@
 	.dlg-s { background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); }
 	.dlg-dng-btn { background:var(--red); color:white; }
 	.dlg-dng { border-color:rgba(255,68,68,.2); }
-	.mn { display:flex; background:rgba(7,8,18,.95); border-top:1px solid var(--border-neon); flex-shrink:0; z-index:100; }
-	.mnb { flex:1; display:flex; flex-direction:column; align-items:center; padding:.35rem .05rem; font-size:.5rem; color:var(--text-dim); text-decoration:none; gap:1px; position:relative; }
+	.mn { display:flex; background:rgba(7,8,18,.96); border-top:1px solid var(--border-neon); flex-shrink:0; z-index:100; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+	.mnb { flex:1; display:flex; flex-direction:column; align-items:center; padding:.4rem .05rem; font-size:.5rem; color:var(--text-dim); text-decoration:none; gap:2px; position:relative; transition:all .15s ease; }
 	.mnb.on { color:var(--cyan); }
-	.mni { font-size:1rem; } .mnl { font-size:.48rem; }
-	.mob-upgrade-drawer { position:fixed; bottom:var(--mob-nav-h,48px); left:0; right:0; max-height:55vh; background:var(--bg-secondary); border-top:1px solid var(--border-neon-strong); border-radius:var(--radius-lg) var(--radius-lg) 0 0; z-index:150; overflow-y:auto; padding:.5rem .65rem .75rem; animation:si .2s ease; box-shadow:0 -8px 32px rgba(0,0,0,.4); }
+	.mnb.on::after { content:''; position:absolute; top:0; left:25%; right:25%; height:2px; background:var(--cyan); border-radius:0 0 2px 2px; box-shadow:0 0 8px rgba(0,255,255,.4); }
+	.mni { font-size:1.1rem; } .mnl { font-size:.5rem; font-weight:500; }
+	.mob-upgrade-drawer { position:fixed; bottom:var(--mob-nav-h,48px); left:0; right:0; max-height:60vh; background:var(--bg-secondary); border-top:1px solid var(--border-neon-strong); border-radius:var(--radius-xl) var(--radius-xl) 0 0; z-index:150; overflow-y:auto; padding:.5rem .65rem .75rem; animation:mobDrawerIn .25s cubic-bezier(.34,1.56,.64,1); box-shadow:0 -8px 32px rgba(0,0,0,.5); }
 	.mob-ug-header { display:flex; justify-content:space-between; align-items:center; font-size:.7rem; color:var(--cyan); font-family:var(--font-mono); margin-bottom:.35rem; }
 	.mob-ug-close { color:var(--text-dim); font-size:.8rem; padding:.1rem .3rem; cursor:pointer; }
 	.mob-ug-list { max-height:35vh; overflow-y:auto; }
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	@keyframes si { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
+	@keyframes mobDrawerIn { from{opacity:0;transform:translateY(100%)} to{opacity:1;transform:translateY(0)} }
 	@media(min-width:768px){ .mn,.mob-spd,.mob-upgrade-drawer{display:none} }
 	@media(max-width:767px){
 		.topbar{padding:.2rem .3rem;gap:.2rem}
