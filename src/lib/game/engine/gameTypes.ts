@@ -89,7 +89,9 @@ export enum UpgradeId {
 	Multishot = 'multishot',
 	CritChance = 'critChance',
 	Defense = 'defense',
-	MaxHp = 'maxHp'
+	MaxHp = 'maxHp',
+	GoldAmp = 'goldAmp',
+	Piercing = 'piercing',
 }
 
 export enum WorkshopUpgradeId {

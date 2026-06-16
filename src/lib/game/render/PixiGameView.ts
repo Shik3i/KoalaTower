@@ -152,48 +152,59 @@ export class PixiGameView {
 			const t = state.wave.betweenWaveTimer;
 			const duration = 3.0;
 			const progress = Math.min(1, t / duration);
-			const fadeIn = Math.min(1, progress * 3);
-			const fadeOut = Math.max(0, Math.min(1, (1 - progress) * 5));
+			const fadeIn = Math.min(1, progress * 2);
+			const fadeOut = Math.max(0, Math.min(1, (1 - progress) * 4));
 			const alpha = Math.min(fadeIn, fadeOut);
-			const nextWave = state.wave.currentWave + 1;
+			const upcomingWave = state.wave.currentWave + 1;
+			const isBossWave = upcomingWave % 10 === 0;
+			const totalEnemies = state.wave.enemiesInWave || 0;
 
 			ctx.save();
 			ctx.globalAlpha = alpha;
 
-			// Background bar
-			ctx.fillStyle = 'rgba(0, 255, 255, 0.04)';
-			ctx.fillRect(0, h / 2 - 70, w, 80);
+			// Full-width background bar with gradient
+			const bgGrad = ctx.createLinearGradient(0, h / 2 - 80, 0, h / 2 + 70);
+			bgGrad.addColorStop(0, `rgba(0, 255, 255, 0)`);
+			bgGrad.addColorStop(0.3, `rgba(0, 255, 255, ${0.04 * alpha})`);
+			bgGrad.addColorStop(0.7, `rgba(0, 255, 255, ${0.04 * alpha})`);
+			bgGrad.addColorStop(1, `rgba(0, 255, 255, 0)`);
+			ctx.fillStyle = bgGrad;
+			ctx.fillRect(0, h / 2 - 80, w, 150);
 
 			// Top accent line
-			ctx.fillStyle = `rgba(0, 255, 255, ${0.15 * alpha})`;
-			ctx.fillRect(0, h / 2 - 70, w, 1);
+			ctx.fillStyle = `rgba(0, 255, 255, ${0.12 * alpha})`;
+			ctx.fillRect(w * 0.15, h / 2 - 42, w * 0.7, 1);
 
 			// Bottom accent line
-			ctx.fillStyle = `rgba(0, 255, 255, ${0.1 * alpha})`;
-			ctx.fillRect(0, h / 2 + 9, w, 1);
+			ctx.fillStyle = `rgba(0, 255, 255, ${0.08 * alpha})`;
+			ctx.fillRect(w * 0.2, h / 2 + 36, w * 0.6, 1);
 
-			// Wave label
-			ctx.fillStyle = `rgba(240, 244, 255, ${0.4 * alpha})`;
-			ctx.font = '400 12px "SF Mono", "Fira Code", monospace';
+			// "WAVE" label
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'bottom';
-			ctx.fillText('WAVE', w / 2, h / 2 - 38);
+			ctx.fillStyle = `rgba(240, 244, 255, ${0.5 * alpha})`;
+			ctx.font = '500 13px "SF Mono", "Fira Code", monospace';
+			ctx.fillText('WAVE', w / 2, h / 2 - 16);
 
-			// Wave number with glow
-			ctx.shadowColor = 'rgba(0, 255, 255, 0.6)';
-			ctx.shadowBlur = 30 * alpha;
-			ctx.fillStyle = '#00FFFF';
-			ctx.font = 'bold 44px "SF Mono", "Fira Code", monospace';
+			// Wave number — big, bold, glowing
 			ctx.textBaseline = 'top';
-			ctx.fillText(`${nextWave}`, w / 2, h / 2 - 28);
+			ctx.shadowColor = isBossWave ? 'rgba(255, 68, 170, 0.8)' : 'rgba(0, 255, 255, 0.7)';
+			ctx.shadowBlur = 40 * alpha;
+			ctx.fillStyle = isBossWave ? '#FF44AA' : '#00FFFF';
+			ctx.font = `bold ${isBossWave ? 56 : 48}px "SF Mono", "Fira Code", monospace`;
+			ctx.fillText(`${upcomingWave}`, w / 2, h / 2 - 14);
 			ctx.shadowBlur = 0;
 
-			// Sub label
-			ctx.fillStyle = `rgba(240, 244, 255, ${0.3 * alpha})`;
-			ctx.font = '400 10px "SF Mono", "Fira Code", monospace';
+			// Sub label: enemies or BOSS
 			ctx.textBaseline = 'top';
-			const totalEnemies = state.wave.enemiesInWave || 0;
-			ctx.fillText(`▶ ${totalEnemies} enemies incoming`, w / 2, h / 2 + 24);
+			ctx.fillStyle = `rgba(240, 244, 255, ${0.35 * alpha})`;
+			ctx.font = '400 11px "SF Mono", "Fira Code", monospace';
+			if (isBossWave) {
+				ctx.fillStyle = `rgba(255, 68, 170, ${0.5 * alpha})`;
+				ctx.fillText('⚡ BOSS INCOMING ⚡', w / 2, h / 2 + 40);
+			} else {
+				ctx.fillText(`▶ ${totalEnemies} enemies`, w / 2, h / 2 + 40);
+			}
 
 			ctx.globalAlpha = 1;
 			ctx.restore();

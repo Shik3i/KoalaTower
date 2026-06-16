@@ -1,7 +1,8 @@
 import { GAME_CONFIG } from '../engine/gameConfig';
-import { EnemyType, type Enemy, type GameState, type Projectile } from '../engine/gameTypes';
+import { EnemyType, UpgradeId, type Enemy, type GameState, type Projectile } from '../engine/gameTypes';
 import { damageTower } from './towerSystem';
 import { calculateGoldFromKill, getKoalaCoinPerKill } from './economySystem';
+import { getBattleUpgradeEffect } from '../balance/battleUpgrades';
 
 // Feedback helpers — called by the projectile system to spawn effects.
 // These are stored on the GameEngine instance; we provide a way to register them.
@@ -96,7 +97,11 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 		const dist = Math.sqrt(dx * dx + dy * dy);
 
 		if (dist < 8) {
-			const effectiveDmg = Math.max(1, Math.floor(proj.damage * (1 - target.armor)));
+			// Piercing reduces effective armor
+			const pierceLevel = state.battleUpgrades[UpgradeId.Piercing] ?? 0;
+			const pierceBonus = getBattleUpgradeEffect(UpgradeId.Piercing, pierceLevel);
+			const effectiveArmor = Math.max(0, target.armor - pierceBonus);
+			const effectiveDmg = Math.max(1, Math.floor(proj.damage * (1 - effectiveArmor)));
 			target.hp -= effectiveDmg;
 			target.hitFlashTimer = 0.1;
 
@@ -113,8 +118,11 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 				_addParticles?.(target.position.x, target.position.y, target.color, pCount, target.isBoss ? 120 : 60);
 				if (target.isBoss) _addShake?.(6);
 
-				// Gold (temporary run currency) — variable, based on wave + difficulty
-				const gold = calculateGoldFromKill(state, target.reward);
+				// Gold (temporary run currency) — variable, based on wave + difficulty + GoldAmp
+				let gold = calculateGoldFromKill(state, target.reward);
+				const goldAmpLevel = state.battleUpgrades[UpgradeId.GoldAmp] ?? 0;
+				const goldAmpBonus = getBattleUpgradeEffect(UpgradeId.GoldAmp, goldAmpLevel);
+				gold = Math.floor(gold * (1 + goldAmpBonus));
 				state.cash += gold;
 
 				// KoalaCoin (permanent currency) — 1 + workshop bonus per kill

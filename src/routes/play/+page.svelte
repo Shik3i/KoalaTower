@@ -164,6 +164,28 @@
 		refreshSnap();
 	}
 
+	/** Show what the upgrade currently gives in readable form */
+	function upgradeCurrentValue(id: UpgradeId, lv: number): string {
+		if (lv === 0) return '—';
+		switch (id) {
+			case UpgradeId.Damage: return snap ? '+' + getBattleUpgradeEffect(id, lv) + ' DMG' : '';
+			case UpgradeId.FireRate: return snap ? '+' + (getBattleUpgradeEffect(id, lv) * 100).toFixed(0) + '% ATK/s' : '';
+			case UpgradeId.Range: return snap ? '+' + getBattleUpgradeEffect(id, lv) + ' range' : '';
+			case UpgradeId.Multishot: return '+' + getBattleUpgradeEffect(id, lv) + ' proj';
+			case UpgradeId.CritChance: return '+' + (getBattleUpgradeEffect(id, lv) * 100).toFixed(0) + '% crit';
+			case UpgradeId.Defense: return '-' + getBattleUpgradeEffect(id, lv) + ' dmg/hit';
+			case UpgradeId.MaxHp: return '+' + getBattleUpgradeEffect(id, lv) + ' max HP';
+			case UpgradeId.GoldAmp: return '+' + (getBattleUpgradeEffect(id, lv) * 100).toFixed(0) + '% gold';
+			case UpgradeId.Piercing: return '-' + (getBattleUpgradeEffect(id, lv) * 100).toFixed(0) + '% armor';
+		}
+	}
+
+	/** Show what the next level gives */
+	function upgradeNextValue(id: UpgradeId, lv: number): string {
+		const nextLv = Math.min(lv + 1, 999);
+		return upgradeCurrentValue(id, nextLv);
+	}
+
 	function buyBattleUpgrade(id: UpgradeId) {
 		if (!engine) return;
 		const lv = engine.state.battleUpgrades[id] ?? 0;
@@ -387,10 +409,11 @@
 										{@const cost = u.cost(lv)}
 										{@const aff = snap.cash >= cost}
 										{@const mx = lv >= u.maxLevel}
-										<button class="uc" class:aff={aff && !mx} class:mx={mx} disabled={!aff || mx || !snap?.runActive} onclick={() => buyBattleUpgrade(u.id)}>
+										<button class="uc" class:aff={aff && !mx} class:mx={mx} disabled={!aff || mx || !snap?.runActive} onclick={() => buyBattleUpgrade(u.id)} title={'Current: ' + upgradeCurrentValue(u.id, lv) + '\nNext: ' + upgradeNextValue(u.id, lv) + '\nCost: ' + cost + ' Gold'}>
 											<div class="uc-t"><span class="uci">{u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">Lv.{lv}</span></div>
 											<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
-											<div class="uc-b"><span class="ucc">💰{cost}</span><span class="ucnx">{mx ? 'MAXED' : '→ ' + (lv > 0 ? getBattleUpgradeEffect(u.id, nl).toFixed(1) : 'Lv.1 ' + getBattleUpgradeEffect(u.id, 1).toFixed(1))}</span></div>
+											<div class="uc-eff">{upgradeCurrentValue(u.id, lv)}</div>
+											<div class="uc-b"><span class="ucc">💰{cost}</span><span class="ucnx">{mx ? 'MAXED' : '→ ' + upgradeNextValue(u.id, lv)}</span></div>
 										</button>
 									{/each}
 								</div>
@@ -503,6 +526,8 @@
 	.uc-btr { height:2px; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
 	.uc-btf { height:100%; background:linear-gradient(90deg,var(--cyan),var(--blue)); border-radius:2px; transition:width var(--transition-normal); }
 	.uc.aff .uc-btf { background:linear-gradient(90deg,var(--green),var(--cyan)); }
+	.uc-eff { font-size:.58rem; color:var(--text-dim); font-family:var(--font-mono); padding:.05rem 0; }
+	.uc.aff .uc-eff { color:var(--green-dim); }
 	.uc-b { display:flex; align-items:center; gap:.25rem; font-size:.55rem; }
 	.ucc { font-family:var(--font-mono); color:var(--yellow); }
 	.ucnx { margin-left:auto; color:var(--text-dim); font-family:var(--font-mono); }

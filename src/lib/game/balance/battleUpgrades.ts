@@ -5,10 +5,11 @@ function defaultCost(level: number, base: number, scale: number): number {
 }
 
 export const BATTLE_UPGRADES: BattleUpgrade[] = [
+	// ── Offense ──
 	{
 		id: UpgradeId.Damage,
 		name: 'Damage',
-		description: 'Increase tower damage per shot',
+		description: 'Increases damage per shot',
 		category: 'offense',
 		level: 0, maxLevel: 50,
 		cost: (level) => defaultCost(level, 20, 1.25),
@@ -17,7 +18,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 	{
 		id: UpgradeId.FireRate,
 		name: 'Fire Rate',
-		description: 'Increase tower attack speed',
+		description: 'Increases attacks per second',
 		category: 'offense',
 		level: 0, maxLevel: 40,
 		cost: (level) => defaultCost(level, 25, 1.28),
@@ -26,7 +27,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 	{
 		id: UpgradeId.Range,
 		name: 'Range',
-		description: 'Increase tower attack range',
+		description: 'Increases attack range',
 		category: 'offense',
 		level: 0, maxLevel: 30,
 		cost: (level) => defaultCost(level, 30, 1.3),
@@ -35,7 +36,7 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 	{
 		id: UpgradeId.Multishot,
 		name: 'Multishot',
-		description: 'Fire additional projectiles',
+		description: 'Extra projectiles per shot',
 		category: 'offense',
 		level: 0, maxLevel: 20,
 		cost: (level) => defaultCost(level, 50, 1.35),
@@ -44,16 +45,17 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 	{
 		id: UpgradeId.CritChance,
 		name: 'Crit Chance',
-		description: 'Chance to deal double damage',
+		description: 'Chance to deal 2x damage',
 		category: 'offense',
 		level: 0, maxLevel: 30,
 		cost: (level) => defaultCost(level, 35, 1.3),
 		icon: '⭐',
 	},
+	// ── Defense ──
 	{
 		id: UpgradeId.Defense,
 		name: 'Defense',
-		description: 'Reduce damage taken',
+		description: 'Flat damage reduction per hit',
 		category: 'defense',
 		level: 0, maxLevel: 30,
 		cost: (level) => defaultCost(level, 30, 1.28),
@@ -62,11 +64,30 @@ export const BATTLE_UPGRADES: BattleUpgrade[] = [
 	{
 		id: UpgradeId.MaxHp,
 		name: 'Max HP',
-		description: 'Increase tower maximum HP',
+		description: 'Increases maximum tower HP',
 		category: 'defense',
 		level: 0, maxLevel: 30,
 		cost: (level) => defaultCost(level, 25, 1.3),
 		icon: '❤️',
+	},
+	// ── Utility ──
+	{
+		id: UpgradeId.GoldAmp,
+		name: 'Gold Amp',
+		description: '+5% Gold per kill per level',
+		category: 'utility',
+		level: 0, maxLevel: 30,
+		cost: (level) => defaultCost(level, 35, 1.3),
+		icon: '💰',
+	},
+	{
+		id: UpgradeId.Piercing,
+		name: 'Piercing',
+		description: 'Ignores 2% more enemy armor per level',
+		category: 'utility',
+		level: 0, maxLevel: 30,
+		cost: (level) => defaultCost(level, 40, 1.32),
+		icon: '🔱',
 	},
 ];
 
@@ -85,5 +106,7 @@ export function getBattleUpgradeEffect(id: UpgradeId, level: number): number {
 		case UpgradeId.CritChance: return level * 0.02;
 		case UpgradeId.Defense: return level * 1.5;
 		case UpgradeId.MaxHp: return level * 10;
+		case UpgradeId.GoldAmp: return level * 0.05;
+		case UpgradeId.Piercing: return level * 0.02;
 	}
 }

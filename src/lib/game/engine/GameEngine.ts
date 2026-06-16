@@ -26,6 +26,7 @@ export class GameEngine {
 	public speedMultiplier: number = 1;
 
 	private snapshotTimer: number = 0;
+	private lastWave: number = 0;
 	private lastSnapshot: GameSnapshot | null = null;
 	private onSnapshot: ((snapshot: GameSnapshot) => void) | null = null;
 	private onGameOver: ((coins: number, wave: number) => void) | null = null;
@@ -100,6 +101,7 @@ export class GameEngine {
 		this.damageNumbers = [];
 		this.shakeAmount = 0;
 		this.speedMultiplier = 1;
+		this.lastWave = 0;
 
 		this.state = this.createInitialState();
 		this.state.workshopUpgrades = { ...workshopUpgrades } as Record<WorkshopUpgradeId, number>;
@@ -125,6 +127,13 @@ export class GameEngine {
 
 		applyBattleUpgrades(this.state);
 		updateWaveSystem(this.state, effectiveDt);
+
+		// Immediate snapshot when wave changes (fixes UI showing stale wave number)
+		if (this.state.wave.currentWave !== this.lastWave) {
+			this.lastWave = this.state.wave.currentWave;
+			this.emitImmediateSnapshot();
+		}
+
 		updateEnemySystem(this.state, effectiveDt);
 		updateTowerTargeting(this.state, effectiveDt);
 		updateProjectileSystem(this.state, effectiveDt);
