@@ -3,11 +3,13 @@ import { CURRENT_SCHEMA_VERSION, type SaveData } from './saveTypes';
 export function migrateSave(data: Record<string, unknown>): SaveData | null {
 	try {
 		const version = (data.schemaVersion as number) || 0;
-
 		let save = data as unknown as SaveData;
 
 		if (version < 1) {
 			save = migrateV0toV1(save as unknown as Record<string, unknown>);
+		}
+		if (version < 2) {
+			save = migrateV1toV2(save);
 		}
 
 		if (save.schemaVersion !== CURRENT_SCHEMA_VERSION) {
@@ -22,12 +24,13 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 
 function migrateV0toV1(data: Record<string, unknown>): SaveData {
 	return {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		lastUpdated: Date.now(),
 		totalRuns: (data.totalRuns as number) || 0,
 		highestWave: (data.highestWave as number) || 0,
 		totalCoins: (data.totalCoins as number) || 0,
 		workshopUpgrades: (data.workshopUpgrades as Record<string, number>) || {},
+		labResearch: {},
 		labLevels: (data.labLevels as Record<string, number>) || {},
 		milestones: (data.milestones as Record<string, boolean>) || {},
 		challengeHighScores: (data.challengeHighScores as Record<string, number>) || {},
@@ -38,6 +41,14 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 			damageNumbers: true,
 			lowEffectsMode: false,
 		},
+	};
+}
+
+function migrateV1toV2(save: SaveData): SaveData {
+	return {
+		...save,
+		schemaVersion: 2,
+		labResearch: {},
 	};
 }
 

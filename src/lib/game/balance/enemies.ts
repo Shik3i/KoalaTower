@@ -1,5 +1,5 @@
 import { EnemyType } from '../engine/gameTypes';
-import { ENEMY_BASE_STATS, GAME_CONFIG, WAVE_CONFIG } from '../engine/gameConfig';
+import { ENEMY_BASE_STATS, GAME_CONFIG, WAVE_CONFIG, getWaveHpMultiplier, getWaveDamageMultiplier, getWaveSpeedMultiplier, getWaveRewardMultiplier, getWaveArmor } from '../engine/gameConfig';
 import type { Enemy, EnemyConfig } from '../engine/gameTypes';
 
 let nextEnemyId = 1;
@@ -10,11 +10,13 @@ export function resetEnemyIdCounter(): void {
 
 export function getEnemyConfig(type: EnemyType, wave: number): EnemyConfig {
 	const base = ENEMY_BASE_STATS[type];
-	const scaleFactor = Math.pow(WAVE_CONFIG.HP_SCALE, wave - 1);
-	const speedScale = Math.pow(WAVE_CONFIG.SPEED_SCALE, wave - 1);
-	const rewardScale = Math.pow(WAVE_CONFIG.REWARD_SCALE, wave - 1);
+	const hpMul = getWaveHpMultiplier(wave);
+	const dmgMul = getWaveDamageMultiplier(wave);
+	const spdMul = getWaveSpeedMultiplier(wave);
+	const rewMul = getWaveRewardMultiplier(wave);
+	const armor = getWaveArmor(wave);
 
-	const hpMultiplier = type === EnemyType.Boss ? 1 : 1;
+	const bossHpBonus = type === EnemyType.Boss ? 5 : 1;
 
 	const colors: Record<EnemyType, number> = {
 		[EnemyType.Normal]: GAME_CONFIG.NEON_CYAN,
@@ -34,14 +36,15 @@ export function getEnemyConfig(type: EnemyType, wave: number): EnemyConfig {
 
 	return {
 		type,
-		hp: Math.floor(base.hp * scaleFactor * hpMultiplier),
-		maxHp: Math.floor(base.hp * scaleFactor * hpMultiplier),
-		speed: base.speed * speedScale,
-		reward: Math.floor(base.reward * rewardScale),
-		damage: Math.floor(base.damage * (1 + (wave - 1) * 0.05)),
+		hp: Math.floor(base.hp * hpMul * bossHpBonus),
+		maxHp: Math.floor(base.hp * hpMul * bossHpBonus),
+		speed: base.speed * spdMul,
+		reward: Math.floor(base.reward * rewMul),
+		damage: Math.floor(base.damage * dmgMul),
+		armor,
 		attackRange: base.attackRange,
 		attackCooldown: base.attackCooldown,
-		size: base.size,
+		size: type === EnemyType.Boss ? Math.min(60, base.size + Math.floor(wave * 0.02)) : base.size,
 		color: colors[type],
 		shape: shapes[type],
 	};
@@ -60,6 +63,7 @@ export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawn
 		speed: config.speed,
 		reward: config.reward,
 		damage: config.damage,
+		armor: config.armor,
 		attackRange: config.attackRange,
 		attackCooldown: config.attackCooldown,
 		attackTimer: 0,
@@ -77,22 +81,23 @@ export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawn
 }
 
 export function getEnemyTypeForWave(wave: number): EnemyType[] {
-	const types: EnemyType[] = [EnemyType.Normal];
+	if (wave % WAVE_CONFIG.BOSS_INTERVAL === 0) return [EnemyType.Boss];
 
+	const types: EnemyType[] = [EnemyType.Normal];
 	if (wave >= 3) types.push(EnemyType.Fast);
 	if (wave >= 5) types.push(EnemyType.Tank);
 	if (wave >= 8) types.push(EnemyType.Ranged);
 
-	if (wave % WAVE_CONFIG.BOSS_INTERVAL === 0) {
-		return [EnemyType.Boss];
-	}
-
+	// Later waves get heavier compositions
+	// After wave 50, sometimes spawn multiple types per wave (handled by spawner via weighted random)
 	return types;
 }
 
 export function getEnemyCountForWave(wave: number): number {
 	if (wave % WAVE_CONFIG.BOSS_INTERVAL === 0) return 1;
-	return WAVE_CONFIG.BASE_ENEMIES + (wave - 1) * WAVE_CONFIG.ENEMIES_PER_WAVE;
+	// Gradually increase enemy count, cap at reasonable max
+	const base = WAVE_CONFIG.BASE_ENEMIES + Math.floor(wave * WAVE_CONFIG.ENEMIES_PER_WAVE * 0.5);
+	return Math.min(base, 200);
 }
 
 export function getSpawnIntervalForWave(wave: number): number {

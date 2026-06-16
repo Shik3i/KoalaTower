@@ -30,7 +30,7 @@ describe('Save Migration', () => {
 	});
 
 	it('should pass through v1 data unchanged', () => {
-		const v1Data: SaveData = {
+		const v1Data = {
 			schemaVersion: 1,
 			lastUpdated: Date.now(),
 			totalRuns: 10,

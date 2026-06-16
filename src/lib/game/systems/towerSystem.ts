@@ -1,21 +1,32 @@
-import { GAME_CONFIG, WAVE_CONFIG, TOWER_HP_BASE } from '../engine/gameConfig';
+import { GAME_CONFIG, TOWER_HP_BASE } from '../engine/gameConfig';
 import {
 	UpgradeId,
 	WorkshopUpgradeId,
 	type GameState,
 	type TowerState,
-	type TowerStats,
 } from '../engine/gameTypes';
 import { getBattleUpgradeEffect } from '../balance/battleUpgrades';
 import { getWorkshopUpgradeEffect } from '../balance/workshopUpgrades';
+import { getLabItemEffect } from '../balance/labs';
+import { LabId } from '../engine/gameTypes';
+
+function getLabMultiplier(state: GameState): { dmg: number; hp: number; coin: number } {
+	const lab = state.labLevels;
+	return {
+		dmg: 1 + getLabItemEffect(LabId.DamageResearch, lab[LabId.DamageResearch] ?? 0),
+		hp: 1 + getLabItemEffect(LabId.TowerDurability, lab[LabId.TowerDurability] ?? 0) / 100,
+		coin: 1 + getLabItemEffect(LabId.CoinEfficiency, lab[LabId.CoinEfficiency] ?? 0),
+	};
+}
 
 export function createTowerState(state: GameState): TowerState {
 	const ws = state.workshopUpgrades;
+	const lab = getLabMultiplier(state);
 
-	const baseDamage = 10 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, ws[WorkshopUpgradeId.BaseDamage] ?? 0);
+	const baseDamage = (10 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, ws[WorkshopUpgradeId.BaseDamage] ?? 0)) * lab.dmg;
 	const baseFireRate = 1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, ws[WorkshopUpgradeId.BaseFireRate] ?? 0);
 	const baseRange = 300 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, ws[WorkshopUpgradeId.BaseRange] ?? 0);
-	const startingHp = TOWER_HP_BASE + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, ws[WorkshopUpgradeId.StartingHp] ?? 0);
+	const startingHp = Math.floor((TOWER_HP_BASE + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, ws[WorkshopUpgradeId.StartingHp] ?? 0)) * lab.hp);
 	const critBonus = getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, ws[WorkshopUpgradeId.CritBonus] ?? 0);
 
 	return {
@@ -39,8 +50,9 @@ export function applyBattleUpgrades(state: GameState): void {
 	const tower = state.tower;
 	const bu = state.battleUpgrades;
 	const ws = state.workshopUpgrades;
+	const lab = getLabMultiplier(state);
 
-	const baseDamage = 10 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, ws[WorkshopUpgradeId.BaseDamage] ?? 0);
+	const baseDamage = (10 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, ws[WorkshopUpgradeId.BaseDamage] ?? 0)) * lab.dmg;
 	const baseFireRate = 1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, ws[WorkshopUpgradeId.BaseFireRate] ?? 0);
 	const baseRange = 300 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, ws[WorkshopUpgradeId.BaseRange] ?? 0);
 	const critBonus = getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, ws[WorkshopUpgradeId.CritBonus] ?? 0);
@@ -59,10 +71,9 @@ export function applyBattleUpgrades(state: GameState): void {
 	tower.stats.multishot = 1 + getBattleUpgradeEffect(UpgradeId.Multishot, multiLevel);
 	tower.stats.critChance = 0.05 + critBonus + getBattleUpgradeEffect(UpgradeId.CritChance, critLevel);
 
-	const defBonus = getBattleUpgradeEffect(UpgradeId.Defense, defLevel);
-	tower.maxHp = TOWER_HP_BASE
+	tower.maxHp = Math.floor((TOWER_HP_BASE
 		+ getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, ws[WorkshopUpgradeId.StartingHp] ?? 0)
-		+ getBattleUpgradeEffect(UpgradeId.MaxHp, hpLevel);
+		+ getBattleUpgradeEffect(UpgradeId.MaxHp, hpLevel)) * lab.hp);
 	tower.hp = Math.min(tower.hp, tower.maxHp);
 
 	tower.stats.critMultiplier = 2.0;

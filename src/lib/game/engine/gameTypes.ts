@@ -18,6 +18,7 @@ export interface EnemyConfig {
 	speed: number;
 	reward: number;
 	damage: number;
+	armor: number;
 	attackRange: number;
 	attackCooldown: number;
 	size: number;
@@ -35,6 +36,7 @@ export interface Enemy {
 	speed: number;
 	reward: number;
 	damage: number;
+	armor: number;
 	attackRange: number;
 	attackCooldown: number;
 	attackTimer: number;
@@ -231,6 +233,7 @@ export interface GameState {
 	coins: number;
 	battleUpgrades: Record<UpgradeId, number>;
 	workshopUpgrades: Record<WorkshopUpgradeId, number>;
+	labLevels: Record<LabId, number>;
 	paused: boolean;
 	gameOver: boolean;
 	runActive: boolean;
@@ -249,6 +252,15 @@ export interface GameSettings {
 	particles: boolean;
 	damageNumbers: boolean;
 	lowEffectsMode: boolean;
+}
+
+/** Tracks real-time research progress. */
+export interface ResearchState {
+	id: LabId;
+	level: number;
+	researchStart: number;   // Date.now() when research began
+	duration: number;        // total ms for this level
+	complete: boolean;
 }
 
 export interface GameSnapshot {
@@ -270,6 +282,12 @@ export interface GameSnapshot {
 	towerMultishot: number;
 	towerCritChance: number;
 	upgradeLevels: Record<string, number>;
+	enemiesInWave: number;
+	enemiesSpawned: number;
+	enemiesKilledThisWave: number;
+	waveActive: boolean;
+	betweenWaveTimer: number;
+	spawnInterval: number;
 }
 
 export const DEFAULT_SETTINGS: GameSettings = {

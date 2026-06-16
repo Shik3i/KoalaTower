@@ -52,14 +52,14 @@ html {
 	color: var(--text-primary);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
-	overflow: hidden;
 	height: 100%;
 }
 
 body {
 	min-height: 100vh;
 	height: 100%;
-	overflow: hidden;
+	overflow-y: auto;
+	overflow-x: hidden;
 	line-height: 1.6;
 }
 

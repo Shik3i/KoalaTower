@@ -34,14 +34,7 @@ export const GAME_CONFIG = {
 };
 
 export function getDefaultTowerStats(): TowerStats {
-	return {
-		damage: 10,
-		fireRate: 1.0,
-		range: 300,
-		multishot: 1,
-		critChance: 0.05,
-		critMultiplier: 2.0,
-	};
+	return { damage: 10, fireRate: 1.0, range: 300, multishot: 1, critChance: 0.05, critMultiplier: 2.0 };
 }
 
 export const TOWER_HP_BASE = 100;
@@ -58,22 +51,31 @@ export const WAVE_CONFIG = {
 	BASE_ENEMIES: 5,
 	ENEMIES_PER_WAVE: 2,
 	SPAWN_INTERVAL_BASE: 1.2,
-	SPAWN_INTERVAL_MIN: 0.3,
-	SPAWN_INTERVAL_DECAY: 0.97,
+	SPAWN_INTERVAL_MIN: 0.15,
+	SPAWN_INTERVAL_DECAY: 0.995,
 	BETWEEN_WAVE_TIME: 3.0,
 	BOSS_INTERVAL: 10,
-	HP_SCALE: 1.12,
-	SPEED_SCALE: 1.02,
-	REWARD_SCALE: 1.08,
 	BONUS_CASH_PER_WAVE: 10,
 };
 
+/** Compute enemy stat multiplier for a given wave (supports 10k+). */
+export function getWaveHpMultiplier(wave: number): number {
+	return 1 + wave * 0.04 + wave * wave * 0.00005;
+}
+export function getWaveDamageMultiplier(wave: number): number {
+	return 1 + wave * 0.025;
+}
+export function getWaveSpeedMultiplier(wave: number): number {
+	return 1 + Math.log10(wave + 1) * 0.15;
+}
+export function getWaveRewardMultiplier(wave: number): number {
+	return 1 + wave * 0.03 + wave * wave * 0.00002;
+}
+/** Enemy armour reduces incoming damage by this fraction (cap 0.8). */
+export function getWaveArmor(wave: number): number {
+	return Math.min(0.8, wave * 0.001);
+}
+
 export function getDefaultSettings(): GameSettings {
-	return {
-		reducedMotion: false,
-		screenShake: true,
-		particles: true,
-		damageNumbers: true,
-		lowEffectsMode: false,
-	};
+	return { reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false };
 }

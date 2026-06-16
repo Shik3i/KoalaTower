@@ -80,7 +80,9 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 		const dist = Math.sqrt(dx * dx + dy * dy);
 
 		if (dist < 8) {
-			target.hp -= proj.damage;
+			// Armour reduces incoming damage
+			const effectiveDmg = Math.max(1, Math.floor(proj.damage * (1 - target.armor)));
+			target.hp -= effectiveDmg;
 			target.hitFlashTimer = 0.1;
 			if (target.hp <= 0) {
 				target.alive = false;

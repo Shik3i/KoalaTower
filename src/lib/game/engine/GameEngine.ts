@@ -61,6 +61,7 @@ export class GameEngine {
 			coins: 0,
 			battleUpgrades: {} as Record<UpgradeId, number>,
 			workshopUpgrades: {} as Record<WorkshopUpgradeId, number>,
+			labLevels: {} as Record<import('./gameTypes').LabId, number>,
 			paused: false,
 			gameOver: false,
 			runActive: false,
@@ -86,7 +87,7 @@ export class GameEngine {
 		if (opts.onStateChange) this.onStateChange = opts.onStateChange;
 	}
 
-	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, startingCoins: number): void {
+	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, labLevels: Partial<Record<import('./gameTypes').LabId, number>>, startingCoins: number): void {
 		resetEnemyIdCounter();
 		resetProjectileIdCounter();
 		this.particles = [];
@@ -96,6 +97,7 @@ export class GameEngine {
 
 		this.state = this.createInitialState();
 		this.state.workshopUpgrades = { ...workshopUpgrades } as Record<WorkshopUpgradeId, number>;
+		this.state.labLevels = { ...labLevels } as Record<import('./gameTypes').LabId, number>;
 		this.state.coins = startingCoins;
 		this.state.runActive = true;
 		this.state.gameOver = false;
@@ -163,8 +165,9 @@ export class GameEngine {
 
 	private buildAndEmitSnapshot(): void {
 		const t = this.state.tower;
+		const w = this.state.wave;
 		const snap: GameSnapshot = {
-			wave: this.state.wave.currentWave,
+			wave: w.currentWave,
 			towerHp: t.hp,
 			towerMaxHp: t.maxHp,
 			cash: this.state.cash,
@@ -182,6 +185,12 @@ export class GameEngine {
 			towerMultishot: t.stats.multishot,
 			towerCritChance: t.stats.critChance,
 			upgradeLevels: { ...this.state.battleUpgrades as Record<string, number> },
+			enemiesInWave: w.enemiesInWave,
+			enemiesSpawned: w.enemiesSpawned,
+			enemiesKilledThisWave: w.enemiesKilled,
+			waveActive: w.waveActive,
+			betweenWaveTimer: w.betweenWaveTimer,
+			spawnInterval: w.spawnInterval,
 		};
 		this.lastSnapshot = snap;
 		if (this.onSnapshot) this.onSnapshot(snap);

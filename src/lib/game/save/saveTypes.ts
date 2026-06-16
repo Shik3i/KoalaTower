@@ -1,4 +1,10 @@
-import type { GameSettings, UpgradeId, WorkshopUpgradeId, LabId, MilestoneId, ChallengeId } from '../engine/gameTypes';
+import type { GameSettings, WorkshopUpgradeId, LabId, MilestoneId, ChallengeId } from '../engine/gameTypes';
+
+export interface LabResearch {
+	level: number;
+	researchStart: number; // Date.now() timestamp when research started, 0 = not researching
+	duration: number;      // total ms for current level
+}
 
 export interface SaveData {
 	schemaVersion: number;
@@ -7,13 +13,14 @@ export interface SaveData {
 	highestWave: number;
 	totalCoins: number;
 	workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>;
+	labResearch: Partial<Record<LabId, LabResearch>>;
 	labLevels: Partial<Record<LabId, number>>;
 	milestones: Partial<Record<MilestoneId, boolean>>;
 	challengeHighScores: Partial<Record<ChallengeId, number>>;
 	settings: GameSettings;
 }
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export function createDefaultSave(): SaveData {
 	return {
@@ -23,6 +30,7 @@ export function createDefaultSave(): SaveData {
 		highestWave: 0,
 		totalCoins: 0,
 		workshopUpgrades: {},
+		labResearch: {},
 		labLevels: {},
 		milestones: {},
 		challengeHighScores: {},

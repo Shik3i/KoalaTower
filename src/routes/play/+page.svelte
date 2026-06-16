@@ -6,12 +6,11 @@
 	import { UpgradeId, WorkshopUpgradeId, type GameSnapshot, type GameSettings } from '$lib/game/engine/gameTypes';
 	import { BATTLE_UPGRADES } from '$lib/game/balance/battleUpgrades';
 	import { WORKSHOP_UPGRADES } from '$lib/game/balance/workshopUpgrades';
-	import { LAB_ITEMS } from '$lib/game/balance/labs';
+	import { LAB_ITEMS, getLabItemEffect } from '$lib/game/balance/labs';
 	import { TIERS } from '$lib/game/balance/tiers';
 	import { CHALLENGES } from '$lib/game/balance/challenges';
 	import { getBattleUpgradeCost, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
 	import { getWorkshopUpgradeCost, getWorkshopUpgradeEffect } from '$lib/game/balance/workshopUpgrades';
-	import { getLabItemCost, getLabItemEffect } from '$lib/game/balance/labs';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 
@@ -149,7 +148,8 @@
 		showMobilePanel = false;
 		speed = 1; paused = false;
 		const save = getCachedSave();
-		engine.startRun(save?.workshopUpgrades ?? {}, coins);
+		const labLevels = save?.labLevels ?? {};
+		engine.startRun(save?.workshopUpgrades ?? {}, labLevels, coins);
 		gameView?.start();
 		refreshSnap();
 		toast('▶ Run started!', 'success');
@@ -201,22 +201,82 @@
 	}
 	function wLv(id: WorkshopUpgradeId): number { return getCachedSave()?.workshopUpgrades[id] ?? 0; }
 
-	function buyLabUpgrade(id: string) {
+	// ---- Real-time lab research ----
+	let labTimer = $state(0); // bumped every second to tick research
+	let labInterval: ReturnType<typeof setInterval> | null = null;
+
+	onMount(() => {
+		labInterval = setInterval(() => {
+			const save = getCachedSave();
+			if (!save) return;
+			let changed = false;
+			for (const item of LAB_ITEMS) {
+				const rs = save.labResearch[item.id];
+				if (!rs || rs.researchStart === 0 || rs.complete) continue;
+				const elapsed = Date.now() - rs.researchStart;
+				if (elapsed >= rs.duration) {
+					rs.complete = true;
+					(save.labLevels as Record<string, number>)[item.id] = (rs.level) + 1;
+					changed = true;
+					toast('🔬 ' + item.name + ' complete! (Lv.' + (rs.level + 1) + ')', 'milestone');
+				}
+			}
+			if (changed) {
+				coinsStore.set(save.totalCoins);
+				persistSave(save);
+			}
+			labTimer++;
+		}, 1000);
+	});
+
+	function getLabResearch(id: string): { level: number; progress: number; remaining: number; active: boolean; complete: boolean } {
+		const save = getCachedSave();
+		if (!save) return { level: 0, progress: 0, remaining: 0, active: false, complete: false };
+		const lv = (save.labLevels as Record<string, number>)[id] ?? 0;
+		const rs = save.labResearch[id as LabId];
+		if (rs && rs.researchStart > 0 && !rs.complete) {
+			const elapsed = Date.now() - rs.researchStart;
+			const progress = Math.min(1, elapsed / rs.duration);
+			return { level: rs.level, progress, remaining: Math.max(0, rs.duration - elapsed), active: true, complete: false };
+		}
+		if (rs && rs.complete) {
+			return { level: lv, progress: 1, remaining: 0, active: false, complete: true };
+		}
+		return { level: lv, progress: 0, remaining: 0, active: false, complete: false };
+	}
+
+	function startLabResearch(id: string) {
 		const save = getCachedSave();
 		if (!save) return;
-		const lv = (save.labLevels as Record<string, number>)[id] ?? 0;
 		const item = LAB_ITEMS.find(l => l.id === id);
 		if (!item) return;
+		const lv = (save.labLevels as Record<string, number>)[id] ?? 0;
+		if (lv >= item.maxLevel) { toast('⚠ Already max level!', 'warning'); return; }
+		const rs = save.labResearch[id as LabId];
+		if (rs && rs.researchStart > 0 && !rs.complete) { toast('⚠ Already researching!', 'warning'); return; }
 		const cost = item.cost(lv);
-		if (save.totalCoins >= cost && lv < item.maxLevel) {
-			save.totalCoins -= cost;
-			(save.labLevels as Record<string, number>)[id] = lv + 1;
-			coinsStore.set(save.totalCoins);
-			persistSave(save);
-			toast('🔬 Research completed!', 'success');
-		} else { toast('🪙 Not enough Coins!', 'error'); }
+		if (save.totalCoins < cost) { toast('🪙 Not enough Coins! (' + cost + ' needed)', 'error'); return; }
+		save.totalCoins -= cost;
+		const duration = item.duration(lv);
+		save.labResearch[id as LabId] = { level: lv, researchStart: Date.now(), duration, complete: false };
+		coinsStore.set(save.totalCoins);
+		persistSave(save);
+		toast('🔬 Research started: ' + item.name, 'success');
 	}
+
 	function lLv(id: string): number { return (getCachedSave()?.labLevels as Record<string, number>)[id] ?? 0; }
+	function formatDuration(ms: number): string {
+		if (ms <= 0) return '';
+		if (ms < 1000) return '<1s';
+		const sec = Math.floor(ms / 1000);
+		if (sec < 60) return sec + 's';
+		const min = Math.floor(sec / 60);
+		if (min < 60) return min + 'm ' + (sec % 60) + 's';
+		const hrs = Math.floor(min / 60);
+		if (hrs < 24) return hrs + 'h ' + (min % 60) + 'm';
+		const days = Math.floor(hrs / 24);
+		return days + 'd ' + (hrs % 24) + 'h';
+	}
 
 	function handleResetSave() {
 		resetSave().then(() => {
@@ -511,16 +571,32 @@
 									<div class="ug">
 										{#each LAB_ITEMS as it}
 											{@const lv = lLv(it.id)}
+											{@const rs = getLabResearch(it.id)}
 											{@const nl = Math.min(lv + 1, it.maxLevel)}
 											{@const cost = it.cost(lv)}
 											{@const aff = coins >= cost}
 											{@const mx = lv >= it.maxLevel}
-											<button class="uc lc" class:aff={aff && !mx} class:mx={mx} disabled={!aff || mx} onclick={() => buyLabUpgrade(it.id)}>
+											{@const nextEff = lv > 0 ? getLabItemEffect(it.id, lv + 1) : getLabItemEffect(it.id, 1)}
+											{@const currEff = getLabItemEffect(it.id, lv)}
+											<div class="uc lc" class:mx={mx} class:researching={rs.active}>
 												<div class="uc-t"><span class="uci">{it.icon}</span><span class="ucn">{it.name}</span><span class="ucl">Lv.{lv}</span></div>
-												<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100,(lv/it.maxLevel)*100)}%"></div></div>
-												<div class="uc-b"><span class="ucc">🪙{cost}</span><span class="ucnx">{mx ? 'MAXED' : lv > 0 ? '→ +' + getLabItemEffect(it.id, nl) : 'Lv.1 +' + getLabItemEffect(it.id, 1)}</span></div>
-												<div class="ld">{it.description}</div>
-											</button>
+												{#if rs.active}
+													<div class="rs-bar-track"><div class="rs-bar-fill" style="width:{rs.progress * 100}%"></div></div>
+													<div class="rs-info">{Math.floor(rs.progress * 100)}% · {formatDuration(rs.remaining)} left</div>
+												{:else if !mx}
+													<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100,(lv/it.maxLevel)*100)}%"></div></div>
+													<div class="uc-b">
+														<span class="ucc">🪙{cost.toLocaleString()}</span>
+														<span class="ucnx">+{nextEff.toFixed(2)}</span>
+													</div>
+													<div class="ld">{it.description} · {formatDuration(it.duration(lv))}</div>
+													<button class="rs-btn" class:aff={aff} disabled={!aff} onclick={() => startLabResearch(it.id)}>
+														{aff ? '▶ Start Research' : '🪙 Need ' + cost.toLocaleString()}
+													</button>
+												{:else}
+													<div class="ld">MAXED · +{currEff.toFixed(2)} total</div>
+												{/if}
+											</div>
 										{/each}
 									</div>
 								</div>
@@ -603,7 +679,7 @@
 					{:else if activeTab === 'workshop'}
 						<div class="ps"><div class="pst">⚙ Workshop</div><div class="ug">{#each WORKSHOP_UPGRADES as u}{@const lv = wLv(u.id)}{@const nl = Math.min(lv+1,u.maxLevel)}{@const cost=u.cost(lv)}{@const aff=coins>=cost}{@const mx=lv>=u.maxLevel}<button class="uc" class:aff={aff&&!mx} class:mx={mx} disabled={!aff||mx} onclick={()=>buyWorkshopUpgrade(u.id)}><div class="uc-t"><span class="uci">{u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">Lv.{lv}</span></div><div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100,(lv/u.maxLevel)*100)}%"></div></div><div class="uc-b"><span class="ucc">🪙{cost}</span><span class="ucnx">{mx?'MAXED':lv>0?'→ +'+getWorkshopUpgradeEffect(u.id,nl):'Lv.1 +'+getWorkshopUpgradeEffect(u.id,1)}</span></div></button>{/each}</div></div>
 					{:else if activeTab === 'lab'}
-						<div class="ps"><div class="pst">🔬 Laboratory</div><div class="ug">{#each LAB_ITEMS as it}{@const lv = lLv(it.id)}{@const nl = Math.min(lv+1,it.maxLevel)}{@const cost=it.cost(lv)}{@const aff=coins>=cost}{@const mx=lv>=it.maxLevel}<button class="uc lc" class:aff={aff&&!mx} class:mx={mx} disabled={!aff||mx} onclick={()=>buyLabUpgrade(it.id)}><div class="uc-t"><span class="uci">{it.icon}</span><span class="ucn">{it.name}</span><span class="ucl">Lv.{lv}</span></div><div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100,(lv/it.maxLevel)*100)}%"></div></div><div class="uc-b"><span class="ucc">🪙{cost}</span><span class="ucnx">{mx?'MAXED':lv>0?'→ +'+getLabItemEffect(it.id,nl):'Lv.1 +'+getLabItemEffect(it.id,1)}</span></div><div class="ld">{it.description}</div></button>{/each}</div></div>
+						<div class="ps"><div class="pst">🔬 Laboratory</div><div class="ug">{#each LAB_ITEMS as it}{@const lv = lLv(it.id)}{@const rs = getLabResearch(it.id)}{@const nl = Math.min(lv+1,it.maxLevel)}{@const cost=it.cost(lv)}{@const aff=coins>=cost}{@const mx=lv>=it.maxLevel}{@const nextEff=lv>0?getLabItemEffect(it.id,lv+1):getLabItemEffect(it.id,1)}{@const currEff=getLabItemEffect(it.id,lv)}<div class="uc lc" class:mx={mx} class:researching={rs.active}><div class="uc-t"><span class="uci">{it.icon}</span><span class="ucn">{it.name}</span><span class="ucl">Lv.{lv}</span></div>{#if rs.active}<div class="rs-bar-track"><div class="rs-bar-fill" style="width:{rs.progress*100}%"></div></div><div class="rs-info">{Math.floor(rs.progress*100)}% · {formatDuration(rs.remaining)} left</div>{:else if !mx}<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100,(lv/it.maxLevel)*100)}%"></div></div><div class="uc-b"><span class="ucc">🪙{cost.toLocaleString()}</span><span class="ucnx">+{nextEff.toFixed(2)}</span></div><div class="ld">{it.description} · {formatDuration(it.duration(lv))}</div><button class="rs-btn" class:aff={aff} disabled={!aff} onclick={()=>startLabResearch(it.id)}>{aff?'▶ Start Research':'🪙 Need '+cost.toLocaleString()}</button>{:else}<div class="ld">MAXED · +{currEff.toFixed(2)} total</div>{/if}</div>{/each}</div></div>
 					{:else if activeTab === 'tiers'}
 						<div class="ps"><div class="pst">🏆 Tiers</div><div class="cl">{#each TIERS as t}<div class="tc" class:unl={t.unlocked}><div class="tc-h"><span class="tci">{t.unlocked?'🔓':'🔒'}</span><div><div class="tcn">{t.name}</div><div class="tcd">{t.description}</div></div></div><div class="tcr" class:tcr-ok={t.unlocked}>{t.unlocked?'✓ Unlocked':'Requires Wave '+t.waveRequirement}</div></div>{/each}</div></div>
 					{:else if activeTab === 'challenges'}
@@ -746,6 +822,14 @@
 	.ucnx { margin-left:auto; color:var(--text-dim); font-family:var(--font-mono); }
 	.uc.aff .ucnx { color:var(--green); }
 	.lc { gap:.15rem; } .ld { font-size:.52rem; color:var(--text-dim); line-height:1.3; }
+	.uc.researching { border-color:rgba(255,221,68,.3); background:rgba(255,221,68,.03); }
+	.rs-bar-track { height:4px; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
+	.rs-bar-fill { height:100%; background:linear-gradient(90deg,var(--yellow),var(--orange)); border-radius:2px; transition:width .5s linear; }
+	.rs-info { font-size:.5rem; color:var(--yellow); font-family:var(--font-mono); text-align:center; }
+	.rs-btn { display:block; width:100%; margin-top:.2rem; padding:.25rem; font-size:.58rem; border-radius:var(--radius-sm); font-weight:600; cursor:pointer; transition:all var(--transition-fast); text-align:center; }
+	.rs-btn.aff { background:linear-gradient(135deg,var(--cyan),var(--blue)); color:var(--bg-primary); }
+	.rs-btn.aff:hover { box-shadow:0 0 10px rgba(0,255,255,.2); }
+	.rs-btn:disabled { opacity:.5; background:var(--bg-tertiary); color:var(--text-dim); cursor:default; }
 
 	/* ===== TIER / CHALLENGE CARDS ===== */
 	.cl { display:flex; flex-direction:column; gap:.3rem; }
