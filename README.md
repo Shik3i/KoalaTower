@@ -18,12 +18,14 @@ npm test         # run tests
 
 ### Gameplay
 - Central neon tower with auto-targeting and 5 enemy types (Normal, Fast, Tank, Ranged, Boss)
-- Endless wave progression with scaling difficulty
+- Endless wave progression with scaling difficulty (supports 10k+ waves)
+- Enemy armor system — armor reduces incoming damage, scales with wave
 - Battle upgrades (Cash) — 7 upgrades per run
 - Workshop upgrades (Coins) — 8 permanent upgrades between runs
-- Lab research system — 3 research items
+- Lab research system — real-time research with timers (progresses offline)
 - Tier system — 5 tiers with progression requirements
 - Challenge system — 3 challenge scaffolds
+- Highscore tracking — best wave saved persistently
 
 ### Controls
 - **Space** — Pause/Resume
@@ -38,6 +40,7 @@ npm test         # run tests
 - Projectile trails with glow
 - Particle death bursts
 - Floating damage numbers with crit distinction
+- Cash popup feedback on enemy kills
 - Screen shake on damage (configurable)
 - Animated starfield and grid background
 - Wave start and boss warning animations
@@ -62,15 +65,56 @@ npm test         # run tests
 ## Project Structure
 
 ```
-src/
-├── lib/game/
-│   ├── engine/       # Core game engine & types
-│   ├── systems/      # Game logic systems
-│   ├── balance/      # Data-driven configs
-│   ├── render/       # Canvas 2D rendering
-│   └── save/         # Save system
-├── lib/stores/       # Svelte stores
-└── routes/           # SvelteKit pages
+koala-tower/
+├── LICENSE              # MIT license
+├── README.md
+├── package.json
+├── tsconfig.json
+├── svelte.config.js
+├── vite.config.ts
+├── .gitignore
+├── docs/
+│   └── TODO.md          # Development roadmap & ideas
+├── src/
+│   ├── app.css          # Global styles & design tokens
+│   ├── app.html         # HTML shell
+│   ├── lib/
+│   │   ├── game/
+│   │   │   ├── engine/     # Core game engine (GameEngine.ts, types, config)
+│   │   │   ├── systems/    # Game logic (enemy, tower, wave, economy)
+│   │   │   ├── balance/    # Data-driven configs (enemies, upgrades, labs, tiers)
+│   │   │   ├── render/     # Canvas 2D rendering (PixiGameView, shapeFactory)
+│   │   │   ├── save/       # Save system (IndexedDB, migrations)
+│   │   │   └── __tests__/  # Vitest unit tests
+│   │   └── stores/         # Svelte reactive stores
+│   └── routes/             # SvelteKit pages
+│       ├── +page.svelte    # Home / landing page
+│       ├── play/           # Main game screen
+│       ├── hub/            # Workshop, Lab, Stats, Settings hub
+│       └── privacy/        # Privacy policy
+├── static/              # Static assets
+└── build/               # Production output (gitignored)
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│  Svelte UI (throttled snapshots ~6-10/s)    │
+│  Reads from GameSnapshot, fires events       │
+├─────────────────────────────────────────────┤
+│  GameEngine (pure TypeScript, 60 FPS)        │
+│  Owns simulation state, calls systems         │
+├─────────────────────────────────────────────┤
+│  Systems (enemy, tower, wave, economy)       │
+│  Pure functions, testable without Pixi/Svelte│
+├─────────────────────────────────────────────┤
+│  Canvas 2D Renderer (PixiGameView)           │
+│  Owns rendering, reads engine state each frame│
+├─────────────────────────────────────────────┤
+│  Save System (IndexedDB via idb-keyval)      │
+│  Schema-versioned, migration supported        │
+└─────────────────────────────────────────────┘
 ```
 
 ## Static Hosting (Caddy)
@@ -87,4 +131,4 @@ Or any static file server (`npx serve build`, nginx, etc.)
 
 ## License
 
-MIT
+MIT — see [LICENSE](./LICENSE)
