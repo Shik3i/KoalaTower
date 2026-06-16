@@ -1,45 +1,49 @@
 # KoalaTower TODO
 
-## High Priority
-- [ ] Implement SaveData persistence correctly — save coins/highestWave/etc after each run
-- [ ] Fix TypeScript strict errors and verify `npm run check` passes
-- [ ] Add proper run-end coin earnings and save persistence
-- [ ] Ensure enemy death triggers particles and damage numbers through the engine
-- [ ] Add proper tower range ring visualization
-- [ ] Improve mobile touch handling for the canvas
-- [ ] Add keyboard shortcuts (Space to pause, etc.)
+## Polish & UX
+- [ ] Add enemy kill count per wave display in run info
+- [ ] Add boss health bar at top of screen during boss waves
+- [ ] Improve damage number overlap handling (spread them out)
+- [ ] Add coin/cash gain popups when earning currency
+- [ ] Add wave milestone notifications with reward popup
+- [ ] Polish wave announcement animation (scale-in + glow)
+- [ ] Add boss warning 3 seconds before boss wave starts
+- [ ] Improve multishot spread angle visualization
+- [ ] Add crit hit screen flash effect
+- [ ] Add tower firing muzzle flash
+- [ ] Draw enemy path indicators (subtle lines from spawn to tower)
 
-## Medium Priority
-- [ ] Implement milestone rewards with coin payouts
-- [ ] Add wave milestone notifications during gameplay
+## Gameplay
+- [ ] Fix enemy attack cooldown — ranged enemies should actually shoot
+- [ ] Implement proper tower HP bar on game canvas
+- [ ] Add defense upgrade damage reduction calculation to enemy damage
+- [ ] Fix screen shake not triggering on tower hits
+- [ ] Add elite enemy variants (shiny, more HP, double reward)
 - [ ] Implement challenge mode modifiers in game engine
 - [ ] Add tier unlock logic based on highest wave
-- [ ] Improve canvas rendering performance with object pooling
-- [ ] Add tab visibility detection to pause/resume game
-- [ ] Add proper autosave during runs (periodic, not every frame)
-- [ ] Polish animation curves (ease in/out for UI transitions)
-- [ ] Add game pause button in top bar
+- [ ] Implement milestone rewards with coin payouts
+- [ ] Add boss count to run summary
 
-## Low Priority
-- [ ] Add boss health bar at top of screen
-- [ ] Implement proper multishot spread angle
-- [ ] Add enemy kill count per wave display
-- [ ] Improve damage number overlap handling
-- [ ] Add screen shake on tower hit (currently only on boss)
-- [ ] Add gradient health bars for enemies
-- [ ] Implement crit hit visual distinction (bigger projectile, flash)
-- [ ] Add wave completion animation
-- [ ] Store per-run stats (damage dealt, cash earned, etc.)
+## Performance
+- [ ] Add object pooling for projectiles and particles
+- [ ] Reduce allocations in hot paths (enemy system, projectile system)
+- [ ] Add canvas size clamping on very large screens
+- [ ] Add FPS counter (debug mode)
+- [ ] Handle tab visibility properly (pause/fps-limit when hidden)
 
-## Future Features
+## Mobile
+- [ ] Add swipe gesture to close mobile panels
+- [ ] Make upgrade cards larger on small screens
+- [ ] Improve touch response on canvas (no-op area for UI toggles)
+- [ ] Landscape orientation should not break layout
+
+## Features
 - [ ] Sound effects and music (Web Audio API)
-- [ ] Elite enemy variants
-- [ ] More tower types/tower skins
-- [ ] Prestige/ascension system
-- [ ] Achievement system
-- [ ] Online leaderboards (optional, server-side)
 - [ ] More lab research items
 - [ ] Full challenge implementations (Fast Swarm, Glass Tower, Boss Rush)
-- [ ] Tier 2-5 content
+- [ ] Tier 2–5 content
+- [ ] Prestige/ascension system
+- [ ] Achievement system with notifications
+- [ ] Stats page with charts (per-run data)
+- [ ] Tower skins / customization
 - [ ] Tutorial/onboarding flow
-- [ ] Keyboard-accessible menus throughout

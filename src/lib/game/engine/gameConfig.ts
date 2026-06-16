@@ -30,6 +30,7 @@ export const GAME_CONFIG = {
 	MIN_SCREEN_SHAKE: 0.5,
 	MAX_SCREEN_SHAKE: 8,
 	SHAKE_DECAY: 0.85,
+	SPEED_PRESETS: [1, 2, 3, 5] as const,
 };
 
 export function getDefaultTowerStats(): TowerStats {

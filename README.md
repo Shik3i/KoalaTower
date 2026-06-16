@@ -2,76 +2,80 @@
 
 **Neon Cyber Idle Tower Defense**
 
-A beautiful, playable idle tower defense game built with SvelteKit, TypeScript, and Canvas rendering. No backend, no tracking, no cookies — just a standalone static web app.
+A beautiful, playable idle tower defense game built with SvelteKit, TypeScript, and Canvas 2D rendering. No backend, no tracking, no cookies — just a standalone static web app.
+
+## Quick Start
+
+```bash
+npm install
+npm run dev      # dev server
+npm run build    # production build → build/
+npm run preview  # preview production build
+npm test         # run tests
+```
 
 ## Features
 
-### Current (MVP)
-- Central neon tower with automatic targeting and shooting
-- 5 enemy types: Normal, Fast, Tank, Ranged, Boss
+### Gameplay
+- Central neon tower with auto-targeting and 5 enemy types (Normal, Fast, Tank, Ranged, Boss)
 - Endless wave progression with scaling difficulty
-- Battle upgrades (Cash) — Damage, Fire Rate, Range, Multishot, Crit Chance, Defense, Max HP
+- Battle upgrades (Cash) — 7 upgrades per run
 - Workshop upgrades (Coins) — 8 permanent upgrades between runs
-- Lab research system (3 research items)
-- Tier system (5 tiers with progression requirements)
-- Challenge system (3 challenge scaffolds)
-- Local save via IndexedDB (idb-keyval)
-- Export/Import save as JSON
-- Settings: Reduced motion, screen shake, particles, damage numbers, low effects mode
-- Responsive desktop/tablet/mobile layout
-- Neon cyber visual theme with glowing tower, projectiles, particles, and starfield background
-- Screen shake on damage
-- Floating damage numbers
-- Death particle effects
-- Wave announcements
-- Privacy-first: no analytics, no tracking, no backend
+- Lab research system — 3 research items
+- Tier system — 5 tiers with progression requirements
+- Challenge system — 3 challenge scaffolds
 
-### Planned
-- Full challenge implementations
-- Elite enemy variants
-- More lab research items
-- Achievement system
-- Sound effects and music
-- Additional tier content
-- Prestige/ascension mechanics
-- More tower customization
+### Controls
+- **Space** — Pause/Resume
+- **1/2/3/4** — Speed presets (1×, 2×, 3×, 5×)
+- Speed controls in top bar (desktop) or dedicated bar (mobile)
+
+### Visual
+- Neon cyber theme with deep dark backgrounds (#070812, #0B1020, #181938)
+- Cyan/blue/violet neon accents with glassmorphism panels
+- Geometric enemies with shape AND color identity (not color alone)
+- Glowing tower with pulsing core, rotating elements, and layered neon rings
+- Projectile trails with glow
+- Particle death bursts
+- Floating damage numbers with crit distinction
+- Screen shake on damage (configurable)
+- Animated starfield and grid background
+- Wave start and boss warning animations
+- Smooth UI transitions
+
+### Data & Privacy
+- 100% local — IndexedDB via idb-keyval
+- Export/Import save as JSON
+- Reset save with confirmation
+- No analytics, no cookies, no backend, no external requests
+- No external fonts or CDN assets
 
 ## Tech Stack
 
 - **SvelteKit** with Svelte 5
 - **TypeScript** (strict mode)
-- **Canvas 2D API** for rendering (lightweight, no heavy framework)
-- **idb-keyval** for IndexedDB save storage
+- **Canvas 2D API** for game rendering
+- **idb-keyval** for IndexedDB storage
 - **@sveltejs/adapter-static** for static output
 - **Vitest** for game logic tests
 
-## Development
+## Project Structure
 
-```bash
-# Install dependencies
-npm install
-
-# Start dev server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-
-# Run tests
-npm test
-
-# Type check
-npm run check
+```
+src/
+├── lib/game/
+│   ├── engine/       # Core game engine & types
+│   ├── systems/      # Game logic systems
+│   ├── balance/      # Data-driven configs
+│   ├── render/       # Canvas 2D rendering
+│   └── save/         # Save system
+├── lib/stores/       # Svelte stores
+└── routes/           # SvelteKit pages
 ```
 
 ## Static Hosting (Caddy)
 
-The production build outputs to `build/`. Serve it with Caddy:
-
-```Caddyfile
+```caddy
 example.com {
     root * /path/to/koala-tower/build
     try_files {path} /index.html
@@ -79,59 +83,7 @@ example.com {
 }
 ```
 
-Or with any static file server:
-
-```bash
-npx serve build
-```
-
-## Privacy
-
-KoalaTower stores all game data locally in your browser's IndexedDB database. No data is transmitted to any server. No cookies, no analytics, no tracking. You can export, import, and reset your save at any time from the settings menu.
-
-## Project Structure
-
-```
-src/
-├── lib/
-│   ├── game/
-│   │   ├── engine/       # Core game engine
-│   │   │   ├── GameEngine.ts
-│   │   │   ├── gameTypes.ts
-│   │   │   └── gameConfig.ts
-│   │   ├── systems/      # Game logic systems
-│   │   │   ├── enemySystem.ts
-│   │   │   ├── towerSystem.ts
-│   │   │   ├── waveSystem.ts
-│   │   │   └── economySystem.ts
-│   │   ├── balance/      # Data-driven configs
-│   │   │   ├── enemies.ts
-│   │   │   ├── battleUpgrades.ts
-│   │   │   ├── workshopUpgrades.ts
-│   │   │   ├── tiers.ts
-│   │   │   ├── milestones.ts
-│   │   │   ├── labs.ts
-│   │   │   └── challenges.ts
-│   │   ├── render/       # Canvas rendering
-│   │   │   ├── PixiGameView.ts
-│   │   │   ├── renderTypes.ts
-│   │   │   └── shapeFactory.ts
-│   │   ├── save/         # Save system
-│   │   │   ├── saveTypes.ts
-│   │   │   ├── saveService.ts
-│   │   │   └── migrations.ts
-│   │   └── __tests__/    # Vitest tests
-│   └── stores/           # Svelte stores
-│       └── gameUiStore.ts
-└── routes/
-    ├── +layout.svelte
-    ├── +layout.ts
-    ├── +page.svelte      # Home page
-    ├── play/
-    │   └── +page.svelte  # Main game
-    └── privacy/
-        └── +page.svelte  # Privacy page
-```
+Or any static file server (`npx serve build`, nginx, etc.)
 
 ## License
 

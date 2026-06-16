@@ -263,6 +263,7 @@ export interface GameSnapshot {
 	runActive: boolean;
 	highestWave: number;
 	enemyCount: number;
+	speed: number;
 }
 
 export const DEFAULT_SETTINGS: GameSettings = {

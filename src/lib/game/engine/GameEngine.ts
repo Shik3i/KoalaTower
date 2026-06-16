@@ -22,12 +22,14 @@ export class GameEngine {
 	public particles: Particle[] = [];
 	public damageNumbers: DamageNumber[] = [];
 	public shakeAmount: number = 0;
+	public speedMultiplier: number = 1;
 
 	private snapshotTimer: number = 0;
 	private lastSnapshot: GameSnapshot | null = null;
 	private onSnapshot: ((snapshot: GameSnapshot) => void) | null = null;
 	private onGameOver: ((coins: number, wave: number) => void) | null = null;
 	private onMilestone: ((text: string) => void) | null = null;
+	private onStateChange: (() => void) | null = null;
 
 	constructor() {
 		this.state = this.createInitialState();
@@ -76,10 +78,12 @@ export class GameEngine {
 		onSnapshot?: (snapshot: GameSnapshot) => void;
 		onGameOver?: (coins: number, wave: number) => void;
 		onMilestone?: (text: string) => void;
+		onStateChange?: () => void;
 	}): void {
 		if (opts.onSnapshot) this.onSnapshot = opts.onSnapshot;
 		if (opts.onGameOver) this.onGameOver = opts.onGameOver;
 		if (opts.onMilestone) this.onMilestone = opts.onMilestone;
+		if (opts.onStateChange) this.onStateChange = opts.onStateChange;
 	}
 
 	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, startingCoins: number): void {
@@ -88,6 +92,7 @@ export class GameEngine {
 		this.particles = [];
 		this.damageNumbers = [];
 		this.shakeAmount = 0;
+		this.speedMultiplier = 1;
 
 		this.state = this.createInitialState();
 		this.state.workshopUpgrades = { ...workshopUpgrades } as Record<WorkshopUpgradeId, number>;
@@ -100,28 +105,30 @@ export class GameEngine {
 		this.state.cash = getStartingCash(this.state);
 
 		this.state.wave.betweenWaveTimer = 1.0;
+		this.emitImmediateSnapshot();
+		this.onStateChange?.();
 	}
 
 	public update(dt: number): void {
 		if (!this.state.runActive || this.state.gameOver || this.state.paused) return;
 
-		const clampedDt = Math.min(dt, GAME_CONFIG.CLAMP_DELTA);
-		this.state.elapsedTime += clampedDt;
+		const effectiveDt = Math.min(dt * this.speedMultiplier, GAME_CONFIG.CLAMP_DELTA);
+		this.state.elapsedTime += effectiveDt;
 
 		applyBattleUpgrades(this.state);
-		updateWaveSystem(this.state, clampedDt);
-		updateEnemySystem(this.state, clampedDt);
-		updateTowerTargeting(this.state, clampedDt);
-		updateProjectileSystem(this.state, clampedDt);
+		updateWaveSystem(this.state, effectiveDt);
+		updateEnemySystem(this.state, effectiveDt);
+		updateTowerTargeting(this.state, effectiveDt);
+		updateProjectileSystem(this.state, effectiveDt);
 		removeDeadEnemies(this.state);
 
-		this.updateParticles(clampedDt);
-		this.updateDamageNumbers(clampedDt);
-		this.updateShake(clampedDt);
+		this.updateParticles(effectiveDt);
+		this.updateDamageNumbers(effectiveDt);
+		this.updateShake(effectiveDt);
 
 		this.checkGameOver();
 		this.checkMilestones();
-		this.emitSnapshot(clampedDt);
+		this.emitSnapshot(effectiveDt);
 	}
 
 	private checkGameOver(): void {
@@ -147,7 +154,14 @@ export class GameEngine {
 		this.snapshotTimer += dt;
 		if (this.snapshotTimer < GAME_CONFIG.UI_SNAPSHOT_INTERVAL / 1000) return;
 		this.snapshotTimer = 0;
+		this.buildAndEmitSnapshot();
+	}
 
+	public emitImmediateSnapshot(): void {
+		this.buildAndEmitSnapshot();
+	}
+
+	private buildAndEmitSnapshot(): void {
 		const snap: GameSnapshot = {
 			wave: this.state.wave.currentWave,
 			towerHp: this.state.tower.hp,
@@ -160,6 +174,7 @@ export class GameEngine {
 			runActive: this.state.runActive,
 			highestWave: this.state.highestWave,
 			enemyCount: this.state.enemies.length,
+			speed: this.speedMultiplier,
 		};
 		this.lastSnapshot = snap;
 		if (this.onSnapshot) this.onSnapshot(snap);
@@ -176,6 +191,8 @@ export class GameEngine {
 			this.state.cash -= cost;
 			this.state.battleUpgrades[id] = currentLevel + 1;
 			applyBattleUpgrades(this.state);
+			this.emitImmediateSnapshot();
+			this.onStateChange?.();
 			return true;
 		}
 		return false;
@@ -183,10 +200,18 @@ export class GameEngine {
 
 	public togglePause(): void {
 		this.state.paused = !this.state.paused;
+		this.onStateChange?.();
 	}
 
 	public isPaused(): boolean {
 		return this.state.paused;
+	}
+
+	public setSpeed(multiplier: number): void {
+		this.speedMultiplier = Math.max(0.1, Math.min(10, multiplier));
+		this.state.paused = multiplier === 0;
+		this.emitImmediateSnapshot();
+		this.onStateChange?.();
 	}
 
 	public addShake(amount: number): void {
@@ -269,5 +294,6 @@ export class GameEngine {
 		this.onSnapshot = null;
 		this.onGameOver = null;
 		this.onMilestone = null;
+		this.onStateChange = null;
 	}
 }
