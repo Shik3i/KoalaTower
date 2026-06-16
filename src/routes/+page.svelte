@@ -118,7 +118,9 @@
 	<footer class="footer">
 		<p>All data stored locally in your browser. No tracking, no cookies.</p>
 		<nav class="footer-links" aria-label="Footer navigation">
-			<a href="/privacy" class="footer-link">Privacy Policy</a>
+			<a href="/help" class="footer-link">Help</a>
+			<span class="footer-sep" aria-hidden="true">·</span>
+			<a href="/privacy" class="footer-link">Privacy</a>
 			<span class="footer-sep" aria-hidden="true">·</span>
 			<a href="/imprint" class="footer-link">Imprint</a>
 		</nav>

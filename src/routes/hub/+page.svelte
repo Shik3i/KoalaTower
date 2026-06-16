@@ -236,6 +236,8 @@
 	<footer class="hub-footer">
 		<span>KoalaTower 🐨</span>
 		<div class="hub-footer-links">
+			<a href="/help">Help</a>
+			<span>·</span>
 			<a href="/privacy">Privacy</a>
 			<span>·</span>
 			<a href="/imprint">Imprint</a>

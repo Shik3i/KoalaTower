@@ -5,6 +5,7 @@ export function GET() {
 		{ loc: '/', priority: '1.0', changefreq: 'weekly' },
 		{ loc: '/play', priority: '0.9', changefreq: 'weekly' },
 		{ loc: '/hub', priority: '0.8', changefreq: 'weekly' },
+		{ loc: '/help', priority: '0.7', changefreq: 'monthly' },
 		{ loc: '/privacy', priority: '0.5', changefreq: 'monthly' },
 		{ loc: '/imprint', priority: '0.4', changefreq: 'monthly' },
 	];
