@@ -119,9 +119,10 @@
 		engine.setCallbacks({
 			onSnapshot: () => { refreshSnap(); },
 			onStateChange: () => { refreshSnap(); },
-			onGameOver: (_c: number, _w: number) => {
+			onGameOver: (koalaCoins: number, _w: number) => {
 				refreshSnap();
-				gameOverCoins = _c; gameOverWave = _w;
+				gameOverCoins = koalaCoins;
+				gameOverWave = _w;
 				gameOverKills = engine?.state.killCount ?? 0;
 				showGameOver = true;
 				const save = getCachedSave();
@@ -166,7 +167,7 @@
 		if (!engine) return;
 		const lv = engine.state.battleUpgrades[id] ?? 0;
 		if (engine.buyBattleUpgrade(id)) { refreshSnap(); toast('⬆ Upgraded!', 'success'); }
-		else { toast(lv >= 50 ? '⚠ Max level!' : '💰 Not enough Cash!', lv >= 50 ? 'warning' : 'error'); }
+		else { toast(lv >= 50 ? '⚠ Max level!' : '💰 Not enough Gold!', lv >= 50 ? 'warning' : 'error'); }
 	}
 	function bLv(id: UpgradeId): number { return snap?.upgradeLevels[id] ?? 0; }
 
@@ -257,7 +258,7 @@
 				<h2 class="go-title">Run Over</h2>
 				<div class="go-wave">Reached Wave <strong>{gameOverWave}</strong></div>
 				<div class="go-stats">
-					<div class="go-s"><span class="go-si">🪙</span><span class="go-sv">+{gameOverCoins.toLocaleString()}</span><span class="go-sl">Coins</span></div>
+					<div class="go-s"><span class="go-si">🪙</span><span class="go-sv">+{gameOverCoins.toLocaleString()}</span><span class="go-sl">KoalaCoins</span></div>
 					<div class="go-sd"></div>
 					<div class="go-s"><span class="go-si">💀</span><span class="go-sv">{gameOverKills.toLocaleString()}</span><span class="go-sl">Kills</span></div>
 					<div class="go-sd"></div>
@@ -295,7 +296,7 @@
 									<div class="ir"><span class="il">Kills</span><span class="iv">{snap.killCount}</span></div>
 									<div class="ir"><span class="il">Time</span><span class="iv">{fmt(snap.elapsedTime)}</span></div>
 									<div class="ir"><span class="il">Speed</span><span class="iv">{paused ? '⏸' : speed + '×'}</span></div>
-									<div class="ir"><span class="il">Cash</span><span class="iv cash-iv">💰{Math.floor(snap.cash).toLocaleString()}</span></div>
+									<div class="ir"><span class="il">Gold</span><span class="iv cash-iv">💰{Math.floor(snap.cash).toLocaleString()}</span></div>
 								</div>
 								<div class="psd"></div>
 								<div class="pst">🌊 Wave Manager</div>

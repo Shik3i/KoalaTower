@@ -45,7 +45,7 @@
 			coinsStore.set(save.totalCoins);
 			persistSave(save);
 			toast('🔧 Upgraded!', 'success');
-		} else { toast('🪙 Not enough Coins!', 'error'); }
+		} else { toast('🪙 Not enough KoalaCoins!', 'error'); }
 	}
 
 	// Lab research
@@ -88,7 +88,7 @@
 		const rs2 = save.labResearch[id as keyof typeof save.labResearch];
 		if (rs2?.researchStart && !rs2.complete) { toast('⚠ Already researching!', 'warning'); return; }
 		const cost = item.cost(lv);
-		if (save.totalCoins < cost) { toast('🪙 Need ' + cost.toLocaleString() + ' Coins!', 'error'); return; }
+		if (save.totalCoins < cost) { toast('🪙 Need ' + cost.toLocaleString() + ' KoalaCoins!', 'error'); return; }
 		save.totalCoins -= cost;
 		save.labResearch[id as keyof typeof save.labResearch] = { level: lv, researchStart: Date.now(), duration: item.duration(lv), complete: false };
 		coinsStore.set(save.totalCoins); persistSave(save);

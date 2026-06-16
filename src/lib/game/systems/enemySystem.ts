@@ -1,7 +1,7 @@
 import { GAME_CONFIG } from '../engine/gameConfig';
 import { EnemyType, type Enemy, type GameState, type Projectile } from '../engine/gameTypes';
 import { damageTower } from './towerSystem';
-import { calculateCashFromKill } from './economySystem';
+import { calculateGoldFromKill, getKoalaCoinPerKill } from './economySystem';
 
 // Feedback helpers — called by the projectile system to spawn effects.
 // These are stored on the GameEngine instance; we provide a way to register them.
@@ -112,12 +112,19 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 				_addParticles?.(target.position.x, target.position.y, target.color, pCount, target.isBoss ? 120 : 60);
 				if (target.isBoss) _addShake?.(6);
 
-				// Cash reward popup
-				const cashReward = calculateCashFromKill(state, target.reward);
-				state.cash += cashReward;
-				_addDmg?.(target.position.x, target.position.y + target.size * 0.5, '+' + cashReward + '💰', GAME_CONFIG.NEON_GREEN);
+				// Gold (temporary run currency) — variable, based on wave + difficulty
+				const gold = calculateGoldFromKill(state, target.reward);
+				state.cash += gold;
 
+				// KoalaCoin (permanent currency) — 1 + workshop bonus per kill
+				const coin = getKoalaCoinPerKill(state);
+				state.coins += coin;
 
+				// Feedback popups
+				_addDmg?.(target.position.x, target.position.y + target.size * 0.5, '+' + gold + '💰', GAME_CONFIG.NEON_GREEN);
+				if (coin > 0) {
+					_addDmg?.(target.position.x, target.position.y + target.size, '+' + coin + '🪙', GAME_CONFIG.NEON_YELLOW);
+				}
 			}
 			proj.alive = false;
 			continue;

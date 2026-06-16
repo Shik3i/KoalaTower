@@ -13,7 +13,7 @@ import { EnemyType, DEFAULT_SETTINGS } from './gameTypes';
 import { createTowerState, applyBattleUpgrades } from '../systems/towerSystem';
 import { updateEnemySystem, updateProjectileSystem, updateTowerTargeting, resetProjectileIdCounter } from '../systems/enemySystem';
 import { updateWaveSystem, removeDeadEnemies } from '../systems/waveSystem';
-import { calculateRunCoins, getStartingCash } from '../systems/economySystem';
+import { getStartingGold } from '../systems/economySystem';
 import { resetEnemyIdCounter } from '../balance/enemies';
 import { getBattleUpgradeCost } from '../balance/battleUpgrades';
 import { setFeedbackHooks } from '../systems/enemySystem';
@@ -110,7 +110,7 @@ export class GameEngine {
 		this.state.paused = false;
 
 		this.state.tower = createTowerState(this.state);
-		this.state.cash = getStartingCash(this.state);
+		this.state.cash = getStartingGold(this.state);
 
 		this.state.wave.betweenWaveTimer = 1.0;
 		this.emitImmediateSnapshot();
@@ -141,11 +141,11 @@ export class GameEngine {
 
 	private checkGameOver(): void {
 		if (this.state.gameOver && this.onGameOver) {
-			const coins = calculateRunCoins(this.state);
-			this.state.coins += coins;
+			// Coins are earned per kill during the run — no end-of-run bonus needed.
+			const coinsEarned = this.state.coins; // KoalaCoins accumulated from kills
 			this.state.totalRuns++;
 			this.state.highestWave = Math.max(this.state.highestWave, this.state.wave.currentWave);
-			this.onGameOver(coins, this.state.wave.currentWave);
+			this.onGameOver(coinsEarned, this.state.wave.currentWave);
 		}
 	}
 

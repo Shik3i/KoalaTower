@@ -58,7 +58,7 @@
 				<div class="coin-display">
 					<span class="coin-icon">🪙</span>
 					<span class="coin-amount">{coins.toLocaleString()}</span>
-					<span class="coin-label">Coins</span>
+					<span class="coin-label">KoalaCoins</span>
 				</div>
 			{/if}
 		</div>
