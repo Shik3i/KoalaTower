@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { PixiGameView } from '$lib/game/render/PixiGameView';
 	import { GameEngine } from '$lib/game/engine/GameEngine';
+	import Tutorial from '$lib/components/Tutorial.svelte';
 	import { GAME_CONFIG } from '$lib/game/engine/gameConfig';
 	import { UpgradeId, type GameSnapshot, type GameSettings } from '$lib/game/engine/gameTypes';
 	import { BATTLE_UPGRADES, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
@@ -243,6 +244,9 @@
 			<a href="/hub" class="hub-link" aria-label="Workshop">🏪</a>
 		</div>
 	</header>
+
+	<!-- ===== Tutorial ===== -->
+	<Tutorial />
 
 	<!-- Mobile Speed Bar -->
 	{#if isMobile && snap?.runActive}

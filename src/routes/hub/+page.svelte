@@ -208,11 +208,11 @@
 				<div class="hs"><h2 class="hst">⚙ Settings</h2>
 					<div class="sg">
 						{#each settingsList as s}
-							<label class="sr"><div class="si"><span class="sl">{s.label}</span><span class="sd">{s.desc}</span></div>
+							<div class="sr" role="group" aria-label={s.label}><div class="si"><span class="sl">{s.label}</span><span class="sd">{s.desc}</span></div>
 								<div class="tg" class:on={settings[s.key]} role="switch" aria-checked={settings[s.key]} tabindex="0" onclick={() => { const save = getCachedSave(); if (!save) return; save.settings[s.key] = !settings[s.key]; settingsStore.set({...save.settings}); persistSave(save); }} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const save = getCachedSave(); if (!save) return; save.settings[s.key] = !settings[s.key]; settingsStore.set({...save.settings}); persistSave(save); } }}>
 									<div class="tgk"></div>
 								</div>
-							</label>
+							</div>
 						{/each}
 					</div>
 					<div class="hsd" style="margin-top:1rem;">

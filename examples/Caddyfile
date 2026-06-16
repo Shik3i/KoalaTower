@@ -1,0 +1,22 @@
+# KoalaTower — Caddy reverse proxy config
+#
+# Copy to your Caddyfile or include it.
+# Assumes KoalaTower runs in a Docker container named "koala-tower"
+# on port 8080 (see docker-compose.yml).
+
+koalatower.example.com {
+    # Cache static assets
+    header /_app/* Cache-Control "public, max-age=31536000, immutable"
+    header /* Cache-Control "public, max-age=3600"
+
+    # Security headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+
+    # Reverse proxy to the container
+    reverse_proxy koala-tower:8080
+}

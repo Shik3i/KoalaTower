@@ -115,7 +115,7 @@
 		</div>
 	</div>
 
-	<footer class="footer" role="contentinfo">
+	<footer class="footer">
 		<p>All data stored locally in your browser. No tracking, no cookies.</p>
 		<nav class="footer-links" aria-label="Footer navigation">
 			<a href="/privacy" class="footer-link">Privacy Policy</a>

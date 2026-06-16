@@ -71,9 +71,9 @@ export function getWaveSpeedMultiplier(wave: number): number {
 export function getWaveRewardMultiplier(wave: number): number {
 	return 1 + wave * 0.03 + wave * wave * 0.00002;
 }
-/** Enemy armour reduces incoming damage by this fraction (cap 0.8). */
+/** Enemy armour reduces incoming damage — diminishing returns, approaches 0.85 asymptotically. */
 export function getWaveArmor(wave: number): number {
-	return Math.min(0.8, wave * 0.001);
+	return 1 - 1 / (1 + wave * 0.003);
 }
 
 export function getDefaultSettings(): GameSettings {
