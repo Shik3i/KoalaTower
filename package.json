@@ -1,0 +1,29 @@
+{
+  "name": "koala-tower",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "svelte-kit sync && tsc --noEmit",
+    "typecheck": "svelte-kit sync && tsc --noEmit"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.8",
+    "@sveltejs/kit": "^2.20.2",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@types/node": "^25.9.3",
+    "svelte": "^5.25.3",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.1",
+    "vitest": "^3.1.1"
+  },
+  "dependencies": {
+    "idb-keyval": "^6.2.1",
+    "pixi.js": "^8.6.6"
+  }
+}
