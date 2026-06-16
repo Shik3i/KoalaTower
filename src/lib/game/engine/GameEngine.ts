@@ -15,7 +15,7 @@ import { updateEnemySystem, updateProjectileSystem, updateTowerTargeting, resetP
 import { updateWaveSystem, removeDeadEnemies } from '../systems/waveSystem';
 import { getStartingGold } from '../systems/economySystem';
 import { resetEnemyIdCounter } from '../balance/enemies';
-import { getBattleUpgradeCost } from '../balance/battleUpgrades';
+import { getBattleUpgradeCost, BATTLE_UPGRADES } from '../balance/battleUpgrades';
 import { setFeedbackHooks } from '../systems/enemySystem';
 
 export class GameEngine {
@@ -217,8 +217,11 @@ export class GameEngine {
 
 	public buyBattleUpgrade(id: UpgradeId): boolean {
 		const currentLevel = this.state.battleUpgrades[id] ?? 0;
+		const upgrade = BATTLE_UPGRADES.find(u => u.id === id);
+		if (!upgrade) return false;
+		const maxLv = upgrade.maxLevel;
 		const cost = getBattleUpgradeCost(id, currentLevel);
-		if (this.state.cash >= cost && currentLevel < 50) {
+		if (this.state.cash >= cost && currentLevel < maxLv) {
 			this.state.cash -= cost;
 			this.state.battleUpgrades[id] = currentLevel + 1;
 			applyBattleUpgrades(this.state);

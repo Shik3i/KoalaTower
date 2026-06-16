@@ -91,7 +91,7 @@ export function getWorkshopUpgradeEffect(id: WorkshopUpgradeId, level: number): 
 		case WorkshopUpgradeId.BaseFireRate: return level * 0.03;
 		case WorkshopUpgradeId.BaseRange: return level * 5;
 		case WorkshopUpgradeId.StartingHp: return level * 5;
-		case WorkshopUpgradeId.CoinBonus: return level * 0.02;
+		case WorkshopUpgradeId.CoinBonus: return level * 0.05;
 		case WorkshopUpgradeId.CashBonus: return level * 0.02;
 		case WorkshopUpgradeId.CritBonus: return level * 0.005;
 		case WorkshopUpgradeId.StartingCash: return level * 3;

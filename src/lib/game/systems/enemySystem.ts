@@ -103,6 +103,7 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 			const effectiveArmor = Math.max(0, target.armor - pierceBonus);
 			const effectiveDmg = Math.max(1, Math.floor(proj.damage * (1 - effectiveArmor)));
 			target.hp -= effectiveDmg;
+			state.totalDamageDealt += effectiveDmg;
 			target.hitFlashTimer = 0.1;
 
 			// Damage number popup

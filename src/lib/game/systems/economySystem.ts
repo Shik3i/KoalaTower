@@ -1,6 +1,7 @@
 import { WAVE_CONFIG } from '../engine/gameConfig';
-import { WorkshopUpgradeId, type GameState } from '../engine/gameTypes';
+import { WorkshopUpgradeId, LabId, type GameState } from '../engine/gameTypes';
 import { getWorkshopUpgradeEffect } from '../balance/workshopUpgrades';
+import { getLabItemEffect } from '../balance/labs';
 
 /** Gold earned per kill — variable, based on wave difficulty and enemy base reward. Used for battle upgrades (run-only). */
 export function calculateGoldFromKill(state: GameState, baseReward: number): number {
@@ -9,11 +10,13 @@ export function calculateGoldFromKill(state: GameState, baseReward: number): num
 	return Math.floor(baseReward * (1 + state.wave.currentWave * 0.02) * cashMultiplier);
 }
 
-/** KoalaCoins earned per kill — base 1 + workshop bonus. Permanent currency for workshop + lab. */
+/** KoalaCoins earned per kill — base 1 + workshop bonus + lab research multiplier. */
 export function getKoalaCoinPerKill(state: GameState): number {
-	const bonusLevel = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
-	const bonus = getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, bonusLevel);
-	return 1 + Math.floor(bonus);
+	const wsBonus = getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0);
+	const labLevel = state.labLevels[LabId.CoinEfficiency] ?? 0;
+	const labMult = 1 + getLabItemEffect(LabId.CoinEfficiency, labLevel);
+	const total = (1 + wsBonus) * labMult;
+	return Math.floor(total);
 }
 
 export function getStartingGold(state: GameState): number {
