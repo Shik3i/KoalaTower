@@ -264,6 +264,12 @@ export interface GameSnapshot {
 	highestWave: number;
 	enemyCount: number;
 	speed: number;
+	towerDamage: number;
+	towerFireRate: number;
+	towerRange: number;
+	towerMultishot: number;
+	towerCritChance: number;
+	upgradeLevels: Record<string, number>;
 }
 
 export const DEFAULT_SETTINGS: GameSettings = {

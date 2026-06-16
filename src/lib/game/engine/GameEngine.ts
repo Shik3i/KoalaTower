@@ -162,10 +162,11 @@ export class GameEngine {
 	}
 
 	private buildAndEmitSnapshot(): void {
+		const t = this.state.tower;
 		const snap: GameSnapshot = {
 			wave: this.state.wave.currentWave,
-			towerHp: this.state.tower.hp,
-			towerMaxHp: this.state.tower.maxHp,
+			towerHp: t.hp,
+			towerMaxHp: t.maxHp,
 			cash: this.state.cash,
 			coins: this.state.coins,
 			killCount: this.state.killCount,
@@ -175,6 +176,12 @@ export class GameEngine {
 			highestWave: this.state.highestWave,
 			enemyCount: this.state.enemies.length,
 			speed: this.speedMultiplier,
+			towerDamage: t.stats.damage,
+			towerFireRate: t.stats.fireRate,
+			towerRange: t.stats.range,
+			towerMultishot: t.stats.multishot,
+			towerCritChance: t.stats.critChance,
+			upgradeLevels: { ...this.state.battleUpgrades as Record<string, number> },
 		};
 		this.lastSnapshot = snap;
 		if (this.onSnapshot) this.onSnapshot(snap);
