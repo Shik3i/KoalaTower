@@ -46,8 +46,12 @@
 					<span class="btn-icon">▶</span>
 					<span class="btn-label">Play Now</span>
 				</a>
+				<a href="/hub" class="btn-primary" style="background:linear-gradient(135deg,var(--violet),var(--pink));box-shadow:0 0 20px rgba(136,68,255,.2);">
+					<span class="btn-icon">🏪</span>
+					<span class="btn-label">Hub</span>
+				</a>
 				<a href="/privacy" class="btn-secondary">
-					<span class="btn-label">Privacy</span>
+					<span>🔒</span> Privacy
 				</a>
 			</div>
 			{#if coins > 0}

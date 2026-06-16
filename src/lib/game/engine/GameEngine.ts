@@ -16,6 +16,7 @@ import { updateWaveSystem, removeDeadEnemies } from '../systems/waveSystem';
 import { calculateRunCoins, getStartingCash } from '../systems/economySystem';
 import { resetEnemyIdCounter } from '../balance/enemies';
 import { getBattleUpgradeCost } from '../balance/battleUpgrades';
+import { setFeedbackHooks } from '../systems/enemySystem';
 
 export class GameEngine {
 	public state: GameState;
@@ -33,6 +34,11 @@ export class GameEngine {
 
 	constructor() {
 		this.state = this.createInitialState();
+		setFeedbackHooks(
+			(x, y, text, color) => this.addDamageNumber(x, y, text, color),
+			(x, y, color, count, speed) => this.addParticles(x, y, color, count, speed),
+			(amount) => this.addShake(amount),
+		);
 	}
 
 	private createInitialState(): GameState {

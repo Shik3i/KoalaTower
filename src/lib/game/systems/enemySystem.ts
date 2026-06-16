@@ -3,6 +3,22 @@ import { EnemyType, type Enemy, type GameState, type Projectile } from '../engin
 import { damageTower } from './towerSystem';
 import { calculateCashFromKill } from './economySystem';
 
+// Feedback helpers — called by the projectile system to spawn effects.
+// These are stored on the GameEngine instance; we provide a way to register them.
+let _addDmg: ((x: number, y: number, text: string, color: number) => void) | null = null;
+let _addParticles: ((x: number, y: number, color: number, count: number, speed?: number) => void) | null = null;
+let _addShake: ((amount: number) => void) | null = null;
+
+export function setFeedbackHooks(
+	addDmg: (x: number, y: number, text: string, color: number) => void,
+	addParticles: (x: number, y: number, color: number, count: number, speed?: number) => void,
+	addShake?: (amount: number) => void,
+): void {
+	_addDmg = addDmg;
+	_addParticles = addParticles;
+	_addShake = addShake ?? null;
+}
+
 let nextProjectileId = 1;
 
 export function resetProjectileIdCounter(): void {
@@ -80,14 +96,28 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 		const dist = Math.sqrt(dx * dx + dy * dy);
 
 		if (dist < 8) {
-			// Armour reduces incoming damage
 			const effectiveDmg = Math.max(1, Math.floor(proj.damage * (1 - target.armor)));
 			target.hp -= effectiveDmg;
 			target.hitFlashTimer = 0.1;
+
+			// Damage number popup
+			_addDmg?.(target.position.x, target.position.y - target.size * 0.5, '-' + effectiveDmg, proj.isCrit ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_CYAN);
+
 			if (target.hp <= 0) {
 				target.alive = false;
 				state.killCount++;
-				state.cash += calculateCashFromKill(state, target.reward);
+
+				// Death particles
+				const pCount = target.isBoss ? 20 : 6;
+				_addParticles?.(target.position.x, target.position.y, target.color, pCount, target.isBoss ? 120 : 60);
+				if (target.isBoss) _addShake?.(6);
+
+				// Cash reward popup
+				const cashReward = calculateCashFromKill(state, target.reward);
+				state.cash += cashReward;
+				_addDmg?.(target.position.x, target.position.y + target.size * 0.5, '+' + cashReward + '💰', GAME_CONFIG.NEON_GREEN);
+
+
 			}
 			proj.alive = false;
 			continue;
