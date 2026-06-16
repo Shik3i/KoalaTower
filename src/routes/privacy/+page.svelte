@@ -1,6 +1,12 @@
 <script lang="ts">
 </script>
 
+<svelte:head>
+	<title>Privacy Policy — KoalaTower</title>
+	<meta name="description" content="KoalaTower privacy policy: all data stored locally in your browser. No cookies, no tracking, no backend. Server logs deleted after 7 days." />
+	<meta name="robots" content="index, follow" />
+</svelte:head>
+
 <main class="privacy-page">
 	<div class="bg-grid"></div>
 	<a href="/" class="back-link">← Back to KoalaTower</a>

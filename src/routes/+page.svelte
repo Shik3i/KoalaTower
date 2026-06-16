@@ -3,6 +3,18 @@
 	import { coinsStore } from '$lib/stores/gameUiStore';
 	import { APP_VERSION, GITHUB_URL } from '$lib/version';
 
+	const jsonLd = {
+		'@context': 'https://schema.org',
+		'@type': 'WebApplication',
+		name: 'KoalaTower',
+		applicationCategory: 'GameApplication',
+		operatingSystem: 'Any',
+		description: 'A neon cyber idle tower defense game. Defend your tower against endless waves of digital enemies.',
+		url: GITHUB_URL,
+		author: { '@type': 'Person', name: 'KoalaDev' },
+		offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+	};
+
 	let coins = $state(0);
 
 	onMount(() => {
@@ -17,6 +29,14 @@
 		delay: Math.random() * 5,
 	}));
 </script>
+
+<svelte:head>
+	<title>KoalaTower — Neon Cyber Idle Tower Defense</title>
+	<meta name="description" content="Defend your tower against endless waves of digital enemies. Upgrade, research, and climb the tiers in this neon cyber idle tower defense. No tracking, no cookies, no backend." />
+	<meta property="og:title" content="KoalaTower — Play Now" />
+	<meta property="og:description" content="Defend your tower against endless waves of digital enemies. Upgrade, research, and climb the tiers." />
+	<script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+</svelte:head>
 
 <main class="home">
 	<!-- Animated Background -->
@@ -95,13 +115,13 @@
 		</div>
 	</div>
 
-	<footer class="footer">
+	<footer class="footer" role="contentinfo">
 		<p>All data stored locally in your browser. No tracking, no cookies.</p>
-		<div class="footer-links">
+		<nav class="footer-links" aria-label="Footer navigation">
 			<a href="/privacy" class="footer-link">Privacy Policy</a>
-			<span class="footer-sep">·</span>
+			<span class="footer-sep" aria-hidden="true">·</span>
 			<a href="/imprint" class="footer-link">Imprint</a>
-		</div>
+		</nav>
 	</footer>
 </main>
 

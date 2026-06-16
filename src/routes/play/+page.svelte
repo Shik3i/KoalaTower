@@ -196,6 +196,11 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Play — KoalaTower</title>
+	<meta name="description" content="Play KoalaTower — defend your tower against endless waves of enemies. Battle upgrades, real-time lab research, and permanent workshop upgrades." />
+</svelte:head>
+
 <div class="play-layout" role="main">
 	{#if toasts.length}
 		<div class="toast-c" aria-live="polite" role="alert">{#each toasts as t}<div class="toast toast-{t.type}">{t.msg}</div>{/each}</div>

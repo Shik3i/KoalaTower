@@ -121,6 +121,11 @@
 	];
 </script>
 
+<svelte:head>
+	<title>Workshop — KoalaTower</title>
+	<meta name="description" content="KoalaTower Hub — Workshop upgrades, Laboratory research, Tiers, Challenges, Statistics, and Settings." />
+</svelte:head>
+
 <main class="hub-page">
 	<div class="bg-grid"></div>
 
