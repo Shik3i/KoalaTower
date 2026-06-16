@@ -1,7 +1,7 @@
 <script lang="ts">
 </script>
 
-<div class="privacy-page">
+<main class="privacy-page">
 	<div class="bg-grid"></div>
 	<a href="/" class="back-link">← Back to KoalaTower</a>
 	<div class="privacy-card glass-panel">
@@ -146,7 +146,7 @@
 			<p>Built with privacy by design. No tracking. No compromises.</p>
 		</div>
 	</div>
-</div>
+</main>
 
 <style>
 	.privacy-page {

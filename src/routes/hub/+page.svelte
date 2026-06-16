@@ -121,11 +121,11 @@
 	];
 </script>
 
-<div class="hub-page">
+<main class="hub-page">
 	<div class="bg-grid"></div>
 
 	{#if toasts.length}
-		<div class="toast-c">{#each toasts as t}<div class="toast toast-{t.type}">{t.msg}</div>{/each}</div>
+		<div class="toast-c" aria-live="polite" role="alert">{#each toasts as t}<div class="toast toast-{t.type}">{t.msg}</div>{/each}</div>
 	{/if}
 
 	<header class="hub-top">
@@ -204,7 +204,7 @@
 					<div class="sg">
 						{#each settingsList as s}
 							<label class="sr"><div class="si"><span class="sl">{s.label}</span><span class="sd">{s.desc}</span></div>
-								<div class="tg" class:on={settings[s.key]} role="switch" aria-checked={settings[s.key]} tabindex="0" onclick={() => { const save = getCachedSave(); if (!save) return; save.settings[s.key] = !settings[s.key]; settingsStore.set({...save.settings}); persistSave(save); }} onkeydown={(e) => e.key === 'Enter' && (() => {})}>
+								<div class="tg" class:on={settings[s.key]} role="switch" aria-checked={settings[s.key]} tabindex="0" onclick={() => { const save = getCachedSave(); if (!save) return; save.settings[s.key] = !settings[s.key]; settingsStore.set({...save.settings}); persistSave(save); }} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const save = getCachedSave(); if (!save) return; save.settings[s.key] = !settings[s.key]; settingsStore.set({...save.settings}); persistSave(save); } }}>
 									<div class="tgk"></div>
 								</div>
 							</label>
@@ -236,7 +236,7 @@
 			<a href="/imprint">Imprint</a>
 		</div>
 	</footer>
-</div>
+</main>
 
 <style>
 	.hub-page { min-height:100vh; background:var(--bg-primary); overflow-y:auto; }

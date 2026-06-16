@@ -18,7 +18,7 @@
 	}));
 </script>
 
-<div class="home">
+<main class="home">
 	<!-- Animated Background -->
 	<div class="bg-grid"></div>
 	{#each stars as star}
@@ -52,7 +52,7 @@
 				</a>
 				<a href="/hub" class="btn-primary" style="background:linear-gradient(135deg,var(--violet),var(--pink));box-shadow:0 0 20px rgba(136,68,255,.2);">
 					<span class="btn-icon">🏪</span>
-					<span class="btn-label">Hub</span>
+					<span class="btn-label">Workshop</span>
 				</a>
 				<a href="/privacy" class="btn-secondary">
 					<span>🔒</span> Privacy
@@ -103,7 +103,7 @@
 			<a href="/imprint" class="footer-link">Imprint</a>
 		</div>
 	</footer>
-</div>
+</main>
 
 <style>
 	.home {
@@ -231,17 +231,26 @@
 	}
 
 	.title-text {
-		background: linear-gradient(135deg, var(--cyan), var(--blue), var(--violet), var(--pink));
+		background: linear-gradient(
+			135deg,
+			var(--cyan) 0%,
+			#33CCFF 20%,
+			var(--blue) 40%,
+			#6666FF 60%,
+			var(--violet) 80%,
+			var(--pink) 100%
+		);
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
 		background-clip: text;
-		background-size: 200% auto;
-		animation: shimmer 4s linear infinite;
+		background-size: 300% auto;
+		animation: shimmer 12s ease-in-out infinite;
 	}
 
 	@keyframes shimmer {
 		0% { background-position: 0% center; }
-		100% { background-position: 200% center; }
+		50% { background-position: 100% center; }
+		100% { background-position: 0% center; }
 	}
 
 	.subtitle {

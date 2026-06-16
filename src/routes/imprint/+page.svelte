@@ -1,7 +1,7 @@
 <script lang="ts">
 </script>
 
-<div class="imprint-page">
+<main class="imprint-page">
 	<div class="bg-grid"></div>
 	<a href="/" class="back-link">← Back to KoalaTower</a>
 	<div class="imprint-card glass-panel">
@@ -78,7 +78,7 @@
 			</p>
 		</section>
 	</div>
-</div>
+</main>
 
 <style>
 	.imprint-page {

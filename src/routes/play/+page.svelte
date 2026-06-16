@@ -196,9 +196,9 @@
 	}
 </script>
 
-<div class="play-layout">
+<div class="play-layout" role="main">
 	{#if toasts.length}
-		<div class="toast-c">{#each toasts as t}<div class="toast toast-{t.type}">{t.msg}</div>{/each}</div>
+		<div class="toast-c" aria-live="polite" role="alert">{#each toasts as t}<div class="toast toast-{t.type}">{t.msg}</div>{/each}</div>
 	{/if}
 
 	<!-- Top Bar -->
@@ -235,7 +235,7 @@
 					</div>
 				{/if}
 			</div>
-			<a href="/hub" class="hub-link" aria-label="Hub">🏪</a>
+			<a href="/hub" class="hub-link" aria-label="Workshop">🏪</a>
 		</div>
 	</header>
 
@@ -266,7 +266,7 @@
 				</div>
 				<button class="go-btn" onclick={startRun}>▶ Play Again</button>
 				<div class="go-row2">
-					<a href="/hub" class="go-btn2">🏪 Hub</a>
+					<a href="/hub" class="go-btn2">🏪 Workshop</a>
 					<button class="go-btn2" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast('📋 Exported!', 'success'); }}>💾 Export</button>
 				</div>
 			</div>
@@ -398,7 +398,7 @@
 	{#if isMobile}
 		<nav class="mn">
 			<button class="mnb on"><span class="mni">⚔</span><span class="mnl">Battle</span></button>
-			<a href="/hub" class="mnb"><span class="mni">🏪</span><span class="mnl">Hub</span></a>
+			<a href="/hub" class="mnb"><span class="mni">🏪</span><span class="mnl">Workshop</span></a>
 		</nav>
 	{/if}
 </div>
