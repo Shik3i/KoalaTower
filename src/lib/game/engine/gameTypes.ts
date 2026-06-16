@@ -132,10 +132,13 @@ export enum ChallengeId {
 	BossRush = 'bossRush'
 }
 
+export type UpgradeCategory = 'offense' | 'defense' | 'utility';
+
 export interface BattleUpgrade {
 	id: UpgradeId;
 	name: string;
 	description: string;
+	category: UpgradeCategory;
 	level: number;
 	maxLevel: number;
 	cost: (level: number) => number;

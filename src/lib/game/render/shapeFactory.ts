@@ -1,12 +1,25 @@
 import { GAME_CONFIG } from '../engine/gameConfig';
 import type { Enemy, Particle, DamageNumber } from '../engine/gameTypes';
 
+/** Draw an octagonal tower. Only projectiles are round. */
 export function drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, hp: number, maxHp: number): void {
 	const t = Date.now() / 1000;
 	const pulse = Math.sin(t * 1.2) * 0.2 + 0.8;
 	const glowPulse = Math.sin(t * 0.8) * 0.3 + 0.7;
 
-	// === Outer atmospheric glow ===
+	// Helper: octagon path centered at (cx, cy) with given radius
+	function octPath(cx: number, cy: number, r: number) {
+		ctx.beginPath();
+		for (let i = 0; i < 8; i++) {
+			const a = (Math.PI / 4) * i - Math.PI / 8;
+			const px = cx + Math.cos(a) * r;
+			const py = cy + Math.sin(a) * r;
+			i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+		}
+		ctx.closePath();
+	}
+
+	// === Outer atmospheric glow (radial, can stay round) ===
 	const atmos = ctx.createRadialGradient(x, y, 0, x, y, size * 4);
 	atmos.addColorStop(0, `rgba(0, 255, 255, ${0.06 * glowPulse})`);
 	atmos.addColorStop(0.3, `rgba(68, 136, 255, ${0.04 * glowPulse})`);
@@ -17,38 +30,29 @@ export function drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, s
 	ctx.arc(x, y, size * 4, 0, Math.PI * 2);
 	ctx.fill();
 
-	// === Neon ring glow ===
+	// === Outer glow octagons ===
 	ctx.save();
-	ctx.shadowColor = 'rgba(0, 255, 255, 0.6)';
-	ctx.shadowBlur = 30 * pulse;
-
-	// Outer ring
-	ctx.strokeStyle = `rgba(0, 255, 255, ${0.15 * pulse})`;
+	ctx.shadowColor = 'rgba(0, 255, 255, 0.5)';
+	ctx.shadowBlur = 25 * pulse;
+	ctx.strokeStyle = `rgba(0, 255, 255, ${0.12 * pulse})`;
 	ctx.lineWidth = 1.5;
-	ctx.beginPath();
-	ctx.arc(x, y, size * 1.25, 0, Math.PI * 2);
+	octPath(x, y, size * 1.35);
 	ctx.stroke();
-
-	ctx.strokeStyle = `rgba(68, 136, 255, ${0.1 * pulse})`;
-	ctx.beginPath();
-	ctx.arc(x, y, size * 1.55, 0, Math.PI * 2);
+	ctx.strokeStyle = `rgba(68, 136, 255, ${0.08 * pulse})`;
+	octPath(x, y, size * 1.6);
 	ctx.stroke();
 	ctx.shadowBlur = 0;
 	ctx.restore();
 
-	// === Tower body with gradient ===
-	const bodyGrad = ctx.createRadialGradient(
-		x - size * 0.25, y - size * 0.3, 0,
-		x, y, size
-	);
+	// === Tower body: octagon with gradient ===
+	const bodyGrad = ctx.createRadialGradient(x - size * 0.2, y - size * 0.25, 0, x, y, size);
 	bodyGrad.addColorStop(0, '#66AAFF');
 	bodyGrad.addColorStop(0.3, '#4488FF');
 	bodyGrad.addColorStop(0.6, '#2255CC');
 	bodyGrad.addColorStop(0.85, '#112266');
 	bodyGrad.addColorStop(1, '#070812');
 	ctx.fillStyle = bodyGrad;
-	ctx.beginPath();
-	ctx.arc(x, y, size, 0, Math.PI * 2);
+	octPath(x, y, size);
 	ctx.fill();
 
 	// === Neon border with glow ===
@@ -57,34 +61,29 @@ export function drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, s
 	ctx.shadowBlur = 15 * pulse;
 	ctx.strokeStyle = `rgba(0, 255, 255, ${0.7 * pulse})`;
 	ctx.lineWidth = 2;
-	ctx.beginPath();
-	ctx.arc(x, y, size, 0, Math.PI * 2);
+	octPath(x, y, size);
 	ctx.stroke();
 	ctx.shadowBlur = 0;
 	ctx.restore();
 
-	// === Inner rings ===
-	ctx.strokeStyle = `rgba(0, 255, 255, ${0.15 * pulse})`;
+	// === Inner octagon rings ===
+	ctx.strokeStyle = `rgba(0, 255, 255, ${0.12 * pulse})`;
 	ctx.lineWidth = 1;
-	ctx.beginPath();
-	ctx.arc(x, y, size * 0.55, 0, Math.PI * 2);
+	octPath(x, y, size * 0.55);
+	ctx.stroke();
+	ctx.strokeStyle = `rgba(68, 136, 255, ${0.08 * pulse})`;
+	octPath(x, y, size * 0.3);
 	ctx.stroke();
 
-	ctx.strokeStyle = `rgba(68, 136, 255, ${0.1 * pulse})`;
-	ctx.beginPath();
-	ctx.arc(x, y, size * 0.3, 0, Math.PI * 2);
-	ctx.stroke();
-
-	// === Center core ===
+	// === Center core (small octagon) ===
 	const coreGrad = ctx.createRadialGradient(x, y, 0, x, y, size * 0.2);
-	coreGrad.addColorStop(0, `rgba(0, 255, 255, ${0.6 * pulse})`);
+	coreGrad.addColorStop(0, `rgba(0, 255, 255, ${0.5 * pulse})`);
 	coreGrad.addColorStop(1, 'rgba(0, 255, 255, 0)');
 	ctx.fillStyle = coreGrad;
-	ctx.beginPath();
-	ctx.arc(x, y, size * 0.2, 0, Math.PI * 2);
+	octPath(x, y, size * 0.2);
 	ctx.fill();
 
-	// === Spinning crosshair arms ===
+	// === Spinning crosshair segments (angular) ===
 	const rot = t * 0.6;
 	ctx.save();
 	ctx.translate(x, y);
@@ -94,14 +93,14 @@ export function drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, s
 	for (let i = 0; i < 4; i++) {
 		const a = (Math.PI / 2) * i;
 		ctx.beginPath();
-		ctx.moveTo(Math.cos(a) * size * 0.3, Math.sin(a) * size * 0.3);
-		ctx.lineTo(Math.cos(a) * size * 0.9, Math.sin(a) * size * 0.9);
+		ctx.moveTo(Math.cos(a) * size * 0.35, Math.sin(a) * size * 0.35);
+		ctx.lineTo(Math.cos(a) * size * 0.85, Math.sin(a) * size * 0.85);
 		ctx.stroke();
 	}
 	ctx.restore();
 
 	// === HP bar ===
-	const barW = size * 2.8;
+	const barW = size * 2.6;
 	const barH = 4;
 	const barX = x - barW / 2;
 	const barY = y - size - 14;
@@ -112,13 +111,13 @@ export function drawTower(ctx: CanvasRenderingContext2D, x: number, y: number, s
 	ctx.roundRect?.(barX, barY, barW, barH, 2) ?? ctx.rect(barX, barY, barW, barH);
 	ctx.fill();
 
-	const hpColor = hpPct > 0.5 ? `rgb(68, 255, 136)` : hpPct > 0.25 ? `rgb(255, 136, 68)` : `rgb(255, 68, 68)`;
+	const hpColor = hpPct > 0.5 ? 'rgb(68, 255, 136)' : hpPct > 0.25 ? 'rgb(255, 136, 68)' : 'rgb(255, 68, 68)';
 	ctx.fillStyle = hpColor;
 	ctx.beginPath();
 	ctx.roundRect?.(barX, barY, barW * hpPct, barH, 2) ?? ctx.rect(barX, barY, barW * hpPct, barH);
 	ctx.fill();
 
-	ctx.strokeStyle = `rgba(0, 255, 255, 0.2)`;
+	ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
 	ctx.lineWidth = 1;
 	ctx.beginPath();
 	ctx.roundRect?.(barX, barY, barW, barH, 2) ?? ctx.rect(barX, barY, barW, barH);
@@ -447,31 +446,33 @@ export function drawRangeIndicator(
 ): void {
 	const pulse = Math.sin(Date.now() / 1000) * 0.15 + 0.85;
 
-	// Range fill
+	// Subtle fill gradient (circular is fine for atmospheric effect)
 	const fillGrad = ctx.createRadialGradient(x, y, 0, x, y, range);
-	fillGrad.addColorStop(0, `rgba(0, 255, 255, ${0.02 * pulse})`);
-	fillGrad.addColorStop(0.8, `rgba(0, 255, 255, ${0.04 * pulse})`);
-	fillGrad.addColorStop(1, `rgba(0, 255, 255, ${0.01 * pulse})`);
+	fillGrad.addColorStop(0, `rgba(0, 255, 255, ${0.015 * pulse})`);
+	fillGrad.addColorStop(0.7, `rgba(0, 255, 255, ${0.025 * pulse})`);
+	fillGrad.addColorStop(1, `rgba(0, 255, 255, ${0.005 * pulse})`);
 	ctx.fillStyle = fillGrad;
 	ctx.beginPath();
 	ctx.arc(x, y, range, 0, Math.PI * 2);
 	ctx.fill();
 
-	// Range ring
-	ctx.strokeStyle = `rgba(0, 255, 255, ${0.07 * pulse})`;
+	// Range ring — dashed, very subtle
+	ctx.strokeStyle = `rgba(0, 255, 255, ${0.06 * pulse})`;
 	ctx.lineWidth = 1;
-	ctx.setLineDash([4, 8]);
+	ctx.setLineDash([3, 9]);
 	ctx.beginPath();
 	ctx.arc(x, y, range, 0, Math.PI * 2);
 	ctx.stroke();
 	ctx.setLineDash([]);
 
-	// Inner subtle ring
-	ctx.strokeStyle = `rgba(0, 255, 255, ${0.04 * pulse})`;
+	// Inner subtle ring at 60 %
+	ctx.strokeStyle = `rgba(68, 136, 255, ${0.03 * pulse})`;
 	ctx.lineWidth = 1;
+	ctx.setLineDash([2, 10]);
 	ctx.beginPath();
-	ctx.arc(x, y, range * 0.7, 0, Math.PI * 2);
+	ctx.arc(x, y, range * 0.6, 0, Math.PI * 2);
 	ctx.stroke();
+	ctx.setLineDash([]);
 }
 
 function hexToRgba(hex: number, alpha: number = 1): string {

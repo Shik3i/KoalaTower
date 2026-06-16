@@ -4,8 +4,7 @@
 	import { GameEngine } from '$lib/game/engine/GameEngine';
 	import { GAME_CONFIG } from '$lib/game/engine/gameConfig';
 	import { UpgradeId, type GameSnapshot, type GameSettings } from '$lib/game/engine/gameTypes';
-	import { BATTLE_UPGRADES } from '$lib/game/balance/battleUpgrades';
-	import { getBattleUpgradeCost, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
+	import { BATTLE_UPGRADES, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { engineStore } from '$lib/stores/gameStore';
@@ -21,6 +20,7 @@
 	let gameOverCoins = $state(0);
 	let gameOverWave = $state(0);
 	let gameOverKills = $state(0);
+	let upgradeCategory = $state<'offense' | 'defense' | 'utility'>('offense');
 
 	let snap = $state<GameSnapshot>(null!);
 	let coins = $state(0);
@@ -366,8 +366,13 @@
 					<div class="pc">
 						<div class="ps"><div class="pst">⚔ Battle Upgrades</div>
 							{#if snap?.runActive}
+								<div class="cat-tabs">
+									<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'}>⚔ Offense</button>
+									<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'}>🛡️ Defense</button>
+									<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'}>🔧 Utility</button>
+								</div>
 								<div class="ug">
-									{#each BATTLE_UPGRADES as u}
+									{#each BATTLE_UPGRADES.filter(u => u.category === upgradeCategory) as u}
 										{@const lv = bLv(u.id)}
 										{@const nl = Math.min(lv + 1, u.maxLevel)}
 										{@const cost = u.cost(lv)}
@@ -493,6 +498,10 @@
 	.ucc { font-family:var(--font-mono); color:var(--yellow); }
 	.ucnx { margin-left:auto; color:var(--text-dim); font-family:var(--font-mono); }
 	.uc.aff .ucnx { color:var(--green); }
+	.cat-tabs { display:flex; gap:2px; margin-bottom:.35rem; padding:2px; background:rgba(0,0,0,.12); border-radius:var(--radius-sm); }
+	.cat-tab { flex:1; padding:.2rem .15rem; font-size:.55rem; color:var(--text-dim); border-radius:4px; transition:all var(--transition-fast); text-align:center; cursor:pointer; }
+	.cat-tab.on { color:var(--cyan); background:rgba(0,255,255,.08); }
+	.cat-tab:hover:not(.on) { color:var(--text-secondary); background:rgba(255,255,255,.02); }
 	.hub-shortcut { margin-top:.5rem; text-align:center; font-size:.65rem; }
 	.hub-shortcut a { color:var(--text-dim); text-decoration:none; transition:all var(--transition-fast); }
 	.hub-shortcut a:hover { color:var(--cyan); }

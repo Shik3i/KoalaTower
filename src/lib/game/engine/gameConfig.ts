@@ -3,7 +3,7 @@ import type { GameSettings, TowerStats } from './gameTypes';
 export const GAME_CONFIG = {
 	VIEW_WIDTH: 800,
 	VIEW_HEIGHT: 800,
-	TOWER_SIZE: 40,
+	TOWER_SIZE: 32,
 	ENEMY_SPAWN_MARGIN: 60,
 	PROJECTILE_SPEED: 400,
 	DAMAGE_NUMBER_LIFETIME: 1.2,
