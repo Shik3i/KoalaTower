@@ -23,6 +23,8 @@
 	import { checkAchievements } from '$lib/game/balance/achievements';
 	import { engineStore } from '$lib/stores/gameStore';
 	import { audio } from '$lib/game/audio/AudioManager';
+	import Toasts from '$lib/components/Toasts.svelte';
+	import { createToastStore } from '$lib/stores/toastStore';
 
 	let container = $state<HTMLDivElement>();
 	let gameView = $state<PixiGameView | null>(null);
@@ -92,13 +94,8 @@
 		}
 	});
 
-	let toasts: { id: number; msg: string; type: string }[] = $state([]);
-	let nextToast = 0;
-	function toast(msg: string, type: string = 'info') {
-		const id = ++nextToast;
-		toasts = [...toasts, { id, msg, type }];
-		setTimeout(() => { toasts = toasts.filter(t => t.id !== id); }, 2200);
-	}
+	const toasts = createToastStore(2200);
+	const toast = toasts.push;
 
 	onMount(() => {
 		const cm = () => { isMobile = window.innerWidth < 900; };
@@ -155,6 +152,7 @@
 		gameView?.stop();
 		gameView?.destroy();
 		gameView = null;
+		toasts.clear();
 	});
 
 	function onKey(e: KeyboardEvent) {
@@ -489,9 +487,8 @@
 </svelte:head>
 
 <div class="play-layout" role="main">
-	{#if toasts.length}
-		<div class="toast-c" aria-live="polite" role="alert">{#each toasts as t}<div class="toast toast-{t.type}">{t.msg}</div>{/each}</div>
-	{/if}
+	<Toasts controller={toasts} vertical="top" offsetRem={3} />
+
 
 	<!-- Top Bar -->
 	<header class="topbar">
@@ -829,14 +826,6 @@
 
 <style>
 	.play-layout { display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden; background:var(--bg-primary); user-select:none; }
-	.toast-c { position:fixed; top:3rem; left:50%; transform:translateX(-50%); z-index:300; display:flex; flex-direction:column; gap:.3rem; pointer-events:none; }
-	.toast { padding:.4rem 1rem; font-size:var(--fs-body-sm); border-radius:100px; white-space:nowrap; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); animation:ti .2s ease; box-shadow:0 0 20px rgba(0,0,0,.3); }
-	.toast-info { background:rgba(0,255,255,.1); color:var(--cyan); border:1px solid rgba(0,255,255,.25); }
-	.toast-success { background:rgba(68,255,136,.1); color:var(--green); border:1px solid rgba(68,255,136,.25); }
-	.toast-warning { background:rgba(255,68,68,.1); color:var(--red); border:1px solid rgba(255,68,68,.25); }
-	.toast-error { background:rgba(255,68,68,.12); color:#FF6666; border:1px solid rgba(255,68,68,.3); }
-	.toast-milestone { background:rgba(255,221,68,.1); color:var(--yellow); border:1px solid rgba(255,221,68,.25); }
-	@keyframes ti { from{opacity:0;transform:translateY(-8px) scale(.95)} to{opacity:1;transform:translateY(0) scale(1)} }
 	.topbar { display:flex; align-items:center; padding:.3rem .65rem; gap:.4rem; background:rgba(7,8,18,.95); border-bottom:1px solid var(--border-neon); z-index:100; flex-shrink:0; position:relative; }
 	.tb-back { color:var(--text-dim); font-size:var(--fs-icon-md); text-decoration:none; padding:.1rem .3rem; border-radius:var(--radius-sm); transition:all var(--transition-fast); line-height:1; }
 	.tb-back:hover { color:var(--cyan); background:rgba(0,255,255,.06); }

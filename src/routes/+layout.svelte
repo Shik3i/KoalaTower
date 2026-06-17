@@ -13,20 +13,16 @@
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore, loadedStore } from '$lib/stores/gameUiStore';
 	import { LAB_DEFS } from '$lib/game/balance/labs';
 	import { APP_VERSION } from '$lib/version';
+	import Toasts from '$lib/components/Toasts.svelte';
+	import { createToastStore } from '$lib/stores/toastStore';
 
 	let { children } = $props();
 
 	let loaded = $state(false);
 	let labInterval: ReturnType<typeof setInterval> | null = null;
 	let visibilityHandler: (() => void) | null = null;
-	let toasts: { id: number; msg: string; type: string }[] = $state([]);
-	let nextToast = 0;
-
-	function toast(msg: string, type: string = 'info') {
-		const id = ++nextToast;
-		toasts = [...toasts, { id, msg, type }];
-		setTimeout(() => { toasts = toasts.filter(t => t.id !== id); }, 3000);
-	}
+	const toasts = createToastStore(3000);
+	const toast = toasts.push;
 
 	onMount(async () => {
 		try {
@@ -101,9 +97,7 @@
 	});
 </script>
 
-{#if toasts.length}
-	<div class="layout-toasts" aria-live="polite" role="alert">{#each toasts as t}<div class="toast toast-{t.type}">{t.msg}</div>{/each}</div>
-{/if}
+<Toasts controller={toasts} vertical="bottom" offsetRem={3} zIndex={500} />
 
 {@render children()}
 
@@ -123,14 +117,6 @@
 </footer>
 
 <style>
-	.layout-toasts { position:fixed; bottom:3rem; left:50%; transform:translateX(-50%); z-index:500; display:flex; flex-direction:column; gap:.3rem; pointer-events:none; }
-	.toast { padding:.4rem 1rem; font-size:var(--fs-body-sm); border-radius:100px; white-space:nowrap; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); animation:lti .2s ease; box-shadow:0 0 20px rgba(0,0,0,.3); }
-	.toast-info { background:rgba(0,255,255,.1); color:var(--cyan); border:1px solid rgba(0,255,255,.25); }
-	.toast-success { background:rgba(68,255,136,.1); color:var(--green); border:1px solid rgba(68,255,136,.25); }
-	.toast-warning { background:rgba(255,68,68,.1); color:var(--red); border:1px solid rgba(255,68,68,.25); }
-	.toast-error { background:rgba(255,68,68,.12); color:#FF6666; border:1px solid rgba(255,68,68,.3); }
-	.toast-milestone { background:rgba(255,221,68,.1); color:var(--yellow); border:1px solid rgba(255,221,68,.25); }
-	@keyframes lti { from{opacity:0;transform:translateY(-8px) scale(.95)} to{opacity:1;transform:translateY(0) scale(1)} }
 	.layout-footer { display:flex; align-items:center; justify-content:center; gap:.75rem; padding:.65rem 1rem; border-top:1px solid var(--border-neon); background:var(--bg-primary); position:relative; z-index:1; flex-wrap:wrap; }
 	.lf-nav { display:flex; gap:.35rem; align-items:center; }
 	.lf-link { color:var(--text-dim); font-size:var(--fs-caption-sm); text-decoration:none; transition:color var(--transition-fast); }

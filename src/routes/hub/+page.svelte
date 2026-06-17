@@ -15,6 +15,8 @@
 	import { getBlueprintStatus } from '$lib/game/progression/blueprintDiscovery';
 	import type { GameSettings, WorkshopUpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
+	import Toasts from '$lib/components/Toasts.svelte';
+	import { createToastStore } from '$lib/stores/toastStore';
 
 	let coins = $state(0);
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
@@ -84,13 +86,8 @@
 	let showImportDialog = $state(false);
 	let showResetConfirm = $state(false);
 	let importText = $state('');
-	let toasts: { id: number; msg: string; type: string }[] = $state([]);
-	let nextToast = 0;
-	function toast(msg: string, type: string = 'info') {
-		const id = ++nextToast;
-		toasts = [...toasts, { id, msg, type }];
-		setTimeout(() => { toasts = toasts.filter(t => t.id !== id); }, 2500);
-	}
+	const toasts = createToastStore(2500);
+	const toast = toasts.push;
 
 	onMount(() => {
 		const u1 = coinsStore.subscribe(c => coins = c);
@@ -103,7 +100,7 @@
 		if (save?.frontBestWave) frontBestWave = { ...save.frontBestWave };
 		refreshLabProgress();
 		labProgressTimer = setInterval(refreshLabProgress, 1000);
-		return () => { u1(); u2(); u3(); u4(); if (labProgressTimer) clearInterval(labProgressTimer); };
+		return () => { u1(); u2(); u3(); u4(); if (labProgressTimer) clearInterval(labProgressTimer); toasts.clear(); };
 	});
 
 	function wLv(id: WorkshopUpgradeId): number { return getCachedSave()?.workshopUpgrades[id] ?? 0; }
@@ -196,9 +193,8 @@
 
 	<Tutorial steps={hubTutorialSteps} tutorialKey={HUB_TUTORIAL_KEY} />
 
-	{#if toasts.length}
-		<div class="toast-c" aria-live="polite" role="alert">{#each toasts as t}<div class="toast toast-{t.type}">{t.msg}</div>{/each}</div>
-	{/if}
+	<Toasts controller={toasts} vertical="top" offsetRem={1} />
+
 
 	<header class="hub-top">
 		<a href="/" class="hub-back">← Home</a>
@@ -399,14 +395,6 @@
 
 <style>
 	.hub-page { min-height:100vh; background:var(--bg-primary); overflow-y:auto; }
-	.toast-c { position:fixed; top:1rem; left:50%; transform:translateX(-50%); z-index:300; display:flex; flex-direction:column; gap:.3rem; pointer-events:none; }
-	.toast { padding:.35rem .9rem; font-size:var(--fs-caption); border-radius:100px; white-space:nowrap; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); animation:ti .2s ease; box-shadow:0 0 20px rgba(0,0,0,.3); }
-	.toast-info { background:rgba(0,255,255,.1); color:var(--cyan); border:1px solid rgba(0,255,255,.25); }
-	.toast-success { background:rgba(68,255,136,.1); color:var(--green); border:1px solid rgba(68,255,136,.25); }
-	.toast-warning { background:rgba(255,68,68,.1); color:var(--red); border:1px solid rgba(255,68,68,.25); }
-	.toast-error { background:rgba(255,68,68,.12); color:#FF6666; border:1px solid rgba(255,68,68,.3); }
-	.toast-milestone { background:rgba(255,221,68,.1); color:var(--yellow); border:1px solid rgba(255,221,68,.25); }
-	@keyframes ti { from{opacity:0;transform:translateY(-8px) scale(.95)} to{opacity:1;transform:translateY(0) scale(1)} }
 	.hub-top { display:flex; align-items:center; gap:.75rem; padding:.75rem 1.5rem; background:rgba(7,8,18,.95); border-bottom:1px solid var(--border-neon); position:sticky; top:0; z-index:10; }
 	.hub-back { color:var(--text-secondary); font-size:var(--fs-body); text-decoration:none; padding:.25rem .65rem; border:1px solid var(--border-neon); border-radius:var(--radius-sm); transition:all var(--transition-fast); }
 	.hub-back:hover { color:var(--cyan); border-color:var(--cyan); }
