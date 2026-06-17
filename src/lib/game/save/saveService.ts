@@ -2,7 +2,7 @@ import { get, set, del } from 'idb-keyval';
 import { createDefaultSave, CURRENT_SCHEMA_VERSION, type SaveData } from './saveTypes';
 import { migrateSave, validateSaveData } from './migrations';
 
-const SAVE_KEY = 'koala-tower-save';
+const SAVE_KEY = 'geocore-td-save';
 
 let cachedSave: SaveData | null = null;
 

@@ -1,6 +1,20 @@
-import { EnemyType } from '../engine/gameTypes';
-import { ENEMY_BASE_STATS, GAME_CONFIG, WAVE_CONFIG, getWaveHpMultiplier, getWaveDamageMultiplier, getWaveSpeedMultiplier, getWaveRewardMultiplier, getWaveArmor } from '../engine/gameConfig';
-import type { Enemy, EnemyConfig, GameState } from '../engine/gameTypes';
+/**
+ * enemies.ts — Enemy creation and wave-composition logic.
+ *
+ * Uses balanceMath for all stat formulas. This file handles:
+ * - Converting balance data into in-game Enemy objects
+ * - Wave composition (which types, how many, spawn timing)
+ * - Boss escort spawning logic
+ */
+
+import { EnemyType, type Enemy, type EnemyConfig } from '../engine/gameTypes';
+import {
+	computeEnemyConfig,
+	enemiesPerWave,
+	bossEscortCount,
+	availableEnemyTypes,
+	spawnIntervalForWave,
+} from './balanceMath';
 
 let nextEnemyId = 1;
 
@@ -8,110 +22,59 @@ export function resetEnemyIdCounter(): void {
 	nextEnemyId = 1;
 }
 
-export function getEnemyConfig(type: EnemyType, wave: number): EnemyConfig {
-	const base = ENEMY_BASE_STATS[type];
-	const hpMul = getWaveHpMultiplier(wave);
-	const dmgMul = getWaveDamageMultiplier(wave);
-	const spdMul = getWaveSpeedMultiplier(wave);
-	const rewMul = getWaveRewardMultiplier(wave);
-	const armor = getWaveArmor(wave);
-
-	const bossHpBonus = type === EnemyType.Boss ? 5 : 1;
-
-	const colors: Record<EnemyType, number> = {
-		[EnemyType.Normal]: GAME_CONFIG.NEON_CYAN,
-		[EnemyType.Fast]: GAME_CONFIG.NEON_GREEN,
-		[EnemyType.Tank]: GAME_CONFIG.NEON_VIOLET,
-		[EnemyType.Ranged]: GAME_CONFIG.NEON_ORANGE,
-		[EnemyType.Boss]: GAME_CONFIG.NEON_PINK,
-	};
-
-	const shapes: Record<EnemyType, EnemyConfig['shape']> = {
-		[EnemyType.Normal]: 'square',
-		[EnemyType.Fast]: 'diamond',
-		[EnemyType.Tank]: 'hexagon',
-		[EnemyType.Ranged]: 'triangle',
-		[EnemyType.Boss]: 'pentagon',
-	};
-
-	return {
-		type,
-		hp: Math.floor(base.hp * hpMul * bossHpBonus),
-		maxHp: Math.floor(base.hp * hpMul * bossHpBonus),
-		speed: base.speed * spdMul,
-		reward: Math.floor(base.reward * rewMul),
-		damage: Math.floor(base.damage * dmgMul),
-		armor,
-		attackRange: base.attackRange,
-		attackCooldown: base.attackCooldown,
-		size: type === EnemyType.Boss ? Math.min(60, base.size + Math.floor(wave * 0.02)) : base.size,
-		color: colors[type],
-		shape: shapes[type],
-	};
+/**
+ * Get the total number of enemies for a wave.
+ * Boss waves return escort count + 1 (the boss itself).
+ */
+export function getEnemyCountForWave(wave: number): number {
+	if (wave % 10 === 0) {
+		return bossEscortCount(wave) + 1;
+	}
+	return enemiesPerWave(wave);
 }
 
-export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawnY: number): Enemy {
-	const config = getEnemyConfig(type, wave);
-	const id = nextEnemyId++;
-	return {
-		id,
-		type,
-		config,
-		position: { x: spawnX, y: spawnY },
-		hp: config.hp,
-		maxHp: config.maxHp,
-		speed: config.speed,
-		reward: config.reward,
-		damage: config.damage,
-		armor: config.armor,
-		attackRange: config.attackRange,
-		attackCooldown: config.attackCooldown,
-		attackTimer: 0,
-		size: config.size,
-		color: config.color,
-		shape: config.shape,
-		angle: 0,
-		alive: true,
-		hitFlashTimer: 0,
-		spawnProgress: 0,
-		stopped: false,
-		isBoss: type === EnemyType.Boss,
-		wave,
-	};
+/**
+ * Get the spawn interval in seconds for a given wave.
+ */
+export function getSpawnIntervalForWave(wave: number): number {
+	return spawnIntervalForWave(wave);
 }
 
-/** Track the boss-wave escort spawn separately from the boss itself. */
+/**
+ * Pick enemy types available for random spawn in a wave.
+ * On boss waves, returns only Boss type (escorts handled separately).
+ */
+export function getEnemyTypeForWave(wave: number): EnemyType[] {
+	if (wave % 10 === 0) {
+		return [EnemyType.Boss];
+	}
+	return availableEnemyTypes(wave);
+}
+
+/**
+ * Pick an escort type for the pre-boss phase of a boss wave.
+ */
+export function getEscortTypeForWave(wave: number): EnemyType {
+	const types = availableEnemyTypes(wave);
+	return types[Math.floor(Math.random() * types.length)]!;
+}
+
+// ─── Boss escort counter ────────────────────────────────────────────────────
+
 let _bossEscortRemaining = 0;
 
 export function resetBossEscortCounter(): void {
 	_bossEscortRemaining = 0;
 }
 
-/** Returns the current wave's enemy composition via weighted random.
- *  Boss waves return [EnemyType.Boss] for the boss, but escort enemies
- *  are spawned separately before the boss via getBossEscortCount().
- */
-export function getEnemyTypeForWave(wave: number): EnemyType[] {
-	if (wave % WAVE_CONFIG.BOSS_INTERVAL === 0) {
-		// On boss wave, return only boss type (escorts handled separately)
-		return [EnemyType.Boss];
-	}
-
-	const types: EnemyType[] = [EnemyType.Normal];
-	if (wave >= 3) types.push(EnemyType.Fast);
-	if (wave >= 5) types.push(EnemyType.Tank);
-	if (wave >= 8) types.push(EnemyType.Ranged);
-	if (wave >= 15) { types.push(EnemyType.Normal); types.push(EnemyType.Fast); } // more density
-	if (wave >= 25) types.push(EnemyType.Tank);
-	return types;
-}
-
-/** How many escort enemies appear before a boss on boss waves. */
 export function getBossEscortCount(wave: number): number {
-	return Math.min(3 + Math.floor(wave / 15), WAVE_CONFIG.BOSS_ESCORT_COUNT);
+	return bossEscortCount(wave);
 }
 
-/** Whether we still need to spawn boss escorts. */
+export function setupBossEscorts(wave: number): void {
+	_bossEscortRemaining = bossEscortCount(wave);
+}
+
 export function hasBossEscortsRemaining(): boolean {
 	return _bossEscortRemaining > 0;
 }
@@ -124,30 +87,52 @@ export function consumeBossEscort(): boolean {
 	return false;
 }
 
-export function getEnemyCountForWave(wave: number): number {
-	if (wave % WAVE_CONFIG.BOSS_INTERVAL === 0) {
-		const escorts = getBossEscortCount(wave);
-		_bossEscortRemaining = escorts;
-		// Total enemies: escorts + 1 boss
-		return escorts + 1;
-	}
-	// Gradually increase enemy count, cap at reasonable max
-	const base = WAVE_CONFIG.BASE_ENEMIES + Math.floor(wave * WAVE_CONFIG.ENEMIES_PER_WAVE * 0.5);
-	return Math.min(base, 200);
-}
+// ─── Enemy creation ─────────────────────────────────────────────────────────
 
-/** Pick a random enemy type for escorts based on wave. */
-export function getEscortTypeForWave(wave: number): EnemyType {
-	const escortTypes: EnemyType[] = [EnemyType.Normal];
-	if (wave >= 3) escortTypes.push(EnemyType.Fast);
-	if (wave >= 5) escortTypes.push(EnemyType.Tank);
-	if (wave >= 10) escortTypes.push(EnemyType.Ranged);
-	return escortTypes[Math.floor(Math.random() * escortTypes.length)]!;
-}
-
-export function getSpawnIntervalForWave(wave: number): number {
-	return Math.max(
-		WAVE_CONFIG.SPAWN_INTERVAL_MIN,
-		WAVE_CONFIG.SPAWN_INTERVAL_BASE * Math.pow(WAVE_CONFIG.SPAWN_INTERVAL_DECAY, wave - 1)
-	);
+/**
+ * Create an Enemy object from type and wave.
+ * Uses computeEnemyConfig from balanceMath for all stats.
+ */
+export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawnY: number): Enemy {
+	const config = computeEnemyConfig(type, wave);
+	const id = nextEnemyId++;
+	return {
+		id,
+		type,
+		config: {
+			type,
+			hp: config.hp,
+			maxHp: config.maxHp,
+			speed: config.speed,
+			reward: config.cashReward,
+			damage: config.damage,
+			armor: config.armor,
+			attackRange: config.attackRange,
+			attackCooldown: config.attackCooldown,
+			size: config.size,
+			color: config.color,
+			shape: config.shape,
+		},
+		position: { x: spawnX, y: spawnY },
+		hp: config.hp,
+		maxHp: config.maxHp,
+		speed: config.speed,
+		reward: config.cashReward,
+		coinReward: config.coinReward,
+		damage: config.damage,
+		armor: config.armor,
+		attackRange: config.attackRange,
+		attackCooldown: config.attackCooldown,
+		attackTimer: 0,
+		size: config.size,
+		color: config.color,
+		shape: config.shape,
+		angle: 0,
+		alive: true,
+		hitFlashTimer: 0,
+		spawnProgress: 1,
+		stopped: false,
+		isBoss: type === EnemyType.Boss,
+		wave,
+	};
 }

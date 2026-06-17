@@ -3,7 +3,7 @@
 
 <main class="imprint-page">
 	<div class="bg-grid"></div>
-	<a href="/" class="back-link">← Back to KoalaTower</a>
+	<a href="/" class="back-link">← Back to GeoCore TD</a>
 	<div class="imprint-card glass-panel">
 		<div class="imprint-header">
 			<h1>Imprint / Impressum</h1>
@@ -13,7 +13,7 @@
 		<section>
 			<h2>📋 Operator</h2>
 			<p>
-				<strong>Timo (KoalaDev)</strong><br>
+				<strong>Timo</strong><br>
 				Private Individual<br>
 				Germany
 			</p>
@@ -23,7 +23,7 @@
 			<h2>📬 Contact</h2>
 			<p>
 				Mastodon: <a href="https://hachyderm.io/@koalastuff" target="_blank" rel="noopener">@koalastuff</a><br>
-				GitHub Issues: <a href="https://github.com/Shik3i/KoalaTower/issues" target="_blank" rel="noopener">Shik3i/KoalaTower</a><br>
+				GitHub Issues: <a href="https://github.com/Shik3i/GeoCoreTD/issues" target="_blank" rel="noopener">Shik3i/GeoCoreTD</a><br>
 				Email: <a href="mailto:admin@koalastuff.net">admin@koalastuff.net</a>
 			</p>
 		</section>
@@ -31,7 +31,7 @@
 		<section>
 			<h2>🔒 Private Project Notice</h2>
 			<p>
-				KoalaTower is a purely private, non-commercial hobby project. It is operated
+				GeoCore TD is a purely private, non-commercial hobby project. It is operated
 				voluntarily and transparently for the public. As a private individual with no
 				commercial purpose, there is no obligation to provide an imprint under
 				<a href="https://www.gesetze-im-internet.de/ddg/__5.html" target="_blank" rel="noopener">§ 5 DDG</a>

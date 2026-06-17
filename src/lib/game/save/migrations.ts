@@ -11,6 +11,9 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		if (version < 2) {
 			save = migrateV1toV2(save);
 		}
+		if (version < 3) {
+			save = migrateV2toV3(save);
+		}
 
 		if (save.schemaVersion !== CURRENT_SCHEMA_VERSION) {
 			return null;
@@ -24,7 +27,7 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 
 function migrateV0toV1(data: Record<string, unknown>): SaveData {
 	return {
-		schemaVersion: 2,
+		schemaVersion: 3,
 		lastUpdated: Date.now(),
 		totalRuns: (data.totalRuns as number) || 0,
 		highestWave: (data.highestWave as number) || 0,
@@ -47,8 +50,34 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 function migrateV1toV2(save: SaveData): SaveData {
 	return {
 		...save,
-		schemaVersion: 2,
+		schemaVersion: 3,
 		labResearch: {},
+	};
+}
+
+/** V2→V3: Map old lab IDs to new ones */
+function migrateV2toV3(save: SaveData): SaveData {
+	const oldLabLevels = save.labLevels as Record<string, number> | undefined;
+	const newLabLevels: Record<string, number> = {};
+
+	if (oldLabLevels) {
+		// Map old towerDurability to healthResearch
+		if (oldLabLevels['towerDurability'] !== undefined) {
+			newLabLevels['healthResearch'] = oldLabLevels['towerDurability'];
+		}
+		// Keep existing labs
+		if (oldLabLevels['damageResearch'] !== undefined) {
+			newLabLevels['damageResearch'] = oldLabLevels['damageResearch'];
+		}
+		if (oldLabLevels['coinEfficiency'] !== undefined) {
+			newLabLevels['coinEfficiency'] = oldLabLevels['coinEfficiency'];
+		}
+	}
+
+	return {
+		...save,
+		schemaVersion: 3,
+		labLevels: newLabLevels,
 	};
 }
 

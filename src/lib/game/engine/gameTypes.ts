@@ -35,6 +35,8 @@ export interface Enemy {
 	maxHp: number;
 	speed: number;
 	reward: number;
+	/** Per-enemy coin reward (independent of workshop/lab multipliers) */
+	coinReward: number;
 	damage: number;
 	armor: number;
 	attackRange: number;
@@ -72,6 +74,16 @@ export interface TowerStats {
 	multishotCount: number;
 	critChance: number;
 	critMultiplier: number;
+	/** Damage reduction percentage (0–0.50 capped) */
+	defensePercent: number;
+	/** Flat damage reduction after defensePercent */
+	defenseAbsolute: number;
+	/** HP restored per second (up to maxHP) */
+	regen: number;
+	/** Fraction of projectile damage healed (0–0.15 capped) */
+	lifesteal: number;
+	/** Damage reflected to melee attackers */
+	thorns: number;
 }
 
 export interface TowerState {
@@ -90,10 +102,15 @@ export enum UpgradeId {
 	Multishot = 'multishot',
 	MultishotProjectiles = 'multishotProjectiles',
 	CritChance = 'critChance',
+	CritMultiplier = 'critMultiplier',
 	Defense = 'defense',
+	DefensePercent = 'defensePercent',
 	MaxHp = 'maxHp',
+	Regen = 'regen',
+	Lifesteal = 'lifesteal',
+	Thorns = 'thorns',
 	GoldAmp = 'goldAmp',
-	Piercing = 'piercing',
+	CashPerWave = 'cashPerWave',
 }
 
 export enum WorkshopUpgradeId {
@@ -101,6 +118,11 @@ export enum WorkshopUpgradeId {
 	BaseFireRate = 'baseFireRate',
 	BaseRange = 'baseRange',
 	StartingHp = 'startingHp',
+	DefenseAbsolute = 'defenseAbsolute',
+	Regen = 'regen',
+	DefensePercent = 'defensePercent',
+	Lifesteal = 'lifesteal',
+	Thorns = 'thorns',
 	CoinBonus = 'coinBonus',
 	CashBonus = 'cashBonus',
 	CritBonus = 'critBonus',
@@ -109,8 +131,10 @@ export enum WorkshopUpgradeId {
 
 export enum LabId {
 	DamageResearch = 'damageResearch',
+	AttackSpeedResearch = 'attackSpeedResearch',
+	HealthResearch = 'healthResearch',
 	CoinEfficiency = 'coinEfficiency',
-	TowerDurability = 'towerDurability'
+	CashEfficiency = 'cashEfficiency',
 }
 
 export enum TierId {
@@ -127,7 +151,10 @@ export enum MilestoneId {
 	Wave50 = 'wave50',
 	Wave100 = 'wave100',
 	Wave250 = 'wave250',
-	Wave500 = 'wave500'
+	Wave500 = 'wave500',
+	Wave1000 = 'wave1000',
+	Wave2500 = 'wave2500',
+	Wave4500 = 'wave4500',
 }
 
 export enum ChallengeId {
@@ -229,6 +256,11 @@ export interface WaveState {
 	spawnInterval: number;
 	waveActive: boolean;
 	betweenWaveTimer: number;
+	currentSubWave: number;
+	enemiesInSubWave: number;
+	enemiesSpawnedInSubWave: number;
+	subWavePauseTimer: number;
+	subWaveActive: boolean;
 }
 
 export interface GameState {
@@ -291,6 +323,7 @@ export interface GameSnapshot {
 	towerMultishotChance: number;
 	towerMultishotCount: number;
 	towerCritChance: number;
+	towerCritMultiplier: number;
 	upgradeLevels: Record<string, number>;
 	enemiesInWave: number;
 	enemiesSpawned: number;

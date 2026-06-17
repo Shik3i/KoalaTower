@@ -1,99 +1,267 @@
-import { WorkshopUpgradeId, type WorkshopUpgrade } from '../engine/gameTypes';
+/**
+ * workshopUpgrades.ts — Long-tail Workshop with original-like scaling.
+ *
+ * DESIGN PHILOSOPHY:
+ * - High-cap stats (Damage, HP, DefAbs, Regen) have 5000+ levels with
+ *   tiny per-level effects. Long-term accumulation becomes powerful.
+ * - Low-cap stats (FireRate, Def%, Lifesteal) are expensive per level
+ *   because they are powerful. Caps prevent domination.
+ * - Economy stats (CoinBonus, CashBonus) have 1000 levels for farming progression.
+ * - Cost curves use gentle polynomial growth for high-cap stats and
+ *   steeper hybrid growth for capped stats.
+ *
+ * Level targets:
+ *   First 10:   cheap, buyable after 1-2 runs
+ *   Level 100:  farmable after moderate play (hours)
+ *   Level 1000: significant time investment (weeks)
+ *   Level 5000: extreme long-term goal (months/years)
+ */
 
-function defaultCost(level: number, base: number, scale: number): number {
-	return Math.floor(base * Math.pow(scale, level));
+import { WorkshopUpgradeId } from '../engine/gameTypes';
+import { polynomialCost, hybridCost, additiveEffect, formatCompact } from './balanceMath';
+
+export interface WorkshopUpgradeDef {
+	id: WorkshopUpgradeId;
+	name: string;
+	description: string;
+	icon: string;
+	maxLevel: number;
+	/** Cost formula: 'polynomial' for high-cap, 'hybrid' for capped stats */
+	costType: 'polynomial' | 'hybrid';
+	baseCost: number;
+	/** Cost exponent (for polynomial) or growth factor (for hybrid) */
+	costParam1: number;
+	/** Cost exponent (for hybrid only, 0 for polynomial) */
+	costParam2?: number;
+	effectPerLevel: number;
+	effectCap?: number;
+	targetStat: string;
 }
 
-export const WORKSHOP_UPGRADES: WorkshopUpgrade[] = [
+export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 	{
+		// Damage: 5000 levels, +0.5 per level. At 5000: +2500 base damage.
+		// Combined with lab multiplier ×100+: massive deep scaling.
 		id: WorkshopUpgradeId.BaseDamage,
-		name: 'Base Damage',
-		description: 'Permanently increase tower damage',
-		level: 0,
-		maxLevel: 100,
-		cost: (level: number) => defaultCost(level, 30, 1.25),
+		name: 'Damage',
+		description: '+0.5 base damage per level. Core long-term stat.',
 		icon: '⚡',
+		maxLevel: 5000,
+		costType: 'polynomial',
+		baseCost: 50,
+		costParam1: 1.6,
+		effectPerLevel: 0.5,
+		targetStat: 'damage',
 	},
 	{
+		// FireRate: capped at 99 levels, small per-level, expensive.
+		// Too much attack speed would make projectiles spammy.
 		id: WorkshopUpgradeId.BaseFireRate,
-		name: 'Base Fire Rate',
-		description: 'Permanently increase fire rate',
-		level: 0,
-		maxLevel: 80,
-		cost: (level: number) => defaultCost(level, 35, 1.28),
+		name: 'Attack Speed',
+		description: '+0.02 base attacks/sec per level. Powerful, capped.',
 		icon: '🔥',
+		maxLevel: 99,
+		costType: 'hybrid',
+		baseCost: 40,
+		costParam1: 1.18,
+		costParam2: 0.55,
+		effectPerLevel: 0.02,
+		targetStat: 'fireRate',
 	},
 	{
+		// Range: medium cap.
 		id: WorkshopUpgradeId.BaseRange,
-		name: 'Base Range',
-		description: 'Permanently increase tower range',
-		level: 0,
-		maxLevel: 60,
-		cost: (level: number) => defaultCost(level, 40, 1.30),
+		name: 'Range',
+		description: '+1.5 base range per level.',
 		icon: '🎯',
+		maxLevel: 79,
+		costType: 'hybrid',
+		baseCost: 35,
+		costParam1: 1.20,
+		costParam2: 0.55,
+		effectPerLevel: 1.5,
+		targetStat: 'range',
 	},
 	{
+		// HP: 6000 levels, +0.8 per level. At 6000: +4800 base HP.
 		id: WorkshopUpgradeId.StartingHp,
-		name: 'Starting HP',
-		description: 'Start each run with more HP',
-		level: 0,
-		maxLevel: 80,
-		cost: (level: number) => defaultCost(level, 25, 1.22),
+		name: 'Health',
+		description: '+0.8 max HP per level. High-cap survivability stat.',
 		icon: '❤️',
+		maxLevel: 6000,
+		costType: 'polynomial',
+		baseCost: 25,
+		costParam1: 1.55,
+		effectPerLevel: 0.8,
+		targetStat: 'hp',
 	},
 	{
+		// Defense Absolute: 5000 levels, +0.3 per level.
+		// Flat damage reduction after defense%. Good early, needs many levels late.
+		id: WorkshopUpgradeId.DefenseAbsolute,
+		name: 'Defense Abs',
+		description: '+0.3 flat damage reduction per level after defense%.',
+		icon: '🛡️',
+		maxLevel: 5000,
+		costType: 'polynomial',
+		baseCost: 30,
+		costParam1: 1.58,
+		effectPerLevel: 0.3,
+		targetStat: 'defenseAbsolute',
+	},
+	{
+		// Regen: 5000 levels, +0.03 HP/s per level. At 5000: 150 HP/s.
+		id: WorkshopUpgradeId.Regen,
+		name: 'Regen',
+		description: '+0.03 HP/sec per level. Many levels for meaningful sustain.',
+		icon: '💚',
+		maxLevel: 5000,
+		costType: 'polynomial',
+		baseCost: 25,
+		costParam1: 1.57,
+		effectPerLevel: 0.03,
+		targetStat: 'regen',
+	},
+	{
+		// Defense Percent: strict low cap.
+		id: WorkshopUpgradeId.DefensePercent,
+		name: 'Defense %',
+		description: '+1% damage reduction per level. Caps at 50%. Steep cost.',
+		icon: '🔰',
+		maxLevel: 49,
+		costType: 'hybrid',
+		baseCost: 60,
+		costParam1: 1.22,
+		costParam2: 0.60,
+		effectPerLevel: 0.01,
+		effectCap: 0.50,
+		targetStat: 'defensePercent',
+	},
+	{
+		// Lifesteal: strict low cap.
+		id: WorkshopUpgradeId.Lifesteal,
+		name: 'Lifesteal',
+		description: '+0.5% lifesteal per level. Caps at 10%. Very expensive.',
+		icon: '🩸',
+		maxLevel: 19,
+		costType: 'hybrid',
+		baseCost: 100,
+		costParam1: 1.35,
+		costParam2: 0.65,
+		effectPerLevel: 0.005,
+		effectCap: 0.10,
+		targetStat: 'lifesteal',
+	},
+	{
+		// Thorns: medium cap.
+		id: WorkshopUpgradeId.Thorns,
+		name: 'Thorns',
+		description: '+1 reflected damage per level. Bosses take 50%.',
+		icon: '🌵',
+		maxLevel: 99,
+		costType: 'hybrid',
+		baseCost: 40,
+		costParam1: 1.20,
+		costParam2: 0.52,
+		effectPerLevel: 1,
+		targetStat: 'thorns',
+	},
+	{
+		// Coin bonus: 1000 levels, +1% per level.
 		id: WorkshopUpgradeId.CoinBonus,
 		name: 'Coin Bonus',
-		description: 'Earn more coins per run',
-		level: 0,
-		maxLevel: 60,
-		cost: (level: number) => defaultCost(level, 50, 1.30),
+		description: '+1% coin income per level. 1000 levels for 10× coins.',
 		icon: '🪙',
+		maxLevel: 1000,
+		costType: 'polynomial',
+		baseCost: 50,
+		costParam1: 1.7,
+		effectPerLevel: 0.01,
+		targetStat: 'coinBonus',
 	},
 	{
+		// Cash bonus: 1000 levels, +1% per level.
 		id: WorkshopUpgradeId.CashBonus,
-		name: 'Cash Bonus',
-		description: 'Earn more gold per kill',
-		level: 0,
-		maxLevel: 60,
-		cost: (level: number) => defaultCost(level, 40, 1.30),
-		icon: '💰',
+		name: 'Energy Bonus',
+		description: '+1% energy income per level. 1000 levels for 10× energy.',
+		icon: '⚡',
+		maxLevel: 1000,
+		costType: 'polynomial',
+		baseCost: 35,
+		costParam1: 1.65,
+		effectPerLevel: 0.01,
+		targetStat: 'cashBonus',
 	},
 	{
+		// Crit bonus: low cap.
 		id: WorkshopUpgradeId.CritBonus,
 		name: 'Crit Bonus',
-		description: 'Permanently increase crit chance',
-		level: 0,
-		maxLevel: 50,
-		cost: (level: number) => defaultCost(level, 50, 1.32),
+		description: '+0.5% base crit chance per level.',
 		icon: '⭐',
+		maxLevel: 49,
+		costType: 'hybrid',
+		baseCost: 50,
+		costParam1: 1.24,
+		costParam2: 0.55,
+		effectPerLevel: 0.005,
+		targetStat: 'critChance',
 	},
 	{
+		// Starting cash: convenience, not progression.
 		id: WorkshopUpgradeId.StartingCash,
-		name: 'Starting Gold',
-		description: 'Start each run with more gold',
-		level: 0,
-		maxLevel: 50,
-		cost: (level: number) => defaultCost(level, 35, 1.28),
-		icon: '💵',
+		name: 'Starting Energy',
+		description: '+4 starting energy per level.',
+		icon: '⚡',
+		maxLevel: 99,
+		costType: 'hybrid',
+		baseCost: 25,
+		costParam1: 1.22,
+		costParam2: 0.50,
+		effectPerLevel: 4,
+		targetStat: 'startingCash',
 	},
 ];
 
+const defMap = new Map<WorkshopUpgradeId, WorkshopUpgradeDef>();
+for (const def of WORKSHOP_UPGRADE_DEFS) {
+	defMap.set(def.id, def);
+}
+
+export function getWorkshopUpgradeDef(id: WorkshopUpgradeId): WorkshopUpgradeDef | undefined {
+	return defMap.get(id);
+}
+
 export function getWorkshopUpgradeCost(id: WorkshopUpgradeId, level: number): number {
-	const upgrade = WORKSHOP_UPGRADES.find(u => u.id === id);
-	if (!upgrade) return Infinity;
-	return upgrade.cost(level);
+	const def = defMap.get(id);
+	if (!def) return Infinity;
+	if (def.costType === 'polynomial') {
+		return polynomialCost(def.baseCost, def.costParam1, level);
+	}
+	return hybridCost(def.baseCost, def.costParam1, def.costParam2 ?? 0.50, level);
 }
 
 export function getWorkshopUpgradeEffect(id: WorkshopUpgradeId, level: number): number {
-	switch (id) {
-		case WorkshopUpgradeId.BaseDamage: return level * 4;
-		case WorkshopUpgradeId.BaseFireRate: return level * 0.04;
-		case WorkshopUpgradeId.BaseRange: return level * 6;
-		case WorkshopUpgradeId.StartingHp: return level * 8;
-		case WorkshopUpgradeId.CoinBonus: return level * 0.08;
-		case WorkshopUpgradeId.CashBonus: return level * 0.03;
-		case WorkshopUpgradeId.CritBonus: return level * 0.008;
-		case WorkshopUpgradeId.StartingCash: return level * 5;
-	}
+	const def = defMap.get(id);
+	if (!def) return 0;
+	return additiveEffect(def.effectPerLevel, level, def.effectCap);
+}
+
+export function buildWorkshopUpgradeList(): Array<{
+	id: WorkshopUpgradeId;
+	name: string;
+	description: string;
+	level: number;
+	maxLevel: number;
+	cost: (level: number) => number;
+	icon: string;
+}> {
+	return WORKSHOP_UPGRADE_DEFS.map(def => ({
+		id: def.id,
+		name: def.name,
+		description: def.description,
+		level: 0,
+		maxLevel: def.maxLevel,
+		cost: (level: number) => getWorkshopUpgradeCost(def.id, level),
+		icon: def.icon,
+	}));
 }

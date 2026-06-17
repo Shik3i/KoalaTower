@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 
-	const TUTORIAL_KEY = 'koala-tower-tutorial-done';
+	const TUTORIAL_KEY = 'geocore-td-tutorial-done';
 
 	let { onComplete }: { onComplete?: () => void } = $props();
 
@@ -13,14 +13,14 @@
 
 	const steps = [
 		{
-			title: 'Welcome to KoalaTower!',
-			desc: 'This is a neon cyber idle tower defense. Your tower automatically shoots enemies. Click "Start Run" to begin.',
+			title: 'Welcome to GeoCore TD!',
+			desc: 'This is an open source neon cyber idle tower defense. Your tower automatically shoots enemies. Click "Start Run" to begin.',
 			target: '.sc-btn, .start-btn, .btn-start',
 			placement: 'center' as const,
 		},
 		{
-			title: 'Gold & KoalaCoins',
-			desc: 'Kill enemies to earn Gold (temporary) and KoalaCoins (permanent). Gold buys battle upgrades during the run. KoalaCoins unlock permanent upgrades.',
+			title: 'Energy & Alloy',
+			desc: 'Kill enemies to harvest Energy (⚡, temporary) and refine Alloy (🔩, permanent). Energy overclocks your Core during the deployment. Alloy unlocks permanent upgrades.',
 			target: '.tb-stats',
 			placement: 'bottom' as const,
 		},
@@ -32,13 +32,13 @@
 		},
 		{
 			title: 'Battle Upgrades',
-			desc: 'The right panel has battle upgrades split into Offense, Defense, and Utility. Buy them with Gold during a run.',
+			desc: 'The right panel has Field Upgrades split into Offense, Defense, and Utility. Spend Energy to overclock your Core during a deployment.',
 			target: '.panel.right',
 			placement: 'left' as const,
 		},
 		{
 			title: 'Workshop & Lab',
-			desc: 'The Workshop has permanent upgrades using KoalaCoins. The Lab has real-time research that runs even while you are away.',
+			desc: 'The Forge has permanent pre-installed upgrades using Alloy. The Research Deck runs orbital projects for multiplicative bonuses.',
 			target: '.hub-link, [href="/hub"]',
 			placement: 'bottom' as const,
 		},

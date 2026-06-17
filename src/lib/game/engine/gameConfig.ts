@@ -1,10 +1,19 @@
+/**
+ * gameConfig.ts — Static configuration values for rendering, timing, and visual tuning.
+ *
+ * All balance-related formulas (enemy stats, costs, effects, wave scaling)
+ * now live in src/lib/game/balance/balanceMath.ts.
+ *
+ * This file only contains rendering/UI/timing constants and defaults.
+ */
+
 import type { GameSettings, TowerStats } from './gameTypes';
 
 export const GAME_CONFIG = {
 	VIEW_WIDTH: 800,
 	VIEW_HEIGHT: 800,
-	TOWER_SIZE: 26,
-	ENEMY_SPAWN_MARGIN: 60,
+	TOWER_SIZE: 22,
+	ENEMY_SPAWN_MARGIN: 0,
 	PROJECTILE_SPEED: 900,
 	DAMAGE_NUMBER_LIFETIME: 1.2,
 	PARTICLE_LIFETIME: 0.8,
@@ -33,67 +42,63 @@ export const GAME_CONFIG = {
 	SPEED_PRESETS: [1, 2, 3, 5] as const,
 };
 
+/**
+ * Default tower stats for a fresh run (before workshop/battle upgrades).
+ * Workshop upgrades increase these baseline values.
+ */
 export function getDefaultTowerStats(): TowerStats {
-	return { damage: 6, fireRate: 0.7, range: 280, multishotChance: 0, multishotCount: 1, critChance: 0.03, critMultiplier: 2.0 };
+	return {
+		damage: 8,
+		fireRate: 1.0,
+		range: 180,
+		multishotChance: 0,
+		multishotCount: 1,
+		critChance: 0.05,
+		critMultiplier: 2.0,
+		defensePercent: 0,
+		defenseAbsolute: 0,
+		regen: 0,
+		lifesteal: 0,
+		thorns: 0,
+	};
 }
 
-export const TOWER_HP_BASE = 100;
+/** Base HP for the tower before any upgrades. */
+export const TOWER_HP_BASE = 80;
 
-export const ENEMY_BASE_STATS = {
-	normal: { hp: 55, speed: 70, reward: 3, damage: 5, attackRange: 30, attackCooldown: 1.5, size: 16 },
-	fast:   { hp: 22, speed: 130, reward: 2, damage: 3, attackRange: 25, attackCooldown: 1.0, size: 12 },
-	tank:   { hp: 180, speed: 35, reward: 8, damage: 8, attackRange: 30, attackCooldown: 2.0, size: 24 },
-	ranged: { hp: 35, speed: 55, reward: 5, damage: 6, attackRange: 200, attackCooldown: 2.5, size: 14 },
-	boss:   { hp: 800, speed: 25, reward: 60, damage: 22, attackRange: 40, attackCooldown: 1.2, size: 40 },
-} as const;
+/** Cash the player starts with on a fresh run (before Starting Cash workshop). */
+export const STARTING_CASH_BASE = 20;
 
-export const WAVE_CONFIG = {
-	BASE_ENEMIES: 3,
-	ENEMIES_PER_WAVE: 1.0,
-	BOSS_ESCORT_COUNT: 4,
-	SPAWN_INTERVAL_BASE: 1.5,
-	SPAWN_INTERVAL_MIN: 0.25,
-	SPAWN_INTERVAL_DECAY: 0.997,
-	BETWEEN_WAVE_TIME: 3.0,
-	BOSS_INTERVAL: 10,
-	BONUS_CASH_PER_WAVE: 8,
+/** Bonus cash awarded per wave cleared. */
+export const CASH_PER_WAVE_BASE = 5;
+
+/** How many sub-waves to split each wave into for pacing. */
+export const SUB_WAVES = 4;
+
+/** Pause between sub-waves in seconds. */
+export const SUB_WAVE_PAUSE = 2.5;
+
+/** Delay before the first wave starts. */
+export const INITIAL_WAVE_DELAY = 1.0;
+
+/** Time between wave completions and next wave start. */
+export const BETWEEN_WAVE_TIME = 1.5;
+
+/** Interval in waves for boss spawns. */
+export const BOSS_INTERVAL = 10;
+
+// Legacy exports kept for backward compat — delegate to balanceMath.
+import { waveHpMultiplier, waveAttackMultiplier, waveSpeedMultiplier, waveCashRewardMultiplier, waveArmorBonus } from '../balance/balanceMath';
+export {
+	waveHpMultiplier as getWaveHpMultiplier,
+	waveAttackMultiplier as getWaveDamageMultiplier,
+	waveSpeedMultiplier as getWaveSpeedMultiplier,
+	waveCashRewardMultiplier as getWaveRewardMultiplier,
 };
 
-/** Enemy HP multiplier — very slow ramp for endless play (500+ waves).
- *  Early waves are gentle so the player can build up.
+/**
+ * Enemy armor including wave scaling — kept here for backward compat.
  */
-export function getWaveHpMultiplier(wave: number): number {
-	if (wave <= 5)   return 1.00 + wave * 0.02;
-	if (wave <= 20)  return 1.10 + (wave - 5) * 0.015;
-	if (wave <= 50)  return 1.325 + (wave - 20) * 0.01;
-	if (wave <= 100) return 1.625 + (wave - 50) * 0.008;
-	if (wave <= 250) return 2.025 + (wave - 100) * 0.005;
-	if (wave <= 500) return 2.775 + (wave - 250) * 0.003;
-	return 3.525 + (wave - 500) * 0.002;
-}
-
-/** Enemy damage multiplier */
-export function getWaveDamageMultiplier(wave: number): number {
-	if (wave <= 10)  return 1.0 + wave * 0.01;
-	if (wave <= 50)  return 1.1 + (wave - 10) * 0.008;
-	if (wave <= 150) return 1.42 + (wave - 50) * 0.005;
-	return 1.92 + (wave - 150) * 0.003;
-}
-
-/** Enemy speed multiplier */
-export function getWaveSpeedMultiplier(wave: number): number {
-	return 1 + Math.log10(wave + 1) * 0.08;
-}
-
-/** Gold reward multiplier — slow growth */
-export function getWaveRewardMultiplier(wave: number): number {
-	if (wave <= 10)  return 1.0 + wave * 0.04;
-	if (wave <= 50)  return 1.4 + (wave - 10) * 0.02;
-	if (wave <= 150) return 2.2 + (wave - 50) * 0.01;
-	return 3.2 + (wave - 150) * 0.005;
-}
-
-/** Enemy armour — appears after wave 10, caps at 70% */
 export function getWaveArmor(wave: number): number {
 	if (wave <= 10) return 0;
 	const raw = 1 - 1 / (1 + (wave - 10) * 0.0015);

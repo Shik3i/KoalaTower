@@ -6,12 +6,12 @@
 	const jsonLd = {
 		'@context': 'https://schema.org',
 		'@type': 'WebApplication',
-		name: 'KoalaTower',
+		name: 'GeoCore TD',
 		applicationCategory: 'GameApplication',
 		operatingSystem: 'Any',
 		description: 'A neon cyber idle tower defense game. Defend your tower against endless waves of digital enemies.',
 		url: GITHUB_URL,
-		author: { '@type': 'Person', name: 'KoalaDev' },
+		author: { '@type': 'Person', name: 'Timo' },
 		offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 	};
 
@@ -31,10 +31,10 @@
 </script>
 
 <svelte:head>
-	<title>KoalaTower — Neon Cyber Idle Tower Defense</title>
-	<meta name="description" content="Defend your tower against endless waves of digital enemies. Upgrade, research, and climb the tiers in this neon cyber idle tower defense. No tracking, no cookies, no backend." />
-	<meta property="og:title" content="KoalaTower — Play Now" />
-	<meta property="og:description" content="Defend your tower against endless waves of digital enemies. Upgrade, research, and climb the tiers." />
+	<title>GeoCore TD — Open Source Neon Cyber Idle Tower Defense</title>
+	<meta name="description" content="Deploy GeoCores from orbit into hostile geometric fronts. Research permanent upgrades on your Orbital Command. Open source neon cyber idle tower defense. No tracking." />
+	<meta property="og:title" content="GeoCore TD — Deploy Now" />
+	<meta property="og:description" content="Deploy GeoCores from orbit into hostile geometric fronts. Research permanent upgrades on your Orbital Command." />
 	<script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
 </svelte:head>
 
@@ -57,32 +57,34 @@
 				<span class="version-text">{APP_VERSION}</span>
 			</a>
 			<h1 class="title">
-				<span class="title-emoji">🐨</span>
-				<span class="title-text">KoalaTower</span>
+				<span class="title-emoji">🗼</span>
+				<span class="title-text">GeoCore TD</span>
 			</h1>
-			<p class="subtitle">Neon Cyber Idle Tower Defense</p>
-			<p class="description">
-				Defend the tower against endless waves of digital enemies.
-				Upgrade your defenses, research new technologies, and climb the tiers.
+			<p class="subtitle">Open source neon cyber idle tower defense</p>
+				<p class="description">
+				Flatland is at war. Deploy GeoCores from orbit onto hostile fronts,
+				harvest energy from destroyed enemies to overclock your tower,
+				and refine alloy for permanent upgrades aboard Orbital Command.
+				Each front is a new battlefield — the Core is lost with every drop.
 			</p>
 			<div class="cta-buttons">
 				<a href="/play" class="btn-primary">
 					<span class="btn-icon">▶</span>
-					<span class="btn-label">Play Now</span>
+					<span class="btn-label">Deploy</span>
 				</a>
 				<a href="/hub" class="btn-primary" style="background:linear-gradient(135deg,var(--violet),var(--pink));box-shadow:0 0 20px rgba(136,68,255,.2);">
-					<span class="btn-icon">🏪</span>
-					<span class="btn-label">Workshop</span>
+					<span class="btn-icon">🛰️</span>
+					<span class="btn-label">Orbital Command</span>
 				</a>
-				<a href="/privacy" class="btn-secondary">
-					<span>🔒</span> Privacy
+				<a href="/help" class="btn-secondary">
+					<span>❓</span> Help
 				</a>
 			</div>
 			{#if coins > 0}
 				<div class="coin-display">
-					<span class="coin-icon">🪙</span>
+					<span class="coin-icon">🔩</span>
 					<span class="coin-amount">{coins.toLocaleString()}</span>
-					<span class="coin-label">KoalaCoins</span>
+					<span class="coin-label">Alloy</span>
 				</div>
 			{/if}
 		</div>
@@ -301,7 +303,7 @@
 		margin-bottom: 1.5rem;
 	}
 
-	.btn-primary, .btn-secondary {
+	.btn-primary {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.6rem;
@@ -312,9 +314,6 @@
 		transition: all var(--transition-normal);
 		text-decoration: none;
 		cursor: pointer;
-	}
-
-	.btn-primary {
 		background: linear-gradient(135deg, var(--cyan), var(--blue));
 		color: var(--bg-primary);
 		box-shadow: 0 0 24px rgba(0, 255, 255, 0.25);
@@ -341,6 +340,16 @@
 	}
 
 	.btn-secondary {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.85rem 2.25rem;
+		border-radius: var(--radius-md);
+		font-weight: 600;
+		font-size: 1rem;
+		transition: all var(--transition-normal);
+		text-decoration: none;
+		cursor: pointer;
 		background: rgba(0, 255, 255, 0.05);
 		color: var(--text-secondary);
 		border: 1px solid var(--border-neon);

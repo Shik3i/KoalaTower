@@ -2,14 +2,14 @@
 </script>
 
 <svelte:head>
-	<title>Privacy Policy — KoalaTower</title>
-	<meta name="description" content="KoalaTower privacy policy: all data stored locally in your browser. No cookies, no tracking, no backend. Server logs deleted after 7 days." />
+	<title>Privacy Policy — GeoCore TD</title>
+	<meta name="description" content="GeoCore TD privacy policy: all data stored locally in your browser. No cookies, no tracking, no backend. Server logs deleted after 7 days." />
 	<meta name="robots" content="index, follow" />
 </svelte:head>
 
 <main class="privacy-page">
 	<div class="bg-grid"></div>
-	<a href="/" class="back-link">← Back to KoalaTower</a>
+	<a href="/" class="back-link">← Back to GeoCore TD</a>
 	<div class="privacy-card glass-panel">
 		<div class="privacy-header">
 			<h1>Privacy Policy / Datenschutzerklärung</h1>
@@ -19,7 +19,7 @@
 		<section>
 			<h2>🔒 Overview</h2>
 			<p>
-				KoalaTower is a static web application. It does <strong>not</strong> operate any backend servers,
+				GeoCore TD is a static web application. It does <strong>not</strong> operate any backend servers,
 				databases, or user accounts. All game data is processed and stored exclusively
 				in your browser. No personal data is transmitted to us or to any third party.
 			</p>
@@ -28,7 +28,7 @@
 		<section>
 			<h2>📁 Local Storage (IndexedDB)</h2>
 			<p>
-				KoalaTower uses your browser's <strong>IndexedDB</strong> to store:
+				GeoCore TD uses your browser's <strong>IndexedDB</strong> to store:
 			</p>
 			<ul>
 				<li>Your game save data (coins, upgrade levels, progress, settings)</li>
@@ -69,7 +69,7 @@
 		<section>
 			<h2>🍪 Cookies</h2>
 			<p>
-				KoalaTower does <strong>not</strong> use cookies. No tracking cookies, no
+				GeoCore TD does <strong>not</strong> use cookies. No tracking cookies, no
 				session cookies, no analytics cookies. The application is fully functional
 				without any cookies.
 			</p>
@@ -78,7 +78,7 @@
 		<section>
 			<h2>📡 No Third-Party Services</h2>
 			<p>
-				KoalaTower does <strong>not</strong> integrate any third-party services:
+				GeoCore TD does <strong>not</strong> integrate any third-party services:
 			</p>
 			<ul>
 				<li>No analytics (no Google Analytics, no Plausible, no Fathom, etc.)</li>
@@ -94,7 +94,7 @@
 		<section>
 			<h2>📤 No Network Requests</h2>
 			<p>
-				During normal gameplay, KoalaTower makes <strong>zero</strong> network requests.
+				During normal gameplay, GeoCore TD makes <strong>zero</strong> network requests.
 				There is no telemetry, no error reporting, no update checks, and no analytics
 				pings. The application is fully self-contained and works offline after the
 				initial page load (except for the initial load of the static files).
@@ -104,7 +104,7 @@
 		<section>
 			<h2>🧒 Children's Privacy</h2>
 			<p>
-				KoalaTower does not knowingly collect any personal data from children under
+				GeoCore TD does not knowingly collect any personal data from children under
 				the age of 16. Since no personal data is collected at all, this is inherently
 				compliant with children's privacy regulations.
 			</p>
@@ -140,7 +140,7 @@
 			<h2>📬 Contact</h2>
 			<p>
 				If you have questions about this privacy policy, please open an issue on
-				<a href="https://github.com/Shik3i/KoalaTower/issues" target="_blank" rel="noopener">GitHub</a>,
+				<a href="https://github.com/Shik3i/GeoCoreTD/issues" target="_blank" rel="noopener">GitHub</a>,
 				contact via Mastodon:
 				<a href="https://hachyderm.io/@koalastuff" target="_blank" rel="noopener">@koalastuff</a>,
 				or email:

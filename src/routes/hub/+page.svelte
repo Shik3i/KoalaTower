@@ -1,19 +1,20 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
-	import { WORKSHOP_UPGRADES } from '$lib/game/balance/workshopUpgrades';
-	import { LAB_ITEMS, getLabItemEffect } from '$lib/game/balance/labs';
+	import { buildWorkshopUpgradeList, getWorkshopUpgradeCost, getWorkshopUpgradeEffect } from '$lib/game/balance/workshopUpgrades';
+	const WORKSHOP_UPGRADES = buildWorkshopUpgradeList();
+	import { LAB_DEFS, getLabCost, getLabEffect, isLabUnlocked } from '$lib/game/balance/labs';
 	import { TIERS } from '$lib/game/balance/tiers';
 	import { CHALLENGES } from '$lib/game/balance/challenges';
-	import { getWorkshopUpgradeCost, getWorkshopUpgradeEffect } from '$lib/game/balance/workshopUpgrades';
+	import { formatCompact } from '$lib/game/balance/balanceMath';
 	import type { GameSettings, WorkshopUpgradeId } from '$lib/game/engine/gameTypes';
 
 	let coins = $state(0);
 	let settings = $state<GameSettings>({ reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false });
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
-	let activeSection = $state<'workshop' | 'lab' | 'tiers' | 'challenges' | 'stats' | 'settings'>('workshop');
+	let activeSection = $state<'workshop' | 'lab' | 'blueprints' | 'tiers' | 'challenges' | 'stats' | 'settings'>('workshop');
 
 	let showImportDialog = $state(false);
 	let showResetConfirm = $state(false);
@@ -39,69 +40,32 @@
 		const save = getCachedSave(); if (!save) return;
 		const lv = save.workshopUpgrades[id] ?? 0;
 		const cost = getWorkshopUpgradeCost(id, lv);
-		if (save.totalCoins >= cost && lv < 100) {
+		const upgrade = WORKSHOP_UPGRADES.find(u => u.id === id);
+		const maxLv = upgrade?.maxLevel ?? 100;
+		if (save.totalCoins >= cost && lv < maxLv) {
 			save.totalCoins -= cost;
 			save.workshopUpgrades[id] = lv + 1;
 			coinsStore.set(save.totalCoins);
 			persistSave(save);
 			toast('🔧 Upgraded!', 'success');
-		} else { toast('🪙 Not enough KoalaCoins!', 'error'); }
+		} else { toast('🔩 Not enough Alloy!', 'error'); }
 	}
 
-	// Lab research
-	let labTimer = $state(0);
-	let labInterval: ReturnType<typeof setInterval> | null = null;
-	onMount(() => {
-		labInterval = setInterval(() => {
-			const save = getCachedSave(); if (!save) return;
-			let changed = false;
-			for (const item of LAB_ITEMS) {
-				const rs = save.labResearch[item.id];
-				if (!rs || rs.researchStart === 0 || rs.complete) continue;
-				if (Date.now() - rs.researchStart >= rs.duration) {
-					rs.complete = true;
-					(save.labLevels as Record<string, number>)[item.id] = (rs.level) + 1;
-					changed = true;
-					toast('🔬 ' + item.name + ' Lv.' + (rs.level + 1) + ' complete!', 'milestone');
-				}
-			}
-			if (changed) { coinsStore.set(save.totalCoins); persistSave(save); }
-			labTimer++;
-		}, 1000);
-	});
-
-	function getLabResearch(id: string) {
-		const save = getCachedSave(); if (!save) return { level: 0, progress: 0, remaining: 0, active: false, complete: false };
-		const lv = (save.labLevels as Record<string, number>)[id] ?? 0;
-		const rs = save.labResearch[id as keyof typeof save.labResearch];
-		if (rs && rs.researchStart > 0 && !rs.complete) {
-			const elapsed = Date.now() - rs.researchStart;
-			return { level: rs.level, progress: Math.min(1, elapsed / rs.duration), remaining: Math.max(0, rs.duration - elapsed), active: true, complete: false };
-		}
-		return rs?.complete ? { level: lv, progress: 1, remaining: 0, active: false, complete: true } : { level: lv, progress: 0, remaining: 0, active: false, complete: false };
-	}
-	function startLab(id: string) {
+	// Lab research — instant purchase model (no timers)
+	function buyLabUpgrade(id: string) {
 		const save = getCachedSave(); if (!save) return;
-		const item = LAB_ITEMS.find(l => l.id === id); if (!item) return;
 		const lv = (save.labLevels as Record<string, number>)[id] ?? 0;
-		if (lv >= item.maxLevel) { toast('⚠ Max level!', 'warning'); return; }
-		const rs2 = save.labResearch[id as keyof typeof save.labResearch];
-		if (rs2?.researchStart && !rs2.complete) { toast('⚠ Already researching!', 'warning'); return; }
-		const cost = item.cost(lv);
-		if (save.totalCoins < cost) { toast('🪙 Need ' + cost.toLocaleString() + ' KoalaCoins!', 'error'); return; }
+		const def = LAB_DEFS.find(l => l.id === id); if (!def) return;
+		if (lv >= def.maxLevel) { toast('⚠ Max level!', 'warning'); return; }
+		const cost = getLabCost(id as any, lv);
+		if (save.totalCoins < cost) { toast('🔩 Need ' + formatCompact(cost) + ' Alloy!', 'error'); return; }
 		save.totalCoins -= cost;
-		save.labResearch[id as keyof typeof save.labResearch] = { level: lv, researchStart: Date.now(), duration: item.duration(lv), complete: false };
-		coinsStore.set(save.totalCoins); persistSave(save);
-		toast('🔬 Started!', 'success');
+		(save.labLevels as Record<string, number>)[id] = lv + 1;
+		coinsStore.set(save.totalCoins);
+		persistSave(save);
+		toast('🔬 Upgraded ' + def.name + ' to Lv.' + (lv + 1), 'success');
 	}
 	function lLv(id: string): number { return (getCachedSave()?.labLevels as Record<string, number>)[id] ?? 0; }
-	function fmtDur(ms: number): string {
-		if (ms <= 0) return ''; if (ms < 1000) return '<1s';
-		const s = Math.floor(ms / 1000); if (s < 60) return s + 's';
-		const m = Math.floor(s / 60); if (m < 60) return m + 'm ' + (s % 60) + 's';
-		const h = Math.floor(m / 60); if (h < 24) return h + 'h ' + (m % 60) + 'm';
-		return Math.floor(h / 24) + 'd ' + (h % 24) + 'h';
-	}
 
 	const settingsList = [
 		{ key: 'reducedMotion' as keyof GameSettings, label: 'Reduced Motion', desc: 'Minimize animations' },
@@ -112,18 +76,19 @@
 	];
 
 	const sections = [
-		{ id: 'workshop' as const, label: 'Workshop', icon: '⚙' },
-		{ id: 'lab' as const, label: 'Lab', icon: '🔬' },
-		{ id: 'tiers' as const, label: 'Tiers', icon: '🏆' },
-		{ id: 'challenges' as const, label: 'Challenges', icon: '⚡' },
-		{ id: 'stats' as const, label: 'Stats', icon: '📊' },
-		{ id: 'settings' as const, label: 'Settings', icon: '⚙' },
+		{ id: 'workshop' as const, label: 'Forge', icon: '⚙' },
+		{ id: 'lab' as const, label: 'Research Deck', icon: '🔬' },
+		{ id: 'blueprints' as const, label: 'Blueprints', icon: '📐' },
+		{ id: 'tiers' as const, label: 'Fronts', icon: '🌍' },
+		{ id: 'challenges' as const, label: 'Simulations', icon: '⚡' },
+		{ id: 'stats' as const, label: 'Archives', icon: '📊' },
+		{ id: 'settings' as const, label: 'Systems', icon: '⚙' },
 	];
 </script>
 
 <svelte:head>
-	<title>Workshop — KoalaTower</title>
-	<meta name="description" content="KoalaTower Hub — Workshop upgrades, Laboratory research, Tiers, Challenges, Statistics, and Settings." />
+	<title>Orbital Command — GeoCore TD</title>
+	<meta name="description" content="GeoCore TD Orbital Command — Core Foundry upgrades, Research Deck projects, Fronts, Simulations, Archives, and Systems." />
 </svelte:head>
 
 <main class="hub-page">
@@ -135,9 +100,10 @@
 
 	<header class="hub-top">
 		<a href="/" class="hub-back">← Home</a>
-		<h1 class="hub-title">KoalaTower Hub</h1>
-		<div class="hub-coins">🪙 {coins.toLocaleString()}</div>
+		<h1 class="hub-title">🛰️ Orbital Command</h1>
+		<div class="hub-coins">🔩 {coins.toLocaleString()}</div>
 	</header>
+	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. The Forge pre-installs Core upgrades, the Research Deck runs orbital projects, and Blueprints unlock new capabilities. Archives track campaign telemetry.</p>
 
 	<div class="hub-body">
 		<nav class="hub-nav">
@@ -150,7 +116,7 @@
 
 		<div class="hub-content">
 			{#if activeSection === 'workshop'}
-				<div class="hs"><h2 class="hst">⚙ Workshop Upgrades</h2><p class="hsd">Permanent upgrades using Coins. Persist across all runs.</p>
+				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed Core upgrades. Each level is built into the GeoCore schematic before every deployment.</p>
 					<div class="ug">
 						{#each WORKSHOP_UPGRADES as u}
 							{@const lv = wLv(u.id)}
@@ -161,51 +127,56 @@
 							<button class="uc" class:aff={aff && !mx} class:mx={mx} disabled={!aff || mx} onclick={() => buyWorkshopUpgrade(u.id)}>
 								<div class="uc-t"><span class="uci">{u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">Lv.{lv}</span></div>
 								<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
-								<div class="uc-b"><span class="ucc">🪙{cost.toLocaleString()}</span><span class="ucnx">{mx ? 'MAXED' : lv > 0 ? '→ +' + getWorkshopUpgradeEffect(u.id, nl) : 'Lv.1 +' + getWorkshopUpgradeEffect(u.id, 1)}</span></div>
+								<div class="uc-b"><span class="ucc">🔩{cost.toLocaleString()}</span><span class="ucnx">{mx ? 'MAXED' : lv > 0 ? '→ +' + getWorkshopUpgradeEffect(u.id, nl) : 'Lv.1 +' + getWorkshopUpgradeEffect(u.id, 1)}</span></div>
 							</button>
 						{/each}
 					</div>
 				</div>
 			{:else if activeSection === 'lab'}
-				<div class="hs"><h2 class="hst">🔬 Laboratory</h2><p class="hsd">Real-time research. Progress continues even when you close the game.</p>
+				<div class="hs"><h2 class="hst">🔬 Research Deck</h2><p class="hsd">Long-term orbital research projects. Each level grants a permanent multiplicative bonus. Reach deeper waves to unlock more projects.</p>
 					<div class="ug">
-						{#each LAB_ITEMS as it}
-							{@const lv = lLv(it.id)}
-							{@const rs = getLabResearch(it.id)}
-							{@const cost = it.cost(lv)}
+						{#each LAB_DEFS as lab}
+							{@const unlocked = isLabUnlocked(lab, highestWave)}
+							{@const lv = lLv(lab.id)}
+							{@const cost = getLabCost(lab.id, lv)}
 							{@const aff = coins >= cost}
-							{@const mx = lv >= it.maxLevel}
-							{@const nextEff = lv > 0 ? getLabItemEffect(it.id, lv + 1) : getLabItemEffect(it.id, 1)}
-							{@const currEff = getLabItemEffect(it.id, lv)}
-							<div class="uc lc" class:mx={mx} class:researching={rs.active}>
-								<div class="uc-t"><span class="uci">{it.icon}</span><span class="ucn">{it.name}</span><span class="ucl">Lv.{lv}</span></div>
-								{#if rs.active}
-									<div class="rs-bar-track"><div class="rs-bar-fill" style="width:{rs.progress * 100}%"></div></div>
-									<div class="rs-info">{Math.floor(rs.progress * 100)}% · {fmtDur(rs.remaining)} left</div>
-								{:else if !mx}
-									<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / it.maxLevel) * 100)}%"></div></div>
-									<div class="uc-b"><span class="ucc">🪙{cost.toLocaleString()}</span><span class="ucnx">+{nextEff.toFixed(3)}</span></div>
-									<div class="ld">{it.description} · {fmtDur(it.duration(lv))}</div>
-									<button class="rs-btn" class:aff={aff} disabled={!aff} onclick={() => startLab(it.id)}>{aff ? '▶ Start' : '🪙 Need ' + cost.toLocaleString()}</button>
-								{:else}<div class="ld">MAXED · +{currEff.toFixed(3)} total</div>{/if}
+							{@const mx = lv >= lab.maxLevel}
+							{@const currMult = 1 + getLabEffect(lab.id, lv)}
+							{@const lockedDisplay = '🔒 Reach Wave ' + lab.unlockWave}
+							<div class="uc lc" class:locked={!unlocked} class:mx={mx && unlocked}>
+								<div class="uc-t"><span class="uci">{unlocked ? lab.icon : '🔒'}</span><span class="ucn">{lab.name}</span><span class="ucl">{unlocked ? 'Lv.' + lv : lockedDisplay}</span></div>
+								{#if unlocked}
+									<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / lab.maxLevel) * 100)}%"></div></div>
+									<div class="uc-eff">×{currMult.toFixed(2)} multiplier</div>
+									<button class="uc-b" class:aff={aff && !mx} disabled={!aff || mx} onclick={() => buyLabUpgrade(lab.id)}>
+										<span class="ucc">🔩{formatCompact(cost)}</span>
+										<span class="ucnx">{mx ? 'MAXED' : '→ ×' + (currMult * (1 + lab.effectPerLevel)).toFixed(2)}</span>
+									</button>
+								{:else}
+									<div class="uc-b"><span class="ucc" style="color:var(--text-dim)">🔒 Requires Wave {lab.unlockWave}</span></div>
+								{/if}
 							</div>
 						{/each}
 					</div>
 				</div>
+			{:else if activeSection === 'blueprints'}
+				<div class="hs"><h2 class="hst">📐 Blueprints</h2><p class="hsd">One-time schematic unlocks that grant permanent new capabilities. Discover blueprints by reaching wave milestones on different fronts.</p>
+					<div class="cl"><div class="pe" style="text-align:center;padding:2rem;font-size:.8rem;color:var(--text-dim)">🔒 Blueprint system coming soon.<br>Reach deeper waves to unlock new Core schematics.</div></div>
+				</div>
 			{:else if activeSection === 'tiers'}
-				<div class="hs"><h2 class="hst">🏆 Tiers</h2><p class="hsd">Reach wave milestones to unlock new tiers and bonuses.</p>
+				<div class="hs"><h2 class="hst">🌍 Fronts</h2><p class="hsd">Each front is a planet with increasing enemy density. Reach wave milestones to unlock harder fronts with better rewards.</p>
 					<div class="cl">{#each TIERS as t}<div class="tc" class:unl={t.unlocked}><div class="tc-h"><span class="tci">{t.unlocked ? '🔓' : '🔒'}</span><div><div class="tcn">{t.name}</div><div class="tcd">{t.description}</div></div></div><div class="tcr" class:tcr-ok={t.unlocked}>{t.unlocked ? '✓ Unlocked' : 'Reach Wave ' + t.waveRequirement}</div></div>{/each}</div>
 				</div>
 			{:else if activeSection === 'challenges'}
-				<div class="hs"><h2 class="hst">⚡ Challenges</h2><p class="hsd">Special modifiers for unique runs. Coming soon.</p>
+				<div class="hs"><h2 class="hst">⚡ Simulations</h2><p class="hsd">Tactical simulation exercises with modified engagement rules. Each simulation tests different combat scenarios.</p>
 					<div class="cl">{#each CHALLENGES as c}<div class="cc" class:lck={c.locked}><div class="cc-h"><span class="cci">{c.icon}</span><div><div class="ccn">{c.name}</div><div class="ccd">{c.description}</div></div></div>{#if c.highScore > 0}<div class="ccs">Best: Wave {c.highScore}</div>{:else if c.locked}<div class="ccl">🔒 Locked</div>{/if}</div>{/each}</div>
 				</div>
 			{:else if activeSection === 'stats'}
-				<div class="hs"><h2 class="hst">📊 Statistics</h2>
-					<div class="ig"><div class="ir"><span class="il">Total Runs</span><span class="iv">{totalRuns}</span></div><div class="ir"><span class="il">Highest Wave</span><span class="iv">{highestWave}</span></div><div class="ir"><span class="il">Total Coins</span><span class="iv">🪙 {coins.toLocaleString()}</span></div><div class="ir"><span class="il">Highscore</span><span class="iv">🏆 Wave {highestWave}</span></div></div>
+				<div class="hs"><h2 class="hst">📊 Archives</h2>
+					<div class="ig"><div class="ir"><span class="il">Total Runs</span><span class="iv">{totalRuns}</span></div><div class="ir"><span class="il">Highest Wave</span><span class="iv">{highestWave}</span></div><div class="ir"><span class="il">Total Alloy</span><span class="iv">🔩 {coins.toLocaleString()}</span></div><div class="ir"><span class="il">Highscore</span><span class="iv">🏆 Wave {highestWave}</span></div></div>
 				</div>
 			{:else if activeSection === 'settings'}
-				<div class="hs"><h2 class="hst">⚙ Settings</h2>
+				<div class="hs"><h2 class="hst">⚙ Systems</h2>
 					<div class="sg">
 						{#each settingsList as s}
 							<div class="sr" role="group" aria-label={s.label}><div class="si"><span class="sl">{s.label}</span><span class="sd">{s.desc}</span></div>
@@ -234,7 +205,7 @@
 	{/if}
 
 	<footer class="hub-footer">
-		<span>KoalaTower 🐨</span>
+		<span>🛰️ Orbital Base — GeoCore TD</span>
 		<div class="hub-footer-links">
 			<a href="/help">Help</a>
 			<span>·</span>
@@ -336,6 +307,7 @@
 	.dlg-dng { border-color:rgba(255,68,68,.2); }
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem} .hub-nav{flex-direction:row;overflow-x:auto;min-width:0} .hub-nav-btn{flex-shrink:0;white-space:nowrap} }
+	.hub-desc { padding:0 1.5rem 1rem; text-align:center; color:var(--text-dim); font-size:.78rem; line-height:1.6; max-width:600px; margin:0 auto; position:relative; z-index:1; }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:.7rem; display:flex; flex-direction:column; gap:.35rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
 	.hub-footer-links { display:flex; gap:.35rem; align-items:center; }
 	.hub-footer-links a { color:var(--cyan-dim); text-decoration:underline; text-underline-offset:3px; text-decoration-color:rgba(0,255,255,.2); }

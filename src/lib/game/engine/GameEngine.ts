@@ -10,12 +10,12 @@ import type {
 	WorkshopUpgradeId,
 } from './gameTypes';
 import { EnemyType, DEFAULT_SETTINGS } from './gameTypes';
-import { createTowerState, applyBattleUpgrades } from '../systems/towerSystem';
+import { createTowerState, applyBattleUpgrades, applyRegen } from '../systems/towerSystem';
 import { updateEnemySystem, updateProjectileSystem, updateTowerTargeting, resetProjectileIdCounter } from '../systems/enemySystem';
 import { updateWaveSystem, removeDeadEnemies } from '../systems/waveSystem';
 import { getStartingGold } from '../systems/economySystem';
 import { resetEnemyIdCounter } from '../balance/enemies';
-import { getBattleUpgradeCost, BATTLE_UPGRADES } from '../balance/battleUpgrades';
+import { getBattleUpgradeCost, buildBattleUpgradeList } from '../balance/battleUpgrades';
 import { setFeedbackHooks } from '../systems/enemySystem';
 
 export type MuzzleFlashCallback = () => void;
@@ -30,6 +30,7 @@ export class GameEngine {
 	private snapshotTimer: number = 0;
 	private lastWave: number = 0;
 	private lastSnapshot: GameSnapshot | null = null;
+	private firedMilestones: Set<number> = new Set();
 	private onSnapshot: ((snapshot: GameSnapshot) => void) | null = null;
 	private onGameOver: ((coins: number, wave: number) => void) | null = null;
 	private onMilestone: ((text: string) => void) | null = null;
@@ -70,6 +71,11 @@ export class GameEngine {
 				spawnInterval: 1.0,
 				waveActive: false,
 				betweenWaveTimer: 0,
+				currentSubWave: 0,
+				enemiesInSubWave: 0,
+				enemiesSpawnedInSubWave: 0,
+				subWavePauseTimer: 0,
+				subWaveActive: false,
 			},
 			enemies: [],
 			projectiles: [],
@@ -112,6 +118,7 @@ export class GameEngine {
 		this.shakeAmount = 0;
 		this.speedMultiplier = 1;
 		this.lastWave = 0;
+		this.firedMilestones = new Set();
 
 		this.state = this.createInitialState();
 		this.state.workshopUpgrades = { ...workshopUpgrades } as Record<WorkshopUpgradeId, number>;
@@ -136,6 +143,7 @@ export class GameEngine {
 		this.state.elapsedTime += effectiveDt;
 
 		applyBattleUpgrades(this.state);
+		applyRegen(this.state, effectiveDt);
 		updateWaveSystem(this.state, effectiveDt);
 
 		// Immediate snapshot when wave changes (fixes UI showing stale wave number)
@@ -160,17 +168,20 @@ export class GameEngine {
 
 	private checkGameOver(): void {
 		if (this.state.gameOver && this.onGameOver) {
-			// Coins are earned per kill during the run — no end-of-run bonus needed.
-			const coinsEarned = this.state.coins; // KoalaCoins accumulated from kills
+			const coinsEarned = this.state.coins;
 			this.state.totalRuns++;
 			this.state.highestWave = Math.max(this.state.highestWave, this.state.wave.currentWave);
-			this.onGameOver(coinsEarned, this.state.wave.currentWave);
+			const cb = this.onGameOver;
+			this.onGameOver = null;
+			cb(coinsEarned, this.state.wave.currentWave);
 		}
 	}
 
 	private checkMilestones(): void {
 		const wave = this.state.wave.currentWave;
+		if (this.firedMilestones.has(wave)) return;
 		if (wave === 10 || wave === 25 || wave === 50 || wave === 100 || wave === 250 || wave === 500) {
+			this.firedMilestones.add(wave);
 			if (this.onMilestone) {
 				this.onMilestone(`Wave ${wave} reached!`);
 			}
@@ -211,6 +222,7 @@ export class GameEngine {
 			towerMultishotChance: t.stats.multishotChance,
 			towerMultishotCount: t.stats.multishotCount,
 			towerCritChance: t.stats.critChance,
+			towerCritMultiplier: t.stats.critMultiplier,
 			upgradeLevels: { ...this.state.battleUpgrades as Record<string, number> },
 			enemiesInWave: w.enemiesInWave,
 			enemiesSpawned: w.enemiesSpawned,
@@ -229,7 +241,8 @@ export class GameEngine {
 
 	public buyBattleUpgrade(id: UpgradeId): boolean {
 		const currentLevel = this.state.battleUpgrades[id] ?? 0;
-		const upgrade = BATTLE_UPGRADES.find(u => u.id === id);
+		const upgrades = buildBattleUpgradeList();
+		const upgrade = upgrades.find(u => u.id === id);
 		if (!upgrade) return false;
 		const maxLv = upgrade.maxLevel;
 		const cost = getBattleUpgradeCost(id, currentLevel);
@@ -276,7 +289,7 @@ export class GameEngine {
 	}
 
 	public addParticles(x: number, y: number, color: number, count: number, speed: number = 80): void {
-		if (!this.state.settings.particles || this.state.settings.lowEffectsMode) return;
+		if (!this.state.settings.particles) return;
 		const maxCount = this.state.settings.lowEffectsMode ? Math.min(count, 5) : Math.min(count, GAME_CONFIG.MAX_PARTICLES - this.particles.length);
 		for (let i = 0; i < maxCount; i++) {
 			const angle = Math.random() * Math.PI * 2;

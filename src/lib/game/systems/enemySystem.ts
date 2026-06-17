@@ -1,7 +1,7 @@
 import { GAME_CONFIG } from '../engine/gameConfig';
 import { EnemyType, UpgradeId, type Enemy, type GameState, type Projectile } from '../engine/gameTypes';
-import { damageTower } from './towerSystem';
-import { calculateGoldFromKill, getKoalaCoinPerKill } from './economySystem';
+import { damageTower, applyThorns, applyLifesteal, computeDamageToTower } from './towerSystem';
+import { calculateGoldFromKill, getBossCoinReward, getCoinsPerKill } from './economySystem';
 import { getBattleUpgradeEffect } from '../balance/battleUpgrades';
 
 // Feedback helpers
@@ -47,7 +47,9 @@ export function updateEnemySystem(state: GameState, dt: number): void {
 			enemy.attackTimer -= dt;
 			if (enemy.attackTimer <= 0) {
 				enemy.attackTimer = enemy.attackCooldown;
-				damageTower(state, enemy.damage);
+				// Apply thorns before tower takes damage (enemy may die)
+				applyThorns(state, enemy);
+				damageTower(state, enemy.damage, enemy.isBoss);
 			}
 		} else {
 			enemy.stopped = false;
@@ -99,11 +101,10 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 		const dist = Math.sqrt(dx * dx + dy * dy);
 
 		if (dist < 8) {
-			// Piercing reduces effective armor
-			const pierceLevel = state.battleUpgrades[UpgradeId.Piercing] ?? 0;
-			const pierceBonus = getBattleUpgradeEffect(UpgradeId.Piercing, pierceLevel);
-			const effectiveArmor = Math.max(0, target.armor - pierceBonus);
-			const effectiveDmg = Math.max(1, Math.floor(proj.damage * (1 - effectiveArmor)));
+			// Armor reduces damage by a factor (0=no reduction, 0.5=50% reduction)
+			const effectiveDmg = Math.max(1, Math.floor(proj.damage * (1 - target.armor)));
+			// Lifesteal heals based on damage dealt
+			applyLifesteal(state, effectiveDmg);
 			target.hp -= effectiveDmg;
 			state.totalDamageDealt += effectiveDmg;
 			target.hitFlashTimer = 0.12;
@@ -149,15 +150,19 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 				gold = Math.floor(gold * (1 + goldAmpBonus));
 				state.cash += gold;
 
-				// KoalaCoin (permanent currency)
-				const coin = getKoalaCoinPerKill(state);
-				state.coins += coin;
+				// GeoCoin (permanent currency) — per-kill (scales with Coin Bonus) + boss bonus
+				const killCoins = getCoinsPerKill(state);
+				if (killCoins > 0) {
+					state.coins += killCoins;
+				}
+				if (target.isBoss) {
+					const bossCoins = getBossCoinReward(state);
+					state.coins += bossCoins;
+					_addDmg?.(target.position.x, target.position.y + target.size * 1.1, '+' + bossCoins + ' 🪙', GAME_CONFIG.NEON_YELLOW);
+				}
 
 				// Feedback popups — stagger them slightly for readability
-				_addDmg?.(target.position.x, target.position.y + target.size * 0.6, '+' + gold + ' 💰', GAME_CONFIG.NEON_GREEN);
-				if (coin > 0) {
-					_addDmg?.(target.position.x, target.position.y + target.size * 1.1, '+' + coin + ' 🪙', GAME_CONFIG.NEON_YELLOW);
-				}
+				_addDmg?.(target.position.x, target.position.y + target.size * 0.6, '+' + gold + ' ⚡', GAME_CONFIG.NEON_GREEN);
 			}
 			proj.alive = false;
 			continue;

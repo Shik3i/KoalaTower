@@ -20,7 +20,7 @@ export interface SaveData {
 	settings: GameSettings;
 }
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 export function createDefaultSave(): SaveData {
 	return {

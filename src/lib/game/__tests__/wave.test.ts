@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { getEnemyConfig, getEnemyCountForWave, getEnemyTypeForWave, getSpawnIntervalForWave } from '../balance/enemies';
+import { getEnemyCountForWave, getSpawnIntervalForWave, getEnemyTypeForWave, createEnemy } from '../balance/enemies';
 import { EnemyType } from '../engine/gameTypes';
-import { WAVE_CONFIG } from '../engine/gameConfig';
+import { enemiesPerWave, bossEscortCount, spawnIntervalForWave } from '../balance/balanceMath';
 
 describe('Wave Scaling', () => {
 	it('should have increasing enemy counts per wave', () => {
@@ -14,8 +14,9 @@ describe('Wave Scaling', () => {
 
 	it('boss waves should include escorts + boss', () => {
 		const bossWaveCount = getEnemyCountForWave(10);
-		// Boss wave has escorts (3 at wave 10) + 1 boss = 4
-		expect(bossWaveCount).toBe(4);
+		// Boss wave has escorts (floor(3 + 10*0.2) = 5) + 1 boss = 6
+		const expectedEscorts = bossEscortCount(10);
+		expect(bossWaveCount).toBe(expectedEscorts + 1);
 	});
 
 	it('should have decreasing spawn intervals', () => {
@@ -26,7 +27,7 @@ describe('Wave Scaling', () => {
 
 	it('spawn interval should not go below minimum', () => {
 		const interval100 = getSpawnIntervalForWave(100);
-		expect(interval100).toBeGreaterThanOrEqual(WAVE_CONFIG.SPAWN_INTERVAL_MIN);
+		expect(interval100).toBeGreaterThanOrEqual(0.08);
 	});
 
 	it('should unlock enemy types at specific waves', () => {
@@ -35,38 +36,39 @@ describe('Wave Scaling', () => {
 		expect(typesWave1).not.toContain(EnemyType.Fast);
 
 		const typesWave5 = getEnemyTypeForWave(5);
-		expect(typesWave5).toContain(EnemyType.Tank);
+		expect(typesWave5).toContain(EnemyType.Fast);
 
 		const typesWave10 = getEnemyTypeForWave(10);
 		expect(typesWave10).toContain(EnemyType.Boss);
-		expect(typesWave10.length).toBe(1); // Boss wave only spawns boss
+		expect(typesWave10.length).toBe(1); // Boss wave only returns boss
 	});
 });
 
 describe('Enemy Config', () => {
 	it('should scale HP with wave number', () => {
-		const normal1 = getEnemyConfig(EnemyType.Normal, 1);
-		const normal10 = getEnemyConfig(EnemyType.Normal, 10);
-		expect(normal10.hp).toBeGreaterThan(normal1.hp);
+		// Create enemies at different waves and check HP
+		const e1 = createEnemy(EnemyType.Normal, 1, 0, 0);
+		const e10 = createEnemy(EnemyType.Normal, 10, 0, 0);
+		expect(e10.hp).toBeGreaterThan(e1.hp);
 	});
 
 	it('boss should have more HP than normal enemy', () => {
-		const normal = getEnemyConfig(EnemyType.Normal, 5);
-		const boss = getEnemyConfig(EnemyType.Boss, 5);
+		const normal = createEnemy(EnemyType.Normal, 10, 0, 0);
+		const boss = createEnemy(EnemyType.Boss, 10, 0, 0);
 		expect(boss.hp).toBeGreaterThan(normal.hp);
 	});
 
 	it('fast enemy should have lower HP than normal', () => {
-		const normal = getEnemyConfig(EnemyType.Normal, 5);
-		const fast = getEnemyConfig(EnemyType.Fast, 5);
+		const normal = createEnemy(EnemyType.Normal, 10, 0, 0);
+		const fast = createEnemy(EnemyType.Fast, 10, 0, 0);
 		expect(fast.hp).toBeLessThan(normal.hp);
 	});
 
 	it('should have correct shape assignments', () => {
-  expect(getEnemyConfig(EnemyType.Normal, 1).shape).toBe('square');
-  expect(getEnemyConfig(EnemyType.Fast, 5).shape).toBe('diamond');
-  expect(getEnemyConfig(EnemyType.Tank, 5).shape).toBe('hexagon');
-  expect(getEnemyConfig(EnemyType.Ranged, 8).shape).toBe('triangle');
-		expect(getEnemyConfig(EnemyType.Boss, 10).shape).toBe('pentagon');
+		expect(createEnemy(EnemyType.Normal, 1, 0, 0).shape).toBe('square');
+		expect(createEnemy(EnemyType.Fast, 5, 0, 0).shape).toBe('diamond');
+		expect(createEnemy(EnemyType.Tank, 5, 0, 0).shape).toBe('hexagon');
+		expect(createEnemy(EnemyType.Ranged, 8, 0, 0).shape).toBe('triangle');
+		expect(createEnemy(EnemyType.Boss, 10, 0, 0).shape).toBe('pentagon');
 	});
 });

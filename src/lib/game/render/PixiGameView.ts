@@ -1,76 +1,220 @@
+import { Application } from 'pixi.js';
 import { GAME_CONFIG } from '../engine/gameConfig';
 import type { GameEngine } from '../engine/GameEngine';
-import {
-	drawBackground,
-	drawTower,
-	drawEnemy,
-	drawProjectile,
-	drawParticle,
-	drawDamageNumber,
-	drawRangeIndicator,
-	generateStars,
-	setFrameTime,
-} from './shapeFactory';
+import { createLayers, type GameLayers } from './PixiLayers';
+import { BackgroundRenderer } from './BackgroundRenderer';
+import { TowerRenderer } from './TowerRenderer';
+import { EnemyRenderer } from './EnemyRenderer';
+import { ProjectileRenderer } from './ProjectileRenderer';
+import { EffectsRenderer } from './EffectsRenderer';
+import { generateStars } from './renderUtils';
+
+export type MuzzleFlashCallback = () => void;
 
 export class PixiGameView {
-	private canvas: HTMLCanvasElement;
-	private ctx: CanvasRenderingContext2D;
+	private app!: Application;
+	private domContainer: HTMLElement;
 	private engine: GameEngine;
-	private stars: { x: number; y: number; size: number; alpha: number }[];
+
+	private layers!: GameLayers;
+	private background!: BackgroundRenderer;
+	private tower!: TowerRenderer;
+	private enemy!: EnemyRenderer;
+	private projectile!: ProjectileRenderer;
+	private effects!: EffectsRenderer;
+
 	private animFrameId: number | null = null;
-	private running: boolean = false;
-	private lastTime: number = 0;
-	private w: number = GAME_CONFIG.VIEW_WIDTH;
-	private h: number = GAME_CONFIG.VIEW_HEIGHT;
-	private time: number = 0;
+	private running = false;
+	private initialized = false;
+	private abortInit = false;
+	private time = 0;
+	private lastRange = 0;
 
-	/** Muzzle flash timer — decays over time, set when tower fires */
-	public muzzleFlash: number = 0;
+	public muzzleFlash = 0;
+	private initError: Error | null = null;
 
-	constructor(container: HTMLElement, engine: GameEngine) {
-		this.canvas = document.createElement('canvas');
-		this.ctx = this.canvas.getContext('2d')!;
+	constructor(domContainer: HTMLElement, engine: GameEngine) {
+		this.domContainer = domContainer;
 		this.engine = engine;
-		this.stars = generateStars(GAME_CONFIG.VIEW_WIDTH, GAME_CONFIG.VIEW_HEIGHT, GAME_CONFIG.BACKGROUND_STARS);
+		this.initPixi().catch(e => { this.initError = e; console.error('PixiJS init failed:', e); });
+	}
 
-		this.canvas.width = GAME_CONFIG.VIEW_WIDTH;
-		this.canvas.height = GAME_CONFIG.VIEW_HEIGHT;
-		this.canvas.style.width = '100%';
-		this.canvas.style.height = '100%';
-		this.canvas.style.display = 'block';
-		this.canvas.style.imageRendering = 'pixelated';
+	private async initPixi(): Promise<void> {
+		this.app = new Application();
 
-		container.appendChild(this.canvas);
-		this.resize();
+		// Read container dimensions for dynamic viewport
+		const rect = this.domContainer.getBoundingClientRect();
+		const vw = Math.max(400, Math.floor(rect.width));
+		const vh = Math.max(400, Math.floor(rect.height));
+
+		await this.app.init({
+			width: vw,
+			height: vh,
+			background: GAME_CONFIG.CANVAS_BG,
+			antialias: true,
+			resolution: Math.max(1, window.devicePixelRatio || 1),
+			autoDensity: true,
+			autoStart: false,
+			preference: 'webgl',
+			powerPreference: 'high-performance',
+			resizeTo: this.domContainer,
+		});
+
+		if (this.abortInit) { this.app.destroy({ removeView: true }, { children: true }); return; }
+
+		const canvas = this.app.canvas;
+		canvas.style.display = 'block';
+		canvas.style.imageRendering = 'auto';
+
+		this.domContainer.appendChild(canvas);
+
+		// Store actual viewport size in engine for spawn calculations
+		(this.engine as any).__viewW = this.app.screen.width;
+		(this.engine as any).__viewH = this.app.screen.height;
+		// Update tower position in engine state to match viewport center
+		if (this.engine.state.tower) {
+			this.engine.state.tower.position.x = this.app.screen.width / 2;
+			this.engine.state.tower.position.y = this.app.screen.height / 2;
+		}
+
+		this.buildScene();
+		this.initialized = true;
+
+		if (this.running) {
+			this.lastTime = performance.now();
+			this.animFrameId = requestAnimationFrame(this.loop);
+		}
+	}
+
+	private buildScene(): void {
+		const stage = this.app.stage;
+		this.layers = createLayers();
+
+		const vw = this.app.screen.width;
+		const vh = this.app.screen.height;
+
+		const stars = generateStars(vw, vh, Math.floor(GAME_CONFIG.BACKGROUND_STARS * (vw / 800)));
+		this.background = new BackgroundRenderer(stars, vw, vh);
+		this.tower = new TowerRenderer(vw / 2, vh / 2);
+		this.enemy = new EnemyRenderer();
+		this.projectile = new ProjectileRenderer();
+		this.effects = new EffectsRenderer();
+
+		this.projectile.container.blendMode = 'add';
+		this.layers.range.blendMode = 'add';
+
+		stage.addChild(this.layers.bg);
+		this.layers.bg.addChild(this.background.container);
+
+		stage.addChild(this.layers.range);
+		this.layers.range.addChild(this.tower.rangeContainer);
+
+		stage.addChild(this.layers.enemy);
+		this.layers.enemy.addChild(this.enemy.container);
+
+		stage.addChild(this.layers.projectile);
+		this.layers.projectile.addChild(this.projectile.container);
+
+		stage.addChild(this.layers.tower);
+		this.layers.tower.addChild(this.tower.container);
+
+		stage.addChild(this.layers.particle);
+		this.layers.particle.addChild(this.effects.particleContainer);
+
+		stage.addChild(this.layers.dmgText);
+		this.layers.dmgText.addChild(this.effects.textContainer);
+
+		stage.addChild(this.layers.waveAnnounce);
+		this.layers.waveAnnounce.addChild(this.effects.waveContainer);
 	}
 
 	public resize(): void {
-		const parent = this.canvas.parentElement;
-		if (!parent) return;
+		// PixiJS resizeTo handles this automatically
+		if (this.app && this.initialized) {
+			const vw = this.app.screen.width;
+			const vh = this.app.screen.height;
+			(this.engine as any).__viewW = vw;
+			(this.engine as any).__viewH = vh;
+			this.tower.x = vw / 2;
+			this.tower.y = vh / 2;
+			this.tower.container.x = vw / 2;
+			this.tower.container.y = vh / 2;
+			if (this.engine.state.tower) {
+				this.engine.state.tower.position.x = vw / 2;
+				this.engine.state.tower.position.y = vh / 2;
+			}
+		}
+	}
 
-		const rect = parent.getBoundingClientRect();
-		const aspect = GAME_CONFIG.VIEW_WIDTH / GAME_CONFIG.VIEW_HEIGHT;
-		let w: number, h: number;
+	private lastTime = 0;
 
-		if (rect.width / rect.height > aspect) {
-			h = rect.height;
-			w = h * aspect;
+	private loop = (now: number): void => {
+		if (!this.running || !this.initialized) return;
+
+		const rawDt = Math.min((now - this.lastTime) / 1000, GAME_CONFIG.CLAMP_DELTA);
+		this.lastTime = now;
+		this.time += rawDt;
+
+		if (this.muzzleFlash > 0) {
+			this.muzzleFlash = Math.max(0, this.muzzleFlash - rawDt * 5);
+		}
+		this.tower.muzzleFlash = this.muzzleFlash;
+
+		this.engine.update(rawDt);
+
+		const state = this.engine.state;
+		const settings = state.settings;
+		const effTime = settings.reducedMotion ? 1 : this.time;
+		const hpPct = state.tower.alive ? state.tower.hp / state.tower.maxHp : 0;
+
+		this.background.update(effTime, rawDt);
+		this.tower.updateVisuals(effTime, hpPct);
+
+		if (state.runActive && !state.gameOver) {
+			const range = state.tower.stats.range;
+			if (range !== this.lastRange) {
+				this.lastRange = range;
+				this.tower.updateRange(range, -1);
+			}
+			this.layers.range.visible = true;
 		} else {
-			w = rect.width;
-			h = w / aspect;
+			this.layers.range.visible = false;
 		}
 
-		this.w = w;
-		this.h = h;
-		this.canvas.style.width = `${w}px`;
-		this.canvas.style.height = `${h}px`;
-	}
+		const shake = this.engine.shakeAmount;
+		if (shake > 0.5 && settings.screenShake) {
+			const intensity = Math.min(shake, GAME_CONFIG.MAX_SCREEN_SHAKE);
+			this.app.stage.x = Math.sin(this.time * 40) * intensity * 0.5;
+			this.app.stage.y = Math.cos(this.time * 37) * intensity * 0.5;
+		} else {
+			this.app.stage.x = 0;
+			this.app.stage.y = 0;
+		}
+
+		this.enemy.sync(state.enemies, effTime);
+		this.projectile.sync(state.projectiles);
+		this.effects.syncParticles(this.engine.particles, settings);
+		this.effects.syncDamageNumbers(this.engine.damageNumbers, settings);
+		this.effects.syncWaveAnnounce(
+			state.wave.currentWave,
+			state.wave.enemiesInWave,
+			state.wave.betweenWaveTimer,
+			state.wave.waveActive,
+			this.app.screen.width,
+			this.app.screen.height,
+		);
+
+		this.app.render();
+		this.animFrameId = requestAnimationFrame(this.loop);
+	};
 
 	public start(): void {
 		if (this.running) return;
 		this.running = true;
-		this.lastTime = performance.now();
-		this.loop(this.lastTime);
+		if (this.initialized) {
+			this.lastTime = performance.now();
+			this.animFrameId = requestAnimationFrame(this.loop);
+		}
 	}
 
 	public stop(): void {
@@ -85,202 +229,24 @@ export class PixiGameView {
 		this.muzzleFlash = 1.0;
 	}
 
-	private loop = (now: number): void => {
-		if (!this.running) return;
-
-		const rawDt = (now - this.lastTime) / 1000;
-		this.lastTime = now;
-		const dt = Math.min(rawDt, GAME_CONFIG.CLAMP_DELTA);
-		this.time += dt;
-
-		// Decay muzzle flash
-		if (this.muzzleFlash > 0) {
-			this.muzzleFlash = Math.max(0, this.muzzleFlash - dt * 5);
-		}
-
-		// Update engine
-		this.engine.update(dt);
-
-		// Render
-		this.render();
-
-		this.animFrameId = requestAnimationFrame(this.loop);
-	};
-
-	private render(): void {
-		const ctx = this.ctx;
-		const w = this.canvas.width;
-		const h = this.canvas.height;
-		const state = this.engine.state;
-		const shake = this.engine.shakeAmount;
-
-		// Set shared frame time for all draw functions
-		// Freeze time when reduced motion is enabled
-		const effectiveTime = state.settings.reducedMotion ? 1 : this.time;
-		setFrameTime(effectiveTime);
-
-		ctx.save();
-
-		// Screen shake
-		if (shake > 0.5 && state.settings.screenShake) {
-			const sx = (Math.random() - 0.5) * shake;
-			const sy = (Math.random() - 0.5) * shake;
-			ctx.translate(sx, sy);
-		}
-
-		// Background
-		drawBackground(ctx, w, h, this.stars, this.time);
-
-		// Range indicator
-		if (state.runActive && !state.gameOver) {
-			drawRangeIndicator(ctx, state.tower.position.x, state.tower.position.y, state.tower.stats.range);
-		}
-
-		// Tower
-		if (state.tower.alive || !state.runActive) {
-			drawTower(ctx, state.tower.position.x, state.tower.position.y, GAME_CONFIG.TOWER_SIZE, state.tower.hp, state.tower.maxHp, this.muzzleFlash);
-		}
-
-		// Enemies
-		for (const enemy of state.enemies) {
-			if (enemy.alive) {
-				drawEnemy(ctx, enemy);
-			}
-		}
-
-		// Projectiles
-		for (const proj of state.projectiles) {
-			if (proj.alive) {
-				drawProjectile(ctx, proj.position, proj.trail, proj.color, proj.isCrit);
-			}
-		}
-
-		// Particles
-		for (const p of this.engine.particles) {
-			drawParticle(ctx, p);
-		}
-
-		// Damage numbers
-		for (const n of this.engine.damageNumbers) {
-			drawDamageNumber(ctx, n);
-		}
-
-		// Wave announcement
-		if (state.runActive && state.wave.betweenWaveTimer > 0 && !state.wave.waveActive && state.wave.currentWave > 0) {
-			const t = state.wave.betweenWaveTimer;
-			const duration = 3.0;
-			const progress = Math.min(1, t / duration);
-			const fadeIn = Math.min(1, progress * 2);
-			const fadeOut = Math.max(0, Math.min(1, (1 - progress) * 4));
-			const alpha = Math.min(fadeIn, fadeOut);
-			const upcomingWave = state.wave.currentWave + 1;
-			const isBossWave = upcomingWave % 10 === 0;
-			const totalEnemies = state.wave.enemiesInWave || 0;
-
-			ctx.save();
-			ctx.globalAlpha = alpha;
-
-			if (isBossWave) {
-				// Boss wave gets a special pink/purple background
-				ctx.fillStyle = 'rgba(255, 68, 170, 0.08)';
-				ctx.fillRect(0, h / 2 - 110, w, 220);
-
-				const bgGrad = ctx.createLinearGradient(0, h / 2 - 110, 0, h / 2 + 110);
-				bgGrad.addColorStop(0, 'rgba(255, 68, 170, 0)');
-				bgGrad.addColorStop(0.25, `rgba(255, 68, 170, ${0.08 * alpha})`);
-				bgGrad.addColorStop(0.75, `rgba(255, 68, 170, ${0.08 * alpha})`);
-				bgGrad.addColorStop(1, 'rgba(255, 68, 170, 0)');
-				ctx.fillStyle = bgGrad;
-				ctx.fillRect(0, h / 2 - 110, w, 220);
-
-				// Warning stripes top & bottom
-				ctx.fillStyle = `rgba(255, 68, 170, ${0.25 * alpha})`;
-				ctx.fillRect(w * 0.1, h / 2 - 60, w * 0.8, 1);
-				ctx.fillRect(w * 0.1, h / 2 + 54, w * 0.8, 1);
-
-				// Side accent dots
-				for (let i = 0; i < 10; i++) {
-					const dotY = h / 2 - 50 + i * 11;
-					ctx.fillStyle = `rgba(255, 68, 170, ${0.1 * alpha})`;
-					ctx.fillRect(w * 0.08, dotY, 3, 3);
-					ctx.fillRect(w * 0.92, dotY, 3, 3);
-				}
-
-				// "BOSS WAVE" label
-				ctx.textAlign = 'center';
-				ctx.textBaseline = 'bottom';
-				ctx.fillStyle = `rgba(255, 68, 170, ${0.7 * alpha})`;
-				ctx.font = '600 15px "SF Mono", "Fira Code", monospace';
-				ctx.fillText('⚡ BOSS INCOMING ⚡', w / 2, h / 2 - 28);
-
-				// Wave number — big, bold, pink glow
-				ctx.textBaseline = 'top';
-				ctx.shadowColor = `rgba(255, 68, 170, ${0.9 * alpha})`;
-				ctx.shadowBlur = 60 * alpha;
-				ctx.fillStyle = '#FF44AA';
-				ctx.font = 'bold 64px "SF Mono", "Fira Code", monospace';
-				ctx.fillText(`${upcomingWave}`, w / 2, h / 2 - 26);
-				ctx.shadowBlur = 0;
-
-				// Sub label
-				ctx.textBaseline = 'top';
-				ctx.fillStyle = `rgba(255, 68, 170, ${0.55 * alpha})`;
-				ctx.font = '400 13px "SF Mono", "Fira Code", monospace';
-				ctx.fillText(`▶ ${totalEnemies} enemies — Boss appears last`, w / 2, h / 2 + 58);
-			} else {
-				// Normal wave announcement
-				const bgGrad = ctx.createLinearGradient(0, h / 2 - 90, 0, h / 2 + 80);
-				bgGrad.addColorStop(0, `rgba(0, 255, 255, 0)`);
-				bgGrad.addColorStop(0.3, `rgba(0, 255, 255, ${0.05 * alpha})`);
-				bgGrad.addColorStop(0.7, `rgba(0, 255, 255, ${0.05 * alpha})`);
-				bgGrad.addColorStop(1, `rgba(0, 255, 255, 0)`);
-				ctx.fillStyle = bgGrad;
-				ctx.fillRect(0, h / 2 - 90, w, 170);
-
-				// Top accent line
-				ctx.fillStyle = `rgba(0, 255, 255, ${0.15 * alpha})`;
-				ctx.fillRect(w * 0.15, h / 2 - 48, w * 0.7, 1);
-
-				// Bottom accent line
-				ctx.fillStyle = `rgba(0, 255, 255, ${0.1 * alpha})`;
-				ctx.fillRect(w * 0.2, h / 2 + 42, w * 0.6, 1);
-
-				// "WAVE" label
-				ctx.textAlign = 'center';
-				ctx.textBaseline = 'bottom';
-				ctx.fillStyle = `rgba(240, 244, 255, ${0.55 * alpha})`;
-				ctx.font = '500 14px "SF Mono", "Fira Code", monospace';
-				ctx.fillText('WAVE', w / 2, h / 2 - 22);
-
-				// Wave number — big, bold, glowing
-				ctx.textBaseline = 'top';
-				ctx.shadowColor = 'rgba(0, 255, 255, 0.8)';
-				ctx.shadowBlur = 50 * alpha;
-				ctx.fillStyle = '#00FFFF';
-				ctx.font = 'bold 52px "SF Mono", "Fira Code", monospace';
-				ctx.fillText(`${upcomingWave}`, w / 2, h / 2 - 20);
-				ctx.shadowBlur = 0;
-
-				// Sub label: enemies count
-				ctx.textBaseline = 'top';
-				ctx.fillStyle = `rgba(240, 244, 255, ${0.4 * alpha})`;
-				ctx.font = '400 12px "SF Mono", "Fira Code", monospace';
-				ctx.fillText(`▶ ${totalEnemies} enemies`, w / 2, h / 2 + 46);
-			}
-
-			ctx.globalAlpha = 1;
-			ctx.restore();
-		}
-
-		ctx.restore();
-	}
-
-	public getCanvas(): HTMLCanvasElement {
-		return this.canvas;
+	public getCanvas(): HTMLCanvasElement | undefined {
+		return this.initialized ? this.app.canvas : undefined;
 	}
 
 	public destroy(): void {
+		this.abortInit = true;
 		this.stop();
-		this.canvas.remove();
+		if (this.initialized) {
+			this.enemy.destroy();
+			this.projectile.destroy();
+			this.effects.destroy();
+			this.tower.destroy();
+			this.background.destroy();
+			this.app.destroy(
+				{ removeView: true, releaseGlobalResources: true },
+				{ children: true, texture: true, textureSource: true },
+			);
+		}
+		this.initialized = false;
 	}
 }

@@ -1,46 +1,56 @@
+/**
+ * towerSystem.ts — Tower state, layered defense, sustain.
+ *
+ * Damage: raw → defense% → defenseAbs → minFloor
+ * Healing: regen (per sec) + lifesteal (% of dmg dealt) capped at maxHP
+ * Thorns: reflect on melee hit
+ *
+ * Workshop provides permanent base (long-tail, small per-level).
+ * Battle upgrades provide run-specific bonus (larger per-level).
+ * Lab multipliers compound on top.
+ */
+
 import { GAME_CONFIG, TOWER_HP_BASE } from '../engine/gameConfig';
 import {
 	UpgradeId,
 	WorkshopUpgradeId,
+	type Enemy,
 	type GameState,
 	type TowerState,
 } from '../engine/gameTypes';
 import { getBattleUpgradeEffect } from '../balance/battleUpgrades';
 import { getWorkshopUpgradeEffect } from '../balance/workshopUpgrades';
-import { getLabItemEffect } from '../balance/labs';
-import { LabId } from '../engine/gameTypes';
-
-function getLabMultiplier(state: GameState): { dmg: number; hp: number; coin: number } {
-	const lab = state.labLevels;
-	return {
-		dmg: 1 + getLabItemEffect(LabId.DamageResearch, lab[LabId.DamageResearch] ?? 0),
-		hp: 1 + getLabItemEffect(LabId.TowerDurability, lab[LabId.TowerDurability] ?? 0) / 100,
-		coin: 1 + getLabItemEffect(LabId.CoinEfficiency, lab[LabId.CoinEfficiency] ?? 0),
-	};
-}
+import { getLabMultiplier } from '../balance/labs';
 
 export function createTowerState(state: GameState): TowerState {
 	const ws = state.workshopUpgrades;
 	const lab = getLabMultiplier(state);
 
-	const baseDamage = (10 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, ws[WorkshopUpgradeId.BaseDamage] ?? 0)) * lab.dmg;
-	const baseFireRate = 1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, ws[WorkshopUpgradeId.BaseFireRate] ?? 0);
-	const baseRange = 300 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, ws[WorkshopUpgradeId.BaseRange] ?? 0);
-	const startingHp = Math.floor((TOWER_HP_BASE + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, ws[WorkshopUpgradeId.StartingHp] ?? 0)) * lab.hp);
-	const critBonus = getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, ws[WorkshopUpgradeId.CritBonus] ?? 0);
+	const w = (id: WorkshopUpgradeId) => ws[id] ?? 0;
+
+	const baseDamage = (8 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, w(WorkshopUpgradeId.BaseDamage))) * lab.dmg;
+	const baseFireRate = (1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, w(WorkshopUpgradeId.BaseFireRate))) * lab.fireRate;
+	const baseRange = 180 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, w(WorkshopUpgradeId.BaseRange));
+	const baseHp = Math.floor((80 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, w(WorkshopUpgradeId.StartingHp))) * lab.hp);
+	const baseCrit = Math.min(0.30, 0.05 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, w(WorkshopUpgradeId.CritBonus)));
 
 	return {
 		position: { x: GAME_CONFIG.VIEW_WIDTH / 2, y: GAME_CONFIG.VIEW_HEIGHT / 2 },
-		hp: startingHp,
-		maxHp: startingHp,
+		hp: baseHp,
+		maxHp: baseHp,
 		stats: {
 			damage: baseDamage,
 			fireRate: baseFireRate,
 			range: baseRange,
 			multishotChance: 0,
 			multishotCount: 1,
-			critChance: 0.05 + critBonus,
+			critChance: baseCrit,
 			critMultiplier: 2.0,
+			defensePercent: Math.min(0.50, getWorkshopUpgradeEffect(WorkshopUpgradeId.DefensePercent, w(WorkshopUpgradeId.DefensePercent))),
+			defenseAbsolute: getWorkshopUpgradeEffect(WorkshopUpgradeId.DefenseAbsolute, w(WorkshopUpgradeId.DefenseAbsolute)),
+			regen: getWorkshopUpgradeEffect(WorkshopUpgradeId.Regen, w(WorkshopUpgradeId.Regen)),
+			lifesteal: Math.min(0.10, getWorkshopUpgradeEffect(WorkshopUpgradeId.Lifesteal, w(WorkshopUpgradeId.Lifesteal))),
+			thorns: getWorkshopUpgradeEffect(WorkshopUpgradeId.Thorns, w(WorkshopUpgradeId.Thorns)),
 		},
 		fireTimer: 0,
 		alive: true,
@@ -53,40 +63,77 @@ export function applyBattleUpgrades(state: GameState): void {
 	const ws = state.workshopUpgrades;
 	const lab = getLabMultiplier(state);
 
-	const baseDamage = (10 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, ws[WorkshopUpgradeId.BaseDamage] ?? 0)) * lab.dmg;
-	const baseFireRate = 1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, ws[WorkshopUpgradeId.BaseFireRate] ?? 0);
-	const baseRange = 300 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, ws[WorkshopUpgradeId.BaseRange] ?? 0);
-	const critBonus = getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, ws[WorkshopUpgradeId.CritBonus] ?? 0);
+	const w = (id: WorkshopUpgradeId) => ws[id] ?? 0;
+	const b = (id: UpgradeId) => bu[id] ?? 0;
 
-	const dmgLevel = bu[UpgradeId.Damage] ?? 0;
-	const frLevel = bu[UpgradeId.FireRate] ?? 0;
-	const rangeLevel = bu[UpgradeId.Range] ?? 0;
-	const multiChanceLevel = bu[UpgradeId.Multishot] ?? 0;
-	const multiProjLevel = bu[UpgradeId.MultishotProjectiles] ?? 0;
-	const critLevel = bu[UpgradeId.CritChance] ?? 0;
-	const defLevel = bu[UpgradeId.Defense] ?? 0;
-	const hpLevel = bu[UpgradeId.MaxHp] ?? 0;
+	// Workshop + lab baseline
+	const wsDmg = getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, w(WorkshopUpgradeId.BaseDamage));
+	const wsFR = getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, w(WorkshopUpgradeId.BaseFireRate));
+	const wsRange = getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, w(WorkshopUpgradeId.BaseRange));
+	const wsHP = getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, w(WorkshopUpgradeId.StartingHp));
+	const wsCrit = getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, w(WorkshopUpgradeId.CritBonus));
+	const wsDefAbs = getWorkshopUpgradeEffect(WorkshopUpgradeId.DefenseAbsolute, w(WorkshopUpgradeId.DefenseAbsolute));
+	const wsDefPct = getWorkshopUpgradeEffect(WorkshopUpgradeId.DefensePercent, w(WorkshopUpgradeId.DefensePercent));
+	const wsRegen = getWorkshopUpgradeEffect(WorkshopUpgradeId.Regen, w(WorkshopUpgradeId.Regen));
+	const wsLifesteal = getWorkshopUpgradeEffect(WorkshopUpgradeId.Lifesteal, w(WorkshopUpgradeId.Lifesteal));
+	const wsThorns = getWorkshopUpgradeEffect(WorkshopUpgradeId.Thorns, w(WorkshopUpgradeId.Thorns));
 
-	tower.stats.damage = baseDamage + getBattleUpgradeEffect(UpgradeId.Damage, dmgLevel);
-	tower.stats.fireRate = baseFireRate + getBattleUpgradeEffect(UpgradeId.FireRate, frLevel);
-	tower.stats.range = baseRange + getBattleUpgradeEffect(UpgradeId.Range, rangeLevel);
-	tower.stats.multishotChance = getBattleUpgradeEffect(UpgradeId.Multishot, multiChanceLevel);
-	tower.stats.multishotCount = 1 + getBattleUpgradeEffect(UpgradeId.MultishotProjectiles, multiProjLevel);
-	tower.stats.critChance = 0.05 + critBonus + getBattleUpgradeEffect(UpgradeId.CritChance, critLevel);
+	// Effective = base × lab + battle
+	tower.stats.damage = (8 + wsDmg) * lab.dmg + getBattleUpgradeEffect(UpgradeId.Damage, b(UpgradeId.Damage));
+	tower.stats.fireRate = (1.0 + wsFR) * lab.fireRate + getBattleUpgradeEffect(UpgradeId.FireRate, b(UpgradeId.FireRate));
+	tower.stats.range = 180 + wsRange + getBattleUpgradeEffect(UpgradeId.Range, b(UpgradeId.Range));
+	tower.stats.multishotChance = getBattleUpgradeEffect(UpgradeId.Multishot, b(UpgradeId.Multishot));
+	tower.stats.multishotCount = 1 + getBattleUpgradeEffect(UpgradeId.MultishotProjectiles, b(UpgradeId.MultishotProjectiles));
+	tower.stats.critChance = Math.min(0.30, 0.05 + wsCrit) + getBattleUpgradeEffect(UpgradeId.CritChance, b(UpgradeId.CritChance));
+	tower.stats.critMultiplier = 2.0 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, b(UpgradeId.CritMultiplier));
+	tower.stats.defensePercent = Math.min(0.50, wsDefPct + getBattleUpgradeEffect(UpgradeId.DefensePercent, b(UpgradeId.DefensePercent)));
+	tower.stats.defenseAbsolute = wsDefAbs + getBattleUpgradeEffect(UpgradeId.Defense, b(UpgradeId.Defense));
+	tower.stats.regen = wsRegen + getBattleUpgradeEffect(UpgradeId.Regen, b(UpgradeId.Regen));
+	tower.stats.lifesteal = Math.min(0.15, wsLifesteal + getBattleUpgradeEffect(UpgradeId.Lifesteal, b(UpgradeId.Lifesteal)));
+	tower.stats.thorns = wsThorns + getBattleUpgradeEffect(UpgradeId.Thorns, b(UpgradeId.Thorns));
 
-	tower.maxHp = Math.floor((TOWER_HP_BASE
-		+ getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, ws[WorkshopUpgradeId.StartingHp] ?? 0)
-		+ getBattleUpgradeEffect(UpgradeId.MaxHp, hpLevel)) * lab.hp);
+	// Max HP: base + workshop × lab + battle
+	tower.maxHp = Math.floor((80 + wsHP) * lab.hp) + getBattleUpgradeEffect(UpgradeId.MaxHp, b(UpgradeId.MaxHp));
 	tower.hp = Math.min(tower.hp, tower.maxHp);
-
-	tower.stats.critMultiplier = 2.0;
 }
 
-export function damageTower(state: GameState, damage: number): void {
-	const defLevel = state.battleUpgrades[UpgradeId.Defense] ?? 0;
-	const reduction = getBattleUpgradeEffect(UpgradeId.Defense, defLevel);
-	const effectiveDamage = Math.max(1, damage - reduction);
-	state.tower.hp -= effectiveDamage;
+export function applyRegen(state: GameState, dt: number): void {
+	const regen = state.tower.stats.regen;
+	if (regen > 0 && state.tower.hp < state.tower.maxHp) {
+		state.tower.hp = Math.min(state.tower.maxHp, state.tower.hp + regen * dt);
+	}
+}
+
+export function applyLifesteal(state: GameState, damageDealt: number): void {
+	const lifesteal = state.tower.stats.lifesteal;
+	if (lifesteal > 0 && damageDealt > 0) {
+		const heal = Math.floor(damageDealt * lifesteal);
+		if (heal > 0) state.tower.hp = Math.min(state.tower.maxHp, state.tower.hp + heal);
+	}
+}
+
+export function applyThorns(state: GameState, enemy: Enemy): void {
+	const thorns = state.tower.stats.thorns;
+	if (thorns <= 0) return;
+	const thornDmg = enemy.isBoss ? Math.floor(thorns * 0.5) : thorns;
+	if (thornDmg > 0) {
+		enemy.hp -= thornDmg;
+		state.totalDamageDealt += thornDmg;
+		if (enemy.hp <= 0) { enemy.alive = false; enemy.hp = 0; }
+	}
+}
+
+/** Layered damage formula: raw → def% → defAbs → minFloor */
+export function computeDamageToTower(rawDamage: number, state: GameState, isBoss: boolean): number {
+	const defPct = state.tower.stats.defensePercent;
+	const defAbs = state.tower.stats.defenseAbsolute;
+	const afterPct = Math.max(0, rawDamage * (1 - defPct));
+	return Math.max(isBoss ? 2 : 1, Math.floor(afterPct - defAbs));
+}
+
+export function damageTower(state: GameState, rawDamage: number, isBoss: boolean = false): void {
+	const dmg = computeDamageToTower(rawDamage, state, isBoss);
+	state.tower.hp -= dmg;
 	if (state.tower.hp <= 0) {
 		state.tower.hp = 0;
 		state.tower.alive = false;
