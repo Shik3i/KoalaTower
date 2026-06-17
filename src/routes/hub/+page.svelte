@@ -159,6 +159,20 @@
 
 	function lLv(id: string): number { return (getCachedSave()?.labLevels as Record<string, number>)[id] ?? 0; }
 
+	/** Toggle a boolean setting and persist it. Used by both click and keyboard. */
+	function toggleSetting(key: keyof GameSettings) {
+		const save = getCachedSave(); if (!save) return;
+		const next = !settings[key];
+		save.settings[key] = next;
+		settingsStore.set({ ...save.settings });
+		persistSave(save);
+		// Enabling lab notifications needs OS permission — request it from this
+		// user gesture, otherwise the layout's notification check never fires.
+		if (key === 'browserNotifications' && next && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+			Notification.requestPermission().catch(() => {});
+		}
+	}
+
 	const settingsList = [
 		{ key: 'reducedMotion' as keyof GameSettings, label: 'Reduced Motion', desc: 'Minimize animations' },
 		{ key: 'screenShake' as keyof GameSettings, label: 'Screen Shake', desc: 'Shake on damage' },
@@ -305,8 +319,8 @@
 							<input id="sim-wave-num" type="number" min="1" max="10000" bind:value={simWave} class="sim-input" />
 						</div>
 						<div class="sim-param">
-							<label class="sim-label">Front:</label>
-							<select bind:value={simFront} class="sim-select">
+							<label class="sim-label" for="sim-front">Front:</label>
+							<select id="sim-front" bind:value={simFront} class="sim-select">
 								<option value={1}>Front 1 (1×)</option>
 								<option value={2}>Front 2 (20×)</option>
 								<option value={3}>Front 3 (60×)</option>
@@ -353,7 +367,7 @@
 					<div class="sg">
 						{#each settingsList as s}
 							<div class="sr" role="group" aria-label={s.label}><div class="si"><span class="sl">{s.label}</span><span class="sd">{s.desc}</span></div>
-								<div class="tg" class:on={settings[s.key]} role="switch" aria-checked={settings[s.key]} tabindex="0" onclick={() => { const save = getCachedSave(); if (!save) return; save.settings[s.key] = !settings[s.key]; settingsStore.set({...save.settings}); persistSave(save); }} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const save = getCachedSave(); if (!save) return; save.settings[s.key] = !settings[s.key]; settingsStore.set({...save.settings}); persistSave(save); } }}>
+								<div class="tg" class:on={settings[s.key]} role="switch" aria-checked={settings[s.key]} aria-label={s.label} tabindex="0" onclick={() => toggleSetting(s.key)} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSetting(s.key); } }}>
 									<div class="tgk"></div>
 								</div>
 							</div>
@@ -374,10 +388,10 @@
 
 	<!-- Import Dialog -->
 	{#if showImportDialog}
-		<div class="overlay" role="dialog"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(getOpLogMessage('saveImportFailed'), 'error'); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
+		<div class="overlay" role="dialog" aria-modal="true" aria-label="Import save"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(getOpLogMessage('saveImportFailed'), 'error'); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
 	{/if}
 	{#if showResetConfirm}
-		<div class="overlay" role="dialog"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Blueprints, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button><button class="dlg-dng-btn" onclick={async () => { await resetSave(); showResetConfirm = false; coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0); settingsStore.set({ ...DEFAULT_SETTINGS }); toast(getOpLogMessage('saveReset'), 'warning'); }}>Reset</button></div></div></div>
+		<div class="overlay" role="dialog" aria-modal="true" aria-label="Reset save"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Blueprints, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button><button class="dlg-dng-btn" onclick={async () => { await resetSave(); showResetConfirm = false; coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0); settingsStore.set({ ...DEFAULT_SETTINGS }); toast(getOpLogMessage('saveReset'), 'warning'); }}>Reset</button></div></div></div>
 	{/if}
 
 	<footer class="hub-footer">
@@ -438,7 +452,6 @@
 	.ucnx { margin-left:auto; color:var(--text-secondary); font-family:var(--font-mono); }
 	.uc.aff .ucnx { color:var(--green); }
 	.lc { gap:.25rem; }
-	.ld { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.4; }
 	.uc.researching { border-color:rgba(255,221,68,.3); background:rgba(255,221,68,.03); }
 	.rs-bar-track { height:5px; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
 	.rs-bar-fill { height:100%; background:linear-gradient(90deg,var(--yellow),var(--orange)); border-radius:2px; transition:width .5s linear; }
