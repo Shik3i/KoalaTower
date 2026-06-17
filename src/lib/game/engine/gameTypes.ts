@@ -377,6 +377,8 @@ export interface GameSettings {
 	music: boolean;
 	/** Neon bloom post-processing filter. */
 	bloom: boolean;
+	/** Browser notification when lab research completes. */
+	browserNotifications: boolean;
 }
 
 /** Tracks real-time research progress. */
@@ -435,5 +437,6 @@ export const DEFAULT_SETTINGS: GameSettings = {
 	lowEffectsMode: false,
 	sfx: true,
 	music: false,
-	bloom: true
+	bloom: true,
+	browserNotifications: false
 };

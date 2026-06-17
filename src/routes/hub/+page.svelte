@@ -20,6 +20,7 @@
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
 	let activeSection = $state<'workshop' | 'lab' | 'blueprints' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings'>('workshop');
+	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
 
 	let simWave = $state(1);
 	let simFront = $state(1);
@@ -96,17 +97,31 @@
 	function wLv(id: WorkshopUpgradeId): number { return getCachedSave()?.workshopUpgrades[id] ?? 0; }
 	function buyWorkshopUpgrade(id: WorkshopUpgradeId) {
 		const save = getCachedSave(); if (!save) return;
-		const lv = save.workshopUpgrades[id] ?? 0;
-		const cost = getWorkshopUpgradeCost(id, lv);
 		const upgrade = WORKSHOP_UPGRADES.find(u => u.id === id);
 		const maxLv = upgrade?.maxLevel ?? 100;
-		if (save.totalCoins >= cost && lv < maxLv) {
+		const initialLv = save.workshopUpgrades[id] ?? 0;
+		if (initialLv >= maxLv) { toast('⚠ Max level!', 'warning'); return; }
+
+		let bought = 0;
+		const isMax = buyMultiplier === 'max';
+		for (let i = 0; i < (isMax ? 999999 : buyMultiplier); i++) {
+			const lv = save.workshopUpgrades[id] ?? 0;
+			if (lv >= maxLv) break;
+			const cost = getWorkshopUpgradeCost(id, lv);
+			if (save.totalCoins < cost) break;
 			save.totalCoins -= cost;
 			save.workshopUpgrades[id] = lv + 1;
+			bought++;
+		}
+
+		if (bought > 0) {
 			coinsStore.set(save.totalCoins);
 			persistSave(save);
-			toast('🔧 Upgraded!', 'success');
-		} else { toast('🔩 Not enough Alloy!', 'error'); }
+			const newLv = initialLv + bought;
+			toast('🔧 ' + (upgrade?.name ?? id) + ' → Lv.' + newLv + (bought > 1 ? ' (+' + bought + ')' : ''), 'success');
+		} else {
+			toast('🔩 Not enough Alloy!', 'error');
+		}
 	}
 
 	// Time-based lab research
@@ -144,6 +159,7 @@
 		{ key: 'bloom' as keyof GameSettings, label: 'Neon Bloom', desc: 'Glow post-processing (off for low-end GPUs)' },
 		{ key: 'sfx' as keyof GameSettings, label: 'Sound Effects', desc: 'Combat & UI sounds' },
 		{ key: 'music' as keyof GameSettings, label: 'Music', desc: 'Ambient background loop' },
+		{ key: 'browserNotifications' as keyof GameSettings, label: 'Lab Notifications', desc: 'Browser notification when research finishes' },
 	];
 
 	const sections = [
@@ -189,6 +205,13 @@
 		<div class="hub-content">
 			{#if activeSection === 'workshop'}
 				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed tower upgrades. Each level improves the tower blueprint before every deployment. Locked paths require Blueprint unlocks.</p>
+					<div class="buy-mult">
+						<span class="mult-label">Buy</span>
+						{#each [1, 5, 10, 50, 'max'] as m}
+							{@const val = m === 'max' ? 'max' as const : m as number}
+							<button class="mult-btn" class:on={buyMultiplier === val} onclick={() => buyMultiplier = val} title={val === 'max' ? 'Buy max affordable (Ctrl)' : val === 50 ? 'Buy ×50 (Shift+Ctrl)' : val === 5 ? 'Buy ×5 (Shift)' : 'Buy ×1'}>{val === 'max' ? 'Max' : '×' + val}</button>
+						{/each}
+					</div>
 					<div class="ug">
 						{#each WORKSHOP_UPGRADES as u}
 							{@const lv = wLv(u.id)}
@@ -257,7 +280,7 @@
 				</div>
 			{:else if activeSection === 'challenges'}
 				<div class="hs"><h2 class="hst">⚡ Special Operations</h2><p class="hsd">Tactical exercises with modified engagement rules. Each operation tests different combat scenarios under special conditions.</p>
-					<div class="cl">{#each CHALLENGES as c}<div class="cc" class:lck={c.locked}><div class="cc-h"><span class="cci">{c.icon}</span><div><div class="ccn">{c.name}</div><div class="ccd">{c.description}</div></div></div>{#if c.highScore > 0}<div class="ccs">Best: Wave {c.highScore}</div>{:else if c.locked}<div class="ccl">🔒 Locked</div>{/if}</div>{/each}</div>
+					<div class="cl">{#each CHALLENGES as c}<div class="cc" class:lck={c.locked}><div class="cc-h"><span class="cci">{c.icon}</span><div><div class="ccn">{c.name}</div><div class="ccd">{c.description}</div></div></div>{#if c.highScore > 0}<div class="ccs">Best: Wave {c.highScore}</div>{:else if c.locked}<div class="ccl">🔒 Unlocks at higher waves</div>{/if}</div>{/each}</div>
 				</div>
 			{:else if activeSection === 'simulation'}
 				{@const enemyTypes = [EnemyType.Normal, EnemyType.Fast, EnemyType.Tank, EnemyType.Ranged, EnemyType.Boss]}
@@ -344,7 +367,7 @@
 		<div class="overlay" role="dialog"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(getOpLogMessage('saveImportFailed'), 'error'); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
 	{/if}
 	{#if showResetConfirm}
-		<div class="overlay" role="dialog"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Blueprints, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-dng-btn" onclick={async () => { await resetSave(); showResetConfirm = false; coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0); settingsStore.set({ ...DEFAULT_SETTINGS }); toast(getOpLogMessage('saveReset'), 'warning'); }}>Reset</button><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button></div></div></div>
+		<div class="overlay" role="dialog"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Blueprints, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button><button class="dlg-dng-btn" onclick={async () => { await resetSave(); showResetConfirm = false; coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0); settingsStore.set({ ...DEFAULT_SETTINGS }); toast(getOpLogMessage('saveReset'), 'warning'); }}>Reset</button></div></div></div>
 	{/if}
 
 	<footer class="hub-footer">
@@ -362,7 +385,6 @@
 
 <style>
 	.hub-page { min-height:100vh; background:var(--bg-primary); overflow-y:auto; }
-	.bg-grid { position:fixed; inset:0; background-image:linear-gradient(rgba(0,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,255,.02) 1px,transparent 1px); background-size:60px 60px; pointer-events:none; z-index:0; }
 	.toast-c { position:fixed; top:1rem; left:50%; transform:translateX(-50%); z-index:300; display:flex; flex-direction:column; gap:.3rem; pointer-events:none; }
 	.toast { padding:.35rem .9rem; font-size:var(--fs-caption); border-radius:100px; white-space:nowrap; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); animation:ti .2s ease; box-shadow:0 0 20px rgba(0,0,0,.3); }
 	.toast-info { background:rgba(0,255,255,.1); color:var(--cyan); border:1px solid rgba(0,255,255,.25); }
@@ -372,92 +394,97 @@
 	.toast-milestone { background:rgba(255,221,68,.1); color:var(--yellow); border:1px solid rgba(255,221,68,.25); }
 	@keyframes ti { from{opacity:0;transform:translateY(-8px) scale(.95)} to{opacity:1;transform:translateY(0) scale(1)} }
 	.hub-top { display:flex; align-items:center; gap:.75rem; padding:.75rem 1.5rem; background:rgba(7,8,18,.95); border-bottom:1px solid var(--border-neon); position:sticky; top:0; z-index:10; }
-	.hub-back { color:var(--text-secondary); font-size:clamp(0.85rem,1.1vw,0.95rem); text-decoration:none; padding:.25rem .65rem; border:1px solid var(--border-neon); border-radius:var(--radius-sm); transition:all var(--transition-fast); }
+	.hub-back { color:var(--text-secondary); font-size:var(--fs-body); text-decoration:none; padding:.25rem .65rem; border:1px solid var(--border-neon); border-radius:var(--radius-sm); transition:all var(--transition-fast); }
 	.hub-back:hover { color:var(--cyan); border-color:var(--cyan); }
-	.hub-title { font-size:clamp(1.2rem,2.2vw,1.6rem); font-weight:700; background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-	.hub-coins { margin-left:auto; font-family:var(--font-mono); font-size:clamp(0.85rem,1.2vw,1rem); color:var(--yellow); }
-	.hub-desc { padding:1.25rem 1.5rem .5rem; text-align:center; color:var(--text-secondary); font-size:clamp(0.85rem,1.2vw,1rem); line-height:1.7; max-width:900px; margin:0 auto; position:relative; z-index:1; }
+	.hub-title { font-size:var(--fs-hero); font-weight:700; background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+	.hub-coins { margin-left:auto; font-family:var(--font-mono); font-size:var(--fs-mono-lg); color:var(--yellow); }
+	.hub-desc { padding:1.25rem 1.5rem .5rem; text-align:center; color:var(--text-secondary); font-size:var(--fs-body); line-height:1.7; max-width:900px; margin:0 auto; position:relative; z-index:1; }
 	.hub-body { display:flex; gap:2rem; padding:1.5rem; max-width:1400px; margin:0 auto; position:relative; z-index:1; min-height:calc(100vh - 64px); }
 	.hub-nav { display:flex; flex-direction:column; gap:.35rem; width:200px; flex-shrink:0; }
-	.hub-nav-btn { display:block; width:100%; padding:.6rem .9rem; font-size:clamp(0.85rem,1.1vw,0.95rem); color:var(--text-secondary); text-align:left; border-radius:var(--radius-sm); transition:all var(--transition-fast); }
+	.hub-nav-btn { display:block; width:100%; padding:.6rem .9rem; font-size:var(--fs-body); color:var(--text-secondary); text-align:left; border-radius:var(--radius-sm); transition:all var(--transition-fast); }
 	.hub-nav-btn.on { color:var(--cyan); background:rgba(0,255,255,.06); }
 	.hub-nav-btn:hover:not(.on) { color:var(--text-primary); background:rgba(255,255,255,.03); }
 	.hub-content { flex:1; min-width:0; max-width:1000px; }
 	.hs { animation:fi .2s ease; }
-	.hst { font-size:clamp(1.2rem,2vw,1.5rem); color:var(--cyan); margin-bottom:.4rem; }
-	.hsd { color:var(--text-secondary); font-size:clamp(0.85rem,1.2vw,1rem); margin-bottom:1.25rem; line-height:1.6; }
-	.hub-action { padding:.55rem 1.2rem; font-size:clamp(0.8rem,1.1vw,0.9rem); border-radius:var(--radius-sm); background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); cursor:pointer; transition:all var(--transition-fast); margin-right:.5rem; }
+	.hst { font-size:var(--fs-heading); color:var(--cyan); margin-bottom:.4rem; }
+	.hsd { color:var(--text-secondary); font-size:var(--fs-body); margin-bottom:1.25rem; line-height:1.6; }
+	.hub-action { padding:.55rem 1.2rem; font-size:var(--fs-body-sm); border-radius:var(--radius-sm); background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); cursor:pointer; transition:all var(--transition-fast); margin-right:.5rem; }
 	.hub-action:hover { border-color:var(--cyan); color:var(--text-primary); }
 	.hub-danger:hover { border-color:var(--red); color:var(--red); }
+	.buy-mult { display:flex; align-items:center; gap:2px; margin-bottom:.5rem; }
+	.mult-label { font-size:var(--fs-caption-sm); color:var(--text-dim); font-family:var(--font-mono); margin-right:.2rem; }
+	.mult-btn { padding:.15rem .4rem; font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); border-radius:4px; background:rgba(0,0,0,.12); border:1px solid transparent; cursor:pointer; transition:all var(--transition-fast); }
+	.mult-btn:hover { color:var(--text-secondary); border-color:var(--border-neon); }
+	.mult-btn.on { color:var(--cyan); background:rgba(0,255,255,.1); border-color:rgba(0,255,255,.25); }
 
 	/* Forge/Research upgrade cards */
 	.ug { display:flex; flex-direction:column; gap:4px; max-width:800px; }
-	.uc { display:flex; flex-direction:column; gap:.15rem; padding:.6rem .8rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition-fast); text-align:left; width:100%; }
+	.uc { display:flex; flex-direction:column; gap:.15rem; padding:.72rem .8rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition-fast); text-align:left; width:100%; }
 	.uc.aff { border-color:rgba(68,255,136,.25); }
 	.uc.aff:hover { border-color:var(--cyan); background:rgba(0,255,255,.05); }
 	.uc.mx { opacity:.5; cursor:default; }
 	.uc:disabled:not(.mx) { opacity:.65; cursor:default; }
 	.uc-t { display:flex; align-items:center; gap:.35rem; }
-	.uci { font-size:clamp(0.85rem,1.2vw,1rem); flex-shrink:0; }
-	.ucn { flex:1; font-size:clamp(0.8rem,1.1vw,0.95rem); font-weight:500; color:var(--text-primary); }
-	.ucl { font-size:clamp(0.65rem,0.85vw,0.75rem); font-family:var(--font-mono); color:var(--text-secondary); }
+	.uci { font-size:var(--fs-mono-lg); flex-shrink:0; }
+	.ucn { flex:1; font-size:var(--fs-mono-lg); font-weight:500; color:var(--text-primary); }
+	.ucl { font-size:var(--fs-mono-sm); font-family:var(--font-mono); color:var(--text-secondary); }
 	.uc-btr { height:4px; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
 	.uc-btf { height:100%; background:linear-gradient(90deg,var(--cyan),var(--blue)); border-radius:2px; transition:width var(--transition-normal); }
 	.uc.aff .uc-btf { background:linear-gradient(90deg,var(--green),var(--cyan)); }
-	.uc-b { display:flex; align-items:center; gap:.35rem; font-size:clamp(0.72rem,0.95vw,0.82rem); }
+	.uc-b { display:flex; align-items:center; gap:.35rem; font-size:var(--fs-mono); }
 	.ucc { font-family:var(--font-mono); color:var(--yellow); }
 	.ucnx { margin-left:auto; color:var(--text-secondary); font-family:var(--font-mono); }
 	.uc.aff .ucnx { color:var(--green); }
 	.lc { gap:.25rem; }
-	.ld { font-size:clamp(0.65rem,0.85vw,0.75rem); color:var(--text-secondary); line-height:1.4; }
+	.ld { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.4; }
 	.uc.researching { border-color:rgba(255,221,68,.3); background:rgba(255,221,68,.03); }
 	.rs-bar-track { height:5px; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
 	.rs-bar-fill { height:100%; background:linear-gradient(90deg,var(--yellow),var(--orange)); border-radius:2px; transition:width .5s linear; }
-	.rs-info { font-size:clamp(0.62rem,0.8vw,0.7rem); color:var(--yellow); font-family:var(--font-mono); text-align:center; }
-	.rs-btn { display:block; width:100%; margin-top:.25rem; padding:.4rem; font-size:clamp(0.7rem,0.9vw,0.8rem); border-radius:var(--radius-sm); font-weight:600; cursor:pointer; transition:all var(--transition-fast); text-align:center; }
+	.rs-info { font-size:var(--fs-caption-sm); color:var(--yellow); font-family:var(--font-mono); text-align:center; }
+	.rs-btn { display:block; width:100%; margin-top:.25rem; padding:.4rem; font-size:var(--fs-body-sm); border-radius:var(--radius-sm); font-weight:600; cursor:pointer; transition:all var(--transition-fast); text-align:center; }
 	.rs-btn.aff { background:linear-gradient(135deg,var(--cyan),var(--blue)); color:var(--bg-primary); }
 	.rs-btn:disabled { opacity:.55; background:var(--bg-tertiary); color:var(--text-dim); cursor:default; }
 	.cl { display:flex; flex-direction:column; gap:.5rem; max-width:800px; }
 	.tc,.cc { padding:.75rem .85rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
 	.tc.unl { border-color:rgba(68,255,136,.12); } .cc.lck { opacity:.55; }
 	.tc-h,.cc-h { display:flex; gap:.5rem; align-items:flex-start; }
-	.tci,.cci { font-size:1.1rem; flex-shrink:0; margin-top:2px; }
-	.tcn,.ccn { font-size:clamp(0.78rem,1vw,0.9rem); color:var(--text-primary); font-weight:500; margin-bottom:.1rem; }
-	.tcd,.ccd { font-size:clamp(0.68rem,0.9vw,0.8rem); color:var(--text-secondary); line-height:1.45; }
-	.tcr,.ccs,.ccl,.ccl-found { font-size:clamp(0.62rem,0.8vw,0.7rem); color:var(--text-secondary); font-family:var(--font-mono); margin-top:.25rem; padding:.15rem .4rem; background:rgba(0,0,0,.12); border-radius:3px; display:inline-block; }
+	.tci,.cci { font-size:var(--fs-icon-lg); flex-shrink:0; margin-top:2px; }
+	.tcn,.ccn { font-size:var(--fs-body-sm); color:var(--text-primary); font-weight:500; margin-bottom:.1rem; }
+	.tcd,.ccd { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.45; }
+	.tcr,.ccs,.ccl,.ccl-found { font-size:var(--fs-caption-sm); color:var(--text-secondary); font-family:var(--font-mono); margin-top:.25rem; padding:.15rem .4rem; background:rgba(0,0,0,.12); border-radius:3px; display:inline-block; }
 	.ccl-found { color:var(--cyan); background:rgba(0,255,255,.08); }
 	.tcr-ok { color:var(--green); } .ccs { color:var(--green); }
 	.ig { display:grid; gap:3px; max-width:600px; }
-	.ir { display:flex; justify-content:space-between; padding:.4rem .55rem; font-size:clamp(0.82rem,1.1vw,0.95rem); border-radius:3px; }
+	.ir { display:flex; justify-content:space-between; padding:.4rem .55rem; font-size:var(--fs-mono); border-radius:3px; }
 	.ir:nth-child(odd) { background:rgba(0,0,0,.1); }
 	.il { color:var(--text-secondary); } .iv { color:var(--text-primary); font-family:var(--font-mono); font-weight:500; }
 	.sg { display:flex; flex-direction:column; gap:2px; max-width:600px; }
 	.sr { display:flex; justify-content:space-between; align-items:center; padding:.55rem .55rem; border-radius:var(--radius-sm); cursor:pointer; }
 	.sr:hover { background:rgba(255,255,255,.02); }
 	.si { display:flex; flex-direction:column; gap:.08rem; }
-	.sl { font-size:clamp(0.8rem,1.1vw,0.9rem); color:var(--text-primary); } .sd { font-size:clamp(0.68rem,0.9vw,0.78rem); color:var(--text-secondary); }
+	.sl { font-size:var(--fs-body-sm); color:var(--text-primary); } .sd { font-size:var(--fs-caption); color:var(--text-secondary); }
 	.tg { width:38px; height:22px; border-radius:11px; background:var(--bg-tertiary); border:1px solid var(--border-neon); position:relative; transition:all var(--transition-fast); flex-shrink:0; cursor:pointer; }
 	.tg.on { background:rgba(0,255,255,.12); border-color:var(--cyan); }
 	.tgk { position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--text-dim); transition:all var(--transition-fast); }
 	.tg.on .tgk { left:18px; background:var(--cyan); box-shadow:0 0 6px rgba(0,255,255,.4); }
 	.overlay { position:fixed; inset:0; background:rgba(7,8,18,.85); display:flex; align-items:center; justify-content:center; z-index:200; padding:1rem; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); animation:fi .2s ease; }
 	.dlg { background:var(--bg-secondary); border:1px solid var(--border-neon-strong); border-radius:var(--radius-xl); padding:1.75rem; max-width:420px; width:100%; }
-	.dlg h3 { font-size:1.15rem; margin-bottom:.4rem; }
-	.dlg-d { color:var(--text-secondary); font-size:clamp(0.75rem,0.95vw,0.85rem); margin-bottom:.85rem; }
-	.dlg textarea { width:100%; margin-bottom:.85rem; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.5rem; font-family:var(--font-mono); font-size:clamp(0.65rem,0.85vw,0.72rem); resize:vertical; }
+	.dlg h3 { font-size:var(--fs-subheading); margin-bottom:.4rem; }
+	.dlg-d { color:var(--text-secondary); font-size:var(--fs-body-sm); margin-bottom:.85rem; }
+	.dlg textarea { width:100%; margin-bottom:.85rem; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.5rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); resize:vertical; }
 	.dlg-a { display:flex; gap:.5rem; justify-content:center; }
-	.dlg-p,.dlg-s,.dlg-dng-btn { padding:.55rem 1.3rem; border-radius:var(--radius-sm); font-weight:600; font-size:clamp(0.78rem,1vw,0.85rem); cursor:pointer; transition:all var(--transition-fast); }
+	.dlg-p,.dlg-s,.dlg-dng-btn { padding:.55rem 1.3rem; border-radius:var(--radius-sm); font-weight:600; font-size:var(--fs-btn-sm); cursor:pointer; transition:all var(--transition-fast); }
 	.dlg-p { background:var(--cyan); color:var(--bg-primary); }
 	.dlg-s { background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); }
 	.dlg-dng-btn { background:var(--red); color:white; }
 	.dlg-dng { border-color:rgba(255,68,68,.2); }
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	.save-note { margin-top:1.25rem; padding:.75rem 1rem; background:rgba(255,221,68,.04); border:1px solid rgba(255,221,68,.12); border-radius:var(--radius-sm); max-width:800px; }
-	.save-note-flavor { font-size:clamp(0.62rem,0.8vw,0.72rem); color:rgba(255,221,68,.45); font-style:italic; line-height:1.4; margin:0; }
-	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;width:auto;flex-direction:initial} .hub-nav-btn{flex-shrink:0;white-space:nowrap;text-align:center;padding:.55rem .5rem;font-size:.8rem} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem} }
-	@media(max-width:380px){ .hub-nav{grid-template-columns:1fr 1fr} .hub-nav-btn{font-size:.74rem;padding:.5rem .4rem} }
-	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:clamp(0.72rem,0.9vw,0.8rem); display:flex; flex-direction:column; gap:.4rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
-	.hub-footer-flavor { font-size:clamp(0.52rem,0.7vw,0.6rem); color:var(--text-dim); opacity:0.35; margin:0; }
+	.save-note-flavor { font-size:var(--fs-caption-sm); color:rgba(255,221,68,.45); font-style:italic; line-height:1.4; margin:0; }
+	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;width:auto;flex-direction:initial} .hub-nav-btn{flex-shrink:0;white-space:nowrap;text-align:center;padding:.55rem .5rem;font-size:var(--fs-body-sm)} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem} }
+	@media(max-width:380px){ .hub-nav{grid-template-columns:1fr 1fr} .hub-nav-btn{font-size:var(--fs-caption);padding:.5rem .4rem} }
+	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:var(--fs-caption); display:flex; flex-direction:column; gap:.4rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
+	.hub-footer-flavor { font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:0.35; margin:0; }
 	.hub-footer-links { display:flex; gap:.4rem; align-items:center; }
 	.hub-footer-links a { color:var(--cyan); text-decoration:underline; text-underline-offset:3px; text-decoration-color:rgba(0,255,255,.2); }
 	/* ── Simulation Panel ───────────────────────────────── */

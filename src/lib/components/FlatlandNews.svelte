@@ -22,7 +22,7 @@
 	<div class="news-grid">
 		{#each shuffled as item}
 			<article class="news-card">
-				<div class="nc-thumb">
+				<div class="nc-thumb" aria-hidden="true">
 					{#if item.thumbnail === 'triangle'}
 						<svg viewBox="0 0 48 48" class="nc-svg"><polygon points="24,6 44,42 4,42" fill="none" stroke="var(--orange)" stroke-width="1.5" opacity="0.7"/><polygon points="24,6 44,42 4,42" fill="rgba(255,152,0,0.06)"/></svg>
 					{:else if item.thumbnail === 'tower'}

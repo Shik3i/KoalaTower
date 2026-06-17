@@ -173,7 +173,7 @@
 
 {#if visible}
 	<div class="tutorial-overlay" role="dialog" aria-modal="true" aria-label="Tutorial">
-		<div class="tutorial-backdrop" role="button" tabindex="-1" onclick={skip} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') skip(); }}></div>
+		<div class="tutorial-backdrop" role="button" tabindex="0" onclick={skip} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') skip(); }}></div>
 
 		{#if highlightRect && currentStep?.target}
 			<div

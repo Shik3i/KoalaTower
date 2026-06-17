@@ -1,5 +1,5 @@
 import type { GameSettings, WorkshopUpgradeId, LabId, MilestoneId, ChallengeId, BlueprintId, AchievementId } from '../engine/gameTypes';
-import { TierId } from '../engine/gameTypes';
+import { TierId, DEFAULT_SETTINGS } from '../engine/gameTypes';
 
 export interface LabResearch {
 	level: number;
@@ -76,16 +76,7 @@ export function createDefaultSave(): SaveData {
 		activeLab: null,
 		milestones: {},
 		challengeHighScores: {},
-		settings: {
-			reducedMotion: false,
-			screenShake: true,
-			particles: true,
-			damageNumbers: true,
-			lowEffectsMode: false,
-			sfx: true,
-			music: false,
-			bloom: true,
-		},
+		settings: { ...DEFAULT_SETTINGS },
 		achievements: {},
 		totalKills: 0,
 		totalBossesDefeated: 0,

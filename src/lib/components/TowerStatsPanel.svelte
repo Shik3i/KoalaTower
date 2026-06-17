@@ -46,7 +46,7 @@
 				<div class="tp-row"><span class="tp-lbl">Def%</span><span class="tp-val">{pct(snap.towerDefensePercent)}</span></div>
 				<div class="tp-row"><span class="tp-lbl">Def</span><span class="tp-val">{snap.towerDefenseAbsolute.toFixed(0)}</span></div>
 				<div class="tp-row"><span class="tp-lbl">Regen</span><span class="tp-val">{fmt(snap.towerRegen)}/s</span></div>
-				<div class="tp-row"><span class="tp-lbl">Leach</span><span class="tp-val">{pct(snap.towerLifesteal)}</span></div>
+				<div class="tp-row"><span class="tp-lbl">Lifesteal</span><span class="tp-val">{pct(snap.towerLifesteal)}</span></div>
 				<div class="tp-row"><span class="tp-lbl">Thorns</span><span class="tp-val">{fmt(snap.towerThorns)}</span></div>
 			{/if}
 		</div>
@@ -86,7 +86,12 @@
 		right: 3px;
 		color: var(--text-dim);
 		font-size: var(--fs-caption);
-		padding: 0 3px;
+		padding: 4px 6px;
+		min-width: 28px;
+		min-height: 28px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		line-height: 1;
 		cursor: pointer;
 		z-index: 1;

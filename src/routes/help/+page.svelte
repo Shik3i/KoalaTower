@@ -225,48 +225,48 @@
 				<div class="help-card-icon">⚡</div>
 				<h3>Base Damage</h3>
 				<p>+5 damage per level. Core scaling stat — invest heavily.</p>
-				<span class="card-tag">Max 499</span>
+				<span class="card-tag">Max 5000</span>
 			</div>
 			<div class="help-card ws">
 				<div class="help-card-icon">🔥</div>
 				<h3>Base Fire Rate</h3>
-				<p>+0.025 attacks/sec per level. Scales DPS significantly.</p>
-				<span class="card-tag">Max 299</span>
+				<p>+0.02 attacks/sec per level. Scales DPS significantly.</p>
+				<span class="card-tag">Max 99</span>
 			</div>
 			<div class="help-card ws">
 				<div class="help-card-icon">🎯</div>
 				<h3>Base Range</h3>
-				<p>+2 range per level. See and target enemies sooner.</p>
-				<span class="card-tag">Max 149</span>
+				<p>+1.5 range per level. See and target enemies sooner.</p>
+				<span class="card-tag">Max 79</span>
 			</div>
 			<div class="help-card ws">
 				<div class="help-card-icon">❤️</div>
 				<h3>Starting HP</h3>
-				<p>+12 max HP per level. Survive longer each run.</p>
-				<span class="card-tag">Max 399</span>
+				<p>+10 max HP per level. Survive longer each run.</p>
+				<span class="card-tag">Max 6000</span>
 			</div>
 			<div class="help-card ws">
 				<div class="help-card-icon">🔩</div>
 				<h3>Alloy Bonus</h3>
-				<p>+1.5% more Alloy per kill per level. Permanent income boost.</p>
-				<span class="card-tag">Max 299</span>
+				<p>+1% more Alloy per kill per level. Permanent income boost.</p>
+				<span class="card-tag">Max 1000</span>
 			</div>
 			<div class="help-card ws">
 				<div class="help-card-icon">⚡</div>
 				<h3>Energy Bonus</h3>
-				<p>+1.5% more Energy per kill per level. Faster field upgrades.</p>
-				<span class="card-tag">Max 199</span>
+				<p>+1% more Energy per kill per level. Faster field upgrades.</p>
+				<span class="card-tag">Max 1000</span>
 			</div>
 			<div class="help-card ws">
 				<div class="help-card-icon">⭐</div>
 				<h3>Crit Bonus</h3>
-				<p>+0.5% base crit chance per level. Caps at 30% base.</p>
-				<span class="card-tag">Max 59</span>
+				<p>+0.5% base crit chance per level. Caps at 24.5% base.</p>
+				<span class="card-tag">Max 49</span>
 			</div>
 			<div class="help-card ws">
 				<div class="help-card-icon">⚡</div>
 				<h3>Starting Energy</h3>
-				<p>+8 starting Energy per level. Apply early overclocks faster.</p>
+				<p>+4 starting Energy per level. Apply early overclocks faster.</p>
 				<span class="card-tag">Max 99</span>
 			</div>
 		</div>
@@ -280,19 +280,19 @@
 			<div class="help-card lab">
 				<div class="help-card-icon">🔬</div>
 				<h3>Damage Research</h3>
-				<p>+3% damage per level. Multiplies all damage sources.</p>
+				<p>+5% damage per level. Multiplies all damage sources.</p>
 				<span class="card-tag">Max 199</span>
 			</div>
 			<div class="help-card lab">
 				<div class="help-card-icon">⚡</div>
 				<h3>Attack Speed Research</h3>
-				<p>+2% fire rate per level. Multiplies attack speed.</p>
+				<p>+3% fire rate per level. Multiplies attack speed.</p>
 				<span class="card-tag">Max 149</span>
 			</div>
 			<div class="help-card lab">
 				<div class="help-card-icon">❤️</div>
 				<h3>Health Research</h3>
-				<p>+3% max HP per level. Multiplies all HP sources.</p>
+				<p>+5% max HP per level. Multiplies all HP sources.</p>
 				<span class="card-tag">Max 199</span>
 			</div>
 			<div class="help-card lab">
@@ -393,6 +393,7 @@
 			<div class="control-item"><kbd>3</kbd><span>🚀 Speed 3×</span></div>
 			<div class="control-item"><kbd>4</kbd><span>⚡ Speed 5×</span></div>
 		</div>
+		<button class="replay-tutorial-btn" onclick={() => { localStorage.removeItem('geocore-td-tutorial-done'); alert('Tutorial will replay on your next visit to the Deployment page.'); }}>🔄 Replay Tutorial</button>
 	</section>
 
 	<!-- FAQ -->
@@ -430,25 +431,24 @@
 
 <style>
 	.help-page { min-height:100vh; padding:2rem 1.5rem; max-width:860px; margin:0 auto; overflow-y:auto; position:relative; }
-	.bg-grid { position:fixed; inset:0; background-image:linear-gradient(rgba(0,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,255,.02) 1px,transparent 1px); background-size:60px 60px; pointer-events:none; z-index:0; }
-	.back-link { display:inline-flex; align-items:center; gap:.35rem; color:var(--text-dim); margin-bottom:1.25rem; font-size:.82rem; transition:all var(--transition-fast); position:relative; z-index:1; padding:.3rem .65rem; border-radius:var(--radius-sm); border:1px solid transparent; text-decoration:none; }
+	.back-link { display:inline-flex; align-items:center; gap:.35rem; color:var(--text-dim); margin-bottom:1.25rem; font-size:var(--fs-body-sm); transition:all var(--transition-fast); position:relative; z-index:1; padding:.3rem .65rem; border-radius:var(--radius-sm); border:1px solid transparent; text-decoration:none; }
 	.back-link:hover { color:var(--cyan); border-color:var(--border-neon); background:rgba(0,255,255,.04); }
 	.help-header,.help-section { position:relative; z-index:1; margin-bottom:2rem; }
 	.help-header { padding:2rem; }
-	.help-header h1 { font-size:clamp(1.4rem,2.8vw,2rem); background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:.4rem; }
-	.help-header p { color:var(--text-secondary); font-size:clamp(0.85rem,1.2vw,0.95rem); }
-	.help-section h2 { font-size:clamp(1rem,1.8vw,1.3rem); color:var(--text-primary); margin-bottom:.45rem; }
-	.section-desc { font-size:clamp(0.78rem,1vw,0.88rem); color:var(--text-secondary); margin-bottom:.85rem; padding-bottom:.5rem; border-bottom:1px solid var(--border-neon); line-height:1.6; }
+	.help-header h1 { font-size:var(--fs-hero); background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:.4rem; }
+	.help-header p { color:var(--text-secondary); font-size:var(--fs-body); }
+	.help-section h2 { font-size:var(--fs-heading); color:var(--text-primary); margin-bottom:.45rem; }
+	.section-desc { font-size:var(--fs-body-sm); color:var(--text-secondary); margin-bottom:.85rem; padding-bottom:.5rem; border-bottom:1px solid var(--border-neon); line-height:1.6; }
 	.help-steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:.65rem; }
 	.help-step { display:flex; gap:.75rem; padding:1rem; background:var(--bg-glass); border:1px solid var(--border-neon); border-radius:var(--radius-md); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
 	.help-step-num { width:28px; height:28px; border-radius:50%; background:rgba(0,255,255,.1); border:1px solid var(--border-neon); display:flex; align-items:center; justify-content:center; font-size:.8rem; font-weight:700; color:var(--cyan); flex-shrink:0; }
-	.help-step-content h3 { font-size:clamp(0.82rem,1.1vw,0.92rem); color:var(--text-primary); margin-bottom:.2rem; }
-	.help-step-content p { font-size:clamp(0.75rem,1vw,0.85rem); color:var(--text-secondary); line-height:1.6; }
+	.help-step-content h3 { font-size:var(--fs-body-sm); color:var(--text-primary); margin-bottom:.2rem; }
+	.help-step-content p { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.6; }
 	.help-step-content a { color:var(--cyan); }
 
 	/* Lore */
 	.lore-box { background:var(--bg-glass); border:1px solid var(--border-neon); border-radius:var(--radius-md); padding:1.5rem; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
-	.lore-box p { font-size:clamp(0.82rem,1.1vw,0.92rem); color:var(--text-secondary); line-height:1.7; margin-bottom:.75rem; }
+	.lore-box p { font-size:var(--fs-body); color:var(--text-secondary); line-height:1.7; margin-bottom:.75rem; }
 	.lore-box p strong { color:var(--text-primary); }
 	.lore-box p:last-of-type { margin-bottom:1.25rem; }
 	.lore-mechanics { display:flex; flex-direction:column; gap:.5rem; }
@@ -456,8 +456,8 @@
 	.lore-mi { font-size:1.25rem; flex-shrink:0; margin-top:1px; }
 	.lore-icon-img { width:30px; height:30px; }
 	.lore-m div { display:flex; flex-direction:column; gap:.1rem; }
-	.lore-m strong { font-size:clamp(0.75rem,1vw,0.85rem); color:var(--text-primary); }
-	.lore-m span { font-size:clamp(0.68rem,0.9vw,0.78rem); color:var(--text-secondary); line-height:1.5; }
+	.lore-m strong { font-size:var(--fs-body-sm); color:var(--text-primary); }
+	.lore-m span { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.5; }
 
 	/* Currencies */
 	.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
@@ -465,9 +465,9 @@
 	.info-card.gold { border-color:rgba(0,255,255,.3); }
 	.info-card.coin { border-color:rgba(255,221,68,.3); }
 	.info-icon { font-size:2rem; margin-bottom:.3rem; display:block; }
-	.info-card h3 { font-size:clamp(0.85rem,1.2vw,1rem); color:var(--text-primary); margin-bottom:.2rem; }
-	.info-badge { display:inline-block; font-size:.65rem; font-weight:600; padding:.15rem .5rem; border-radius:100px; background:rgba(0,255,255,.08); color:var(--cyan); margin-bottom:.55rem; text-transform:uppercase; letter-spacing:.05em; font-family:var(--font-mono); }
-	.info-card p { font-size:clamp(0.72rem,0.95vw,0.82rem); color:var(--text-secondary); line-height:1.6; }
+	.info-card h3 { font-size:var(--fs-subheading); color:var(--text-primary); margin-bottom:.2rem; }
+	.info-badge { display:inline-block; font-size:var(--fs-caption-sm); font-weight:600; padding:.15rem .5rem; border-radius:100px; background:rgba(0,255,255,.08); color:var(--cyan); margin-bottom:.55rem; text-transform:uppercase; letter-spacing:.05em; font-family:var(--font-mono); }
+	.info-card p { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.6; }
 
 	/* Enemy Types */
 	.enemy-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:.6rem; }
@@ -480,17 +480,17 @@
 	.enemy-shape.hexagon { color:var(--violet); }
 	.enemy-shape.triangle { color:var(--orange); }
 	.enemy-shape.pentagon { color:var(--pink); }
-	.enemy-card h3 { font-size:clamp(0.72rem,1vw,0.82rem); color:var(--text-primary); margin-bottom:.2rem; }
-	.enemy-card p { font-size:clamp(0.62rem,0.85vw,0.72rem); color:var(--text-secondary); line-height:1.4; }
+	.enemy-card h3 { font-size:var(--fs-body-sm); color:var(--text-primary); margin-bottom:.2rem; }
+	.enemy-card p { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.4; }
 
 	/* Generic Card Grid (Workshop, Lab, Tiers, Challenges) */
 	.card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.65rem; }
 	.help-card { padding:.9rem .75rem; background:var(--bg-glass); border:1px solid var(--border-neon); border-radius:var(--radius-sm); text-align:center; transition:all var(--transition-fast); position:relative; overflow:hidden; }
 	.help-card:hover { border-color:var(--border-neon-strong); transform:translateY(-2px); box-shadow:var(--shadow-neon-sm); }
 	.help-card-icon { font-size:1.6rem; margin-bottom:.3rem; display:block; }
-	.help-card h3 { font-size:clamp(0.72rem,1vw,0.85rem); color:var(--text-primary); margin-bottom:.25rem; line-height:1.3; }
-	.help-card p { font-size:clamp(0.62rem,0.85vw,0.75rem); color:var(--text-secondary); line-height:1.45; }
-	.card-tag { display:inline-block; font-size:clamp(0.55rem,0.7vw,0.62rem); font-family:var(--font-mono); color:var(--cyan); background:rgba(0,255,255,.06); padding:.12rem .45rem; border-radius:100px; margin-top:.35rem; }
+	.help-card h3 { font-size:var(--fs-body-sm); color:var(--text-primary); margin-bottom:.25rem; line-height:1.3; }
+	.help-card p { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.45; }
+	.card-tag { display:inline-block; font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--cyan); background:rgba(0,255,255,.06); padding:.12rem .45rem; border-radius:100px; margin-top:.35rem; }
 
 	/* Card color variants */
 	.help-card.ws { border-color:rgba(0,255,255,.15); }
@@ -504,28 +504,31 @@
 
 	/* Upgrade Table */
 	.upgrade-table { border:1px solid var(--border-neon); border-radius:var(--radius-md); overflow:hidden; }
-	.ut-header,.ut-row { display:grid; grid-template-columns:120px 1fr 100px; gap:.6rem; padding:.55rem .75rem; font-size:clamp(0.7rem,0.9vw,0.8rem); align-items:center; }
-	.ut-header { background:var(--bg-tertiary); color:var(--cyan); font-weight:600; font-family:var(--font-mono); font-size:clamp(0.62rem,0.8vw,0.7rem); text-transform:uppercase; }
+	.ut-header,.ut-row { display:grid; grid-template-columns:120px 1fr 100px; gap:.6rem; padding:.55rem .75rem; font-size:var(--fs-caption); align-items:center; }
+	.ut-header { background:var(--bg-tertiary); color:var(--cyan); font-weight:600; font-family:var(--font-mono); font-size:var(--fs-caption-sm); text-transform:uppercase; }
 	.ut-row { border-top:1px solid rgba(0,255,255,.06); color:var(--text-secondary); }
 	.ut-row span:first-child { color:var(--text-primary); font-weight:500; }
 
 	/* Controls */
 	.controls-grid { display:flex; flex-wrap:wrap; gap:.5rem; padding:.3rem 0; }
 	.control-item { display:flex; align-items:center; gap:.5rem; padding:.4rem .75rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
-	.control-item kbd { padding:.1rem .4rem; background:var(--bg-primary); border-radius:3px; font-family:var(--font-mono); font-size:clamp(0.65rem,0.85vw,0.72rem); border:1px solid var(--border-neon); color:var(--cyan); }
-	.control-item span { font-size:clamp(0.72rem,0.95vw,0.82rem); color:var(--text-secondary); }
+	.control-item kbd { padding:.1rem .4rem; background:var(--bg-primary); border-radius:3px; font-family:var(--font-mono); font-size:var(--fs-caption); border:1px solid var(--border-neon); color:var(--cyan); }
+	.control-item span { font-size:var(--fs-body-sm); color:var(--text-secondary); }
 
 	/* FAQ */
 	.faq-list { display:flex; flex-direction:column; gap:.35rem; }
 	.faq-item { background:var(--bg-glass); border:1px solid var(--border-neon); border-radius:var(--radius-md); overflow:hidden; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
 	.faq-item.open { border-color:var(--border-neon-strong); }
-	.faq-question { display:flex; justify-content:space-between; align-items:center; width:100%; padding:.9rem 1rem; font-size:clamp(0.78rem,1.1vw,0.9rem); color:var(--text-primary); text-align:left; cursor:pointer; transition:background var(--transition-fast); }
+	.faq-question { display:flex; justify-content:space-between; align-items:center; width:100%; padding:.9rem 1rem; font-size:var(--fs-body); color:var(--text-primary); text-align:left; cursor:pointer; transition:background var(--transition-fast); }
 	.faq-question:hover { background:rgba(0,255,255,.03); }
-	.faq-arrow { color:var(--text-dim); font-size:.75rem; margin-left:.5rem; flex-shrink:0; }
+	.faq-arrow { color:var(--text-dim); font-size:var(--fs-caption); margin-left:.5rem; flex-shrink:0; }
 	.faq-answer { padding:0 1rem .9rem; }
-	.faq-answer p { font-size:clamp(0.75rem,1vw,0.85rem); color:var(--text-secondary); line-height:1.6; }
-	.help-footer { text-align:center; padding:2rem 0; color:var(--text-dim); font-size:clamp(0.72rem,0.9vw,0.82rem); position:relative; z-index:1; }
+	.faq-answer p { font-size:var(--fs-body-sm); color:var(--text-secondary); line-height:1.6; }
+	.help-footer { text-align:center; padding:2rem 0; color:var(--text-dim); font-size:var(--fs-caption); position:relative; z-index:1; }
 	.help-footer a { color:var(--cyan); }
+
+	.replay-tutorial-btn { margin-top:.75rem; padding:.55rem 1.2rem; font-size:var(--fs-body-sm); border-radius:var(--radius-sm); background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); cursor:pointer; transition:all var(--transition-fast); }
+	.replay-tutorial-btn:hover { border-color:var(--cyan); color:var(--text-primary); }
 
 	.lore-egg {
 		padding: 1rem 1.25rem;

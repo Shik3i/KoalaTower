@@ -8,6 +8,7 @@
  */
 
 import type { GameSettings, TowerStats } from './gameTypes';
+import { DEFAULT_SETTINGS } from './gameTypes';
 
 export const GAME_CONFIG = {
 	VIEW_WIDTH: 800,
@@ -110,5 +111,5 @@ export function getWaveArmor(wave: number): number {
 }
 
 export function getDefaultSettings(): GameSettings {
-	return { reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false, sfx: true, music: false, bloom: true };
+	return { ...DEFAULT_SETTINGS };
 }

@@ -164,24 +164,13 @@
 		position: relative;
 	}
 
-	.bg-grid {
-		position: fixed;
-		inset: 0;
-		background-image:
-			linear-gradient(rgba(0, 255, 255, 0.02) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(0, 255, 255, 0.02) 1px, transparent 1px);
-		background-size: 60px 60px;
-		pointer-events: none;
-		z-index: 0;
-	}
-
 	.back-link {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.4rem;
 		color: var(--text-dim);
 		margin-bottom: 1.5rem;
-		font-size: 0.85rem;
+		font-size: var(--fs-body-sm);
 		transition: all var(--transition-fast);
 		position: relative;
 		z-index: 1;
@@ -210,7 +199,7 @@
 	}
 
 	h1 {
-		font-size: 1.8rem;
+		font-size: var(--fs-hero);
 		margin-bottom: 0.5rem;
 		background: linear-gradient(135deg, var(--cyan), var(--blue));
 		-webkit-background-clip: text;
@@ -220,7 +209,7 @@
 
 	.last-updated {
 		color: var(--text-dim);
-		font-size: 0.78rem;
+		font-size: var(--fs-caption);
 		font-family: var(--font-mono);
 	}
 
@@ -229,7 +218,7 @@
 	}
 
 	h2 {
-		font-size: 1rem;
+		font-size: var(--fs-subheading);
 		color: var(--text-primary);
 		margin-bottom: 0.6rem;
 		font-weight: 500;
@@ -237,7 +226,7 @@
 
 	p {
 		color: var(--text-secondary);
-		font-size: 0.85rem;
+		font-size: var(--fs-body);
 		line-height: 1.8;
 	}
 
@@ -257,7 +246,7 @@
 
 	ul li {
 		color: var(--text-dim);
-		font-size: 0.82rem;
+		font-size: var(--fs-body-sm);
 		padding: 0.25rem 0 0.25rem 1.5rem;
 		position: relative;
 		line-height: 1.5;
@@ -290,7 +279,7 @@
 
 	.privacy-footer p {
 		color: var(--text-dim);
-		font-size: 0.78rem;
+		font-size: var(--fs-caption);
 		font-style: italic;
 	}
 

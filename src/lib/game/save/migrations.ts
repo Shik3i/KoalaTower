@@ -253,6 +253,7 @@ function normalizeSettings(raw: unknown): GameSettings {
 		sfx: s.sfx ?? DEFAULT_SETTINGS.sfx,
 		music: s.music ?? DEFAULT_SETTINGS.music,
 		bloom: s.bloom ?? DEFAULT_SETTINGS.bloom,
+		browserNotifications: s.browserNotifications ?? DEFAULT_SETTINGS.browserNotifications,
 	};
 }
 

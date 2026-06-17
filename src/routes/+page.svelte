@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { coinsStore } from '$lib/stores/gameUiStore';
+	import { coinsStore, loadedStore } from '$lib/stores/gameUiStore';
 	import { APP_VERSION, GITHUB_URL } from '$lib/version';
 	import FlatlandNews from '$lib/components/FlatlandNews.svelte';
 
@@ -17,10 +17,12 @@
 	};
 
 	let coins = $state(0);
+	let saveLoaded = $state(false);
 
 	onMount(() => {
-		const unsub = coinsStore.subscribe(c => coins = c);
-		return unsub;
+		const unsub1 = coinsStore.subscribe(c => coins = c);
+		const unsub2 = loadedStore.subscribe(l => saveLoaded = l);
+		return () => { unsub1(); unsub2(); };
 	});
 
 	let stars = Array.from({length: 60}, () => ({
@@ -86,13 +88,15 @@
 				Each front is a new battlefield — the tower is lost with every drop.
 			</p>
 			<div class="cta-buttons">
-				<a href="/play" class="btn-primary">
-					<span class="btn-icon">▶</span>
+				<a href="/play" class="btn-primary" class:btn-disabled={!saveLoaded} aria-disabled={!saveLoaded}>
+					<span class="btn-icon">{saveLoaded ? '▶' : ''}</span>
 					<span class="btn-label">Deploy</span>
+					{#if !saveLoaded}<span class="btn-spinner"></span>{/if}
 				</a>
-				<a href="/hub" class="btn-primary" style="background:linear-gradient(135deg,var(--violet),var(--pink));box-shadow:0 0 20px rgba(136,68,255,.2);">
-					<span class="btn-icon">🛰️</span>
+				<a href="/hub" class="btn-primary btn-accent" class:btn-disabled={!saveLoaded} aria-disabled={!saveLoaded}>
+					<span class="btn-icon">{saveLoaded ? '🛰️' : ''}</span>
 					<span class="btn-label">Orbital Command</span>
+					{#if !saveLoaded}<span class="btn-spinner"></span>{/if}
 				</a>
 				<a href="/help" class="btn-secondary">
 					<span>❓</span> Help
@@ -160,17 +164,7 @@
 		position: relative;
 	}
 
-	/* Animated Background */
-	.bg-grid {
-		position: fixed;
-		inset: 0;
-		background-image:
-			linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
-		background-size: 60px 60px;
-		pointer-events: none;
-		z-index: 0;
-	}
+
 
 	.star {
 		position: fixed;
@@ -235,7 +229,7 @@
 		align-items: center;
 		gap: 0.4rem;
 		padding: 0.3rem 0.8rem;
-		font-size: 0.7rem;
+		font-size: var(--fs-caption-sm);
 		font-family: var(--font-mono);
 		color: var(--text-dim);
 		border: 1px solid var(--border-neon);
@@ -333,6 +327,26 @@
 		transform: translateY(-2px);
 	}
 
+	.btn-disabled {
+		pointer-events: none;
+		opacity: 0.55;
+	}
+
+	.btn-spinner {
+		display: inline-block;
+		width: 14px;
+		height: 14px;
+		border: 2px solid rgba(7,8,18,.4);
+		border-top-color: var(--bg-primary);
+		border-radius: 50%;
+		animation: btnSpin .6s linear infinite;
+		margin-left: 4px;
+	}
+
+	@keyframes btnSpin {
+		to { transform: rotate(360deg); }
+	}
+
 	.btn-primary:hover::before {
 		opacity: 1;
 	}
@@ -361,6 +375,8 @@
 		transform: translateY(-2px);
 	}
 
+	.btn-accent { background: linear-gradient(135deg, var(--violet), var(--pink)); box-shadow: 0 0 20px rgba(136, 68, 255, 0.2); }
+
 	.btn-icon {
 		font-size: 0.9rem;
 	}
@@ -374,7 +390,7 @@
 		border: 1px solid rgba(255, 221, 68, 0.2);
 		border-radius: 100px;
 		font-family: var(--font-mono);
-		font-size: 0.9rem;
+		font-size: var(--fs-body);
 		animation: fadeInUp 0.4s ease;
 	}
 
