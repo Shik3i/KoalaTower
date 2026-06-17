@@ -60,13 +60,13 @@
 	];
 
 	function updateBuyMultiplier() {
-		if (!shiftHeld && !ctrlHeld) { /* keep current, don't override manual toggle */ }
-		else if (shiftHeld && ctrlHeld) buyMultiplier = 50;
+		if (shiftHeld && ctrlHeld) buyMultiplier = 50;
 		else if (shiftHeld) buyMultiplier = 5;
 		else if (ctrlHeld) buyMultiplier = 'max';
+		else if (!shiftHeld && !ctrlHeld) buyMultiplier = 1;
 	}
 
-	let snap = $state<GameSnapshot>(null!);
+	let snap = $state<GameSnapshot | null>(null);
 	let coins = $state(0);
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 	let highestWave = $state(0);

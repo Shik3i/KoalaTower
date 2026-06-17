@@ -30,9 +30,10 @@ export class PixiGameView {
 	private abortInit = false;
 	private time = 0;
 	private lastRange = 0;
+	private loopScheduled = false;
 
 	public muzzleFlash = 0;
-	private initError: Error | null = null;
+	public initError: Error | null = null;
 	private bloomFilter: AdvancedBloomFilter | null = null;
 	private bloomActive = false;
 
@@ -83,7 +84,8 @@ export class PixiGameView {
 		this.buildScene();
 		this.initialized = true;
 
-		if (this.running) {
+		if (this.running && !this.loopScheduled) {
+			this.loopScheduled = true;
 			this.lastTime = performance.now();
 			this.animFrameId = requestAnimationFrame(this.loop);
 		}
@@ -248,7 +250,8 @@ export class PixiGameView {
 	public start(): void {
 		if (this.running) return;
 		this.running = true;
-		if (this.initialized) {
+		if (this.initialized && !this.loopScheduled) {
+			this.loopScheduled = true;
 			this.lastTime = performance.now();
 			this.animFrameId = requestAnimationFrame(this.loop);
 		}
@@ -256,6 +259,7 @@ export class PixiGameView {
 
 	public stop(): void {
 		this.running = false;
+		this.loopScheduled = false;
 		if (this.animFrameId !== null) {
 			cancelAnimationFrame(this.animFrameId);
 			this.animFrameId = null;

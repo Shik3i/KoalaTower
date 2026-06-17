@@ -46,6 +46,7 @@ export function piecewisePowerStat(wave: number, anchors: StatAnchor[]): number 
 		const a = anchors[i]!;
 		const b = anchors[i + 1]!;
 		if (wave <= b.wave) {
+			if (a.wave <= 0 || b.wave <= a.wave) return a.value;
 			const exponent = Math.log(b.value / a.value) / Math.log(b.wave / a.wave);
 			return a.value * Math.pow(wave / a.wave, exponent);
 		}
@@ -53,6 +54,7 @@ export function piecewisePowerStat(wave: number, anchors: StatAnchor[]): number 
 
 	const a = anchors[anchors.length - 2]!;
 	const b = anchors[anchors.length - 1]!;
+	if (b.wave <= a.wave) return b.value;
 	const exponent = Math.log(b.value / a.value) / Math.log(b.wave / a.wave);
 	return b.value * Math.pow(wave / b.wave, exponent);
 }

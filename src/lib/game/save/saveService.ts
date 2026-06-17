@@ -43,7 +43,7 @@ export async function loadSave(): Promise<SaveData> {
 	return defaults;
 }
 
-export async function persistSave(save: SaveData): Promise<void> {
+export async function persistSave(save: SaveData): Promise<boolean> {
 	save.lastUpdated = Date.now();
 	save.schemaVersion = CURRENT_SCHEMA_VERSION;
 	// Deep-clone to avoid shared-mutable-state races with labInterval
@@ -51,8 +51,10 @@ export async function persistSave(save: SaveData): Promise<void> {
 	cachedSaveId = cachedSave.saveId;
 	try {
 		await set(SAVE_KEY, cachedSave);
+		return true;
 	} catch {
 		console.warn('[FlatlandTD] Failed to persist save — IndexedDB may be unavailable');
+		return false;
 	}
 }
 

@@ -10,7 +10,7 @@
 	// the structure supports very-high-HP bosses later (peel a colour per layer).
 	const LAYER_COLORS = ['#FF44AA', '#FF6644', '#FFAA22', '#FFDD44', '#44FFAA', '#44AAFF'];
 
-	let layerHp = $derived(maxHp / Math.max(1, segments));
+	let layerHp = $derived(maxHp > 0 ? maxHp / Math.max(1, segments) : 1);
 	let currentLayer = $derived(Math.max(1, Math.ceil(hp / layerHp)));
 	let withinLayer = $derived(Math.max(0, Math.min(1, (hp - (currentLayer - 1) * layerHp) / layerHp)));
 	let color = $derived(LAYER_COLORS[(currentLayer - 1) % LAYER_COLORS.length]);

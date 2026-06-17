@@ -442,6 +442,8 @@ export class GameEngine {
 		this.onGameOver = null;
 		this.onMilestone = null;
 		this.onStateChange = null;
+		this.state.enemies = [];
+		this.state.projectiles = [];
 		this.particles = [];
 		this.damageNumbers = [];
 		this.shockwaves = [];

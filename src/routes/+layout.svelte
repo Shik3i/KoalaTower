@@ -18,6 +18,7 @@
 
 	let loaded = $state(false);
 	let labInterval: ReturnType<typeof setInterval> | null = null;
+	let visibilityHandler: (() => void) | null = null;
 	let toasts: { id: number; msg: string; type: string }[] = $state([]);
 	let nextToast = 0;
 
@@ -26,9 +27,6 @@
 		toasts = [...toasts, { id, msg, type }];
 		setTimeout(() => { toasts = toasts.filter(t => t.id !== id); }, 3000);
 	}
-
-	// Expose global toast for use by polling/background logic
-	if (typeof window !== 'undefined') (window as any).__layoutToast = toast;
 
 	onMount(async () => {
 		try {
@@ -44,7 +42,7 @@
 		loaded = true;
 		loadedStore.set(true);
 
-		document.addEventListener('visibilitychange', async () => {
+		document.addEventListener('visibilitychange', visibilityHandler = async () => {
 			if (document.visibilityState === 'hidden') {
 				const save = getCachedSave();
 				if (save) await persistSave(save);
@@ -99,6 +97,7 @@
 	import { onDestroy } from 'svelte';
 	onDestroy(() => {
 		if (labInterval !== null) clearInterval(labInterval);
+		if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
 	});
 </script>
 
