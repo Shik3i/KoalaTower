@@ -1,235 +1,151 @@
-# Flatland TD (FLTD)
+# 🛰️ Flatland TD (FLTD)
 
 **Open Source Neon Cyber Idle Tower Defense**
 
-A beautiful, playable idle tower defense game built with SvelteKit, TypeScript, and PixiJS v8 (WebGL) rendering. No backend, no tracking, no cookies — just a standalone static web app.
+> *"Deploy towers. Question nothing. Refine Alloy."*
 
-## Quick Start
+A beautiful, fully playable idle tower defense game built with **Svelte 5 + TypeScript + PixiJS v8 (WebGL)**. No backend, no tracking, no cookies — entirely self-contained static web app.
+
+**▶ [Play now at tower.koalastuff.net](https://tower.koalastuff.net)**
+
+[![MIT License](https://img.shields.io/badge/license-MIT-cyan.svg)](LICENSE)
+[![Svelte 5](https://img.shields.io/badge/svelte-5-ff3e00.svg)](https://svelte.dev)
+[![PixiJS v8](https://img.shields.io/badge/pixijs-v8-e72264.svg)](https://pixijs.com)
+
+---
+
+## 🎮 Gameplay
+
+Flatland is at war with **hostile geometric shapes**. Deploy towers from orbit, harvest Energy from destroyed enemies to overclock your tower mid-battle, and refine Alloy for permanent upgrades. When the tower falls — deploy a new one. Research endures.
+
+- 🏗️ **13 Forge upgrades** — permanent pre-installed improvements (Damage, Fire Rate, Range, HP, Crit, Lifesteal, Thorns...)
+- 🔬 **5 Research Deck projects** — real-time orbital research with offline progress
+- ⚡ **14 Field upgrades** — temporary overclocks per deployment (Offense, Defense, Utility)
+- 📐 **10 Blueprints** — discover hidden upgrade paths during runs, research with Alloy
+- 🌍 **5 Fronts (Tiers)** — escalating difficulty with better Alloy rewards
+- 🏆 **42 Achievements** — deploy towers, destroy shapes, earn Alloy rewards
+- 👾 **5 Enemy types** — Normal ■, Fast ◆, Tank ⬡, Ranged ▶, Boss ⬠ — each visually distinct
+- ⚡ **3 Special Operations** — challenge modes with modified rules
+
+### Controls
+
+| Key | Action |
+|-----|--------|
+| `Space` | Pause / Resume |
+| `1` `2` `3` `4` | Speed 1× / 2× / 3× / 5× |
+| `Shift` + Click | Buy 5× upgrades |
+| `Ctrl` + Click | Buy max affordable |
+
+---
+
+## ⚡ Quick Start
 
 ```bash
 npm install
-npm run dev      # dev server
-npm run build    # production build → build/
-npm run preview  # preview production build
-npm test         # run tests
+npm run dev         # dev server at localhost:5173
+npm run build       # production build → build/
+npm run preview     # preview production build
+npm test            # run 184 tests
 ```
 
-## Features
+---
 
-### Gameplay
-- Central neon tower with auto-targeting and 5 enemy types (Normal, Fast, Tank, Ranged, Boss)
-- Endless wave progression with scaling difficulty (supports 10k+ waves)
-- Enemy armor system — armor reduces incoming damage, scales with wave
-- Field upgrades (Energy) — 9 temporary upgrades per deployment
-- Foundry upgrades (Alloy) — 8 permanent upgrades between deployments
-- Lab research system — real-time research with timers (progresses offline)
-- Tier system — 5 tiers with progression requirements
-- Challenge system — 3 challenge scaffolds
-- Highscore tracking — best wave saved persistently
+## 🧱 Tech Stack
 
-### Controls
-- **Space** — Pause/Resume
-- **1/2/3/4** — Speed presets (1×, 2×, 3×, 5×)
-- Speed controls in top bar (desktop) or dedicated bar (mobile)
+| Layer | Technology |
+|-------|-----------|
+| Framework | **SvelteKit** + Svelte 5 |
+| Language | **TypeScript** (strict mode) |
+| Renderer | **PixiJS v8** (WebGL + AdvancedBloomFilter) |
+| Storage | **IndexedDB** via idb-keyval |
+| Audio | Procedural **Web Audio API** (no asset files) |
+| Testing | **Vitest** (184 tests, 6 test files) |
+| Build | **Vite** + @sveltejs/adapter-static |
+| Container | Multi-arch **Docker** (amd64 + arm64) |
 
-### Visual
-- Neon cyber theme with deep dark backgrounds (#070812, #0B1020, #181938)
-- Cyan/blue/violet neon accents with glassmorphism panels
-- Geometric enemies with shape AND color identity (not color alone)
-- Glowing tower with pulsing core, rotating elements, and layered neon rings
-- Projectile trails with glow
-- Particle death bursts
-- Floating damage numbers with crit distinction
-- Energy & Alloy popup feedback on shape kills
-- Screen shake on damage (configurable)
-- Animated starfield and grid background
-- Wave start and boss warning animations
-- Smooth UI transitions
+---
 
-### Data & Privacy
-- 100% local — IndexedDB via idb-keyval
-- Export/Import save as JSON
-- Reset save with confirmation
-- No analytics, no cookies, no backend, no external requests
-- No external fonts or CDN assets
-
-## Tech Stack
-
-- **SvelteKit** with Svelte 5
-- **TypeScript** (strict mode)
-- **PixiJS v8** (WebGL/WebGPU with Canvas fallback) for game rendering, with `AdvancedBloomFilter` neon glow
-- **idb-keyval** for IndexedDB storage
-- **@sveltejs/adapter-static** for static output
-- **Vitest** for game logic tests
-- **Docker** — multi-arch container (linux/amd64, linux/arm64)
-
-## Project Structure
+## 📁 Project Structure
 
 ```
-koala-tower/
-├── LICENSE                 # MIT license
-├── README.md
-├── Dockerfile              # Multi-stage container build
-├── docker-compose.example.yml
-├── .dockerignore
-├── .github/workflows/
-│   └── docker-publish.yml  # Tag-triggered GHCR publish
-├── package.json
-├── tsconfig.json
-├── svelte.config.js
-├── vite.config.ts
-├── .gitignore
-├── docs/
-│   └── TODO.md             # Development roadmap & ideas
-├── src/
-│   ├── app.css             # Global styles & design tokens
-│   ├── app.html            # HTML shell
-│   ├── lib/
-│   │   ├── game/
-│   │   │   ├── engine/     # Core game engine (GameEngine.ts, types, config)
-│   │   │   ├── systems/    # Game logic (enemy, tower, wave, economy)
-│   │   │   ├── balance/    # Data-driven configs (enemies, upgrades, labs, tiers)
-│   │   │   ├── render/     # PixiJS WebGL rendering (PixiGameView, layered renderers)
-│   │   │   ├── audio/      # Procedural Web Audio SFX (no asset files)
-│   │   │   ├── save/       # Save system (IndexedDB, migrations)
-│   │   │   └── __tests__/  # Vitest unit tests
-│   │   └── stores/         # Svelte reactive stores
-│   └── routes/             # SvelteKit pages
-│       ├── +page.svelte    # Home / landing page
-│       ├── play/           # Main game screen
-│       ├── hub/            # Workshop, Lab, Stats, Settings hub
-│       └── privacy/        # Privacy policy
-├── static/                 # Static assets
-└── build/                  # Production output (gitignored)
+src/
+├── app.css                  # Design tokens + global styles (CSS variables for everything)
+├── app.html                 # HTML shell + SEO meta/OG/Twitter tags
+├── lib/
+│   ├── components/          # Tutorial, BossHealthBar, Stats panels, News, Icon
+│   ├── stores/              # Reactive Svelte stores (coins, settings, engine)
+│   ├── content/             # Flatland News (18 humorous items)
+│   └── game/
+│       ├── engine/          # GameEngine + GameConfig + GameTypes
+│       ├── systems/         # Wave, Enemy, Tower, Projectile, Economy (pure functions)
+│       ├── balance/         # Enemies, Upgrades, Labs, Tiers, Blueprints, Achievements
+│       ├── progression/     # Unlock requirements + blueprint discovery RNG
+│       ├── render/          # PixiJS WebGL rendering (layered renderers, effects)
+│       ├── audio/           # Procedural Web Audio SFX + music
+│       ├── save/            # IndexedDB persistence + schema migrations
+│       └── __tests__/       # 184 Vitest unit tests
+└── routes/
+    ├── +layout.svelte       # Global footer nav + lab polling + toasts
+    ├── +page.svelte         # Landing page with animated stars + news
+    ├── play/+page.svelte    # Game canvas + side panels + launch/game-over screens
+    ├── hub/+page.svelte     # Forge · Lab · Blueprints · Fronts · SpecialOps · Simulation · Archives
+    ├── help/+page.svelte    # FAQ (12 questions) · Lore · Controls · Tutorial replay
+    ├── imprint/+page.svelte # Legal notice
+    ├── privacy/+page.svelte # Privacy policy (100% local data)
+    └── sitemap.xml/         # Dynamic XML sitemap
 ```
 
-## Architecture
+---
 
-```
-┌─────────────────────────────────────────────┐
-│  Svelte UI (throttled snapshots ~6-10/s)    │
-│  Reads from GameSnapshot, fires events       │
-├─────────────────────────────────────────────┤
-│  GameEngine (pure TypeScript, 60 FPS)        │
-│  Owns simulation state, calls systems         │
-├─────────────────────────────────────────────┤
-│  Systems (enemy, tower, wave, economy)       │
-│  Pure functions, testable without Pixi/Svelte│
-├─────────────────────────────────────────────┤
-│  PixiJS WebGL Renderer (PixiGameView)        │
-│  Owns rendering, reads engine state each frame│
-├─────────────────────────────────────────────┤
-│  Save System (IndexedDB via idb-keyval)      │
-│  Schema-versioned, migration supported        │
-└─────────────────────────────────────────────┘
-```
+## 🐳 Docker
 
-## Docker
-
-### Build locally
+Multi-arch images published automatically on Git tags.
 
 ```bash
-docker build -t koala-tower .
-docker run -p 8080:8080 koala-tower
+docker pull ghcr.io/shik3i/koalatower:latest
+docker run -p 8080:8080 ghcr.io/shik3i/koalatower:latest
 # → http://localhost:8080
 ```
 
-The multi-stage Dockerfile:
-1. **Build stage** — `node:22-alpine`, installs deps, runs checks/tests, builds static output
-2. **Runtime stage** — `ghcr.io/static-web-server/static-web-server:2-alpine`, serves `/public` on port 8080 with SPA fallback
+Docker Compose + Caddy reverse proxy examples in `examples/` and `docker-compose.example.yml`.
 
-### Docker Compose (behind Caddy reverse proxy)
+### Publishing a release
 
 ```bash
-# 1. Ensure a Docker network named "caddy_net" exists
-docker network create caddy_net
-
-# 2. Start Flatland TD
-docker compose -f docker-compose.example.yml up -d
+git tag v0.3.0
+git push origin v0.3.0
+# → CI builds multi-arch image + pushes to GHCR with SBOM attestation
 ```
 
-**`docker-compose.example.yml`**:
+---
 
-```yaml
-services:
-  koala-tower:
-    image: ghcr.io/shik3i/koalatower:latest
-    container_name: koala-tower
-    restart: unless-stopped
-    expose:
-      - "8080"
-    networks:
-      - caddy_net
-    read_only: true
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
+## 🔒 Privacy
 
-networks:
-  caddy_net:
-    external: true
-```
+- **100% local** — all data stored in your browser (IndexedDB)
+- **No backend** — fully static, no servers, no accounts
+- **No tracking** — zero analytics, zero cookies, zero external requests
+- **No CDN** — fonts and assets are self-hosted
+- Export/Import save as JSON with encoding + checksums
+- Reset save with confirmation dialog
 
-**Caddy reverse proxy snippet**:
+---
 
-```caddy
-koalatower.example.com {
-    reverse_proxy koala-tower:8080
-}
-```
-
-## GitHub Container Registry
-
-Docker images are published automatically when a version tag is pushed.
-
-### Trigger
+## 🧪 Testing
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+npm test            # 184 tests across 6 suites
+npm run check       # TypeScript strict typecheck
+npm run build       # Production build verification
 ```
 
-This triggers `.github/workflows/docker-publish.yml` which:
+Test coverage includes: enemy scaling formulas, upgrade cost curves, save migration integrity, progression requirements, wave system, and viewport placement math.
 
-1. Runs checks, tests, and the SvelteKit build
-2. Builds a multi-arch Docker image (`linux/amd64` + `linux/arm64`)
-3. Pushes to `ghcr.io/shik3i/koalatower:v0.1.0`
-4. Attaches SBOM and provenance attestations
-5. Generates a GitHub artifact attestation
+---
 
-Pushing code to `main` does **not** build or push Docker images.
+## 📄 License
 
-### Image tags
+MIT — see [LICENSE](LICENSE)
 
-| Tag pattern         | Example         | When created                     |
-|---------------------|-----------------|----------------------------------|
-| `v0.1.0`            | `:v0.1.0`       | Exact semver tag                 |
-| `v0.1`              | `:v0.1`         | Major.minor shorthand            |
-| `v0`                | `:v0`           | Major shorthand                  |
-| `latest`            | `:latest`       | Stable releases (no pre-release) |
+---
 
-### Verify attestation
-
-```bash
-# Install GitHub CLI and authenticate, then:
-gh attestation verify oci://ghcr.io/shik3i/koalatower:v0.1.0 --repo shik3i/koalatower
-```
-
-This verifies the signed provenance attestation generated during the build, confirming the image was built by the expected GitHub Actions workflow.
-
-## Static Hosting (Caddy — direct)
-
-```caddy
-example.com {
-    root * /path/to/koala-tower/build
-    try_files {path} /index.html
-    file_server
-}
-```
-
-Or any static file server (`npx serve build`, nginx, etc.)
-
-## License
-
-MIT — see [LICENSE](./LICENSE)
+*"Orbital Command has reviewed the situation. It is not great."*
