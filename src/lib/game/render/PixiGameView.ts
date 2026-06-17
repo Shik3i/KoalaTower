@@ -72,9 +72,9 @@ export class PixiGameView {
 
 		this.domContainer.appendChild(canvas);
 
-		// Store actual viewport size in engine for spawn calculations
-		(this.engine as any).__viewW = this.app.screen.width;
-		(this.engine as any).__viewH = this.app.screen.height;
+		// Store actual viewport size in engine state for spawn calculations
+		this.engine.state.viewWidth = this.app.screen.width;
+		this.engine.state.viewHeight = this.app.screen.height;
 		// Update tower position in engine state to match viewport center
 		if (this.engine.state.tower) {
 			this.engine.state.tower.position.x = this.app.screen.width / 2;
@@ -163,8 +163,8 @@ export class PixiGameView {
 		if (this.app && this.initialized) {
 			const vw = this.app.screen.width;
 			const vh = this.app.screen.height;
-			(this.engine as any).__viewW = vw;
-			(this.engine as any).__viewH = vh;
+			this.engine.state.viewWidth = vw;
+			this.engine.state.viewHeight = vh;
 			this.tower.x = vw / 2;
 			this.tower.y = vh / 2;
 			this.tower.container.x = vw / 2;

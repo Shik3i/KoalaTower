@@ -363,6 +363,10 @@ export interface GameState {
 	shiniesKilled: number;
 	/** Numeric front/tier this deployment is running on (1–5). */
 	tier: number;
+	/** Live viewport width in px, set by the renderer — used for enemy spawn placement. */
+	viewWidth?: number;
+	/** Live viewport height in px, set by the renderer — used for enemy spawn placement. */
+	viewHeight?: number;
 }
 
 export interface GameSettings {

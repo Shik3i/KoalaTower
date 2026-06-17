@@ -39,6 +39,48 @@ describe('Save Migration', () => {
 		expect(migrateSave({} as Record<string, unknown>)).not.toBeNull();
 		expect(migrateSave({ schemaVersion: 999 } as Record<string, unknown>)).toBeNull();
 	});
+
+	it('should carry a realistic legacy v0 save through the full chain to v9', () => {
+		const legacyV0 = {
+			totalRuns: 42,
+			highestWave: 137,
+			totalCoins: 98765,
+			// v0 workshop keys that get renamed downstream (cashBonus→energyBonus, startingCash→startingEnergy)
+			workshopUpgrades: { baseDamage: 10, cashBonus: 4, startingCash: 2 },
+			// v0 lab keys renamed downstream (coinEfficiency→alloyEfficiency)
+			labLevels: { coinEfficiency: 3, damageResearch: 5 },
+			disableScreenShake: false,
+		};
+		const migrated = migrateSave(legacyV0 as unknown as Record<string, unknown>);
+		expect(migrated).not.toBeNull();
+		expect(migrated!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+		// Core progress preserved
+		expect(migrated!.totalRuns).toBe(42);
+		expect(migrated!.highestWave).toBe(137);
+		expect(migrated!.totalCoins).toBe(98765);
+		// Workshop key renames applied
+		expect(migrated!.workshopUpgrades.energyBonus).toBe(4);
+		expect(migrated!.workshopUpgrades.startingEnergy).toBe(2);
+		// Lab key rename applied
+		expect((migrated!.labLevels as Record<string, number>).alloyEfficiency).toBe(3);
+		// v9: per-front best wave grandfathers the global best onto Front 1
+		expect(migrated!.frontBestWave).toBeTruthy();
+		// New required arrays/fields exist
+		expect(Array.isArray(migrated!.discoveredBlueprints)).toBe(true);
+		expect(Array.isArray(migrated!.unlockedBlueprints)).toBe(true);
+		expect(migrated!.selectedFront).toBeTruthy();
+	});
+
+	it('should backfill missing settings and stat fields on a sparse save', () => {
+		const sparse = { schemaVersion: 8, lastUpdated: 1, totalRuns: 1, highestWave: 1, totalCoins: 1 };
+		const migrated = migrateSave(sparse as unknown as Record<string, unknown>);
+		expect(migrated).not.toBeNull();
+		expect(typeof migrated!.settings.sfx).toBe('boolean');
+		expect(typeof migrated!.settings.bloom).toBe('boolean');
+		expect(typeof migrated!.settings.browserNotifications).toBe('boolean');
+		expect(migrated!.totalKills).toBe(0);
+		expect(migrated!.totalShiniesKilled).toBe(0);
+	});
 });
 
 describe('Save Validation', () => {

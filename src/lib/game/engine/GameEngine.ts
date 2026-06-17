@@ -118,16 +118,21 @@ export class GameEngine {
 		};
 	}
 
+	/**
+	 * Replace the full callback set. Passing an empty object detaches all
+	 * callbacks — used on component teardown so a destroyed view's closures
+	 * are not retained by the (navigation-persisted) engine.
+	 */
 	public setCallbacks(opts: {
 		onSnapshot?: (snapshot: GameSnapshot) => void;
 		onGameOver?: (coins: number, wave: number) => void;
 		onMilestone?: (text: string) => void;
 		onStateChange?: () => void;
 	}): void {
-		if (opts.onSnapshot) this.onSnapshot = opts.onSnapshot;
-		if (opts.onGameOver) this.onGameOver = opts.onGameOver;
-		if (opts.onMilestone) this.onMilestone = opts.onMilestone;
-		if (opts.onStateChange) this.onStateChange = opts.onStateChange;
+		this.onSnapshot = opts.onSnapshot ?? null;
+		this.onGameOver = opts.onGameOver ?? null;
+		this.onMilestone = opts.onMilestone ?? null;
+		this.onStateChange = opts.onStateChange ?? null;
 	}
 
 	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, labLevels: Partial<Record<LabId, number>>, startingCoins: number, unlockedBlueprints: BlueprintId[] = [], tier: number = 1): void {

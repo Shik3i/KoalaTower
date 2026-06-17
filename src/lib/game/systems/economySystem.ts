@@ -1,13 +1,14 @@
 /**
- * economySystem.ts — Gold and Coin economy.
+ * economySystem.ts — Energy (per-run) and Alloy (permanent) economy.
  *
- * Coins come from three sources:
- *   1. Kill coins: tiny per-kill amount, scales with Coin Bonus workshop
- *   2. Wave completion: primary early source, progressive curve
- *   3. Boss kills: bonus coins per boss
- *   4. Milestones: one-time rewards (from milestones.ts)
+ * Alloy comes from:
+ *   1. Wave completion: primary source, progressive curve (getWaveCoinReward)
+ *   2. Boss kills: flat bonus per boss (getBossCoinReward)
+ *   3. Shiny enemy kills: flat reward (handled in enemySystem)
+ *   4. Milestones & achievements: one-time rewards
  *
- * All coin sources are multiplied by workshop Coin Bonus + lab Coin Research.
+ * All Alloy sources are multiplied by the workshop Alloy Bonus, lab Alloy
+ * Research, and the per-front Alloy multiplier.
  */
 
 import { WorkshopUpgradeId, LabId, UpgradeId, type GameState } from '../engine/gameTypes';
@@ -25,25 +26,11 @@ export function calculateEnergyFromKill(state: GameState, baseReward: number): n
 }
 
 /**
- * @deprecated Normal kills no longer award Alloy. Alloy comes only from
- * shiny enemies (flat 2), boss kills, and wave completion. Kept for reference.
- *
- * Tiny kill alloy — scales with Alloy Bonus workshop.
- */
-export function getCoinsPerKill(state: GameState): number {
-	const wsAlloyLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
-	const base = Math.floor(wsAlloyLv * 0.01);
-	if (base <= 0) return 0;
-	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
-	return Math.max(0, Math.floor(base * lab.alloy));
-}
-
-/**
  * Wave completion alloy — progressive curve:
- *   Wave 1-10:   wave × 0.4
- *   Wave 11-25:  wave × 0.7
- *   Wave 26+:    wave × 1.0
- * Multiplied by wsAlloyMult × lab.alloy.
+ *   Wave 1-10:   wave × 0.5
+ *   Wave 11-25:  wave × 0.8
+ *   Wave 26+:    wave × 1.2
+ * Multiplied by wsAlloyMult × lab.alloy × front multiplier.
  */
 export function getWaveCoinReward(state: GameState, wave: number): number {
 	const wsAlloyLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
@@ -69,14 +56,9 @@ export function getStartingEnergy(state: GameState): number {
 	return 100 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingEnergy, lv);
 }
 
-/** Gold bonus on wave completion. */
+/** Energy bonus on wave completion (scales with the Cash-Per-Wave field upgrade). */
 export function getWaveCompletionBonus(state: GameState, wave: number): number {
 	const base = 5 + wave;
 	const cashWaveLv = state.battleUpgrades[UpgradeId.CashPerWave] ?? 0;
 	return Math.floor(base + cashWaveLv * 1);
-}
-
-/** Legacy — kept for compat, returns 0 base (kill coins now use getCoinsPerKill). */
-export function getAlloyPerKill(_state: GameState): number {
-	return 0;
 }

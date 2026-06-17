@@ -454,10 +454,21 @@ export const SHINY_COLOR_OVERRIDE = 0xFFD700;
 
 // ─── Compact number formatter ──────────────────────────────────────────────
 
+const COMPACT_SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+
 export function formatCompact(n: number): string {
+	if (!Number.isFinite(n)) return '∞';
+	if (n < 0) return '-' + formatCompact(-n);
 	if (n < 1000) return n.toFixed(0);
-	if (n < 1_000_000) return (n / 1000).toFixed(1) + 'K';
-	if (n < 1_000_000_000) return (n / 1_000_000).toFixed(2) + 'M';
-	if (n < 1_000_000_000_000) return (n / 1_000_000_000).toFixed(2) + 'B';
-	return (n / 1_000_000_000_000).toFixed(2) + 'T';
+	// Pick the largest suffix whose 1000^tier divisor keeps the mantissa < 1000.
+	let tier = Math.min(Math.floor(Math.log10(n) / 3), COMPACT_SUFFIXES.length - 1);
+	const decimals = (t: number) => (t === 1 ? 1 : 2);
+	let scaled = n / Math.pow(1000, tier);
+	// Rounding can push the mantissa to 1000 (e.g. 999_999 → "1000.0K"); roll up.
+	if (Number(scaled.toFixed(decimals(tier))) >= 1000 && tier < COMPACT_SUFFIXES.length - 1) {
+		tier++;
+		scaled = n / Math.pow(1000, tier);
+	}
+	// One decimal at K, two beyond — matches the prior formatting.
+	return scaled.toFixed(decimals(tier)) + COMPACT_SUFFIXES[tier];
 }

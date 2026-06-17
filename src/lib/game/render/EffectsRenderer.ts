@@ -83,54 +83,60 @@ export class EffectsRenderer {
 	}
 
 	// ─── Particle helpers (instance methods) ─────────────────────────────────
+	// Getters return the pool ENTRY (not the bare Graphics) so callers and the
+	// per-frame cleanup never have to linear-scan the pool to release — keeps
+	// sync O(n) as particle/text counts grow.
 
-	private getParticle(): Graphics {
+	private getParticle(): PooledParticle {
 		const p = this.particleFree.pop();
-		if (p) { p.active = true; p.g.alpha = 1; p.g.rotation = 0; return p.g; }
+		if (p) { p.active = true; p.g.alpha = 1; p.g.rotation = 0; return p; }
 		const ng = new Graphics();
 		this.particleContainer.addChild(ng);
-		this.particlePool.push({ g: ng, active: true });
-		return ng;
+		const entry: PooledParticle = { g: ng, active: true };
+		this.particlePool.push(entry);
+		return entry;
 	}
 
-	private releaseParticle(g: Graphics): void {
-		const p = this.particlePool.find(e => e.g === g);
-		if (p) { p.active = false; g.clear(); g.rotation = 0; this.particleFree.push(p); }
+	private releaseParticle(p: PooledParticle): void {
+		if (!p.active) return;
+		p.active = false; p.g.clear(); p.g.rotation = 0; this.particleFree.push(p);
 	}
 
 	// ─── Text helpers (instance methods) ─────────────────────────────────────
 
-	private getText(fontSize: number, color: number): Text {
+	private getText(fontSize: number, color: number): PooledText {
 		const f = this.textPool.find(e => !e.active && e.fontSize === fontSize && e.color === color);
-		if (f) { f.active = true; f.t.visible = true; f.t.alpha = 1; return f.t; }
+		if (f) { f.active = true; f.t.visible = true; f.t.alpha = 1; return f; }
 		const style = new TextStyle({ fontFamily: '"SF Mono","Fira Code",monospace', fontSize, fontWeight: 'bold', fill: color, stroke: { color: 0x000000, width: 2.5 } });
 		const t = new Text({ text: '', style });
 		t.anchor.set(0.5);
 		this.textContainer.addChild(t);
-		this.textPool.push({ t, active: true, fontSize, color });
-		return t;
+		const entry: PooledText = { t, active: true, fontSize, color };
+		this.textPool.push(entry);
+		return entry;
 	}
 
-	private releaseText(t: Text): void {
-		const p = this.textPool.find(e => e.t === t);
-		if (p) { p.active = false; p.lastText = undefined; t.visible = false; }
+	private releaseText(p: PooledText): void {
+		if (!p.active) return;
+		p.active = false; p.lastText = undefined; p.t.visible = false;
 	}
 
 	// ─── Sync methods ────────────────────────────────────────────────────────
 
 	syncParticles(particles: Particle[], settings: GameSettings): void {
 		if (!settings.particles) {
-			for (const p of this.particlePool) if (p.active) this.releaseParticle(p.g);
+			for (const p of this.particlePool) if (p.active) this.releaseParticle(p);
 			return;
 		}
 		const max = settings.lowEffectsMode ? 30 : GAME_CONFIG.MAX_PARTICLES;
 		const count = Math.min(particles.length, max);
-		const used = new Set<Graphics>();
+		const used = new Set<PooledParticle>();
 
 		for (let i = 0; i < count; i++) {
 			const p = particles[i]!;
-			const g = this.getParticle();
-			used.add(g);
+			const entry = this.getParticle();
+			used.add(entry);
+			const g = entry.g;
 			g.clear();
 			g.x = p.x; g.y = p.y; g.alpha = p.alpha;
 
@@ -149,36 +155,36 @@ export class EffectsRenderer {
 			g.circle(0, 0, p.size * 0.25 * p.alpha).fill({ color: 0xFFFFFF, alpha: 0.5 });
 		}
 
-		for (const p of this.particlePool) { if (!used.has(p.g) && p.active) this.releaseParticle(p.g); }
+		for (const p of this.particlePool) { if (!used.has(p) && p.active) this.releaseParticle(p); }
 	}
 
 	syncDamageNumbers(nums: DamageNumber[], settings: GameSettings): void {
 		if (!settings.damageNumbers) {
-			for (const t of this.textPool) if (t.active) this.releaseText(t.t);
+			for (const t of this.textPool) if (t.active) this.releaseText(t);
 			return;
 		}
 		const max = settings.lowEffectsMode ? 15 : GAME_CONFIG.MAX_DAMAGE_NUMBERS;
 		const count = Math.min(nums.length, max);
-		const used = new Set<Text>();
+		const used = new Set<PooledText>();
 
 		for (let i = 0; i < count; i++) {
 			const n = nums[i]!;
 			const isCrit = n.color === GAME_CONFIG.NEON_YELLOW;
 			const isCoin = n.color === GAME_CONFIG.NEON_GREEN;
 			const fs = isCrit ? 22 : isCoin ? 14 : 15;
-			const t = this.getText(fs, n.color);
-			used.add(t);
+			const entry = this.getText(fs, n.color);
+			used.add(entry);
+			const t = entry.t;
 
 			// Only update text when changed (avoids expensive re-rasterize)
-			const poolEntry = this.textPool.find(e => e.t === t);
-			if (poolEntry && poolEntry.lastText !== n.text) {
+			if (entry.lastText !== n.text) {
 				t.text = n.text;
-				poolEntry.lastText = n.text;
+				entry.lastText = n.text;
 			}
 			t.x = n.x; t.y = n.y; t.alpha = n.alpha;
 		}
 
-		for (const tp of this.textPool) { if (!used.has(tp.t) && tp.active) this.releaseText(tp.t); }
+		for (const tp of this.textPool) { if (!used.has(tp) && tp.active) this.releaseText(tp); }
 	}
 
 	syncWaveAnnounce(currentWave: number, enemiesInWave: number, betweenWaveTimer: number, waveActive: boolean, vw: number, vh: number): void {

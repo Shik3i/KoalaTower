@@ -127,8 +127,8 @@ function spawnEnemy(state: GameState): void {
 }
 
 function getSpawnPosition(state: GameState): { x: number; y: number } {
-	const w = (state as any).__viewW || 800;
-	const h = (state as any).__viewH || 800;
+	const w = state.viewWidth || 800;
+	const h = state.viewHeight || 800;
 	const margin = 10;
 	const side = Math.floor(Math.random() * 4);
 
