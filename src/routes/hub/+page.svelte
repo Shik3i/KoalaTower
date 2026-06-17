@@ -204,7 +204,7 @@
 
 		<div class="hub-content">
 			{#if activeSection === 'workshop'}
-				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed tower upgrades. Each level improves the tower blueprint before every deployment. Locked paths require Blueprint unlocks.</p>
+				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed tower upgrades. Each level improves the tower blueprint before every deployment. Locked paths require Blueprint unlocks. The Forge never stops. Neither does the paperwork.</p>
 					<div class="buy-mult">
 						<span class="mult-label">Buy</span>
 						{#each [1, 5, 10, 50, 'max'] as m}
@@ -234,7 +234,7 @@
 					</div>
 				</div>
 			{:else if activeSection === 'lab'}
-				<div class="hs"><h2 class="hst">🔬 Research Deck</h2><p class="hsd">Time-based orbital research projects. Each level grants a permanent multiplicative bonus. Research continues offline. Only one project can be active at a time.</p>
+				<div class="hs"><h2 class="hst">🔬 Research Deck</h2><p class="hsd">Time-based orbital research projects. Each level grants a permanent multiplicative bonus. Research continues offline. Only one project can be active at a time. Research continues offline because the scientists have been locked in. For their own safety.</p>
 					<div class="ug">
 						{#each LAB_DEFS as lab}
 							{@const unlocked = isLabUnlocked(lab, highestWave)}
@@ -271,15 +271,15 @@
 					</div>
 				</div>
 			{:else if activeSection === 'blueprints'}
-				<div class="hs"><h2 class="hst">📐 Blueprints</h2><p class="hsd">New upgrade paths are found in the field. Deploy to the right Front and reach its depth — each run has a chance to recover a schematic. Once discovered, research it here with Alloy to unlock its upgrades.</p>
+				<div class="hs"><h2 class="hst">📐 Blueprints</h2><p class="hsd">New upgrade paths are found in the field. Deploy to the right Front and reach its depth — each run has a chance to recover a schematic. Once discovered, research it here with Alloy to unlock its upgrades. Orbital Command classifies 90% of schematics as \'theoretically recoverable.\' The other 10% we just lost.</p>
 					<div class="cl">{#each BLUEPRINT_DEFS as bp}{@const status = getBlueprintStatus(bp.id, ownedBlueprints, discoveredBlueprints)}{@const aff = coins >= bp.cost}{@const fieldCount = getFieldUpgradesUnlockedBy(bp.id).length}{@const foundryCount = getFoundryUpgradesUnlockedBy(bp.id).length}<div class="cc" class:lck={status === 'undiscovered'}><div class="cc-h"><span class="cci">{status === 'owned' ? '✅' : status === 'discovered' ? bp.icon : '🔒'}</span><div><div class="ccn">{status === 'undiscovered' ? '??? Unknown Schematic' : bp.name}</div><div class="ccd">{status === 'undiscovered' ? 'Schematic not yet recovered.' : bp.description}</div></div></div>{#if status === 'owned'}<div class="ccs">✓ Researched — unlocks {fieldCount} field + {foundryCount} foundry upgrade{fieldCount + foundryCount === 1 ? '' : 's'}</div>{:else if status === 'discovered'}<div class="ccl-found">🔍 Discovered — ready to research</div><div class="uc-b" style="margin-top:.3rem"><button class="hub-action" disabled={!aff} onclick={() => buyBlueprint(bp.id)} style={aff ? 'background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--bg-primary);font-weight:600' : ''}><span class="ucc">🔩{bp.cost.toLocaleString()}</span> Research</button></div>{:else}<div class="ccl">🔒 {describeBlueprintDiscovery(bp)}</div>{/if}</div>{/each}</div>
 				</div>
 			{:else if activeSection === 'tiers'}
-				<div class="hs"><h2 class="hst">🌍 Fronts</h2><p class="hsd">Each front is a planet with increasing enemy density. Reach wave milestones to unlock harder fronts with better rewards.</p>
+				<div class="hs"><h2 class="hst">🌍 Fronts</h2><p class="hsd">Each front is a planet with increasing enemy density. Reach wave milestones to unlock harder fronts with better rewards. Remember: the enemy is also fighting a war. They are losing. Please continue to help them lose.</p>
 					<div class="cl">{#each TIERS as t}{@const unl = unlockedFronts.includes(t.id)}{@const prev = getPreviousFront(t.id)}<div class="tc" class:unl={unl}><div class="tc-h"><span class="tci">{unl ? '🔓' : '🔒'}</span><div><div class="tcn">{t.name}</div><div class="tcd">{t.description}</div></div></div><div class="tcr" class:tcr-ok={unl}>{unl ? '✓ Unlocked · Best Wave ' + (frontBestWave[t.id] ?? 0) : 'Reach Wave ' + FRONT_UNLOCK_WAVE + (prev ? ' on ' + getFrontName(prev) : '')}</div></div>{/each}</div>
 				</div>
 			{:else if activeSection === 'challenges'}
-				<div class="hs"><h2 class="hst">⚡ Special Operations</h2><p class="hsd">Tactical exercises with modified engagement rules. Each operation tests different combat scenarios under special conditions.</p>
+				<div class="hs"><h2 class="hst">⚡ Special Operations</h2><p class="hsd">Tactical exercises with modified engagement rules. Each operation tests different combat scenarios under special conditions. \'Special conditions\' is military code for \'we broke something and called it a feature.\'</p>
 					<div class="cl">{#each CHALLENGES as c}<div class="cc" class:lck={c.locked}><div class="cc-h"><span class="cci">{c.icon}</span><div><div class="ccn">{c.name}</div><div class="ccd">{c.description}</div></div></div>{#if c.highScore > 0}<div class="ccs">Best: Wave {c.highScore}</div>{:else if c.locked}<div class="ccl">🔒 Unlocks at higher waves</div>{/if}</div>{/each}</div>
 				</div>
 			{:else if activeSection === 'simulation'}
@@ -287,7 +287,7 @@
 				{@const tierLabel = simFront === 1 ? 'Front 1' : simFront === 2 ? 'Front 2' : simFront === 3 ? 'Front 3' : 'Front ' + simFront}
 				<div class="hs">
 					<h2 class="hst">🧪 Simulation — Enemy Stats</h2>
-					<p class="hsd">Analyze Shape combat capabilities at any wave and Front. Adjust parameters below to preview enemy health and damage output.</p>
+					<p class="hsd">Analyze Shape combat capabilities at any wave and Front. Adjust parameters below to preview enemy health and damage output. Simulated enemies cannot hurt you. Real enemies can. This is the one advantage of bureaucracy.</p>
 					<div class="sim-controls">
 						<div class="sim-param">
 							<label class="sim-label" for="sim-wave">Wave: <strong>{simWave}</strong></label>

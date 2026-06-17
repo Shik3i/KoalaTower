@@ -39,6 +39,10 @@
 		'Deploy towers. Question nothing. Refine Alloy.',
 		'Flatland is flat. The war is not.',
 		'Orbital Command has reviewed the situation. It is not great.',
+		'The shapes have formed a committee. It is not going well.',
+		'Every tower loss is a learning opportunity. Command has learned nothing.',
+		'Statistics indicate the situation is statistically inconvenient.',
+		'Orbital Command regrets to inform you that everything is fine. It is not.',
 	];
 
 	let subtitleIdx = $state(0);

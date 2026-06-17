@@ -646,7 +646,7 @@
 									<div class="ir" title="Time between enemy spawns"><span class="il">Spawn Rate</span><span class="iv">every {snap.spawnInterval.toFixed(1)}s</span></div>
 									<div class="ir" title="Wave status"><span class="il">Status</span><span class="iv">{snap.waveActive ? '⚔ Active' : '⏳ Between waves'}</span></div>
 								</div>
-							{:else}<div class="pe">Start a run.</div>{/if}
+							{:else}<div class="pe">Start a run. The war waits for nobody. Especially not Accounting.</div>{/if}
 						</div>
 						<div class="psd"></div>
 						<div class="ps"><div class="pst">⚡ Tower Stats</div>
@@ -758,7 +758,7 @@
 									{/each}
 								</div>
 								<div class="hub-shortcut"><a href="/hub">⚙ Forge · Research · Archives →</a></div>
-							{:else}<div class="pe">Start a run to buy upgrades.</div>{/if}
+							{:else}<div class="pe">Start a run to buy upgrades. The tower arrives pre-configured with mild disappointment.</div>{/if}
 						</div>
 					</div>
 				{/if}

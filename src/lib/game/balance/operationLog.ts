@@ -113,6 +113,8 @@ const POOLS: OpLogCategory = {
 		'Command authorizes advance to {tier}. Expect resistance.',
 		'Front opened: {tier}. The swarm is already complaining about us.',
 		'Unlocked {tier}. The difficulty is not a suggestion.',
+		'{tier} unlocked. The difficulty increase has been approved by a committee that has never seen a shape.',
+		'Advancing to {tier}. Orbital Command has issued a formal apology to your future self.',
 	],
 
 	labUnlock: [
@@ -120,6 +122,9 @@ const POOLS: OpLogCategory = {
 		'{lab} now available. Orbital research initiated. Results: pending.',
 		'New research project: {lab}. Papers will be filed. Eventually.',
 		'{lab} online. The scientists are excited. This is never good.',
+		'{lab} facility online. The safety briefing has been postponed indefinitely.',
+		'Research deck {lab} activated. The previous lab team is... unavailable for comment.',
+		'{lab} unlocked. Orbital Command reminds all personnel that "lab accident" is not a line item in the budget.',
 	],
 
 	blueprintUnlocked: [
@@ -129,6 +134,7 @@ const POOLS: OpLogCategory = {
 		'{name} unlocked. Command insists this was always in the budget.',
 		'Blueprint recovered. Procurement has stopped sweating. Temporarily.',
 		'New schematic: {name}. It was found behind a filing cabinet. Allegedly.',
+		'{name} blueprint secured. R&D has already filed three competing patents for it.',
 	],
 
 	researchStarted: [
@@ -136,6 +142,9 @@ const POOLS: OpLogCategory = {
 		'{name} research initiated. Estimated completion: eventually.',
 		'Project {name} underway. The lab smells like ozone and regret.',
 		'Research Deck active: {name}. Please do not disturb the scientists. They bite.',
+		'{name} research underway. The scientists have requested more coffee and fewer questions.',
+		'Project {name} initiated. Command has already started planning the victory parade.',
+		'{name} research in progress. The lab whiteboard currently reads "???" followed by "profit."',
 	],
 
 	researchCompleted: [
@@ -153,36 +162,48 @@ const POOLS: OpLogCategory = {
 		'Forge upgrade complete: {name}. Efficiency improved. Marginally.',
 		'Forge upgrade installed: {name}. Future losses may now be more expensive.',
 		'{name} upgraded. The assembly line has acknowledged the change with moderate enthusiasm.',
+		'Forge upgrade {name} installed. The probability of catastrophic failure has been... recalibrated.',
+		'{name} forged. Each tower now costs slightly more and is slightly more expendable.',
 	],
 
 	saveExported: [
 		'Save exported. The archives have been backed up to a questionable location.',
 		'Export complete. Your progress now exists in two places. Briefly.',
 		'Save data exported. Treat it with the respect it does not deserve.',
+		'Export complete. Your data has been wrapped in bureaucratic tape and sent into the void.',
+		'Save exported. If it vanishes, Orbital Command will deny all knowledge of its existence.',
 	],
 
 	saveImported: [
 		'Import accepted. The archives have chosen to believe you.',
 		'Save imported. Command is pretending not to notice the discrepancies.',
 		'Archives restored. Some records appear... edited. We will not ask.',
+		'Import successful. The archives have accepted your data with minimal suspicion.',
+		'Save loaded. Command notes several "temporal inconsistencies" but will overlook them.',
 	],
 
 	saveImportFailed: [
 		'Import rejected. The file contains suspiciously ambitious geometry.',
 		'Save import failed. This is not a Flatland TD archive.',
 		'Import error. Orbital Command cannot validate this data.',
+		'Import rejected. The data appears to have been written by an optimistic committee.',
+		'Save import failed. The file contains claims that Orbital Command cannot verify without an investigation it does not want to conduct.',
 	],
 
 	saveReset: [
 		'Save reset. History has been simplified.',
 		'All data cleared. Command describes this as "a fresh strategic posture."',
 		'Save wiped. The archives are empty. The war begins again.',
+		'Save reset. Orbital Command describes this as a "voluntary strategic recalibration."',
+		'All progress erased. The archives are clean. The shapes have not been informed.',
 	],
 
 	frontUnlocked: [
 		'New front operational: {name}. Enemy geometry density: unacceptable.',
 		'{name} front opened. The shapes there are reportedly very rude.',
 		'Command authorizes deployment to {name}. Good luck. You will need it.',
+		'New front: {name}. Orbital Command has pre-written your condolence letter.',
+		'{name} is now open. The geometry there has been described as "aggressively acute."',
 	],
 
 	achievementUnlocked: [

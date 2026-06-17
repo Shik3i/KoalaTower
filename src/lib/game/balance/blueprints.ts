@@ -48,7 +48,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 	{
 		id: BlueprintId.ExtendedCoreOptics,
 		name: 'Extended Tower Optics',
-		description: 'Long-range targeting array extends the Tower engagement perimeter.',
+		description: "Long-range targeting array. Procurement claims it was 'temporarily misplaced' for six fiscal quarters.",
 		icon: '🎯', category: 'attack', cost: 200, order: 5,
 		requirement: { minWave: 25 },
 		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
@@ -56,7 +56,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 	{
 		id: BlueprintId.CriticalTargeting,
 		name: 'Critical Targeting',
-		description: 'Precision-core schematics enable critical hit calibration and enhanced crit amplification.',
+		description: "Critical hit calibration system. R&D insists the 0.001% crit amplification is 'within acceptable margins.'",
 		icon: '⭐', category: 'attack', cost: 250, order: 10,
 		requirement: { anyOf: [{ minWave: 25 }, { minBosses: 2 }] },
 		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
@@ -64,7 +64,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 	{
 		id: BlueprintId.SplitBeamGeometry,
 		name: 'Split Beam Geometry',
-		description: 'Refracted-core lensing enables multi-target projectile splitting.',
+		description: "Multi-target splitting lens. The beam doesn't actually split — it just argues with several shapes at once.",
 		icon: '💥', category: 'attack', cost: 500, order: 20,
 		requirement: { minWave: 50 },
 		discovery: { fronts: [TierId.Tier1, TierId.Tier2], chance: 0.08 },
@@ -73,7 +73,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 	{
 		id: BlueprintId.PlatedCoreShell,
 		name: 'Plated Tower Shell',
-		description: 'Ablative plating schematics provide flat damage absorption after percentage reduction.',
+		description: "Ablative plating. Absorbs damage after percentage reduction, or as Command puts it, 'after the important damage has already happened.'",
 		icon: '🛡️', category: 'defense', cost: 200, order: 10,
 		requirement: { minWave: 20 },
 		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
@@ -81,7 +81,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 	{
 		id: BlueprintId.PhaseDampener,
 		name: 'Phase Dampener',
-		description: 'Phase-shift field schematics reduce incoming damage by percentage.',
+		description: "Phase-shift field. Reduces incoming damage by a percentage that Command insists is 'mathematically significant.'",
 		icon: '🔰', category: 'defense', cost: 400, order: 20,
 		requirement: { minWave: 50 },
 		discovery: { fronts: [TierId.Tier1, TierId.Tier2], chance: 0.08 },
@@ -89,7 +89,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 	{
 		id: BlueprintId.ReactiveSurface,
 		name: 'Reactive Surface',
-		description: 'Spike-core schematics reflect damage to melee attackers on contact.',
+		description: "Spike-core reactive armor. Returns damage to melee attackers. The shapes call it 'unsportsmanlike geometry.'",
 		icon: '🌵', category: 'defense', cost: 500, order: 30,
 		requirement: { anyOf: [{ minBosses: 5 }, { minWave: 75 }] },
 		discovery: { fronts: [TierId.Tier2], chance: 0.07 },
@@ -97,7 +97,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 	{
 		id: BlueprintId.EnergyReclaimer,
 		name: 'Energy Reclaimer',
-		description: 'Siphon-core schematics leech structural integrity from damaged targets.',
+		description: "Siphon-core system that leeches structural integrity from damaged targets. R&D calls it 'recycling.' The shapes call it 'theft.'",
 		icon: '🩸', category: 'defense', cost: 1200, order: 40,
 		requirement: { minWave: 100 },
 		discovery: { fronts: [TierId.Tier3], chance: 0.06 },
@@ -106,7 +106,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 	{
 		id: BlueprintId.AlloyExtraction,
 		name: 'Alloy Extraction',
-		description: 'Scavenger schematics improve alloy yield from deployed engagements.',
+		description: "Scavenger schematics that improve alloy yield. Procurement insists the extra alloy was 'always there, you just weren't looking hard enough.'",
 		icon: '🔩', category: 'utility', cost: 250, order: 10,
 		requirement: { minWave: 25 },
 		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
@@ -114,7 +114,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 	{
 		id: BlueprintId.EnergyCondenser,
 		name: 'Energy Condenser',
-		description: 'Condenser schematics amplify energy harvested from destroyed enemies.',
+		description: "Condenser that amplifies harvested energy. Command describes the efficiency gain as 'classified,' which means 'we don't know either.'",
 		icon: '⚡', category: 'utility', cost: 400, order: 20,
 		requirement: { minWave: 50 },
 		discovery: { fronts: [TierId.Tier1, TierId.Tier2], chance: 0.08 },
@@ -122,7 +122,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 	{
 		id: BlueprintId.DeploymentReserves,
 		name: 'Deployment Reserves',
-		description: 'Reserve schematics pre-charge the Core with starting energy for each deployment.',
+		description: "Pre-charges the Core with starting energy. The energy is 'borrowed' from future deployments. Future you will not be filing a complaint.",
 		icon: '🔋', category: 'utility', cost: 400, order: 30,
 		requirement: { minWave: 75 },
 		discovery: { fronts: [TierId.Tier2], chance: 0.07 },

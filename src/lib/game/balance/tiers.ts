@@ -65,7 +65,7 @@ export const TIERS: TierDef[] = [
 	{
 		id: TierId.Tier1,
 		name: 'Tier 1: The Awakening',
-		description: 'Baseline difficulty, ×1.0 Alloy. Learn the basics, farm Alloy, build your Forge. Reach Wave 100 here to open Tier 2.',
+		description: 'Standard difficulty, ×1.0 Alloy. The shapes here are curious, not coordinated. Orbital Command considers this the tutorial. The shapes consider it an appetizer.',
 		waveRequirement: 0,
 		unlocked: true,
 		rewards: ['×1.0 Alloy', 'Permanent Forge', 'Wave Milestones'],
@@ -73,7 +73,7 @@ export const TIERS: TierDef[] = [
 	{
 		id: TierId.Tier2,
 		name: 'Tier 2: Neon Storm',
-		description: '~10× harder, ×1.2 Alloy. The first real difficulty jump. Reach Wave 100 here to open Tier 3.',
+		description: '~10× harder, ×1.2 Alloy. The shapes have started reading our deployment patterns. Orbital Command has started reading their resignation letters.',
 		waveRequirement: 100,
 		unlocked: false,
 		rewards: ['×1.2 Alloy', '~10× difficulty', 'Tier 2 Milestones'],
@@ -81,7 +81,7 @@ export const TIERS: TierDef[] = [
 	{
 		id: TierId.Tier3,
 		name: 'Tier 3: Digital Onslaught',
-		description: '~100× harder than Tier 1, ×1.4 Alloy. Requires significant Forge investment.',
+		description: '~100× harder, ×1.4 Alloy. The geometry here has a formal complaint department. You are its only case.',
 		waveRequirement: 100,
 		unlocked: false,
 		rewards: ['×1.4 Alloy', '~100× difficulty', 'Tier 3 Milestones'],
@@ -89,7 +89,7 @@ export const TIERS: TierDef[] = [
 	{
 		id: TierId.Tier4,
 		name: 'Tier 4: Quantum Surge',
-		description: '~1000× harder than Tier 1, ×1.6 Alloy. Deep progression territory.',
+		description: '~1000× harder, ×1.6 Alloy. Deep progression territory where the shapes have unionized and hired a strategist.',
 		waveRequirement: 100,
 		unlocked: false,
 		rewards: ['×1.6 Alloy', '~1000× difficulty', 'Tier 4 Milestones'],
@@ -97,7 +97,7 @@ export const TIERS: TierDef[] = [
 	{
 		id: TierId.Tier5,
 		name: 'Tier 5: Geo Ascension',
-		description: '~10000× harder than Tier 1, ×1.8 Alloy. Endgame aspirational front.',
+		description: '~10000× harder, ×1.8 Alloy. Orbital Command describes this as "theoretically survivable." The shapes describe it as "finally, a challenge."',
 		waveRequirement: 100,
 		unlocked: false,
 		rewards: ['×1.8 Alloy', '~10000× difficulty', 'Ascension'],
