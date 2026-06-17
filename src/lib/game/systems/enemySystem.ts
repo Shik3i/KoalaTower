@@ -1,24 +1,36 @@
 import { GAME_CONFIG } from '../engine/gameConfig';
 import { EnemyType, type Enemy, type GameState, type Projectile } from '../engine/gameTypes';
 import { damageTower, applyThorns, applyLifesteal, computeDamageToTower } from './towerSystem';
-import { calculateEnergyFromKill, getBossCoinReward, getCoinsPerKill } from './economySystem';
+import { calculateEnergyFromKill, getBossCoinReward } from './economySystem';
+import { getFrontAlloyMultiplier } from '../balance/balanceMath';
 
 // Feedback helpers
+import type { SoundName } from '../audio/AudioManager';
+
 let _addDmg: ((x: number, y: number, text: string, color: number) => void) | null = null;
 let _addParticles: ((x: number, y: number, color: number, count: number, speed?: number) => void) | null = null;
 let _addShake: ((amount: number) => void) | null = null;
 let _triggerMuzzleFlash: (() => void) | null = null;
+let _playSound: ((name: SoundName) => void) | null = null;
+let _hitStop: ((seconds: number) => void) | null = null;
+let _addShockwave: ((x: number, y: number, color: number, maxRadius: number, duration: number, width?: number) => void) | null = null;
 
-export function setFeedbackHooks(
-	addDmg: (x: number, y: number, text: string, color: number) => void,
-	addParticles: (x: number, y: number, color: number, count: number, speed?: number) => void,
-	addShake?: (amount: number) => void,
-	triggerMuzzleFlash?: () => void,
-): void {
-	_addDmg = addDmg;
-	_addParticles = addParticles;
-	_addShake = addShake ?? null;
-	_triggerMuzzleFlash = triggerMuzzleFlash ?? null;
+export function setFeedbackHooks(hooks: {
+	addDmg: (x: number, y: number, text: string, color: number) => void;
+	addParticles: (x: number, y: number, color: number, count: number, speed?: number) => void;
+	addShake?: (amount: number) => void;
+	triggerMuzzleFlash?: () => void;
+	playSound?: (name: SoundName) => void;
+	hitStop?: (seconds: number) => void;
+	addShockwave?: (x: number, y: number, color: number, maxRadius: number, duration: number, width?: number) => void;
+}): void {
+	_addDmg = hooks.addDmg;
+	_addParticles = hooks.addParticles;
+	_addShake = hooks.addShake ?? null;
+	_triggerMuzzleFlash = hooks.triggerMuzzleFlash ?? null;
+	_playSound = hooks.playSound ?? null;
+	_hitStop = hooks.hitStop ?? null;
+	_addShockwave = hooks.addShockwave ?? null;
 }
 
 let nextProjectileId = 1;
@@ -134,32 +146,43 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 				// Colored death particles (faster spread)
 				_addParticles?.(target.position.x, target.position.y, deathColor, pCount, target.isBoss ? 150 : 80);
 
-				// Boss: extra death effects
+				// ── Impact feedback (shockwave ring, hit-stop, sound) ──
 				if (target.isBoss) {
 					_addShake?.(7);
 					// Ring of particles at boss death
 					_addParticles?.(target.position.x, target.position.y, GAME_CONFIG.NEON_CYAN, 8, 200);
 					_addParticles?.(target.position.x, target.position.y, GAME_CONFIG.NEON_YELLOW, 6, 180);
+					_addShockwave?.(target.position.x, target.position.y, GAME_CONFIG.NEON_PINK, target.size * 6, 0.55, 4);
+					_addShockwave?.(target.position.x, target.position.y, GAME_CONFIG.NEON_CYAN, target.size * 4, 0.4, 2.5);
+					_hitStop?.(0.09);
+					_playSound?.('bossKill');
+				} else if (target.isShiny) {
+					_addShockwave?.(target.position.x, target.position.y, 0xFFD700, target.size * 3.2, 0.4, 2.5);
+					_hitStop?.(0.05);
+					_playSound?.('shiny');
+				} else {
+					if (proj.isCrit) {
+						_addShockwave?.(target.position.x, target.position.y, GAME_CONFIG.NEON_YELLOW, target.size * 2.4, 0.3, 2);
+					}
+					_playSound?.('kill');
 				}
 
 				// Energy (temporary field resource) — Energy Amp already applied in calculateEnergyFromKill
 				const energy = calculateEnergyFromKill(state, target.reward);
 				state.cash += energy;
 
-				// GeoCoin (permanent currency) — per-kill (scales with Coin Bonus) + boss bonus
-				const killCoins = getCoinsPerKill(state);
-				if (killCoins > 0) {
-					state.coins += killCoins;
-				}
+				// Alloy (permanent currency) is NOT granted by normal kills —
+				// only bosses, shiny enemies, and wave completion award Alloy.
 				if (target.isBoss) {
 					const bossCoins = getBossCoinReward(state);
 					state.coins += bossCoins;
 					_addDmg?.(target.position.x, target.position.y + target.size * 1.1, '+' + bossCoins + ' 🪙', GAME_CONFIG.NEON_YELLOW);
 				}
-				// Shiny enemies grant Alloy directly from their config coinReward
+				// Shiny enemies grant Alloy directly from their config coinReward,
+				// scaled by the front's Alloy multiplier.
 				if (target.isShiny) {
 					state.shiniesKilled++;
-					const shinyAlloy = target.coinReward;
+					const shinyAlloy = Math.floor(target.coinReward * getFrontAlloyMultiplier(state.tier ?? 1));
 					if (shinyAlloy > 0) {
 						state.coins += shinyAlloy;
 						_addDmg?.(target.position.x, target.position.y + target.size * 1.2, '+' + shinyAlloy + ' 🪙', GAME_CONFIG.NEON_YELLOW);
@@ -203,8 +226,9 @@ export function updateTowerTargeting(state: GameState, dt: number): void {
 
 	state.tower.fireTimer = 1.0 / state.tower.stats.fireRate;
 
-	// ── Muzzle flash ──
+	// ── Muzzle flash + shot sound ──
 	_triggerMuzzleFlash?.();
+	_playSound?.('shoot');
 
 	// ── Muzzle flash particles at tower edge ──
 	const angleToTarget = Math.atan2(target.position.y - towerPos.y, target.position.x - towerPos.x);

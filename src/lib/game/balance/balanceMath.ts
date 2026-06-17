@@ -121,27 +121,36 @@ export function front1EnemyHp(wave: number): number {
 }
 
 // ─── Tier definitions (Front / Deployment Zone multipliers) ─────────────────
-// Front 1 is base (1x). Front 2 is ~20x, Front 3 is ~60x.
-// These multipliers apply to FLTD-scaled enemy HP and damage from Front 1.
-// Tier 4+ are scaffold multipliers documented for future use.
+// Each front is ~10× harder than the previous one — reaching wave ~1000 on a
+// front equates to roughly wave ~100 on the next. `reward` (in-run Energy)
+// scales with difficulty so the economy keeps pace; `alloy` is a SEPARATE,
+// modest permanent-currency incentive to risk the harder fronts.
 
 export interface TierMultiplier {
 	hp: number;
 	attack: number;
 	speed: number;
+	/** In-run Energy/cash reward multiplier (scales with difficulty). */
 	reward: number;
+	/** Permanent Alloy multiplier for everything earned on this front. */
+	alloy: number;
 }
 
 export const TIER_MULTIPLIERS: Record<number, TierMultiplier> = {
-	1: { hp: 1.0,   attack: 1.0,   speed: 1.0,  reward: 1.0 },
-	2: { hp: 20.0,  attack: 20.0,  speed: 1.15, reward: 20.0 },
-	3: { hp: 60.0,  attack: 60.0,  speed: 1.30, reward: 60.0 },
-	4: { hp: 180.0, attack: 180.0, speed: 1.50, reward: 180.0 },
-	5: { hp: 540.0, attack: 540.0, speed: 1.50, reward: 540.0 },
+	1: { hp: 1.0,      attack: 1.0,      speed: 1.0,  reward: 1.0,      alloy: 1.0 },
+	2: { hp: 10.0,     attack: 10.0,     speed: 1.15, reward: 10.0,     alloy: 1.2 },
+	3: { hp: 100.0,    attack: 100.0,    speed: 1.30, reward: 100.0,    alloy: 1.4 },
+	4: { hp: 1000.0,   attack: 1000.0,   speed: 1.45, reward: 1000.0,   alloy: 1.6 },
+	5: { hp: 10000.0,  attack: 10000.0,  speed: 1.50, reward: 10000.0,  alloy: 1.8 },
 };
 
 export function getTierMultiplier(tier: number): TierMultiplier {
 	return TIER_MULTIPLIERS[tier] ?? TIER_MULTIPLIERS[1]!;
+}
+
+/** Permanent Alloy multiplier for a front (1.0 on Front 1, rising on harder fronts). */
+export function getFrontAlloyMultiplier(tier: number): number {
+	return getTierMultiplier(tier).alloy;
 }
 
 // ─── Wave scaling (legacy — kept for speed/reward formulas) ─────────────────
@@ -425,17 +434,17 @@ export const SHINY_CHANCE = 0.05;
 /** Energy multiplier for shiny enemies. */
 export const SHINY_ENERGY_MULTIPLIER = 2;
 
-/** Base Alloy reward for a shiny enemy kill (before workshop/lab multipliers). */
-export const SHINY_BASE_ALLOY = 1;
+/** Flat Alloy reward for a shiny enemy kill — always 2, like the original game. */
+export const SHINY_BASE_ALLOY = 2;
 
 /** Determine if an enemy spawns as shiny (uses a deterministic RNG call per enemy). */
 export function isShinySpawn(rngValue: number): boolean {
 	return rngValue < SHINY_CHANCE;
 }
 
-/** Compute the Alloy reward for killing a shiny enemy. */
-export function getShinyAlloyReward(wave: number): number {
-	return Math.floor(SHINY_BASE_ALLOY + wave * 0.02);
+/** Alloy reward for killing a shiny enemy — flat 2, independent of wave. */
+export function getShinyAlloyReward(_wave: number): number {
+	return SHINY_BASE_ALLOY;
 }
 
 /** Override color for shiny enemies — a golden/white tint. */

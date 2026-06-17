@@ -1,0 +1,68 @@
+<script lang="ts" module>
+	export type IconName =
+		| 'wave' | 'hp' | 'energy' | 'alloy' | 'kill' | 'boss' | 'enemies'
+		| 'speed' | 'time' | 'damage' | 'range' | 'crit' | 'shiny'
+		| 'pause' | 'play' | 'settings' | 'save' | 'hub' | 'back' | 'close'
+		| 'soundOn' | 'soundOff' | 'musicOn' | 'musicOff'
+		| 'export' | 'import' | 'reset' | 'offense' | 'defense' | 'utility' | 'lock';
+
+	// 24×24 grid, stroke-based line icons drawn in currentColor.
+	const PATHS: Record<IconName, string> = {
+		wave: '<path d="M2 13c2 0 2-4 4-4s2 4 4 4 2-4 4-4 2 4 4 4 2-4 4-4" />',
+		hp: '<path d="M12 20s-7-4.5-7-9.5A3.5 3.5 0 0 1 12 7a3.5 3.5 0 0 1 7 3.5C19 15.5 12 20 12 20Z" />',
+		energy: '<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />',
+		alloy: '<path d="M12 3.5 19 7.5v9L12 20.5 5 16.5v-9L12 3.5Z" /><circle cx="12" cy="12" r="3" />',
+		kill: '<circle cx="12" cy="12" r="9" /><path d="m8.5 8.5 7 7m0-7-7 7" />',
+		boss: '<path d="M4 8l3.5 3L12 5l4.5 6L20 8l-1.5 10h-13L4 8Z" />',
+		enemies: '<path d="M12 3 21 18H3L12 3Z" /><circle cx="12" cy="13" r="2.2" />',
+		speed: '<path d="M5 12a7 7 0 0 1 14 0" /><path d="M12 12l3.5-2.5" /><path d="M5 16h14" />',
+		time: '<circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" />',
+		damage: '<path d="M14.5 4 20 9.5 9.5 20H4v-5.5L14.5 4Z" /><path d="m12.5 6 5.5 5.5" />',
+		range: '<circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="3.5" /><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" />',
+		crit: '<path d="m12 2 2.2 6.4L21 9l-5 4.3L17.5 21 12 17l-5.5 4 1.5-7.7L3 9l6.8-.6L12 2Z" />',
+		shiny: '<path d="m12 3 1.8 4.7L18.5 9l-4.7 1.8L12 15l-1.8-4.2L5.5 9l4.7-1.3L12 3Z" /><path d="M18 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z" />',
+		pause: '<rect x="6.5" y="5" width="3.5" height="14" rx="1" /><rect x="14" y="5" width="3.5" height="14" rx="1" />',
+		play: '<path d="M7 5.5v13l11-6.5L7 5.5Z" />',
+		settings: '<circle cx="12" cy="12" r="3.2" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" />',
+		save: '<path d="M5 4h11l3 3v13H5V4Z" /><path d="M8 4v5h7V4M8 20v-6h8v6" />',
+		hub: '<circle cx="12" cy="12" r="2.5" /><path d="M12 4.5a7.5 7.5 0 0 1 0 15" /><path d="M12 19.5a7.5 7.5 0 0 1 0-15" opacity=".5" /><circle cx="12" cy="3" r="1.3" /><circle cx="12" cy="21" r="1.3" />',
+		back: '<path d="M14 6l-6 6 6 6" />',
+		close: '<path d="m7 7 10 10M17 7 7 17" />',
+		soundOn: '<path d="M4 9v6h3.5L13 19V5L7.5 9H4Z" /><path d="M16.5 9a4 4 0 0 1 0 6" /><path d="M19 6.5a8 8 0 0 1 0 11" />',
+		soundOff: '<path d="M4 9v6h3.5L13 19V5L7.5 9H4Z" /><path d="m16.5 9.5 5 5m0-5-5 5" />',
+		musicOn: '<circle cx="7" cy="17.5" r="2.5" /><circle cx="17.5" cy="15" r="2.5" /><path d="M9.5 17.5V6l10.5-2.5V15" />',
+		musicOff: '<circle cx="7" cy="17.5" r="2.5" /><path d="M9.5 17.5V6l10.5-2.5V8" /><path d="m4 4 16 16" />',
+		export: '<path d="M12 15V3" /><path d="m8 7 4-4 4 4" /><path d="M5 14v6h14v-6" />',
+		import: '<path d="M12 3v12" /><path d="m8 11 4 4 4-4" /><path d="M5 14v6h14v-6" />',
+		reset: '<path d="M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14" /><path d="M10 10v6M14 10v6" />',
+		offense: '<path d="M14.5 4 20 9.5 9.5 20H4v-5.5L14.5 4Z" /><path d="m12.5 6 5.5 5.5" />',
+		defense: '<path d="M12 3 5 6v6c0 4 3 6.5 7 9 4-2.5 7-5 7-9V6l-7-3Z" />',
+		utility: '<path d="M14 6.5a3.5 3.5 0 0 0-4.8 4.4l-5 5a1.5 1.5 0 0 0 2.1 2.1l5-5A3.5 3.5 0 0 0 18 9l-2.3 2.3-2-2L16 7" />',
+		lock: '<rect x="5" y="11" width="14" height="9" rx="1.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" />',
+	};
+</script>
+
+<script lang="ts">
+	let { name, size = 18, stroke = 2, fill = false, class: cls = '' }:
+		{ name: IconName; size?: number; stroke?: number; fill?: boolean; class?: string } = $props();
+</script>
+
+<svg
+	class="icon {cls}"
+	width={size}
+	height={size}
+	viewBox="0 0 24 24"
+	fill={fill ? 'currentColor' : 'none'}
+	stroke="currentColor"
+	stroke-width={stroke}
+	stroke-linecap="round"
+	stroke-linejoin="round"
+	aria-hidden="true"
+	focusable="false"
+>
+	{@html PATHS[name]}
+</svg>
+
+<style>
+	.icon { display: inline-block; vertical-align: middle; flex-shrink: 0; }
+</style>

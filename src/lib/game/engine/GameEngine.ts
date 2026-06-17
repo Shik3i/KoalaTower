@@ -3,6 +3,7 @@ import type {
 	Enemy,
 	Particle,
 	DamageNumber,
+	Shockwave,
 	GameSettings,
 	GameSnapshot,
 	GameState,
@@ -11,6 +12,7 @@ import type {
 	LabId,
 	BlueprintId,
 } from './gameTypes';
+import type { SoundName } from '../audio/AudioManager';
 import { EnemyType, DEFAULT_SETTINGS } from './gameTypes';
 import { createTowerState, applyBattleUpgrades, applyRegen } from '../systems/towerSystem';
 import { updateEnemySystem, updateProjectileSystem, updateTowerTargeting, resetProjectileIdCounter } from '../systems/enemySystem';
@@ -27,8 +29,11 @@ export class GameEngine {
 	public state: GameState;
 	public particles: Particle[] = [];
 	public damageNumbers: DamageNumber[] = [];
+	public shockwaves: Shockwave[] = [];
 	public shakeAmount: number = 0;
 	public speedMultiplier: number = 1;
+	private hitStopTimer: number = 0;
+	private soundHandler: ((name: SoundName) => void) | null = null;
 
 	private snapshotTimer: number = 0;
 	private lastWave: number = 0;
@@ -49,12 +54,20 @@ export class GameEngine {
 	/** Call after PixiGameView is created to wire the muzzle flash */
 	public wireMuzzleFlash(cb: MuzzleFlashCallback): void {
 		this.muzzleFlashCallback = cb;
-		setFeedbackHooks(
-			(x, y, text, color) => this.addDamageNumber(x, y, text, color),
-			(x, y, color, count, speed) => this.addParticles(x, y, color, count, speed),
-			(amount) => this.addShake(amount),
-			() => this.muzzleFlashCallback?.(),
-		);
+		setFeedbackHooks({
+			addDmg: (x, y, text, color) => this.addDamageNumber(x, y, text, color),
+			addParticles: (x, y, color, count, speed) => this.addParticles(x, y, color, count, speed),
+			addShake: (amount) => this.addShake(amount),
+			triggerMuzzleFlash: () => this.muzzleFlashCallback?.(),
+			playSound: (name) => this.soundHandler?.(name),
+			hitStop: (seconds) => this.triggerHitStop(seconds),
+			addShockwave: (x, y, color, maxRadius, duration, width) => this.addShockwave(x, y, color, maxRadius, duration, width),
+		});
+	}
+
+	/** Wire a sound handler (e.g. the AudioManager). */
+	public setSoundHandler(cb: ((name: SoundName) => void) | null): void {
+		this.soundHandler = cb;
 	}
 
 	private createInitialState(): GameState {
@@ -101,6 +114,7 @@ export class GameEngine {
 			highestWave: 0,
 			totalRuns: 0,
 			settings: { ...DEFAULT_SETTINGS },
+			tier: 1,
 		};
 	}
 
@@ -116,12 +130,14 @@ export class GameEngine {
 		if (opts.onStateChange) this.onStateChange = opts.onStateChange;
 	}
 
-	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, labLevels: Partial<Record<LabId, number>>, startingCoins: number, unlockedBlueprints: BlueprintId[] = []): void {
+	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, labLevels: Partial<Record<LabId, number>>, startingCoins: number, unlockedBlueprints: BlueprintId[] = [], tier: number = 1): void {
 		resetEnemyIdCounter();
 		resetProjectileIdCounter();
 		this.particles = [];
 		this.damageNumbers = [];
+		this.shockwaves = [];
 		this.shakeAmount = 0;
+		this.hitStopTimer = 0;
 		this.speedMultiplier = 1;
 		this.lastWave = 0;
 		this.firedMilestones = new Set();
@@ -130,6 +146,7 @@ export class GameEngine {
 		this.state.workshopUpgrades = { ...workshopUpgrades } as Record<WorkshopUpgradeId, number>;
 		this.state.labLevels = { ...labLevels } as Record<LabId, number>;
 		this.state.coins = startingCoins;
+		this.state.tier = tier;
 		this.state.runActive = true;
 		this.state.gameOver = false;
 		this.state.paused = false;
@@ -148,6 +165,15 @@ export class GameEngine {
 		// Always check game over — even if inactive, to handle external triggers
 		this.checkGameOver();
 		if (!this.state.runActive || this.state.gameOver || this.state.paused) return;
+
+		// Hit-stop: briefly freeze the simulation for impact punch. The render
+		// loop keeps drawing the frozen frame; we only count down in real time.
+		if (this.hitStopTimer > 0) {
+			this.hitStopTimer -= dt;
+			this.updateShockwaves(dt);
+			this.emitSnapshot(dt);
+			return;
+		}
 
 		const effectiveDt = Math.min(dt * this.speedMultiplier, GAME_CONFIG.CLAMP_DELTA);
 		this.state.elapsedTime += effectiveDt;
@@ -172,6 +198,7 @@ export class GameEngine {
 
 		this.updateParticles(effectiveDt);
 		this.updateDamageNumbers(effectiveDt);
+		this.updateShockwaves(effectiveDt);
 		this.updateShake(effectiveDt);
 
 		this.checkGameOver();
@@ -216,6 +243,7 @@ export class GameEngine {
 	private buildAndEmitSnapshot(): void {
 		const t = this.state.tower;
 		const w = this.state.wave;
+		const boss = this.getActiveBoss();
 		const snap: GameSnapshot = {
 			wave: w.currentWave,
 			towerHp: t.hp,
@@ -249,6 +277,9 @@ export class GameEngine {
 			waveActive: w.waveActive,
 			betweenWaveTimer: w.betweenWaveTimer,
 			spawnInterval: w.spawnInterval,
+			bossActive: !!boss,
+			bossHp: boss ? boss.hp : 0,
+			bossMaxHp: boss ? boss.maxHp : 0,
 		};
 		this.lastSnapshot = snap;
 		if (this.onSnapshot) this.onSnapshot(snap);
@@ -297,6 +328,37 @@ export class GameEngine {
 		this.state.paused = multiplier === 0;
 		this.emitImmediateSnapshot();
 		this.onStateChange?.();
+	}
+
+	/** Freeze the simulation for a few ms to punch up impactful kills. */
+	public triggerHitStop(seconds: number): void {
+		if (this.state.settings.reducedMotion) return;
+		this.hitStopTimer = Math.max(this.hitStopTimer, seconds);
+	}
+
+	/** Spawn an expanding ring burst (tied to the particles setting). */
+	public addShockwave(x: number, y: number, color: number, maxRadius: number, duration: number, width: number = 2): void {
+		if (!this.state.settings.particles || this.state.settings.reducedMotion) return;
+		this.shockwaves.push({ x, y, color, radius: 0, maxRadius, life: duration, maxLife: duration, width });
+	}
+
+	private updateShockwaves(dt: number): void {
+		for (let i = this.shockwaves.length - 1; i >= 0; i--) {
+			const s = this.shockwaves[i]!;
+			s.life -= dt;
+			const t = Math.min(1, 1 - s.life / s.maxLife);
+			// Ease-out expansion
+			s.radius = s.maxRadius * (1 - (1 - t) * (1 - t));
+			if (s.life <= 0) this.shockwaves.splice(i, 1);
+		}
+	}
+
+	/** The currently-alive boss enemy, if any (for the boss health bar). */
+	public getActiveBoss(): Enemy | null {
+		for (const e of this.state.enemies) {
+			if (e.alive && e.isBoss) return e;
+		}
+		return null;
 	}
 
 	public addShake(amount: number): void {
@@ -382,6 +444,8 @@ export class GameEngine {
 		this.onStateChange = null;
 		this.particles = [];
 		this.damageNumbers = [];
+		this.shockwaves = [];
+		this.hitStopTimer = 0;
 		this.firedMilestones = new Set();
 		this.speedMultiplier = 1;
 	}

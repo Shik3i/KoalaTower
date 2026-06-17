@@ -61,42 +61,34 @@ export function getAchievementsForCategory(category: AchievementDef['category'])
 	return ACHIEVEMENT_DEFS.filter(a => a.category === category);
 }
 
-export function checkAchievements(
-	claimed: Set<AchievementId>,
-	stats: {
-		totalRuns: number;
-		bestWave: number;
-		totalKills: number;
-		bossesDefeated: number;
-		fieldUpgradesPurchased: number;
-		totalAlloyEarned: number;
-	},
-): AchievementDef[] {
+export interface AchievementStats {
+	totalRuns: number;
+	bestWave: number;
+	totalKills: number;
+	bossesDefeated: number;
+	fieldUpgradesPurchased: number;
+	totalAlloyEarned: number;
+}
+
+/**
+ * Maps each achievement category to the stat it tracks. This single map
+ * replaces a per-category switch — adding a category is one entry here, and
+ * TypeScript enforces exhaustiveness so a forgotten mapping fails to compile.
+ */
+const CATEGORY_METRIC: Record<AchievementDef['category'], keyof AchievementStats> = {
+	deployments: 'totalRuns',
+	bestWave: 'bestWave',
+	shapesDestroyed: 'totalKills',
+	bossesDefeated: 'bossesDefeated',
+	fieldUpgrades: 'fieldUpgradesPurchased',
+	alloyEarned: 'totalAlloyEarned',
+};
+
+export function checkAchievements(claimed: Set<AchievementId>, stats: AchievementStats): AchievementDef[] {
 	const newlyEarned: AchievementDef[] = [];
 	for (const def of ACHIEVEMENT_DEFS) {
 		if (claimed.has(def.id)) continue;
-		let meetsThreshold = false;
-		switch (def.category) {
-			case 'deployments':
-				meetsThreshold = stats.totalRuns >= def.threshold;
-				break;
-			case 'bestWave':
-				meetsThreshold = stats.bestWave >= def.threshold;
-				break;
-			case 'shapesDestroyed':
-				meetsThreshold = stats.totalKills >= def.threshold;
-				break;
-			case 'bossesDefeated':
-				meetsThreshold = stats.bossesDefeated >= def.threshold;
-				break;
-			case 'fieldUpgrades':
-				meetsThreshold = stats.fieldUpgradesPurchased >= def.threshold;
-				break;
-			case 'alloyEarned':
-				meetsThreshold = stats.totalAlloyEarned >= def.threshold;
-				break;
-		}
-		if (meetsThreshold) {
+		if (stats[CATEGORY_METRIC[def.category]] >= def.threshold) {
 			newlyEarned.push(def);
 		}
 	}

@@ -9,6 +9,9 @@ interface EnemyMeta {
 	size: number;
 	boss: boolean;
 	shiny: boolean;
+	spawnTime: number;   // time value when first seen (for spawn-in scale)
+	spin: number;        // per-enemy rotation speed (rad/s)
+	spinPhase: number;   // per-enemy starting angle
 }
 
 const _meta = new WeakMap<Container, EnemyMeta>();
@@ -17,7 +20,7 @@ export class EnemyRenderer {
 	public container = new Container();
 	private gfxMap = new Map<number, Container>();
 
-	sync(enemies: Enemy[], _time: number): void {
+	sync(enemies: Enemy[], time: number, reduced: boolean = false): void {
 		const activeIds = new Set<number>();
 
 		for (const enemy of enemies) {
@@ -26,12 +29,11 @@ export class EnemyRenderer {
 
 			let c = this.gfxMap.get(enemy.id);
 			if (!c) {
-				c = this.create(enemy);
+				c = this.create(enemy, time);
 				this.container.addChild(c);
 				this.gfxMap.set(enemy.id, c);
-			} else {
-				this.updateVisuals(c, enemy);
 			}
+			this.updateVisuals(c, enemy, time, reduced);
 
 			c.x = enemy.position.x;
 			c.y = enemy.position.y;
@@ -49,7 +51,7 @@ export class EnemyRenderer {
 		}
 	}
 
-	private create(enemy: Enemy): Container {
+	private create(enemy: Enemy, time: number): Container {
 		const c = new Container();
 		const shape = new Graphics();
 		const inner = new Graphics();
@@ -57,12 +59,20 @@ export class EnemyRenderer {
 		c.addChild(glow);
 		c.addChild(shape);
 		c.addChild(inner);
-		_meta.set(c, { shape, inner, glow, type: enemy.type, size: enemy.size, boss: enemy.isBoss, shiny: enemy.isShiny });
+		// Bosses spin slowly and majestically; smaller enemies spin a touch faster.
+		// Direction alternates by id so a swarm doesn't rotate in lockstep.
+		const dir = (enemy.id % 2 === 0) ? 1 : -1;
+		const spin = enemy.isBoss ? 0.25 * dir : (0.4 + (enemy.id % 5) * 0.12) * dir;
+		_meta.set(c, {
+			shape, inner, glow,
+			type: enemy.type, size: enemy.size, boss: enemy.isBoss, shiny: enemy.isShiny,
+			spawnTime: time, spin, spinPhase: (enemy.id % 7) * 0.9,
+		});
 		this.draw(enemy, shape, inner, glow);
 		return c;
 	}
 
-	private updateVisuals(c: Container, enemy: Enemy): void {
+	private updateVisuals(c: Container, enemy: Enemy, time: number, reduced: boolean): void {
 		const meta = _meta.get(c);
 		if (!meta) return;
 
@@ -77,21 +87,35 @@ export class EnemyRenderer {
 		const flash = enemy.hitFlashTimer > 0;
 		meta.shape.alpha = flash ? 1 : 0.9;
 
-		// Hit flash — briefly brighten plus scale pulse
+		if (reduced) {
+			// Accessibility: no spin/pulse/spawn animation, just a steady shape.
+			c.scale.set(flash ? 1.12 : 1);
+			c.rotation = 0;
+		} else {
+			// Spawn-in: ease-out scale from 0 over the first ~0.28s.
+			const age = time - meta.spawnTime;
+			const spawnT = Math.min(1, age / 0.28);
+			const spawnScale = 1 - (1 - spawnT) * (1 - spawnT); // ease-out quad
+			// Idle pulse — gentle breathing so the field feels alive.
+			const pulse = 1 + Math.sin(time * 3 + meta.spinPhase) * (enemy.isBoss ? 0.015 : 0.04);
+			c.scale.set(spawnScale * pulse * (flash ? 1.12 : 1));
+			// Continuous rotation (movement-agnostic — geometric identity stays readable).
+			c.rotation = meta.spinPhase + time * meta.spin;
+		}
+
+		// Hit flash — briefly brighten
 		if (flash) {
 			meta.shape.tint = 0xDDDDFF;
 			meta.glow.tint = 0xDDDDFF;
-			c.scale.set(1.08);
 		} else {
 			meta.shape.tint = 0xFFFFFF;
 			meta.glow.tint = 0xFFFFFF;
-			c.scale.set(1);
 		}
 
 		// Shiny glow pulse
 		if (enemy.isShiny) {
-			const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.005 + enemy.id * 0.5);
-			meta.glow.alpha = pulse * 0.6;
+			const sp = 0.7 + 0.3 * Math.sin(time * 5 + enemy.id * 0.5);
+			meta.glow.alpha = sp * 0.6;
 		} else {
 			meta.glow.alpha = 0;
 		}

@@ -311,6 +311,18 @@ export interface DamageNumber {
 	alpha: number;
 }
 
+/** Expanding ring burst used for impact feedback (boss/crit kills). */
+export interface Shockwave {
+	x: number;
+	y: number;
+	color: number;
+	radius: number;
+	maxRadius: number;
+	life: number;
+	maxLife: number;
+	width: number;
+}
+
 export interface WaveState {
 	currentWave: number;
 	enemiesInWave: number;
@@ -349,6 +361,8 @@ export interface GameState {
 	totalRuns: number;
 	settings: GameSettings;
 	shiniesKilled: number;
+	/** Numeric front/tier this deployment is running on (1–5). */
+	tier: number;
 }
 
 export interface GameSettings {
@@ -357,6 +371,12 @@ export interface GameSettings {
 	particles: boolean;
 	damageNumbers: boolean;
 	lowEffectsMode: boolean;
+	/** Sound effects (procedural Web Audio). */
+	sfx: boolean;
+	/** Ambient background music. */
+	music: boolean;
+	/** Neon bloom post-processing filter. */
+	bloom: boolean;
 }
 
 /** Tracks real-time research progress. */
@@ -401,6 +421,10 @@ export interface GameSnapshot {
 	waveActive: boolean;
 	betweenWaveTimer: number;
 	spawnInterval: number;
+	/** Boss health bar — populated only while a boss is alive. */
+	bossActive: boolean;
+	bossHp: number;
+	bossMaxHp: number;
 }
 
 export const DEFAULT_SETTINGS: GameSettings = {
@@ -408,5 +432,8 @@ export const DEFAULT_SETTINGS: GameSettings = {
 	screenShake: true,
 	particles: true,
 	damageNumbers: true,
-	lowEffectsMode: false
+	lowEffectsMode: false,
+	sfx: true,
+	music: false,
+	bloom: true
 };

@@ -5,17 +5,18 @@
 	import { buildWorkshopUpgradeList, getWorkshopUpgradeCost, getWorkshopUpgradeEffect } from '$lib/game/balance/workshopUpgrades';
 	const WORKSHOP_UPGRADES = buildWorkshopUpgradeList();
 	import { LAB_DEFS, getLabCost, getLabEffect, isLabUnlocked, getLabDuration, formatLabDuration } from '$lib/game/balance/labs';
-	import { TIERS } from '$lib/game/balance/tiers';
+	import { TIERS, getUnlockedFronts, getPreviousFront, getFrontName, FRONT_UNLOCK_WAVE } from '$lib/game/balance/tiers';
 	import { CHALLENGES } from '$lib/game/balance/challenges';
 	import { formatCompact, front1EnemyDamage, front1EnemyHp, TIER_MULTIPLIERS } from '$lib/game/balance/balanceMath';
-	import { EnemyType } from '$lib/game/engine/gameTypes';
+	import { EnemyType, DEFAULT_SETTINGS } from '$lib/game/engine/gameTypes';
 	import { ENEMY_TYPE_MODIFIERS, computeEnemyConfig, ENEMY_SHAPES } from '$lib/game/balance/balanceMath';
-	import { BLUEPRINT_DEFS, isBlueprintUnlockable, isFoundryUpgradeUnlocked, getBlueprintForFoundryUpgrade } from '$lib/game/balance/blueprints';
+	import { BLUEPRINT_DEFS, isFoundryUpgradeUnlocked, getBlueprintForFoundryUpgrade, getFieldUpgradesUnlockedBy, getFoundryUpgradesUnlockedBy, describeBlueprintDiscovery } from '$lib/game/balance/blueprints';
+	import { getBlueprintStatus } from '$lib/game/progression/blueprintDiscovery';
 	import type { GameSettings, WorkshopUpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
 
 	let coins = $state(0);
-	let settings = $state<GameSettings>({ reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false });
+	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
 	let activeSection = $state<'workshop' | 'lab' | 'blueprints' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings'>('workshop');
@@ -24,6 +25,9 @@
 	let simFront = $state(1);
 
 	let ownedBlueprints = $state<BlueprintId[]>([]);
+	let discoveredBlueprints = $state<BlueprintId[]>([]);
+	let frontBestWave = $state<Partial<Record<string, number>>>({});
+	let unlockedFronts = $derived(getUnlockedFronts(frontBestWave));
 	let activeLabId = $state<string | null>(null);
 	let activeLabFinish = $state<number>(0);
 	let activeLabTarget = $state<number>(0);
@@ -49,17 +53,19 @@
 	}
 
 	function isBlueprintOwned(id: BlueprintId): boolean { return ownedBlueprints.includes(id); }
+	function isBlueprintDiscovered(id: BlueprintId): boolean { return discoveredBlueprints.includes(id); }
 	function buyBlueprint(id: BlueprintId) {
 		const save = getCachedSave(); if (!save) return;
 		const bp = BLUEPRINT_DEFS.find(b => b.id === id); if (!bp) return;
-		if (ownedBlueprints.includes(id)) { toast('✅ Already unlocked!', 'info'); return; }
-		if (save.totalCoins < bp.cost) { toast('🔩 Need ' + bp.cost.toLocaleString() + ' Alloy!', 'error'); return; }
+		if (ownedBlueprints.includes(id)) { toast('Already researched.', 'info'); return; }
+		if (!discoveredBlueprints.includes(id)) { toast('Not yet discovered — find it in the field first.', 'error'); return; }
+		if (save.totalCoins < bp.cost) { toast('Need ' + bp.cost.toLocaleString() + ' Alloy!', 'error'); return; }
 		save.totalCoins -= bp.cost;
 		save.unlockedBlueprints = [...(save.unlockedBlueprints ?? []), id];
 		ownedBlueprints = [...ownedBlueprints, id];
 		coinsStore.set(save.totalCoins);
 		persistSave(save);
-		toast('📐 ' + bp.name + ' unlocked!', 'success');
+		toast(bp.name + ' researched!', 'success');
 	}
 
 	let showImportDialog = $state(false);
@@ -80,6 +86,8 @@
 		const u4 = totalRunsStore.subscribe(r => totalRuns = r);
 		const save = getCachedSave();
 		if (save?.unlockedBlueprints) ownedBlueprints = [...save.unlockedBlueprints];
+		if (save?.discoveredBlueprints) discoveredBlueprints = [...save.discoveredBlueprints];
+		if (save?.frontBestWave) frontBestWave = { ...save.frontBestWave };
 		refreshLabProgress();
 		labProgressTimer = setInterval(refreshLabProgress, 1000);
 		return () => { u1(); u2(); u3(); u4(); if (labProgressTimer) clearInterval(labProgressTimer); };
@@ -133,6 +141,9 @@
 		{ key: 'particles' as keyof GameSettings, label: 'Particles', desc: 'Death & hit effects' },
 		{ key: 'damageNumbers' as keyof GameSettings, label: 'Damage Numbers', desc: 'Show floating numbers' },
 		{ key: 'lowEffectsMode' as keyof GameSettings, label: 'Low Effects Mode', desc: 'Reduce visual effects' },
+		{ key: 'bloom' as keyof GameSettings, label: 'Neon Bloom', desc: 'Glow post-processing (off for low-end GPUs)' },
+		{ key: 'sfx' as keyof GameSettings, label: 'Sound Effects', desc: 'Combat & UI sounds' },
+		{ key: 'music' as keyof GameSettings, label: 'Music', desc: 'Ambient background loop' },
 	];
 
 	const sections = [
@@ -237,12 +248,12 @@
 					</div>
 				</div>
 			{:else if activeSection === 'blueprints'}
-				<div class="hs"><h2 class="hst">📐 Blueprints</h2><p class="hsd">Permanently unlock new upgrade paths for Field Upgrades and the Foundry. Blueprints are discovered by reaching wave milestones and purchased with Alloy.</p>
-					<div class="cl">{#each BLUEPRINT_DEFS as bp}{@const owned = isBlueprintOwned(bp.id)}{@const unlocked = isBlueprintUnlockable(bp, highestWave, 0)}{@const aff = coins >= bp.cost && unlocked && !owned}<div class="cc" class:lck={!unlocked && !owned}><div class="cc-h"><span class="cci">{owned ? '✅' : unlocked ? bp.icon : '🔒'}</span><div><div class="ccn">{bp.name}</div><div class="ccd">{bp.description}</div></div></div>{#if owned}<div class="ccs">✓ Installed — unlocks {bp.unlocksFieldUpgrades.length} field + {bp.unlocksFoundryUpgrades.length} foundry upgrades</div>{:else if !unlocked}<div class="ccl">🔒 {bp.unlockCondition}</div>{:else}<div class="uc-b" style="margin-top:.3rem"><button class="hub-action" disabled={!aff} onclick={() => buyBlueprint(bp.id)} style={aff ? 'background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--bg-primary);font-weight:600' : ''}><span class="ucc">🔩{bp.cost.toLocaleString()}</span> Unlock</button></div>{/if}</div>{/each}</div>
+				<div class="hs"><h2 class="hst">📐 Blueprints</h2><p class="hsd">New upgrade paths are found in the field. Deploy to the right Front and reach its depth — each run has a chance to recover a schematic. Once discovered, research it here with Alloy to unlock its upgrades.</p>
+					<div class="cl">{#each BLUEPRINT_DEFS as bp}{@const status = getBlueprintStatus(bp.id, ownedBlueprints, discoveredBlueprints)}{@const aff = coins >= bp.cost}{@const fieldCount = getFieldUpgradesUnlockedBy(bp.id).length}{@const foundryCount = getFoundryUpgradesUnlockedBy(bp.id).length}<div class="cc" class:lck={status === 'undiscovered'}><div class="cc-h"><span class="cci">{status === 'owned' ? '✅' : status === 'discovered' ? bp.icon : '🔒'}</span><div><div class="ccn">{status === 'undiscovered' ? '??? Unknown Schematic' : bp.name}</div><div class="ccd">{status === 'undiscovered' ? 'Schematic not yet recovered.' : bp.description}</div></div></div>{#if status === 'owned'}<div class="ccs">✓ Researched — unlocks {fieldCount} field + {foundryCount} foundry upgrade{fieldCount + foundryCount === 1 ? '' : 's'}</div>{:else if status === 'discovered'}<div class="ccl-found">🔍 Discovered — ready to research</div><div class="uc-b" style="margin-top:.3rem"><button class="hub-action" disabled={!aff} onclick={() => buyBlueprint(bp.id)} style={aff ? 'background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--bg-primary);font-weight:600' : ''}><span class="ucc">🔩{bp.cost.toLocaleString()}</span> Research</button></div>{:else}<div class="ccl">🔒 {describeBlueprintDiscovery(bp)}</div>{/if}</div>{/each}</div>
 				</div>
 			{:else if activeSection === 'tiers'}
 				<div class="hs"><h2 class="hst">🌍 Fronts</h2><p class="hsd">Each front is a planet with increasing enemy density. Reach wave milestones to unlock harder fronts with better rewards.</p>
-					<div class="cl">{#each TIERS as t}<div class="tc" class:unl={t.unlocked}><div class="tc-h"><span class="tci">{t.unlocked ? '🔓' : '🔒'}</span><div><div class="tcn">{t.name}</div><div class="tcd">{t.description}</div></div></div><div class="tcr" class:tcr-ok={t.unlocked}>{t.unlocked ? '✓ Unlocked' : 'Reach Wave ' + t.waveRequirement}</div></div>{/each}</div>
+					<div class="cl">{#each TIERS as t}{@const unl = unlockedFronts.includes(t.id)}{@const prev = getPreviousFront(t.id)}<div class="tc" class:unl={unl}><div class="tc-h"><span class="tci">{unl ? '🔓' : '🔒'}</span><div><div class="tcn">{t.name}</div><div class="tcd">{t.description}</div></div></div><div class="tcr" class:tcr-ok={unl}>{unl ? '✓ Unlocked · Best Wave ' + (frontBestWave[t.id] ?? 0) : 'Reach Wave ' + FRONT_UNLOCK_WAVE + (prev ? ' on ' + getFrontName(prev) : '')}</div></div>{/each}</div>
 				</div>
 			{:else if activeSection === 'challenges'}
 				<div class="hs"><h2 class="hst">⚡ Special Operations</h2><p class="hsd">Tactical exercises with modified engagement rules. Each operation tests different combat scenarios under special conditions.</p>
@@ -333,7 +344,7 @@
 		<div class="overlay" role="dialog"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(getOpLogMessage('saveImportFailed'), 'error'); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
 	{/if}
 	{#if showResetConfirm}
-		<div class="overlay" role="dialog"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Blueprints, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-dng-btn" onclick={async () => { await resetSave(); showResetConfirm = false; coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0); settingsStore.set({ reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false }); toast(getOpLogMessage('saveReset'), 'warning'); }}>Reset</button><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button></div></div></div>
+		<div class="overlay" role="dialog"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Blueprints, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-dng-btn" onclick={async () => { await resetSave(); showResetConfirm = false; coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0); settingsStore.set({ ...DEFAULT_SETTINGS }); toast(getOpLogMessage('saveReset'), 'warning'); }}>Reset</button><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button></div></div></div>
 	{/if}
 
 	<footer class="hub-footer">
@@ -413,7 +424,8 @@
 	.tci,.cci { font-size:1.1rem; flex-shrink:0; margin-top:2px; }
 	.tcn,.ccn { font-size:clamp(0.78rem,1vw,0.9rem); color:var(--text-primary); font-weight:500; margin-bottom:.1rem; }
 	.tcd,.ccd { font-size:clamp(0.68rem,0.9vw,0.8rem); color:var(--text-secondary); line-height:1.45; }
-	.tcr,.ccs,.ccl { font-size:clamp(0.62rem,0.8vw,0.7rem); color:var(--text-secondary); font-family:var(--font-mono); margin-top:.25rem; padding:.15rem .4rem; background:rgba(0,0,0,.12); border-radius:3px; display:inline-block; }
+	.tcr,.ccs,.ccl,.ccl-found { font-size:clamp(0.62rem,0.8vw,0.7rem); color:var(--text-secondary); font-family:var(--font-mono); margin-top:.25rem; padding:.15rem .4rem; background:rgba(0,0,0,.12); border-radius:3px; display:inline-block; }
+	.ccl-found { color:var(--cyan); background:rgba(0,255,255,.08); }
 	.tcr-ok { color:var(--green); } .ccs { color:var(--green); }
 	.ig { display:grid; gap:3px; max-width:600px; }
 	.ir { display:flex; justify-content:space-between; padding:.4rem .55rem; font-size:clamp(0.82rem,1.1vw,0.95rem); border-radius:3px; }
@@ -442,7 +454,8 @@
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	.save-note { margin-top:1.25rem; padding:.75rem 1rem; background:rgba(255,221,68,.04); border:1px solid rgba(255,221,68,.12); border-radius:var(--radius-sm); max-width:800px; }
 	.save-note-flavor { font-size:clamp(0.62rem,0.8vw,0.72rem); color:rgba(255,221,68,.45); font-style:italic; line-height:1.4; margin:0; }
-	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{flex-direction:row;overflow-x:auto;width:auto} .hub-nav-btn{flex-shrink:0;white-space:nowrap} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem} }
+	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;width:auto;flex-direction:initial} .hub-nav-btn{flex-shrink:0;white-space:nowrap;text-align:center;padding:.55rem .5rem;font-size:.8rem} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem} }
+	@media(max-width:380px){ .hub-nav{grid-template-columns:1fr 1fr} .hub-nav-btn{font-size:.74rem;padding:.5rem .4rem} }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:clamp(0.72rem,0.9vw,0.8rem); display:flex; flex-direction:column; gap:.4rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
 	.hub-footer-flavor { font-size:clamp(0.52rem,0.7vw,0.6rem); color:var(--text-dim); opacity:0.35; margin:0; }
 	.hub-footer-links { display:flex; gap:.4rem; align-items:center; }

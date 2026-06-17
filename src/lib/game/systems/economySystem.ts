@@ -13,6 +13,7 @@
 import { WorkshopUpgradeId, LabId, UpgradeId, type GameState } from '../engine/gameTypes';
 import { getWorkshopUpgradeEffect } from '../balance/workshopUpgrades';
 import { getLabMultiplier } from '../balance/labs';
+import { getFrontAlloyMultiplier } from '../balance/balanceMath';
 
 /** Energy from a kill — scales with wave, workshop, lab, and Energy Amp. */
 export function calculateEnergyFromKill(state: GameState, baseReward: number): number {
@@ -24,10 +25,10 @@ export function calculateEnergyFromKill(state: GameState, baseReward: number): n
 }
 
 /**
+ * @deprecated Normal kills no longer award Alloy. Alloy comes only from
+ * shiny enemies (flat 2), boss kills, and wave completion. Kept for reference.
+ *
  * Tiny kill alloy — scales with Alloy Bonus workshop.
- * baseAlloyPerKill = floor(wsAlloyLevel * 0.01)
- * At level 0: 0, level 50: 0, level 100: 1, level 1000: 10
- * Multiplied by lab Alloy Research.
  */
 export function getCoinsPerKill(state: GameState): number {
 	const wsAlloyLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
@@ -49,7 +50,8 @@ export function getWaveCoinReward(state: GameState, wave: number): number {
 	const wsAlloyMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, wsAlloyLv);
 	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
 	const mult = wave <= 10 ? 0.5 : wave <= 25 ? 0.8 : 1.2;
-	return Math.floor(wave * mult * wsAlloyMult * lab.alloy);
+	const front = getFrontAlloyMultiplier(state.tier ?? 1);
+	return Math.floor(wave * mult * wsAlloyMult * lab.alloy * front);
 }
 
 /** Boss kill bonus alloy. */
@@ -57,7 +59,8 @@ export function getBossCoinReward(state: GameState): number {
 	const wsAlloyLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
 	const wsAlloyMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, wsAlloyLv);
 	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
-	return Math.floor(5 * wsAlloyMult * lab.alloy);
+	const front = getFrontAlloyMultiplier(state.tier ?? 1);
+	return Math.floor(5 * wsAlloyMult * lab.alloy * front);
 }
 
 /** Starting energy for a deployment. */

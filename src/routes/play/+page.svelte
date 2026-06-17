@@ -5,17 +5,23 @@
 	import Tutorial from '$lib/components/Tutorial.svelte';
 	import TowerStatsPanel from '$lib/components/TowerStatsPanel.svelte';
 	import EnemyStatsPanel from '$lib/components/EnemyStatsPanel.svelte';
+	import BossHealthBar from '$lib/components/BossHealthBar.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { GAME_CONFIG } from '$lib/game/engine/gameConfig';
-	import { UpgradeId, type GameSnapshot, type GameSettings, AchievementId } from '$lib/game/engine/gameTypes';
+	import { UpgradeId, type GameSnapshot, type GameSettings, AchievementId, DEFAULT_SETTINGS } from '$lib/game/engine/gameTypes';
 	import { buildBattleUpgradeList, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
 	import { formatBattleEffect } from '$lib/game/balance/upgradeScaling';
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
-	import { isFieldUpgradeUnlocked, getBlueprintForFieldUpgrade } from '$lib/game/balance/blueprints';
+	import { isFieldUpgradeUnlocked, getBlueprintForFieldUpgrade, getBlueprintDef } from '$lib/game/balance/blueprints';
+	import { TIERS, getUnlockedFronts, getTierNumber, getFrontName, getPreviousFront, FRONT_UNLOCK_WAVE } from '$lib/game/balance/tiers';
+	import { rollBlueprintDiscovery } from '$lib/game/progression/blueprintDiscovery';
+	import { TierId } from '$lib/game/engine/gameTypes';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
 	import { checkAchievements } from '$lib/game/balance/achievements';
 	import { engineStore } from '$lib/stores/gameStore';
+	import { audio } from '$lib/game/audio/AudioManager';
 
 	let container = $state<HTMLDivElement>();
 	let gameView = $state<PixiGameView | null>(null);
@@ -40,11 +46,14 @@
 
 	let snap = $state<GameSnapshot>(null!);
 	let coins = $state(0);
-	let settings = $state<GameSettings>({ reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false });
+	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
 	let speed = $state(1);
 	let paused = $state(false);
+	let selectedFront = $state<TierId>(TierId.Tier1);
+	let frontBestWave = $state<Partial<Record<TierId, number>>>({});
+	let unlockedFronts = $derived(getUnlockedFronts(frontBestWave));
 
 	let showSaveMenu = $state(false);
 	let showSaveIndicator = $state(false);
@@ -76,6 +85,9 @@
 		const u2 = settingsStore.subscribe(s => { settings = s; syncSettingsToEngine(s); });
 		const u3 = highestWaveStore.subscribe(w => highestWave = w);
 		const u4 = totalRunsStore.subscribe(r => totalRuns = r);
+		const cachedSave = getCachedSave();
+		if (cachedSave?.selectedFront) selectedFront = cachedSave.selectedFront;
+		if (cachedSave?.frontBestWave) frontBestWave = { ...cachedSave.frontBestWave };
 		window.addEventListener('keydown', onKey);
 
 		// Restore engine if it exists in the store (from previous visit)
@@ -85,6 +97,7 @@
 				if (container && !gameView) {
 					gameView = new PixiGameView(container, e);
 					engine.wireMuzzleFlash(() => gameView?.triggerMuzzleFlash());
+					wireAudio();
 					gameView.start();
 				}
 				refreshSnap();
@@ -121,6 +134,7 @@
 	});
 
 	function onKey(e: KeyboardEvent) {
+		audio.unlock();
 		if (!engine) return;
 		if (e.key === ' ') { e.preventDefault(); handleSpeed(0); }
 		if (e.key === '1') handleSpeed(1);
@@ -146,12 +160,18 @@
 			enemiesInWave: w.enemiesInWave, enemiesSpawned: w.enemiesSpawned,
 			enemiesKilledThisWave: w.enemiesKilled, waveActive: w.waveActive,
 			betweenWaveTimer: w.betweenWaveTimer, spawnInterval: w.spawnInterval,
+			bossActive: false, bossHp: 0, bossMaxHp: 0,
 		};
+		const boss = engine.getActiveBoss();
+		if (boss) { snap.bossActive = true; snap.bossHp = boss.hp; snap.bossMaxHp = boss.maxHp; }
 		speed = engine.speedMultiplier;
 		paused = engine.isPaused();
 	}
 
 	function syncSettingsToEngine(s: GameSettings): void {
+		// Audio reflects settings even before an engine exists.
+		audio.setSfxEnabled(s.sfx);
+		audio.setMusicEnabled(s.music);
 		if (!engine) return;
 		const stateSettings = engine.state.settings;
 		stateSettings.reducedMotion = s.reducedMotion;
@@ -159,7 +179,19 @@
 		stateSettings.particles = s.particles;
 		stateSettings.damageNumbers = s.damageNumbers;
 		stateSettings.lowEffectsMode = s.lowEffectsMode;
+		stateSettings.sfx = s.sfx;
+		stateSettings.music = s.music;
+		stateSettings.bloom = s.bloom;
 	}
+
+	/** Connect an engine to the audio system. */
+	function wireAudio(): void {
+		engine?.setSoundHandler((name) => audio.play(name));
+	}
+
+	/** Quick toggle from the top bar; persists like any other setting. */
+	function toggleSfx() { audio.unlock(); updateSetting('sfx', !settings.sfx); }
+	function toggleMusic() { audio.unlock(); updateSetting('music', !settings.music); }
 
 	function wireEngineCallbacks(): void {
 		if (!engine) return;
@@ -171,6 +203,7 @@
 					if (st.wave.currentWave > 0 && st.wave.currentWave % 10 === 0 && st.wave.currentWave !== prevWave && st.runActive) {
 						const flavor = getOpLogMessage('bossIncoming');
 						if (flavor) toast('👾 ' + flavor, 'info');
+						audio.play('bossWarning');
 					}
 					// Boss defeated detection
 					if (st.bossesDefeated > prevBossCount && prevBossCount > 0) {
@@ -185,6 +218,7 @@
 			onStateChange: () => { refreshSnap(); },
 			onGameOver: (geoCoins: number, _w: number) => {
 				refreshSnap();
+				audio.play('gameOver');
 				gameOverCoins = geoCoins;
 				gameOverWave = _w;
 				gameOverKills = engine?.state.killCount ?? 0;
@@ -204,6 +238,14 @@
 					save.totalBossesDefeated += engine.state.bossesDefeated;
 					save.totalShiniesKilled += engine.state.shiniesKilled;
 					save.totalAlloyEarned += runCoinsEarned;
+
+					// Per-front best wave — gates sequential front unlocks.
+					const reachedWave = engine.state.wave.currentWave;
+					const frontPrev = save.frontBestWave?.[save.selectedFront] ?? 0;
+					save.frontBestWave = { ...(save.frontBestWave ?? {}), [save.selectedFront]: Math.max(frontPrev, reachedWave) };
+					const justUnlocked = getUnlockedFronts(save.frontBestWave).length > getUnlockedFronts(frontBestWave).length;
+					frontBestWave = { ...save.frontBestWave };
+					if (justUnlocked) toast('🌍 New Front unlocked — choose it at deployment!', 'milestone');
 
 					const bLevels = engine.state.battleUpgrades;
 					let runFieldUpgrades = 0;
@@ -237,6 +279,28 @@
 						gameOverCoins += totalReward;
 					}
 
+					// ── Blueprint discovery roll (RNG, once per deployment) ──
+					// Depth is measured on the CURRENT front (per-front best wave).
+					const found = rollBlueprintDiscovery({
+						front: save.selectedFront,
+						progress: {
+							highestWave: save.frontBestWave?.[save.selectedFront] ?? 0,
+							bossesDefeated: save.totalBossesDefeated,
+							ownedBlueprints: save.unlockedBlueprints ?? [],
+							unlockedFronts: getUnlockedFronts(save.frontBestWave ?? {}),
+						},
+						discovered: save.discoveredBlueprints ?? [],
+						owned: save.unlockedBlueprints ?? [],
+					});
+					if (found.length) {
+						save.discoveredBlueprints = [...(save.discoveredBlueprints ?? []), ...found];
+						for (const id of found) {
+							const def = getBlueprintDef(id);
+							toast('🔍 Blueprint discovered: ' + (def?.name ?? id) + ' — research it in Orbital Command', 'milestone');
+						}
+						audio.play('milestone');
+					}
+
 					coinsStore.set(save.totalCoins);
 					highestWaveStore.set(save.highestWave);
 					totalRunsStore.set(save.totalRuns);
@@ -254,6 +318,7 @@
 				const wave = engine?.state.wave.currentWave ?? 0;
 				const flavor = getOpLogMessage('waveMilestone', { wave });
 				toast('🏆 ' + (flavor || text), 'milestone');
+				audio.play('milestone');
 			},
 		});
 	}
@@ -267,6 +332,7 @@
 		if (!container) return;
 		gameView = new PixiGameView(container, engine);
 		engine.wireMuzzleFlash(() => gameView?.triggerMuzzleFlash());
+		wireAudio();
 		gameView.start();
 	}
 
@@ -277,11 +343,16 @@
 		showGameOver = false;
 		showMobileUpgrades = false;
 		speed = 1; paused = false;
+		audio.unlock();
+		audio.play('waveStart');
 		coinsAtRunStart = coins;
 		const save = getCachedSave();
+		// Clamp the chosen front to what's actually unlocked, then persist it.
+		if (!unlockedFronts.includes(selectedFront)) selectedFront = TierId.Tier1;
+		if (save) { save.selectedFront = selectedFront; persistSave(save); }
 		const unlockedBPs = (save?.unlockedBlueprints ?? []) as import('$lib/game/engine/gameTypes').BlueprintId[];
-		engine.startRun(save?.workshopUpgrades ?? {}, save?.labLevels ?? {}, coins, unlockedBPs);
-		syncSettingsToEngine(save?.settings ?? { reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false });
+		engine.startRun(save?.workshopUpgrades ?? {}, save?.labLevels ?? {}, coins, unlockedBPs, getTierNumber(selectedFront));
+		syncSettingsToEngine(save?.settings ?? { ...DEFAULT_SETTINGS });
 		gameView?.start();
 		refreshSnap();
 		toast('▶ ' + getOpLogMessage('deploymentStart'), 'success');
@@ -310,6 +381,7 @@
 		if (!engine) return;
 		const lv = engine.state.battleUpgrades[id] ?? 0;
 		if (engine.buyBattleUpgrade(id)) {
+			audio.play('upgrade');
 			refreshSnap();
 			purchasedUpgrade = id;
 			setTimeout(() => { purchasedUpgrade = null; }, 400);
@@ -336,7 +408,7 @@
 		resetSave().then(() => {
 			showResetConfirm = false;
 			coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0);
-			settingsStore.set({ reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false });
+			settingsStore.set({ ...DEFAULT_SETTINGS });
 			toast(getOpLogMessage('saveReset'), 'warning');
 		});
 	}
@@ -369,43 +441,45 @@
 
 	<!-- Top Bar -->
 	<header class="topbar">
-		<a href="/" class="tb-back" aria-label="Home">←</a>
+		<a href="/" class="tb-back" aria-label="Home" title="Home"><Icon name="back" size={18} /></a>
 		<div class="tb-brand">Flatland TD</div>
 		<div class="tb-div"></div>
 		<div class="tb-stats">
 			{#if snap?.runActive}
-				<div class="tb-pill wave-pill" title="Current wave number"><span>🌊</span><span>{snap.wave}</span></div>
+				<div class="tb-pill wave-pill" title="Current wave number"><Icon name="wave" size={15} /><span>{snap.wave}</span></div>
 			{/if}
-			<div class="tb-pill coin-pill" title="Alloy — permanent material, spent in Forge & Research"><span>🔩</span><span>{coins.toLocaleString()}</span></div>
+			<div class="tb-pill coin-pill" title="Alloy — permanent material, spent in Forge & Research"><Icon name="alloy" size={15} /><span>{coins.toLocaleString()}</span></div>
 			{#if snap?.runActive}
-				<div class="tb-pill cash-pill" title="Energy — harvested from destroyed enemies, spent on Field Upgrades"><span>⚡</span><span>{Math.floor(snap.cash).toLocaleString()}</span></div>
-				<div class="tb-pill hp-pill" class:low={snap.towerHp / snap.towerMaxHp < 0.3} title="Tower HP — run ends when this reaches 0"><span>❤️</span><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
-				<div class="tb-pill kill-pill" title="Total enemies killed this run"><span>☠</span><span>{snap.killCount}</span></div>
+				<div class="tb-pill cash-pill" title="Energy — harvested from destroyed enemies, spent on Field Upgrades"><Icon name="energy" size={15} /><span>{Math.floor(snap.cash).toLocaleString()}</span></div>
+				<div class="tb-pill hp-pill" class:low={snap.towerHp / snap.towerMaxHp < 0.3} title="Tower HP — run ends when this reaches 0"><Icon name="hp" size={15} /><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
+				<div class="tb-pill kill-pill" title="Total enemies killed this run"><Icon name="kill" size={15} /><span>{snap.killCount}</span></div>
 			{/if}
 		</div>
 		<div class="tb-actions">
 			{#if snap?.runActive}
 				<div class="spd-grp" title="Game speed — also: keys 1-4, Space to pause">
-					<button class="spd-btn" class:on={paused} onclick={() => handleSpeed(0)} title="Pause (Space)">⏸</button>
+					<button class="spd-btn spd-icon" class:on={paused} onclick={() => handleSpeed(0)} title="Pause (Space)" aria-label="Pause"><Icon name={paused ? 'play' : 'pause'} size={13} /></button>
 					{#each [1,2,3] as s}<button class="spd-btn spd-n" class:on={!paused && speed === s} onclick={() => handleSpeed(s)} title="{s}× speed ({s})">{s}×</button>{/each}
 					<button class="spd-btn spd-n" class:on={!paused && speed === 5} onclick={() => handleSpeed(4)} title="5× speed (4)">5×</button>
-					<div class="spd-status" class:paused={paused}>{paused ? '⏸' : speed + '×'}</div>
+					<div class="spd-status" class:paused={paused}>{paused ? '❚❚' : speed + '×'}</div>
 				</div>
 			{/if}
+			<button class="ibtn" class:off={!settings.sfx} onclick={toggleSfx} aria-label="Toggle sound effects" title="Sound effects {settings.sfx ? 'on' : 'off'}"><Icon name={settings.sfx ? 'soundOn' : 'soundOff'} size={17} /></button>
+			<button class="ibtn" class:off={!settings.music} onclick={toggleMusic} aria-label="Toggle music" title="Music {settings.music ? 'on' : 'off'}"><Icon name={settings.music ? 'musicOn' : 'musicOff'} size={17} /></button>
 			<div class="save-indicator" class:saving={showSaveIndicator} title="Auto-save indicator"></div>
 			<div class="sv-wrap">
-				<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu" title="Export / Import / Reset save data">💾</button>
+				<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu" title="Export / Import / Reset save data"><Icon name="save" size={17} /></button>
 				{#if showSaveMenu}
 					<div class="sv-drop">
-						<button onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); showSaveMenu = false; }}>📋 Export</button>
-						<button onclick={() => { showImportDialog = true; showSaveMenu = false; }}>📂 Import</button>
-						<button onclick={() => { showResetConfirm = true; showSaveMenu = false; }}>🗑 Reset</button>
-						<button onclick={() => { showSaveMenu = false; }}>✕ Close</button>
+						<button onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); showSaveMenu = false; }}><Icon name="export" size={15} /> Export</button>
+						<button onclick={() => { showImportDialog = true; showSaveMenu = false; }}><Icon name="import" size={15} /> Import</button>
+						<button onclick={() => { showResetConfirm = true; showSaveMenu = false; }}><Icon name="reset" size={15} /> Reset</button>
+						<button onclick={() => { showSaveMenu = false; }}><Icon name="close" size={15} /> Close</button>
 					</div>
 				{/if}
 			</div>
 			<div class="sv-wrap">
-				<button class="ibtn" onclick={() => showSettings = !showSettings} aria-label="Settings" title="Visual & performance settings">⚙</button>
+				<button class="ibtn" onclick={() => showSettings = !showSettings} aria-label="Settings" title="Visual & performance settings"><Icon name="settings" size={17} /></button>
 				{#if showSettings}
 					<div class="sv-drop settings-drop">
 						<label class="set-row" title="Minimize animations">
@@ -428,10 +502,22 @@
 							<span>Low Effects</span>
 							<input type="checkbox" checked={settings.lowEffectsMode} onchange={(e) => updateSetting('lowEffectsMode', (e.target as HTMLInputElement).checked)} />
 						</label>
+						<label class="set-row" title="Neon glow post-processing">
+							<span>Neon Bloom</span>
+							<input type="checkbox" checked={settings.bloom} onchange={(e) => updateSetting('bloom', (e.target as HTMLInputElement).checked)} />
+						</label>
+						<label class="set-row" title="Combat & UI sounds">
+							<span>Sound Effects</span>
+							<input type="checkbox" checked={settings.sfx} onchange={(e) => { audio.unlock(); updateSetting('sfx', (e.target as HTMLInputElement).checked); }} />
+						</label>
+						<label class="set-row" title="Ambient background loop">
+							<span>Music</span>
+							<input type="checkbox" checked={settings.music} onchange={(e) => { audio.unlock(); updateSetting('music', (e.target as HTMLInputElement).checked); }} />
+						</label>
 					</div>
 				{/if}
 			</div>
-			<a href="/hub" class="hub-link" aria-label="Orbital Command" title="Orbital Command — Forge, Research Deck, Blueprints, Fronts, Archives">🛰️</a>
+			<a href="/hub" class="hub-link" aria-label="Orbital Command" title="Orbital Command — Forge, Research Deck, Blueprints, Fronts, Archives"><Icon name="hub" size={18} /></a>
 		</div>
 	</header>
 
@@ -441,10 +527,10 @@
 	<!-- Mobile Speed Bar -->
 	{#if isMobile && snap?.runActive}
 		<div class="mob-spd">
-			<button class="spd-btn" class:on={paused} onclick={() => handleSpeed(0)}>⏸</button>
+			<button class="spd-btn spd-icon" class:on={paused} onclick={() => handleSpeed(0)} aria-label="Pause"><Icon name={paused ? 'play' : 'pause'} size={13} /></button>
 			{#each [1,2,3] as s}<button class="spd-btn spd-n" class:on={!paused && speed === s} onclick={() => handleSpeed(s)}>{s}×</button>{/each}
 			<button class="spd-btn spd-n" class:on={!paused && speed === 5} onclick={() => handleSpeed(4)}>5×</button>
-			<span class="mob-spd-lbl">{paused ? '⏸' : speed + '×'}</span>
+			<span class="mob-spd-lbl">{paused ? '❚❚' : speed + '×'}</span>
 		</div>
 	{/if}
 
@@ -454,27 +540,27 @@
 			<div class="go-panel" class:go-record={gameOverWave >= highestWave && highestWave > 0}>
 				<div class="go-glow"></div>
 				<div class="go-glow-ring"></div>
-				<div class="go-icon">{gameOverWave >= highestWave && highestWave > 0 ? '🏆' : '💀'}</div>
+				<div class="go-icon"><Icon name={gameOverWave >= highestWave && highestWave > 0 ? 'crit' : 'kill'} size={44} stroke={1.6} /></div>
 				<h2 class="go-title">{gameOverWave >= highestWave && highestWave > 0 ? 'New Record!' : 'Tower Lost'}</h2>
 				<div class="go-wave">Reached <strong>Wave {gameOverWave}</strong></div>
 				{#if highestWave > 0 && gameOverWave < highestWave}
 					<div class="go-wave-sub">Best: Wave {highestWave} ({(gameOverWave / highestWave * 100).toFixed(0)}%)</div>
 				{/if}
 				<div class="go-stats">
-					<div class="go-s"><span class="go-si">🔩</span><span class="go-sv">+{gameOverCoins.toLocaleString()}</span><span class="go-sl">Alloy</span></div>
+					<div class="go-s"><span class="go-si"><Icon name="alloy" size={20} /></span><span class="go-sv">+{gameOverCoins.toLocaleString()}</span><span class="go-sl">Alloy</span></div>
 					<div class="go-sd"></div>
-					<div class="go-s"><span class="go-si">☠</span><span class="go-sv">{gameOverKills.toLocaleString()}</span><span class="go-sl">Kills</span></div>
+					<div class="go-s"><span class="go-si"><Icon name="kill" size={20} /></span><span class="go-sv">{gameOverKills.toLocaleString()}</span><span class="go-sl">Kills</span></div>
 					<div class="go-sd"></div>
-					<div class="go-s"><span class="go-si">👑</span><span class="go-sv">{gameOverBosses}</span><span class="go-sl">Bosses</span></div>
+					<div class="go-s"><span class="go-si"><Icon name="boss" size={20} /></span><span class="go-sv">{gameOverBosses}</span><span class="go-sl">Bosses</span></div>
 				</div>
 				<div class="go-stats-sub">
-					<span>⚡ {Math.floor(gameOverCash).toLocaleString()} Energy harvested</span>
-					<span>🏆 Best: Wave {highestWave}</span>
+					<span><Icon name="energy" size={13} /> {Math.floor(gameOverCash).toLocaleString()} Energy harvested</span>
+					<span><Icon name="crit" size={13} /> Best: Wave {highestWave}</span>
 				</div>
-				<button class="go-btn" bind:this={goBtn} onclick={startRun}>▶ Launch Deployment</button>
+				<button class="go-btn" bind:this={goBtn} onclick={startRun}><Icon name="play" size={16} /> Launch Deployment</button>
 				<div class="go-row2">
-					<a href="/hub" class="go-btn2">🛰️ Orbital Command</a>
-					<button class="go-btn2" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}>💾 Export</button>
+					<a href="/hub" class="go-btn2"><Icon name="hub" size={15} /> Orbital Command</a>
+					<button class="go-btn2" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}><Icon name="export" size={15} /> Export</button>
 				</div>
 			</div>
 		</div>
@@ -535,14 +621,12 @@
 			</aside>
 		{/if}
 
-		<!-- Game Canvas + HUD -->
+		<!-- Game Canvas -->
 		<div class="game-canvas" bind:this={container} role="img" aria-label="Flatland TD — game viewport showing Tower defense against hostile geometric shapes">
-			{#if snap?.runActive && !leftPanelOpen}
-				<div class="hud">
-					<div class="hud-row"><span class="hud-wave" title="Current wave">🌊 Wave {snap.wave}</span><span class="hud-enemies" title="Enemies alive on screen">👾 {snap.enemyCount}</span></div>
-					<div class="hud-row"><span class="hud-hp" title="Tower HP">❤️ {Math.ceil(snap.towerHp)}/{snap.towerMaxHp}</span><span class="hud-cash" title="Energy — spent on Field Upgrades">⚡ {Math.floor(snap.cash).toLocaleString()}</span></div>
-					<div class="hud-row hud-dmg"><span title="Damage per shot">⚔ {snap.towerDamage.toFixed(1)}</span><span title="Attack range">🎯 {snap.towerRange.toFixed(0)}</span><span title="Crit">⚡ {(snap.towerCritChance * 100).toFixed(1)}%×{snap.towerCritMultiplier.toFixed(1)}</span></div>
-				</div>
+			<!-- Live run info lives in the bottom-left (Tower) / bottom-right (Shapes) panels
+			     and the top bar — the canvas itself is kept clear. -->
+			{#if snap?.bossActive && snap.bossMaxHp > 0}
+				<BossHealthBar hp={snap.bossHp} maxHp={snap.bossMaxHp} wave={snap.wave} />
 			{/if}
 			<TowerStatsPanel {snap} />
 			<EnemyStatsPanel {snap} />
@@ -555,12 +639,32 @@
 						<p class="sc-sub">Deploy from orbit. Defend the plane. Field upgrades are lost with the tower — Orbital research endures.</p>
 						{#if highestWave > 0}
 							<div class="sc-rec">
-								<div class="sc-r"><span>🏆</span> Best: Wave {highestWave}</div>
-								<div class="sc-r"><span>🪙</span> {coins.toLocaleString()} Coins</div>
-								<div class="sc-r"><span>🎮</span> {totalRuns} Runs</div>
+								<div class="sc-r"><Icon name="crit" size={15} /> Best: Wave {highestWave}</div>
+								<div class="sc-r"><Icon name="alloy" size={15} /> {coins.toLocaleString()} Alloy</div>
+								<div class="sc-r"><Icon name="play" size={15} /> {totalRuns} Runs</div>
 							</div>
 						{/if}
-						<button class="sc-btn" onclick={startRun}><span class="sc-bi"></span><span class="sc-bt">▶ Launch Deployment</span></button>
+						<!-- Front (tier) selector -->
+						<div class="front-sel">
+							<div class="front-sel-h"><Icon name="hub" size={13} /> Select Front</div>
+							<div class="front-list">
+								{#each TIERS as t}
+									{@const unlocked = unlockedFronts.includes(t.id)}
+									<button
+										class="front-opt"
+										class:on={selectedFront === t.id}
+										class:locked={!unlocked}
+										disabled={!unlocked}
+										onclick={() => selectedFront = t.id}
+										title={unlocked ? t.name : 'Locked — reach Wave ' + FRONT_UNLOCK_WAVE + ' on ' + (getPreviousFront(t.id) ? getFrontName(getPreviousFront(t.id)!) : '')}
+									>
+										<span class="front-n">{getFrontName(t.id)}</span>
+										<span class="front-sub">{unlocked ? (t.id === TierId.Tier1 ? 'Baseline' : '×' + getTierNumber(t.id) + ' front') : '🔒 W' + FRONT_UNLOCK_WAVE + '·T' + (getPreviousFront(t.id) ? getTierNumber(getPreviousFront(t.id)!) : '')}</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+						<button class="sc-btn" onclick={startRun}><span class="sc-bi"></span><span class="sc-bt"><Icon name="play" size={16} /> Deploy to {getFrontName(selectedFront)}</span></button>
 						<p class="sc-hint"><kbd>Enter</kbd> start · <kbd>Space</kbd> pause · <kbd>1-4</kbd> speed</p>
 					</div>
 				</div>
@@ -576,9 +680,9 @@
 						<div class="ps"><div class="pst">⚡ Field Upgrades</div>
 							{#if snap?.runActive}
 								<div class="cat-tabs">
-<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'} title="Damage, Attack Speed, Range, Multishot, Crit">⚔ Offense</button>
-									<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} title="Defense (flat reduction), Max HP">🛡️ Defense</button>
-									<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} title="Energy Amp (+% energy per kill)">🔧 Utility</button>
+<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'} title="Damage, Attack Speed, Range, Multishot, Crit"><Icon name="offense" size={13} /> Offense</button>
+									<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} title="Defense (flat reduction), Max HP"><Icon name="defense" size={13} /> Defense</button>
+									<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} title="Energy Amp (+% energy per kill)"><Icon name="utility" size={13} /> Utility</button>
 								</div>
 								<div class="ug">
 									{#each BATTLE_UPGRADES.filter(u => u.category === upgradeCategory) as u}
@@ -613,9 +717,9 @@
 	<!-- Mobile: battle upgrades drawer + nav -->
 	{#if isMobile}
 		<nav class="mn">
-			<button class="mnb" class:on={!showMobileUpgrades} onclick={() => showMobileUpgrades = false} title="Game canvas view"><span class="mni">🎮</span><span class="mnl">Game</span></button>
-			<button class="mnb" class:on={showMobileUpgrades} onclick={() => showMobileUpgrades = !showMobileUpgrades} title="Battle Upgrades panel"><span class="mni">⚔</span><span class="mnl">Upgrades</span></button>
-			<a href="/hub" class="mnb" title="Orbital Command — Forge, Research, Archives"><span class="mni">🛰️</span><span class="mnl">Orbital</span></a>
+			<button class="mnb" class:on={!showMobileUpgrades} onclick={() => showMobileUpgrades = false} title="Game canvas view"><span class="mni"><Icon name="range" size={20} /></span><span class="mnl">Game</span></button>
+			<button class="mnb" class:on={showMobileUpgrades} onclick={() => showMobileUpgrades = !showMobileUpgrades} title="Battle Upgrades panel"><span class="mni"><Icon name="offense" size={20} /></span><span class="mnl">Upgrades</span></button>
+			<a href="/hub" class="mnb" title="Orbital Command — Forge, Research, Archives"><span class="mni"><Icon name="hub" size={20} /></span><span class="mnl">Orbital</span></a>
 		</nav>
 		{#if showMobileUpgrades && snap?.runActive}
 			<div class="mob-upgrade-drawer">
@@ -624,9 +728,9 @@
 					<button class="mob-ug-close" onclick={() => showMobileUpgrades = false}>✕</button>
 				</div>
 				<div class="cat-tabs">
-					<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'} title="Damage, Attack Speed, Range, Multishot, Crit">⚔ Offense</button>
-					<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} title="Defense, Max HP">🛡️ Defense</button>
-					<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} title="Energy Amp">🔧 Utility</button>
+					<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'} title="Damage, Attack Speed, Range, Multishot, Crit"><Icon name="offense" size={13} /> Offense</button>
+					<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} title="Defense, Max HP"><Icon name="defense" size={13} /> Defense</button>
+					<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} title="Energy Amp"><Icon name="utility" size={13} /> Utility</button>
 				</div>
 				<div class="ug mob-ug-list">
 					{#each BATTLE_UPGRADES.filter(u => u.category === upgradeCategory) as u}
@@ -667,7 +771,7 @@
 	.topbar { display:flex; align-items:center; padding:.3rem .65rem; gap:.4rem; background:rgba(7,8,18,.95); border-bottom:1px solid var(--border-neon); z-index:100; flex-shrink:0; position:relative; }
 	.tb-back { color:var(--text-dim); font-size:var(--fs-icon-md); text-decoration:none; padding:.1rem .3rem; border-radius:var(--radius-sm); transition:all var(--transition-fast); line-height:1; }
 	.tb-back:hover { color:var(--cyan); background:rgba(0,255,255,.06); }
-	.tb-brand { font-weight:700; font-size:var(--fs-icon-md); background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; white-space:nowrap; }
+	.tb-brand { font-family:var(--font-display); font-weight:700; font-size:var(--fs-icon-md); letter-spacing:.04em; background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; white-space:nowrap; }
 	.tb-div { width:1px; height:16px; background:var(--border-neon); flex-shrink:0; }
 	.tb-stats { display:flex; gap:.25rem; align-items:center; margin-left:auto; }
 	.tb-pill { display:flex; align-items:center; gap:.2rem; padding:.15rem .5rem; font-size:clamp(0.85rem,1.15vw,0.95rem); font-family:var(--font-mono); border-radius:100px; background:var(--bg-tertiary); border:1px solid var(--border-neon); }
@@ -689,8 +793,11 @@
 	.spd-btn.on { color:var(--cyan); background:rgba(0,255,255,.1); }
 	.spd-n { min-width:1.5rem; text-align:center; }
 	.tb-actions { display:flex; gap:.2rem; align-items:center; }
-	.ibtn { padding:.25rem; border-radius:var(--radius-sm); color:var(--text-dim); transition:all var(--transition-fast); font-size:var(--fs-icon-md); line-height:1; cursor:pointer; }
+	.ibtn { display:inline-flex; align-items:center; justify-content:center; padding:.25rem; border-radius:var(--radius-sm); color:var(--text-secondary); transition:all var(--transition-fast); font-size:var(--fs-icon-md); line-height:1; cursor:pointer; }
 	.ibtn:hover { color:var(--cyan); background:rgba(0,255,255,.08); }
+	.ibtn.off { color:var(--text-dim); opacity:.55; }
+	.spd-icon { display:inline-flex; align-items:center; justify-content:center; }
+	.tb-pill :global(.icon) { opacity:.75; }
 	.sv-wrap { position:relative; }
 	.sv-drop { position:absolute; top:calc(100% + 4px); right:0; min-width:150px; background:var(--bg-secondary); border:1px solid var(--border-neon-strong); border-radius:var(--radius-md); z-index:200; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.5); animation:fi .12s ease; }
 	.sv-drop button { display:block; width:100%; padding:.55rem .9rem; font-size:clamp(0.9rem,1.1vw,0.98rem); text-align:left; color:var(--text-secondary); transition:all var(--transition-fast); }
@@ -706,12 +813,6 @@
 	.mob-spd-lbl { margin-left:auto; font-size:var(--fs-caption); color:var(--cyan); font-family:var(--font-mono); }
 	.game-body { flex:1; display:flex; overflow:hidden; position:relative; }
 	.game-canvas { flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; background:var(--bg-primary); }
-	.hud { position:absolute; top:.5rem; left:.5rem; z-index:8; display:flex; flex-direction:column; gap:.2rem; pointer-events:none; }
-	.hud-row { display:flex; gap:.4rem; }
-	.hud-row span { padding:.2rem .6rem; background:rgba(7,8,18,.8); border:1px solid var(--border-neon); border-radius:100px; font-size:clamp(0.85rem,1.1vw,0.93rem); font-family:var(--font-mono); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); color:var(--text-primary); }
-	.hud-wave { color:var(--cyan)!important; } .hud-enemies { color:var(--violet)!important; }
-	.hud-hp { color:#FFAA88!important; } .hud-cash { color:var(--green)!important; }
-	.hud-dmg span { font-size:clamp(0.82rem,1.05vw,0.9rem); padding:.12rem .45rem; background:rgba(7,8,18,.6); color:var(--text-secondary)!important; }
 	.start-ol { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center,rgba(7,8,18,.5) 0%,var(--bg-primary) 100%); z-index:10; }
 	.start-card { position:relative; text-align:center; padding:2.25rem 2.25rem 1.75rem; background:var(--bg-glass-strong); border:1px solid var(--border-neon); border-radius:var(--radius-xl); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); max-width:380px; width:90%; animation:si .35s ease; box-shadow:0 0 60px rgba(0,255,255,.06); }
 	.sc-accent { position:absolute; top:-1px; left:20%; right:20%; height:1px; background:linear-gradient(90deg,transparent,var(--cyan),transparent); opacity:.6; }
@@ -720,6 +821,16 @@
 	.sc-title { font-size:var(--fs-icon-lg); margin-bottom:.2rem; }
 	.sc-sub { font-size:clamp(0.9rem,1.2vw,1rem); color:var(--text-secondary); margin-bottom:1.1rem; }
 	.sc-rec { display:flex; flex-direction:column; gap:.2rem; margin-bottom:1.1rem; padding:.6rem; background:rgba(0,0,0,.2); border-radius:var(--radius-md); }
+	.front-sel { margin-bottom:1.1rem; width:100%; max-width:340px; }
+	.front-sel-h { display:flex; align-items:center; gap:.3rem; font-family:var(--font-mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); margin-bottom:.45rem; }
+	.front-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(58px,1fr)); gap:.35rem; }
+	.front-opt { display:flex; flex-direction:column; align-items:center; gap:.1rem; padding:.45rem .3rem; border-radius:var(--radius-sm); background:var(--bg-tertiary); border:1px solid var(--border-neon); transition:all var(--transition-fast); cursor:pointer; }
+	.front-opt:hover:not(:disabled) { border-color:var(--cyan); background:rgba(0,255,255,.06); }
+	.front-opt.on { border-color:var(--cyan); background:rgba(0,255,255,.12); box-shadow:0 0 12px rgba(0,255,255,.18); }
+	.front-opt.locked { opacity:.4; cursor:not-allowed; }
+	.front-n { font-family:var(--font-display); font-weight:700; font-size:.82rem; color:var(--text-primary); }
+	.front-sub { font-size:.58rem; font-family:var(--font-mono); color:var(--text-dim); white-space:nowrap; }
+	.front-opt.on .front-n { color:var(--cyan); }
 	.sc-r { font-size:clamp(0.85rem,1.1vw,0.92rem); font-family:var(--font-mono); color:var(--text-secondary); display:flex; gap:.3rem; align-items:center; }
 	.sc-btn { position:relative; display:inline-flex; align-items:center; gap:.4rem; padding:.7rem 2rem; border-radius:var(--radius-md); background:linear-gradient(135deg,var(--cyan),var(--blue)); color:var(--bg-primary); font-weight:700; font-size:clamp(0.9rem,1.2vw,1rem); cursor:pointer; overflow:hidden; transition:all var(--transition-normal); box-shadow:0 0 30px rgba(0,255,255,.2); }
 	.sc-btn:hover { transform:translateY(-2px); box-shadow:0 0 50px rgba(0,255,255,.35); }

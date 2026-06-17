@@ -1,21 +1,31 @@
 /**
- * blueprints.ts — Blueprint unlock system for progression gating.
+ * blueprints.ts — Blueprint definitions and the upgrade-gating they drive.
  *
- * Blueprints are permanently unlocked schematics that gate access to
- * upgrade paths in Field Upgrades (battle) and Foundry (workshop).
- * Each blueprint is discovered by reaching milestones and purchased
- * with Alloy. Once unlocked, all related upgrades become available.
+ * LIFECYCLE (see progression/blueprintDiscovery.ts):
+ *   undiscovered → discovered (found via RNG at a qualifying front) → owned (bought with Alloy)
  *
- * DESIGN:
- * - Starter upgrades (Damage, Attack Speed, Max HP, Regen, Alloy/Wave, Energy/Wave)
- *   have no blueprint requirement.
- * - All advanced upgrades require a specific blueprint.
- * - Blueprints unlock both Field Upgrade and Foundry upgrade paths.
- * - Blueprint unlocks are saved permanently.
+ * SINGLE SOURCE OF TRUTH:
+ *   The upgrade declares its own prerequisite via `requiredBlueprint`
+ *   (see battleUpgrades.ts / workshopUpgrades.ts). The blueprint → upgrades
+ *   mapping is DERIVED from that — never hand-maintained here. Adding a new
+ *   gated ability is therefore: write the upgrade def (+ requiredBlueprint),
+ *   write a BlueprintDef (cost + requirement + discovery). No switch edits.
  */
 
-import { BlueprintId, UpgradeId, WorkshopUpgradeId } from '../engine/gameTypes';
+import { BlueprintId, TierId, UpgradeId, WorkshopUpgradeId } from '../engine/gameTypes';
 import type { BlueprintCategory } from '../engine/gameTypes';
+import { type Requirement, type ProgressSnapshot, meetsRequirement, describeRequirement } from '../progression/requirements';
+import { BATTLE_UPGRADE_DEFS } from './battleUpgrades';
+import { WORKSHOP_UPGRADE_DEFS } from './workshopUpgrades';
+import { getFrontName } from './tiers';
+
+/** How a blueprint is found in the field (the RNG discovery step). */
+export interface BlueprintDiscovery {
+	/** Fronts (tiers) on which this blueprint can drop. */
+	fronts: TierId[];
+	/** Per-deployment drop chance once the front + requirement are satisfied (0–1). */
+	chance: number;
+}
 
 export interface BlueprintDef {
 	id: BlueprintId;
@@ -23,295 +33,193 @@ export interface BlueprintDef {
 	description: string;
 	icon: string;
 	category: BlueprintCategory;
-	/** Human-readable unlock condition text */
-	unlockCondition: string;
-	/** Alloy cost to purchase */
+	/** Alloy cost to acquire (research) once discovered. */
 	cost: number;
-	/** Display order (lower = first) */
+	/** Display order (lower = first). */
 	order: number;
-	/** Battle upgrade IDs this blueprint unlocks */
-	unlocksFieldUpgrades: UpgradeId[];
-	/** Workshop upgrade IDs this blueprint unlocks */
-	unlocksFoundryUpgrades: WorkshopUpgradeId[];
-	/** Whether this blueprint also unlocks lab research */
-	unlocksLabIds?: string[];
-}
-
-/**
- * Returns true if the wave/boss condition is met.
- * Called with current highestWave for permanent unlock eligibility.
- */
-export function isBlueprintUnlockable(bp: BlueprintDef, highestWave: number, bossesDefeated: number): boolean {
-	switch (bp.id) {
-		case BlueprintId.CriticalTargeting:
-			return highestWave >= 25 || bossesDefeated >= 2;
-		case BlueprintId.SplitBeamGeometry:
-			return highestWave >= 50;
-		case BlueprintId.ExtendedCoreOptics:
-			return highestWave >= 25;
-		case BlueprintId.PlatedCoreShell:
-			return highestWave >= 20;
-		case BlueprintId.PhaseDampener:
-			return highestWave >= 50;
-		case BlueprintId.ReactiveSurface:
-			return bossesDefeated >= 5 || highestWave >= 75;
-		case BlueprintId.EnergyReclaimer:
-			return highestWave >= 100;
-		case BlueprintId.AlloyExtraction:
-			return highestWave >= 25;
-		case BlueprintId.EnergyCondenser:
-			return highestWave >= 50;
-		case BlueprintId.DeploymentReserves:
-			return highestWave >= 75;
-		default:
-			return false;
-	}
-}
-
-/**
- * Returns the list of UpgradeIds that are starter upgrades (no blueprint required).
- */
-export const STARTER_FIELD_UPGRADES: UpgradeId[] = [
-	UpgradeId.Damage,
-	UpgradeId.FireRate,
-	UpgradeId.MaxHp,
-	UpgradeId.Regen,
-	UpgradeId.CritChance,
-	UpgradeId.CritMultiplier,
-];
-
-/**
- * Returns the list of WorkshopUpgradeIds that are starter upgrades (no blueprint required).
- */
-export const STARTER_FOUNDRY_UPGRADES: WorkshopUpgradeId[] = [
-	WorkshopUpgradeId.BaseDamage,
-	WorkshopUpgradeId.BaseFireRate,
-	WorkshopUpgradeId.StartingHp,
-	WorkshopUpgradeId.Regen,
-	WorkshopUpgradeId.CoinBonus,
-];
-
-/**
- * Check if a field (battle) upgrade is unlocked given a set of owned blueprint IDs.
- */
-export function isFieldUpgradeUnlocked(
-	upgradeId: UpgradeId,
-	ownedBlueprints: BlueprintId[],
-): boolean {
-	if (STARTER_FIELD_UPGRADES.includes(upgradeId)) return true;
-	for (const bp of BLUEPRINT_DEFS) {
-		if (bp.unlocksFieldUpgrades.includes(upgradeId) && ownedBlueprints.includes(bp.id)) {
-			return true;
-		}
-	}
-	return false;
-}
-
-/**
- * Check if a foundry (workshop) upgrade is unlocked given a set of owned blueprint IDs.
- */
-export function isFoundryUpgradeUnlocked(
-	upgradeId: WorkshopUpgradeId,
-	ownedBlueprints: BlueprintId[],
-): boolean {
-	if (STARTER_FOUNDRY_UPGRADES.includes(upgradeId)) return true;
-	for (const bp of BLUEPRINT_DEFS) {
-		if (bp.unlocksFoundryUpgrades.includes(upgradeId) && ownedBlueprints.includes(bp.id)) {
-			return true;
-		}
-	}
-	return false;
-}
-
-/**
- * Returns the blueprint that unlocks a given field upgrade, or null if starter.
- */
-export function getBlueprintForFieldUpgrade(upgradeId: UpgradeId): BlueprintDef | null {
-	if (STARTER_FIELD_UPGRADES.includes(upgradeId)) return null;
-	for (const bp of BLUEPRINT_DEFS) {
-		if (bp.unlocksFieldUpgrades.includes(upgradeId)) return bp;
-	}
-	return null;
-}
-
-/**
- * Returns the blueprint that unlocks a given foundry upgrade, or null if starter.
- */
-export function getBlueprintForFoundryUpgrade(upgradeId: WorkshopUpgradeId): BlueprintDef | null {
-	if (STARTER_FOUNDRY_UPGRADES.includes(upgradeId)) return null;
-	for (const bp of BLUEPRINT_DEFS) {
-		if (bp.unlocksFoundryUpgrades.includes(upgradeId)) return bp;
-	}
-	return null;
-}
-
-/**
- * Auto-unlock blueprints based on existing upgrade levels during migration.
- * If the player already has levels in a locked upgrade path, unlock the
- * corresponding blueprint (grandfathering).
- */
-export function computeGrandfatheredBlueprints(
-	workshopLevels: Partial<Record<WorkshopUpgradeId, number>>,
-	battleLevels: Partial<Record<UpgradeId, number>>,
-	labLevels: Partial<Record<string, number>>,
-): BlueprintId[] {
-	const ids = new Set<BlueprintId>();
-
-	for (const bp of BLUEPRINT_DEFS) {
-		// Check workshop upgrades
-		for (const wsId of bp.unlocksFoundryUpgrades) {
-			if ((workshopLevels[wsId] ?? 0) > 0) {
-				ids.add(bp.id);
-				break;
-			}
-		}
-		// Check battle upgrades (from save if available — battle levels are per-run
-		// and not persisted, so we only check workshop for grandfathering)
-		// But we check lab unlocks too
-		if (bp.unlocksLabIds) {
-			for (const labId of bp.unlocksLabIds) {
-				if ((labLevels[labId] ?? 0) > 0) {
-					ids.add(bp.id);
-					break;
-				}
-			}
-		}
-	}
-
-	return Array.from(ids);
+	/** What must be true for this blueprint to become discoverable. */
+	requirement: Requirement;
+	/** Where/how often it drops. */
+	discovery: BlueprintDiscovery;
 }
 
 export const BLUEPRINT_DEFS: BlueprintDef[] = [
-	// ── Attack Blueprints ──────────────────────────────────────────────
+	// ── Attack ──────────────────────────────────────────────────────────
+	{
+		id: BlueprintId.ExtendedCoreOptics,
+		name: 'Extended Tower Optics',
+		description: 'Long-range targeting array extends the Tower engagement perimeter.',
+		icon: '🎯', category: 'attack', cost: 200, order: 5,
+		requirement: { minWave: 25 },
+		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
+	},
 	{
 		id: BlueprintId.CriticalTargeting,
 		name: 'Critical Targeting',
 		description: 'Precision-core schematics enable critical hit calibration and enhanced crit amplification.',
-		icon: '⭐',
-		category: 'attack',
-		unlockCondition: 'Reach Wave 25 or defeat 2 Bosses',
-		cost: 250,
-		order: 10,
-		unlocksFieldUpgrades: [UpgradeId.CritChance, UpgradeId.CritMultiplier],
-		unlocksFoundryUpgrades: [WorkshopUpgradeId.CritBonus],
+		icon: '⭐', category: 'attack', cost: 250, order: 10,
+		requirement: { anyOf: [{ minWave: 25 }, { minBosses: 2 }] },
+		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
 	},
 	{
 		id: BlueprintId.SplitBeamGeometry,
 		name: 'Split Beam Geometry',
 		description: 'Refracted-core lensing enables multi-target projectile splitting.',
-		icon: '💥',
-		category: 'attack',
-		unlockCondition: 'Reach Wave 50',
-		cost: 500,
-		order: 20,
-		unlocksFieldUpgrades: [UpgradeId.Multishot, UpgradeId.MultishotProjectiles],
-		unlocksFoundryUpgrades: [],
+		icon: '💥', category: 'attack', cost: 500, order: 20,
+		requirement: { minWave: 50 },
+		discovery: { fronts: [TierId.Tier1, TierId.Tier2], chance: 0.08 },
 	},
-	{
-		id: BlueprintId.ExtendedCoreOptics,
-		name: 'Extended Tower Optics',
-		description: 'Long-range targeting array extends the Tower engagement perimeter.',
-		icon: '🎯',
-		category: 'attack',
-		unlockCondition: 'Reach Wave 25',
-		cost: 200,
-		order: 5,
-		unlocksFieldUpgrades: [UpgradeId.Range],
-		unlocksFoundryUpgrades: [WorkshopUpgradeId.BaseRange],
-	},
-	// ── Defense Blueprints ─────────────────────────────────────────────
+	// ── Defense ─────────────────────────────────────────────────────────
 	{
 		id: BlueprintId.PlatedCoreShell,
 		name: 'Plated Tower Shell',
 		description: 'Ablative plating schematics provide flat damage absorption after percentage reduction.',
-		icon: '🛡️',
-		category: 'defense',
-		unlockCondition: 'Reach Wave 20',
-		cost: 200,
-		order: 10,
-		unlocksFieldUpgrades: [UpgradeId.Defense],
-		unlocksFoundryUpgrades: [WorkshopUpgradeId.DefenseAbsolute],
+		icon: '🛡️', category: 'defense', cost: 200, order: 10,
+		requirement: { minWave: 20 },
+		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
 	},
 	{
 		id: BlueprintId.PhaseDampener,
 		name: 'Phase Dampener',
 		description: 'Phase-shift field schematics reduce incoming damage by percentage.',
-		icon: '🔰',
-		category: 'defense',
-		unlockCondition: 'Reach Wave 50',
-		cost: 400,
-		order: 20,
-		unlocksFieldUpgrades: [UpgradeId.DefensePercent],
-		unlocksFoundryUpgrades: [WorkshopUpgradeId.DefensePercent],
+		icon: '🔰', category: 'defense', cost: 400, order: 20,
+		requirement: { minWave: 50 },
+		discovery: { fronts: [TierId.Tier1, TierId.Tier2], chance: 0.08 },
 	},
 	{
 		id: BlueprintId.ReactiveSurface,
 		name: 'Reactive Surface',
 		description: 'Spike-core schematics reflect damage to melee attackers on contact.',
-		icon: '🌵',
-		category: 'defense',
-		unlockCondition: 'Defeat 5 Bosses or reach Wave 75',
-		cost: 500,
-		order: 30,
-		unlocksFieldUpgrades: [UpgradeId.Thorns],
-		unlocksFoundryUpgrades: [WorkshopUpgradeId.Thorns],
+		icon: '🌵', category: 'defense', cost: 500, order: 30,
+		requirement: { anyOf: [{ minBosses: 5 }, { minWave: 75 }] },
+		discovery: { fronts: [TierId.Tier2], chance: 0.07 },
 	},
 	{
 		id: BlueprintId.EnergyReclaimer,
 		name: 'Energy Reclaimer',
 		description: 'Siphon-core schematics leech structural integrity from damaged targets.',
-		icon: '🩸',
-		category: 'defense',
-		unlockCondition: 'Reach Wave 100',
-		cost: 1200,
-		order: 40,
-		unlocksFieldUpgrades: [UpgradeId.Lifesteal],
-		unlocksFoundryUpgrades: [WorkshopUpgradeId.Lifesteal],
+		icon: '🩸', category: 'defense', cost: 1200, order: 40,
+		requirement: { minWave: 100 },
+		discovery: { fronts: [TierId.Tier3], chance: 0.06 },
 	},
-	// ── Utility Blueprints ─────────────────────────────────────────────
+	// ── Utility ─────────────────────────────────────────────────────────
 	{
 		id: BlueprintId.AlloyExtraction,
 		name: 'Alloy Extraction',
 		description: 'Scavenger schematics improve alloy yield from deployed engagements.',
-		icon: '🔩',
-		category: 'utility',
-		unlockCondition: 'Reach Wave 25',
-		cost: 250,
-		order: 10,
-		unlocksFieldUpgrades: [UpgradeId.EnergyAmp, UpgradeId.CashPerWave],
-		unlocksFoundryUpgrades: [],
+		icon: '🔩', category: 'utility', cost: 250, order: 10,
+		requirement: { minWave: 25 },
+		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
 	},
 	{
 		id: BlueprintId.EnergyCondenser,
 		name: 'Energy Condenser',
 		description: 'Condenser schematics amplify energy harvested from destroyed enemies.',
-		icon: '⚡',
-		category: 'utility',
-		unlockCondition: 'Reach Wave 50',
-		cost: 400,
-		order: 20,
-		unlocksFieldUpgrades: [],
-		unlocksFoundryUpgrades: [WorkshopUpgradeId.EnergyBonus],
+		icon: '⚡', category: 'utility', cost: 400, order: 20,
+		requirement: { minWave: 50 },
+		discovery: { fronts: [TierId.Tier1, TierId.Tier2], chance: 0.08 },
 	},
 	{
 		id: BlueprintId.DeploymentReserves,
 		name: 'Deployment Reserves',
 		description: 'Reserve schematics pre-charge the Core with starting energy for each deployment.',
-		icon: '🔋',
-		category: 'utility',
-		unlockCondition: 'Reach Wave 75',
-		cost: 400,
-		order: 30,
-		unlocksFieldUpgrades: [],
-		unlocksFoundryUpgrades: [WorkshopUpgradeId.StartingEnergy],
+		icon: '🔋', category: 'utility', cost: 400, order: 30,
+		requirement: { minWave: 75 },
+		discovery: { fronts: [TierId.Tier2], chance: 0.07 },
 	},
 ];
 
+// ─── Lookup maps (built once) ────────────────────────────────────────────────
+
 const bpMap = new Map<BlueprintId, BlueprintDef>();
-for (const bp of BLUEPRINT_DEFS) {
-	bpMap.set(bp.id, bp);
-}
+for (const bp of BLUEPRINT_DEFS) bpMap.set(bp.id, bp);
+
+/** upgradeId → required blueprint (or undefined = starter), derived from upgrade defs. */
+const fieldRequirement = new Map<UpgradeId, BlueprintId | undefined>();
+for (const u of BATTLE_UPGRADE_DEFS) fieldRequirement.set(u.id, u.requiredBlueprint);
+
+const foundryRequirement = new Map<WorkshopUpgradeId, BlueprintId | undefined>();
+for (const u of WORKSHOP_UPGRADE_DEFS) foundryRequirement.set(u.id, u.requiredBlueprint);
 
 export function getBlueprintDef(id: BlueprintId): BlueprintDef | undefined {
 	return bpMap.get(id);
+}
+
+/** Field (battle) upgrades a blueprint unlocks — derived, not hand-maintained. */
+export function getFieldUpgradesUnlockedBy(id: BlueprintId): UpgradeId[] {
+	return BATTLE_UPGRADE_DEFS.filter(u => u.requiredBlueprint === id).map(u => u.id);
+}
+
+/** Foundry (workshop) upgrades a blueprint unlocks — derived, not hand-maintained. */
+export function getFoundryUpgradesUnlockedBy(id: BlueprintId): WorkshopUpgradeId[] {
+	return WORKSHOP_UPGRADE_DEFS.filter(u => u.requiredBlueprint === id).map(u => u.id);
+}
+
+// ─── Upgrade gating ──────────────────────────────────────────────────────────
+
+export function isFieldUpgradeUnlocked(upgradeId: UpgradeId, ownedBlueprints: readonly BlueprintId[]): boolean {
+	const req = fieldRequirement.get(upgradeId);
+	return !req || ownedBlueprints.includes(req);
+}
+
+export function isFoundryUpgradeUnlocked(upgradeId: WorkshopUpgradeId, ownedBlueprints: readonly BlueprintId[]): boolean {
+	const req = foundryRequirement.get(upgradeId);
+	return !req || ownedBlueprints.includes(req);
+}
+
+export function getBlueprintForFieldUpgrade(upgradeId: UpgradeId): BlueprintDef | null {
+	const req = fieldRequirement.get(upgradeId);
+	return req ? (bpMap.get(req) ?? null) : null;
+}
+
+export function getBlueprintForFoundryUpgrade(upgradeId: WorkshopUpgradeId): BlueprintDef | null {
+	const req = foundryRequirement.get(upgradeId);
+	return req ? (bpMap.get(req) ?? null) : null;
+}
+
+/** Battle upgrades with no blueprint requirement (available from the start). */
+export const STARTER_FIELD_UPGRADES: UpgradeId[] = BATTLE_UPGRADE_DEFS.filter(u => !u.requiredBlueprint).map(u => u.id);
+export const STARTER_FOUNDRY_UPGRADES: WorkshopUpgradeId[] = WORKSHOP_UPGRADE_DEFS.filter(u => !u.requiredBlueprint).map(u => u.id);
+
+// ─── Display helpers ─────────────────────────────────────────────────────────
+
+const blueprintName = (id: BlueprintId): string => bpMap.get(id)?.name ?? id;
+
+/** Human-readable discovery condition, e.g. "Front: Tier 1 · Reach Wave 25". */
+export function describeBlueprintDiscovery(bp: BlueprintDef): string {
+	const fronts = bp.discovery.fronts.map(getFrontName).join(' / ');
+	const cond = describeRequirement(bp.requirement, blueprintName);
+	return `Find at ${fronts} · ${cond}`;
+}
+
+/** True when the blueprint's requirement is met (eligible to be discovered). */
+export function isBlueprintDiscoverable(bp: BlueprintDef, progress: ProgressSnapshot): boolean {
+	return meetsRequirement(bp.requirement, progress);
+}
+
+/**
+ * Back-compat shim for existing tests/UI: evaluates the requirement against a
+ * bare (wave, bosses) pair. Prefer isBlueprintDiscoverable with a full snapshot.
+ */
+export function isBlueprintUnlockable(bp: BlueprintDef, highestWave: number, bossesDefeated: number): boolean {
+	return meetsRequirement(bp.requirement, { highestWave, bossesDefeated, ownedBlueprints: [], unlockedFronts: [] });
+}
+
+/**
+ * Auto-unlock blueprints based on existing upgrade levels during migration:
+ * if a player already invested in a gated workshop path, grandfather the
+ * blueprint so they don't lose access.
+ */
+export function computeGrandfatheredBlueprints(
+	workshopLevels: Partial<Record<WorkshopUpgradeId, number>>,
+	_battleLevels: Partial<Record<UpgradeId, number>>,
+	_labLevels: Partial<Record<string, number>>,
+): BlueprintId[] {
+	const ids = new Set<BlueprintId>();
+	for (const u of WORKSHOP_UPGRADE_DEFS) {
+		if (u.requiredBlueprint && (workshopLevels[u.id] ?? 0) > 0) {
+			ids.add(u.requiredBlueprint);
+		}
+	}
+	return Array.from(ids);
 }

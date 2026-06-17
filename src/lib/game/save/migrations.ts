@@ -1,5 +1,5 @@
 import { CURRENT_SCHEMA_VERSION, type SaveData } from './saveTypes';
-import { BlueprintId, AchievementId } from '../engine/gameTypes';
+import { BlueprintId, AchievementId, TierId, DEFAULT_SETTINGS, type GameSettings } from '../engine/gameTypes';
 import { computeGrandfatheredBlueprints } from '../balance/blueprints';
 
 export function migrateSave(data: Record<string, unknown>): SaveData | null {
@@ -24,6 +24,15 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		}
 		if (version < 6) {
 			save = migrateV5toV6(save);
+		}
+		if (version < 7) {
+			save = migrateV6toV7(save);
+		}
+		if (version < 8) {
+			save = migrateV7toV8(save);
+		}
+		if (version < 9) {
+			save = migrateV8toV9(save);
 		}
 
 		save = ensureMetadata(save);
@@ -53,16 +62,19 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 		labLevels: (data.labLevels as Record<string, number>) || {},
 		blueprints: [],
 		unlockedBlueprints: [],
+		discoveredBlueprints: [],
+		selectedFront: TierId.Tier1,
+		frontBestWave: {},
 		activeLab: null,
 		milestones: (data.milestones as Record<string, boolean>) || {},
 		challengeHighScores: (data.challengeHighScores as Record<string, number>) || {},
-		settings: {
+		settings: normalizeSettings({
 			reducedMotion: !!(data.reducedMotion as boolean),
 			screenShake: !(data.disableScreenShake as boolean),
 			particles: true,
 			damageNumbers: true,
 			lowEffectsMode: false,
-		},
+		}),
 		achievements: {},
 		totalKills: 0,
 		totalBossesDefeated: 0,
@@ -197,6 +209,53 @@ function migrateV5toV6(save: SaveData): SaveData {
 	};
 }
 
+function migrateV6toV7(save: SaveData): SaveData {
+	// v7 adds audio (sfx/music) and bloom toggles to settings.
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		settings: normalizeSettings((save as unknown as Record<string, unknown>).settings),
+	};
+}
+
+function migrateV7toV8(save: SaveData): SaveData {
+	// v8 adds the blueprint discovery layer + selected front.
+	// Owned blueprints are implicitly already discovered.
+	const owned = Array.isArray(save.unlockedBlueprints) ? save.unlockedBlueprints : [];
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		discoveredBlueprints: Array.from(new Set([...(save.discoveredBlueprints ?? []), ...owned])),
+		selectedFront: save.selectedFront ?? TierId.Tier1,
+	};
+}
+
+function migrateV8toV9(save: SaveData): SaveData {
+	// v9 adds per-front best waves for sequential front unlocking.
+	// All prior play happened on Front 1, so grandfather global best there.
+	const existing = (save as unknown as Record<string, unknown>).frontBestWave as Partial<Record<TierId, number>> | undefined;
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		frontBestWave: existing ?? { [TierId.Tier1]: save.highestWave ?? 0 },
+	};
+}
+
+/** Backfill any missing settings keys with defaults — safe across all versions. */
+function normalizeSettings(raw: unknown): GameSettings {
+	const s = (raw && typeof raw === 'object' ? raw : {}) as Partial<GameSettings>;
+	return {
+		reducedMotion: s.reducedMotion ?? DEFAULT_SETTINGS.reducedMotion,
+		screenShake: s.screenShake ?? DEFAULT_SETTINGS.screenShake,
+		particles: s.particles ?? DEFAULT_SETTINGS.particles,
+		damageNumbers: s.damageNumbers ?? DEFAULT_SETTINGS.damageNumbers,
+		lowEffectsMode: s.lowEffectsMode ?? DEFAULT_SETTINGS.lowEffectsMode,
+		sfx: s.sfx ?? DEFAULT_SETTINGS.sfx,
+		music: s.music ?? DEFAULT_SETTINGS.music,
+		bloom: s.bloom ?? DEFAULT_SETTINGS.bloom,
+	};
+}
+
 export function validateSaveData(data: unknown): data is SaveData {
 	if (!data || typeof data !== 'object') return false;
 	const d = data as Record<string, unknown>;
@@ -215,6 +274,10 @@ function ensureMetadata(save: SaveData): SaveData {
 		createdAt: save.createdAt || new Date(now).toISOString(),
 		saveId: save.saveId || 'fltd-' + Math.random().toString(36).slice(2, 10),
 		lastUpdated: save.lastUpdated || now,
+		settings: normalizeSettings((save as unknown as Record<string, unknown>).settings),
+		discoveredBlueprints: Array.from(new Set([...((save as any).discoveredBlueprints ?? []), ...((save as any).unlockedBlueprints ?? [])])),
+		selectedFront: (save as any).selectedFront ?? TierId.Tier1,
+		frontBestWave: (save as any).frontBestWave ?? { [TierId.Tier1]: (save as any).highestWave ?? 0 },
 		achievements: (save as any).achievements ?? {},
 		totalKills: (save as any).totalKills ?? 0,
 		totalBossesDefeated: (save as any).totalBossesDefeated ?? 0,

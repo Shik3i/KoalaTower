@@ -110,5 +110,5 @@ export function getWaveArmor(wave: number): number {
 }
 
 export function getDefaultSettings(): GameSettings {
-	return { reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false };
+	return { reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false, sfx: true, music: false, bloom: true };
 }

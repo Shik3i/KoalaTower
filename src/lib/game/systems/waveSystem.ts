@@ -120,7 +120,7 @@ function spawnEnemy(state: GameState): void {
 	const isShiny = !isBoss && Math.random() < 0.05;
 
 	const { x, y } = getSpawnPosition(state);
-	const enemy = createEnemy(type, state.wave.currentWave, x, y, 1, isShiny);
+	const enemy = createEnemy(type, state.wave.currentWave, x, y, state.tier ?? 1, isShiny);
 	state.enemies.push(enemy);
 	state.wave.enemiesSpawned++;
 	state.wave.enemiesSpawnedInSubWave++;

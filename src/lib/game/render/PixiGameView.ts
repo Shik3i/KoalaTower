@@ -1,4 +1,5 @@
 import { Application } from 'pixi.js';
+import { AdvancedBloomFilter } from 'pixi-filters';
 import { GAME_CONFIG } from '../engine/gameConfig';
 import type { GameEngine } from '../engine/GameEngine';
 import { createLayers, type GameLayers } from './PixiLayers';
@@ -32,6 +33,8 @@ export class PixiGameView {
 
 	public muzzleFlash = 0;
 	private initError: Error | null = null;
+	private bloomFilter: AdvancedBloomFilter | null = null;
+	private bloomActive = false;
 
 	constructor(domContainer: HTMLElement, engine: GameEngine) {
 		this.domContainer = domContainer;
@@ -120,12 +123,37 @@ export class PixiGameView {
 
 		stage.addChild(this.layers.particle);
 		this.layers.particle.addChild(this.effects.particleContainer);
+		this.layers.particle.addChild(this.effects.shockwaveContainer);
 
 		stage.addChild(this.layers.dmgText);
 		this.layers.dmgText.addChild(this.effects.textContainer);
 
 		stage.addChild(this.layers.waveAnnounce);
 		this.layers.waveAnnounce.addChild(this.effects.waveContainer);
+
+		// Neon bloom — tuned for bright strokes on a near-black field.
+		this.bloomFilter = new AdvancedBloomFilter({
+			threshold: 0.35,
+			bloomScale: 1.1,
+			brightness: 1.0,
+			blur: 6,
+			quality: 4,
+		});
+		this.applyBloom(this.bloomWanted());
+	}
+
+	/** Whether bloom should be on given current settings. */
+	private bloomWanted(): boolean {
+		const s = this.engine.state.settings;
+		return s.bloom && !s.lowEffectsMode;
+	}
+
+	/** Add/remove the bloom filter from the stage. */
+	private applyBloom(on: boolean): void {
+		if (!this.app || !this.bloomFilter) return;
+		if (on === this.bloomActive) return;
+		this.app.stage.filters = on ? [this.bloomFilter] : [];
+		this.bloomActive = on;
 	}
 
 	public resize(): void {
@@ -196,9 +224,13 @@ export class PixiGameView {
 			this.app.stage.y = 0;
 		}
 
-		this.enemy.sync(state.enemies, effTime);
+		// Toggle bloom live when the setting changes.
+		this.applyBloom(this.bloomWanted());
+
+		this.enemy.sync(state.enemies, effTime, settings.reducedMotion);
 		this.projectile.sync(state.projectiles);
 		this.effects.syncParticles(this.engine.particles, settings);
+		this.effects.syncShockwaves(this.engine.shockwaves, settings);
 		this.effects.syncDamageNumbers(this.engine.damageNumbers, settings);
 		this.effects.syncWaveAnnounce(
 			state.wave.currentWave,

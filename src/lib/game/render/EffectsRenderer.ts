@@ -1,6 +1,6 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { GAME_CONFIG } from '../engine/gameConfig';
-import type { GameSettings, Particle, DamageNumber } from '../engine/gameTypes';
+import type { GameSettings, Particle, DamageNumber, Shockwave } from '../engine/gameTypes';
 
 // ─── Instance-level particle pool ───────────────────────────────────────────
 
@@ -9,12 +9,14 @@ interface PooledText { t: Text; active: boolean; fontSize: number; color: number
 
 export class EffectsRenderer {
 	public particleContainer = new Container();
+	public shockwaveContainer = new Container();
 	public textContainer = new Container();
 	public waveContainer = new Container();
 
 	private particlePool: PooledParticle[] = [];
 	private particleFree: PooledParticle[] = [];
 	private textPool: PooledText[] = [];
+	private shockwavePool: Graphics[] = [];
 
 	// ... (wave objects unchanged)
 
@@ -51,6 +53,33 @@ export class EffectsRenderer {
 
 		// Blend modes for neon glow
 		this.particleContainer.blendMode = 'add';
+		this.shockwaveContainer.blendMode = 'add';
+	}
+
+	// ─── Shockwave rings (impact feedback) ───────────────────────────────────
+
+	syncShockwaves(shockwaves: Shockwave[], settings: GameSettings): void {
+		if (!settings.particles) {
+			for (const g of this.shockwavePool) g.visible = false;
+			return;
+		}
+		// Grow the pool as needed.
+		while (this.shockwavePool.length < shockwaves.length) {
+			const g = new Graphics();
+			this.shockwaveContainer.addChild(g);
+			this.shockwavePool.push(g);
+		}
+		for (let i = 0; i < this.shockwavePool.length; i++) {
+			const g = this.shockwavePool[i]!;
+			const sw = shockwaves[i];
+			if (!sw) { g.visible = false; continue; }
+			const fade = Math.max(0, sw.life / sw.maxLife);
+			g.visible = true;
+			g.clear();
+			g.circle(sw.x, sw.y, Math.max(0.5, sw.radius)).stroke({ width: sw.width, color: sw.color, alpha: fade * 0.8 });
+			// Faint inner echo
+			g.circle(sw.x, sw.y, Math.max(0.5, sw.radius * 0.7)).stroke({ width: sw.width * 0.6, color: sw.color, alpha: fade * 0.3 });
+		}
 	}
 
 	// ─── Particle helpers (instance methods) ─────────────────────────────────
@@ -219,7 +248,9 @@ export class EffectsRenderer {
 		this.particlePool.length = 0;
 		this.particleFree.length = 0;
 		this.textPool.length = 0;
+		this.shockwavePool.length = 0;
 		this.particleContainer.destroy({ children: true });
+		this.shockwaveContainer.destroy({ children: true });
 		this.textContainer.destroy({ children: true });
 		this.waveContainer.destroy({ children: true });
 	}

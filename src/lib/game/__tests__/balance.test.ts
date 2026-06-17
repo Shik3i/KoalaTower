@@ -729,24 +729,27 @@ describe('Front / Deployment Zone Multipliers', () => {
 		expect(Number.isFinite(dmg)).toBe(true);
 	});
 
-	it('Front 2 multiplier is approximately 20x Front 1', () => {
-		expect(TIER_MULTIPLIERS[2]!.hp).toBe(20);
-		expect(TIER_MULTIPLIERS[2]!.attack).toBe(20);
+	it('Front 2 is ~10x harder than Front 1', () => {
+		expect(TIER_MULTIPLIERS[2]!.hp).toBe(10);
+		expect(TIER_MULTIPLIERS[2]!.attack).toBe(10);
 		const f1 = computeEnemyConfig(EnemyType.Normal, 1, 1);
 		const f2 = computeEnemyConfig(EnemyType.Normal, 1, 2);
-		expect(f2.hp / f1.hp).toBeCloseTo(20, 0);
-		expect(f2.damage / f1.damage).toBeCloseTo(20, 0);
+		expect(f2.hp / f1.hp).toBeCloseTo(10, 0);
+		expect(f2.damage / f1.damage).toBeCloseTo(10, 0);
 	});
 
-	it('Front 3 multiplier is approximately 60x Front 1', () => {
-		expect(TIER_MULTIPLIERS[3]!.hp).toBe(60);
-		expect(TIER_MULTIPLIERS[3]!.attack).toBe(60);
+	it('Front 3 is ~100x harder than Front 1', () => {
+		expect(TIER_MULTIPLIERS[3]!.hp).toBe(100);
+		expect(TIER_MULTIPLIERS[3]!.attack).toBe(100);
 		const f1 = computeEnemyConfig(EnemyType.Normal, 1, 1);
 		const f3 = computeEnemyConfig(EnemyType.Normal, 1, 3);
-		// Allow small deviation from floor rounding
-		expect(f3.hp / f1.hp).toBeCloseTo(60, 0);
-		expect(f3.damage / f1.damage).toBeGreaterThanOrEqual(59);
-		expect(f3.damage / f1.damage).toBeLessThanOrEqual(63);
+		expect(f3.hp / f1.hp).toBeCloseTo(100, 0);
+	});
+
+	it('fronts pay a rising Alloy multiplier', () => {
+		expect(TIER_MULTIPLIERS[1]!.alloy).toBe(1.0);
+		expect(TIER_MULTIPLIERS[2]!.alloy).toBeGreaterThan(TIER_MULTIPLIERS[1]!.alloy);
+		expect(TIER_MULTIPLIERS[5]!.alloy).toBeGreaterThan(TIER_MULTIPLIERS[4]!.alloy);
 	});
 });
 

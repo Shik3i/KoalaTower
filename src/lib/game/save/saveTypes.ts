@@ -1,4 +1,5 @@
 import type { GameSettings, WorkshopUpgradeId, LabId, MilestoneId, ChallengeId, BlueprintId, AchievementId } from '../engine/gameTypes';
+import { TierId } from '../engine/gameTypes';
 
 export interface LabResearch {
 	level: number;
@@ -29,8 +30,14 @@ export interface SaveData {
 	labResearch: Partial<Record<LabId, LabResearch>>;
 	labLevels: Partial<Record<LabId, number>>;
 	blueprints: string[];
-	/** v5: Blueprint IDs permanently unlocked via purchase */
+	/** v5: Blueprint IDs permanently unlocked via purchase (owned) */
 	unlockedBlueprints: BlueprintId[];
+	/** v8: Blueprint IDs found in the field but not yet acquired */
+	discoveredBlueprints: BlueprintId[];
+	/** v8: Last front (tier) the player selected for deployment */
+	selectedFront: TierId;
+	/** v9: Best wave reached on each front — gates sequential front unlocks */
+	frontBestWave: Partial<Record<TierId, number>>;
 	/** v5: Currently active lab research (null = no active research) */
 	activeLab: ActiveLabResearch | null;
 	milestones: Partial<Record<MilestoneId, boolean>>;
@@ -46,7 +53,7 @@ export interface SaveData {
 	totalShiniesKilled: number;
 }
 
-export const CURRENT_SCHEMA_VERSION = 6;
+export const CURRENT_SCHEMA_VERSION = 9;
 
 export function createDefaultSave(): SaveData {
 	const now = Date.now();
@@ -63,6 +70,9 @@ export function createDefaultSave(): SaveData {
 		labLevels: {},
 		blueprints: [],
 		unlockedBlueprints: [],
+		discoveredBlueprints: [],
+		selectedFront: TierId.Tier1,
+		frontBestWave: {},
 		activeLab: null,
 		milestones: {},
 		challengeHighScores: {},
@@ -72,6 +82,9 @@ export function createDefaultSave(): SaveData {
 			particles: true,
 			damageNumbers: true,
 			lowEffectsMode: false,
+			sfx: true,
+			music: false,
+			bloom: true,
 		},
 		achievements: {},
 		totalKills: 0,

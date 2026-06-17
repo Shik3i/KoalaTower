@@ -52,6 +52,7 @@
 		</button>
 		<div class="ep-content">
 			<div class="ep-title">Shapes</div>
+			<div class="ep-row"><span class="ep-lbl">Alive</span><span class="ep-val">{snap.enemyCount}</span></div>
 			<div class="ep-row"><span class="ep-lbl">HP</span><span class="ep-val">{fmt(enemyStats.normal.hp)}</span></div>
 			<div class="ep-row"><span class="ep-lbl">Armor</span><span class="ep-val">{enemyStats.normal.armor > 0 ? pct(enemyStats.normal.armor) : 'absent'}</span></div>
 			<div class="ep-row"><span class="ep-lbl">DMG</span><span class="ep-val">{fmt(enemyStats.normal.damage)}</span></div>

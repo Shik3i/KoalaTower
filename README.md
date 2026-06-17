@@ -2,7 +2,7 @@
 
 **Open Source Neon Cyber Idle Tower Defense**
 
-A beautiful, playable idle tower defense game built with SvelteKit, TypeScript, and Canvas 2D rendering. No backend, no tracking, no cookies — just a standalone static web app.
+A beautiful, playable idle tower defense game built with SvelteKit, TypeScript, and PixiJS v8 (WebGL) rendering. No backend, no tracking, no cookies — just a standalone static web app.
 
 ## Quick Start
 
@@ -57,7 +57,7 @@ npm test         # run tests
 
 - **SvelteKit** with Svelte 5
 - **TypeScript** (strict mode)
-- **Canvas 2D API** for game rendering
+- **PixiJS v8** (WebGL/WebGPU with Canvas fallback) for game rendering, with `AdvancedBloomFilter` neon glow
 - **idb-keyval** for IndexedDB storage
 - **@sveltejs/adapter-static** for static output
 - **Vitest** for game logic tests
@@ -89,7 +89,8 @@ koala-tower/
 │   │   │   ├── engine/     # Core game engine (GameEngine.ts, types, config)
 │   │   │   ├── systems/    # Game logic (enemy, tower, wave, economy)
 │   │   │   ├── balance/    # Data-driven configs (enemies, upgrades, labs, tiers)
-│   │   │   ├── render/     # Canvas 2D rendering (PixiGameView, shapeFactory)
+│   │   │   ├── render/     # PixiJS WebGL rendering (PixiGameView, layered renderers)
+│   │   │   ├── audio/      # Procedural Web Audio SFX (no asset files)
 │   │   │   ├── save/       # Save system (IndexedDB, migrations)
 │   │   │   └── __tests__/  # Vitest unit tests
 │   │   └── stores/         # Svelte reactive stores
@@ -115,7 +116,7 @@ koala-tower/
 │  Systems (enemy, tower, wave, economy)       │
 │  Pure functions, testable without Pixi/Svelte│
 ├─────────────────────────────────────────────┤
-│  Canvas 2D Renderer (PixiGameView)           │
+│  PixiJS WebGL Renderer (PixiGameView)        │
 │  Owns rendering, reads engine state each frame│
 ├─────────────────────────────────────────────┤
 │  Save System (IndexedDB via idb-keyval)      │
