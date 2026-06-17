@@ -65,7 +65,7 @@
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
 		font-family: var(--font-mono);
-		font-size: clamp(0.58rem, 0.75vw, 0.65rem);
+		font-size: var(--fs-mono);
 		pointer-events: auto;
 		min-width: 120px;
 		box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
@@ -85,7 +85,7 @@
 		top: 2px;
 		right: 3px;
 		color: var(--text-dim);
-		font-size: 0.55rem;
+		font-size: var(--fs-caption);
 		padding: 0 3px;
 		line-height: 1;
 		cursor: pointer;
@@ -101,7 +101,7 @@
 	}
 
 	.tp-title {
-		font-size: 0.55rem;
+		font-size: var(--fs-caption);
 		color: var(--cyan);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
@@ -132,7 +132,7 @@
 
 	.tp-max {
 		color: var(--text-dim);
-		font-size: 0.5rem;
+		font-size: var(--fs-caption-sm);
 	}
 
 	@keyframes fadeIn {

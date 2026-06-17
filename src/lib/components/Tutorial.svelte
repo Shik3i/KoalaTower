@@ -302,14 +302,14 @@
 	}
 
 	.tt-title {
-		font-size: 1rem;
+		font-size: var(--fs-icon-md);
 		color: var(--cyan);
 		margin-bottom: 0.4rem;
 		text-align: center;
 	}
 
 	.tt-desc {
-		font-size: 0.78rem;
+		font-size: var(--fs-body-sm);
 		color: var(--text-secondary);
 		line-height: 1.55;
 		text-align: center;
@@ -333,7 +333,7 @@
 	.tt-back, .tt-skip, .tt-next {
 		padding: 0.4rem 0.85rem;
 		border-radius: var(--radius-sm);
-		font-size: 0.75rem;
+		font-size: var(--fs-body-sm);
 		font-weight: 600;
 		cursor: pointer;
 		transition: all var(--transition-fast);

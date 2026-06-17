@@ -113,7 +113,7 @@
 				<div class="help-step-num">4</div>
 				<div class="help-step-content">
 					<h3>🏆 Advance the Campaign</h3>
-					<p>Research on the <a href="/hub">Research Deck</a>, unlock new Fronts by reaching wave milestones, and run Simulations — which may or may not be simulations. Orbital Command is not at liberty to clarify.</p>
+					<p>Research on the <a href="/hub">Research Deck</a>, unlock new Fronts by reaching wave milestones, and run Special Operations — which may or may not be simulations. Orbital Command is not at liberty to clarify.</p>
 				</div>
 			</div>
 		</div>
@@ -348,10 +348,10 @@
 		</div>
 	</section>
 
-	<!-- Simulations -->
+	<!-- Special Operations -->
 	<section class="help-section">
-		<h2>⚡ Simulations</h2>
-		<p class="section-desc">Special game modes with unique modifiers. Unlock them by reaching Tier 2 (wave 100). Each challenge has its own high score.</p>
+		<h2>⚡ Special Operations</h2>
+		<p class="section-desc">Tactical exercises with modified engagement rules. Unlock them by reaching Tier 2 (wave 100). Each operation has its own high score.</p>
 		<div class="card-grid">
 			<div class="help-card challenge">
 				<div class="help-card-icon">🌪️</div>

@@ -274,7 +274,7 @@
 	}
 
 	.subtitle {
-		font-size: clamp(0.95rem, 1.6vw, 1.25rem);
+		font-size: var(--fs-heading);
 		color: var(--text-secondary);
 		font-family: var(--font-mono);
 		margin-bottom: 1.75rem;
@@ -285,7 +285,7 @@
 
 	.description {
 		color: var(--text-secondary);
-		font-size: clamp(0.9rem, 1.4vw, 1.1rem);
+		font-size: var(--fs-body);
 		line-height: 1.8;
 		margin-bottom: 2.25rem;
 		max-width: 580px;
@@ -308,7 +308,7 @@
 		padding: clamp(0.8rem, 1.4vw, 1.1rem) clamp(1.8rem, 3vw, 2.8rem);
 		border-radius: var(--radius-md);
 		font-weight: 700;
-		font-size: clamp(0.95rem, 1.3vw, 1.15rem);
+		font-size: var(--fs-btn);
 		transition: all var(--transition-normal);
 		text-decoration: none;
 		cursor: pointer;
@@ -344,7 +344,7 @@
 		padding: clamp(0.8rem, 1.4vw, 1.1rem) clamp(1.8rem, 3vw, 2.8rem);
 		border-radius: var(--radius-md);
 		font-weight: 600;
-		font-size: clamp(0.95rem, 1.3vw, 1.15rem);
+		font-size: var(--fs-btn);
 		transition: all var(--transition-normal);
 		text-decoration: none;
 		cursor: pointer;
@@ -379,7 +379,7 @@
 	}
 
 	.coin-icon {
-		font-size: 1rem;
+		font-size: var(--fs-icon-md);
 	}
 
 	.coin-amount {
@@ -389,7 +389,7 @@
 
 	.coin-label {
 		color: var(--text-dim);
-		font-size: 0.75rem;
+		font-size: var(--fs-body-sm);
 	}
 
 	.features {
@@ -449,19 +449,19 @@
 	}
 
 	.feature-icon {
-		font-size: 1.6rem;
+		font-size: var(--fs-icon-xl);
 		position: relative;
 		z-index: 1;
 	}
 
 	.feature-card h3 {
-		font-size: clamp(0.9rem, 1.2vw, 1.05rem);
+		font-size: var(--fs-subheading);
 		margin-bottom: 0.5rem;
 		color: var(--cyan);
 	}
 
 	.feature-card p {
-		font-size: clamp(0.75rem, 1vw, 0.88rem);
+		font-size: var(--fs-body-sm);
 		color: var(--text-secondary);
 		line-height: 1.6;
 	}
@@ -469,7 +469,7 @@
 	.footer {
 		padding: 2rem 1.5rem;
 		color: var(--text-dim);
-		font-size: clamp(0.72rem, 0.9vw, 0.82rem);
+		font-size: var(--fs-caption);
 		text-align: center;
 		z-index: 1;
 		display: flex;

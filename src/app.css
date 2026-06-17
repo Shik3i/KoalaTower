@@ -43,7 +43,27 @@
 	--transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
 	--transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 	--transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
-	font-size: 16px;
+	/* ── Typographic scale ─────────────────────────────────── */
+	--fs-hero:       clamp(1.3rem, 2.2vw, 1.6rem);   /* page titles */
+	--fs-heading:    clamp(1.05rem, 1.8vw, 1.4rem);   /* section headings */
+	--fs-subheading: clamp(0.9rem, 1.2vw, 1.1rem);     /* card titles */
+	--fs-body:       clamp(0.85rem, 1.1vw, 0.95rem);   /* normal text, info rows */
+	--fs-body-sm:    clamp(0.75rem, 0.95vw, 0.85rem);  /* secondary text */
+	--fs-caption:    clamp(0.68rem, 0.85vw, 0.75rem);  /* labels, sub-text */
+	--fs-caption-sm: clamp(0.58rem, 0.72vw, 0.65rem);  /* tiny labels */
+	/* Monospace — tuned larger for readability in stats panels */
+	--fs-mono-lg:    clamp(0.95rem, 1.2vw, 1.05rem);   /* upgrade names, values */
+	--fs-mono:       clamp(0.85rem, 1.1vw, 0.95rem);   /* stat rows, pill values */
+	--fs-mono-sm:    clamp(0.72rem, 0.9vw, 0.8rem);    /* smaller mono text */
+	/* Interactive */
+	--fs-btn:        clamp(0.95rem, 1.3vw, 1.15rem);   /* primary buttons */
+	--fs-btn-sm:     clamp(0.8rem, 1.05vw, 0.9rem);    /* small buttons */
+	--fs-icon-sm:    0.7rem;
+	--fs-icon-md:    1rem;
+	--fs-icon-lg:    1.3rem;
+	--fs-icon-xl:    1.6rem;
+	--fs-icon-2xl:   2.6rem;
+	font-size: 17px;
 }
 
 html {

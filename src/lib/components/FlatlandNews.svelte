@@ -73,7 +73,7 @@
 	}
 
 	.news-badge {
-		font-size: 0.55rem;
+		font-size: var(--fs-caption-sm);
 		font-weight: 700;
 		font-family: var(--font-mono);
 		padding: 0.15rem 0.45rem;
@@ -91,13 +91,13 @@
 	}
 
 	.news-title {
-		font-size: 0.85rem;
+		font-size: var(--fs-body);
 		color: var(--text-primary);
 		font-weight: 700;
 	}
 
 	.news-orbital {
-		font-size: 0.6rem;
+		font-size: var(--fs-caption-sm);
 		color: var(--text-dim);
 		font-family: var(--font-mono);
 		margin-left: auto;
@@ -174,14 +174,14 @@
 	}
 
 	.nc-cat {
-		font-size: 0.58rem;
+		font-size: var(--fs-caption-sm);
 		color: var(--cyan);
 		font-family: var(--font-mono);
 		letter-spacing: 0.04em;
 	}
 
 	.nc-class {
-		font-size: 0.52rem;
+		font-size: var(--fs-caption-sm);
 		font-weight: 600;
 		padding: 0.06rem 0.35rem;
 		border-radius: 100px;
@@ -209,7 +209,7 @@
 	}
 
 	.nc-headline {
-		font-size: 0.72rem;
+		font-size: var(--fs-caption);
 		color: var(--text-primary);
 		font-weight: 600;
 		line-height: 1.35;
@@ -218,7 +218,7 @@
 	}
 
 	.nc-snippet {
-		font-size: 0.65rem;
+		font-size: var(--fs-caption);
 		color: var(--text-secondary);
 		line-height: 1.45;
 		margin: 0;
@@ -229,7 +229,7 @@
 	}
 
 	.nc-cycle {
-		font-size: 0.52rem;
+		font-size: var(--fs-caption-sm);
 		color: var(--text-dim);
 		font-family: var(--font-mono);
 		margin-top: auto;

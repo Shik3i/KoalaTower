@@ -7,7 +7,9 @@
 	import { LAB_DEFS, getLabCost, getLabEffect, isLabUnlocked, getLabDuration, formatLabDuration } from '$lib/game/balance/labs';
 	import { TIERS } from '$lib/game/balance/tiers';
 	import { CHALLENGES } from '$lib/game/balance/challenges';
-	import { formatCompact } from '$lib/game/balance/balanceMath';
+	import { formatCompact, front1EnemyDamage, front1EnemyHp, TIER_MULTIPLIERS } from '$lib/game/balance/balanceMath';
+	import { EnemyType } from '$lib/game/engine/gameTypes';
+	import { ENEMY_TYPE_MODIFIERS, computeEnemyConfig, ENEMY_SHAPES } from '$lib/game/balance/balanceMath';
 	import { BLUEPRINT_DEFS, isBlueprintUnlockable, isFoundryUpgradeUnlocked, getBlueprintForFoundryUpgrade } from '$lib/game/balance/blueprints';
 	import type { GameSettings, WorkshopUpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
@@ -16,7 +18,10 @@
 	let settings = $state<GameSettings>({ reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false });
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
-	let activeSection = $state<'workshop' | 'lab' | 'blueprints' | 'tiers' | 'challenges' | 'stats' | 'settings'>('workshop');
+	let activeSection = $state<'workshop' | 'lab' | 'blueprints' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings'>('workshop');
+
+	let simWave = $state(1);
+	let simFront = $state(1);
 
 	let ownedBlueprints = $state<BlueprintId[]>([]);
 	let activeLabId = $state<string | null>(null);
@@ -135,7 +140,8 @@
 		{ id: 'lab' as const, label: 'Research Deck', icon: '🔬' },
 		{ id: 'blueprints' as const, label: 'Blueprints', icon: '📐' },
 		{ id: 'tiers' as const, label: 'Fronts', icon: '🌍' },
-		{ id: 'challenges' as const, label: 'Simulations', icon: '⚡' },
+		{ id: 'challenges' as const, label: 'Special Ops', icon: '⚡' },
+		{ id: 'simulation' as const, label: 'Simulation', icon: '🧪' },
 		{ id: 'stats' as const, label: 'Archives', icon: '📊' },
 		{ id: 'settings' as const, label: 'Systems', icon: '⚙' },
 	];
@@ -143,7 +149,7 @@
 
 <svelte:head>
 	<title>Orbital Command — Flatland TD · FLTD</title>
-	<meta name="description" content="Flatland TD Orbital Command — Foundry upgrades, Research Deck projects, Fronts, Simulations, Archives, and Systems." />
+	<meta name="description" content="Flatland TD Orbital Command — Foundry upgrades, Research Deck projects, Fronts, Special Operations, Simulation, Archives, and Systems." />
 </svelte:head>
 
 <main class="hub-page">
@@ -239,8 +245,59 @@
 					<div class="cl">{#each TIERS as t}<div class="tc" class:unl={t.unlocked}><div class="tc-h"><span class="tci">{t.unlocked ? '🔓' : '🔒'}</span><div><div class="tcn">{t.name}</div><div class="tcd">{t.description}</div></div></div><div class="tcr" class:tcr-ok={t.unlocked}>{t.unlocked ? '✓ Unlocked' : 'Reach Wave ' + t.waveRequirement}</div></div>{/each}</div>
 				</div>
 			{:else if activeSection === 'challenges'}
-				<div class="hs"><h2 class="hst">⚡ Simulations</h2><p class="hsd">Tactical simulation exercises with modified engagement rules. Each simulation tests different combat scenarios.</p>
+				<div class="hs"><h2 class="hst">⚡ Special Operations</h2><p class="hsd">Tactical exercises with modified engagement rules. Each operation tests different combat scenarios under special conditions.</p>
 					<div class="cl">{#each CHALLENGES as c}<div class="cc" class:lck={c.locked}><div class="cc-h"><span class="cci">{c.icon}</span><div><div class="ccn">{c.name}</div><div class="ccd">{c.description}</div></div></div>{#if c.highScore > 0}<div class="ccs">Best: Wave {c.highScore}</div>{:else if c.locked}<div class="ccl">🔒 Locked</div>{/if}</div>{/each}</div>
+				</div>
+			{:else if activeSection === 'simulation'}
+				{@const enemyTypes = [EnemyType.Normal, EnemyType.Fast, EnemyType.Tank, EnemyType.Ranged, EnemyType.Boss]}
+				{@const tierLabel = simFront === 1 ? 'Front 1' : simFront === 2 ? 'Front 2' : simFront === 3 ? 'Front 3' : 'Front ' + simFront}
+				<div class="hs">
+					<h2 class="hst">🧪 Simulation — Enemy Stats</h2>
+					<p class="hsd">Analyze Shape combat capabilities at any wave and Front. Adjust parameters below to preview enemy health and damage output.</p>
+					<div class="sim-controls">
+						<div class="sim-param">
+							<label class="sim-label" for="sim-wave">Wave: <strong>{simWave}</strong></label>
+							<input id="sim-wave" type="range" min="1" max="10000" bind:value={simWave} class="sim-slider" />
+							<input id="sim-wave-num" type="number" min="1" max="10000" bind:value={simWave} class="sim-input" />
+						</div>
+						<div class="sim-param">
+							<label class="sim-label">Front:</label>
+							<select bind:value={simFront} class="sim-select">
+								<option value={1}>Front 1 (1×)</option>
+								<option value={2}>Front 2 (20×)</option>
+								<option value={3}>Front 3 (60×)</option>
+							</select>
+						</div>
+					</div>
+					<div class="sim-table-wrap">
+						<table class="sim-table">
+							<thead>
+								<tr>
+									<th>Shape</th>
+									<th>Type</th>
+									<th>HP</th>
+									<th>Damage</th>
+									<th>Speed</th>
+									<th>Armor</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each enemyTypes as et}
+									{@const cfg = computeEnemyConfig(et, simWave, simFront, false)}
+									{@const shapeIcon = ENEMY_SHAPES[et] === 'square' ? '⬜' : ENEMY_SHAPES[et] === 'diamond' ? '🔷' : ENEMY_SHAPES[et] === 'hexagon' ? '⬡' : ENEMY_SHAPES[et] === 'triangle' ? '🔺' : '⬠'}
+									<tr class:boss-row={et === EnemyType.Boss}>
+										<td class="sim-shape">{shapeIcon}</td>
+										<td class="sim-type">{et === EnemyType.Boss ? 'BOSS' : et.charAt(0).toUpperCase() + et.slice(1)}</td>
+										<td class="sim-num">{formatCompact(cfg.hp)}</td>
+										<td class="sim-num">{formatCompact(cfg.damage)}</td>
+										<td class="sim-num">{cfg.speed.toFixed(0)}</td>
+										<td class="sim-num">{(cfg.armor * 100).toFixed(0)}%</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+					<p class="sim-note">Values computed using deterministic piecewise power interpolation. Front multipliers: 1× / 20× / 60×. Boss values include boss multipliers (capped at 25× HP, 8× ATK).</p>
 				</div>
 			{:else if activeSection === 'stats'}
 				<div class="hs"><h2 class="hst">📊 Archives</h2>
@@ -296,7 +353,7 @@
 	.hub-page { min-height:100vh; background:var(--bg-primary); overflow-y:auto; }
 	.bg-grid { position:fixed; inset:0; background-image:linear-gradient(rgba(0,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,255,.02) 1px,transparent 1px); background-size:60px 60px; pointer-events:none; z-index:0; }
 	.toast-c { position:fixed; top:1rem; left:50%; transform:translateX(-50%); z-index:300; display:flex; flex-direction:column; gap:.3rem; pointer-events:none; }
-	.toast { padding:.35rem .9rem; font-size:.7rem; border-radius:100px; white-space:nowrap; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); animation:ti .2s ease; box-shadow:0 0 20px rgba(0,0,0,.3); }
+	.toast { padding:.35rem .9rem; font-size:var(--fs-caption); border-radius:100px; white-space:nowrap; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); animation:ti .2s ease; box-shadow:0 0 20px rgba(0,0,0,.3); }
 	.toast-info { background:rgba(0,255,255,.1); color:var(--cyan); border:1px solid rgba(0,255,255,.25); }
 	.toast-success { background:rgba(68,255,136,.1); color:var(--green); border:1px solid rgba(68,255,136,.25); }
 	.toast-warning { background:rgba(255,68,68,.1); color:var(--red); border:1px solid rgba(255,68,68,.25); }
@@ -390,4 +447,22 @@
 	.hub-footer-flavor { font-size:clamp(0.52rem,0.7vw,0.6rem); color:var(--text-dim); opacity:0.35; margin:0; }
 	.hub-footer-links { display:flex; gap:.4rem; align-items:center; }
 	.hub-footer-links a { color:var(--cyan); text-decoration:underline; text-underline-offset:3px; text-decoration-color:rgba(0,255,255,.2); }
+	/* ── Simulation Panel ───────────────────────────────── */
+	.sim-controls { display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:1rem; padding:.75rem 1rem; background:rgba(0,0,0,.15); border-radius:var(--radius-sm); border:1px solid var(--border-neon); }
+	.sim-param { display:flex; align-items:center; gap:.5rem; }
+	.sim-label { font-size:var(--fs-body); color:var(--text-secondary); font-family:var(--font-mono); white-space:nowrap; }
+	.sim-label strong { color:var(--cyan); }
+	.sim-slider { width:140px; accent-color:var(--cyan); cursor:pointer; }
+	.sim-input { width:72px; padding:.25rem .4rem; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:4px; font-family:var(--font-mono); font-size:var(--fs-body); text-align:center; }
+	.sim-select { padding:.3rem .5rem; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:4px; font-family:var(--font-mono); font-size:var(--fs-body-sm); cursor:pointer; }
+	.sim-table-wrap { overflow-x:auto; }
+	.sim-table { width:100%; border-collapse:collapse; font-family:var(--font-mono); font-size:var(--fs-body); }
+	.sim-table th { text-align:left; padding:.4rem .6rem; color:var(--cyan); font-size:var(--fs-caption); text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border-neon); }
+	.sim-table td { padding:.35rem .6rem; color:var(--text-secondary); border-bottom:1px solid rgba(0,255,255,.06); }
+	.sim-shape { font-size:var(--fs-icon-md); text-align:center; }
+	.sim-type { color:var(--text-primary); font-weight:500; }
+	.sim-num { text-align:right; color:var(--text-primary); }
+	.boss-row td { color:var(--pink)!important; font-weight:600; }
+	.boss-row .sim-type { color:var(--pink)!important; }
+	.sim-note { margin-top:.75rem; font-size:var(--fs-caption-sm); color:var(--text-dim); font-style:italic; }
 </style>
