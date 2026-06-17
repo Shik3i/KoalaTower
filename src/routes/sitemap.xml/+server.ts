@@ -16,7 +16,7 @@ export function GET() {
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
         http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 ${urls.map(u => `  <url>
-    <loc>https://flatlandtd.app${u.loc}</loc>
+    <loc>https://tower.koalastuff.net${u.loc}</loc>
     <changefreq>${u.changefreq}</changefreq>
     <priority>${u.priority}</priority>
   </url>`).join('\n')}
