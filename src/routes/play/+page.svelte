@@ -9,12 +9,10 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { GAME_CONFIG } from '$lib/game/engine/gameConfig';
 	import { UpgradeId, type GameSnapshot, type GameSettings, AchievementId, DEFAULT_SETTINGS } from '$lib/game/engine/gameTypes';
-	import { buildBattleUpgradeList, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
-	import { formatBattleEffect } from '$lib/game/balance/upgradeScaling';
+	import { buildBattleUpgradeList } from '$lib/game/balance/battleUpgrades';
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
-	import { isFieldUpgradeUnlocked, getBlueprintForFieldUpgrade, getBlueprintDef } from '$lib/game/balance/blueprints';
-	import { TIERS, getUnlockedFronts, getTierNumber, getFrontName, getPreviousFront, FRONT_UNLOCK_WAVE } from '$lib/game/balance/tiers';
-	import { getFrontAlloyMultiplier } from '$lib/game/balance/balanceMath';
+	import { getBlueprintDef } from '$lib/game/balance/blueprints';
+	import { getUnlockedFronts, getTierNumber, getFrontName } from '$lib/game/balance/tiers';
 	import { rollBlueprintDiscovery } from '$lib/game/progression/blueprintDiscovery';
 	import { TierId } from '$lib/game/engine/gameTypes';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
@@ -25,6 +23,9 @@
 	import { audio } from '$lib/game/audio/AudioManager';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
+	import FieldUpgrades from '$lib/components/play/FieldUpgrades.svelte';
+	import GameOverPanel from '$lib/components/play/GameOverPanel.svelte';
+	import LaunchScreen from '$lib/components/play/LaunchScreen.svelte';
 
 	let container = $state<HTMLDivElement>();
 	let gameView = $state<PixiGameView | null>(null);
@@ -42,7 +43,6 @@
 	let gameOverCash = $state(0);
 	let prevWave = $state(0);
 	let prevBossCount = $state(0);
-	let bossToastCooldown = $state(0);
 	let upgradeCategory = $state<'offense' | 'defense' | 'utility'>('offense');
 	let purchasedUpgrade = $state<string | null>(null);
 	let showMobileUpgrades = $state(false);
@@ -85,14 +85,7 @@
 	let importText = $state('');
 	let showImportDialog = $state(false);
 	let showResetConfirm = $state(false);
-	let goBtn = $state<HTMLButtonElement>();
 	let coinsAtRunStart = $state(0);
-
-	$effect(() => {
-		if (showGameOver) {
-			requestAnimationFrame(() => goBtn?.focus());
-		}
-	});
 
 	const toasts = createToastStore(2200);
 	const toast = toasts.push;
@@ -401,18 +394,6 @@
 		refreshSnap();
 	}
 
-	/** Show what the upgrade currently gives in readable form */
-	function upgradeCurrentValue(id: UpgradeId, lv: number): string {
-		if (lv === 0) return '—';
-		return formatBattleEffect(id, getBattleUpgradeEffect(id, lv));
-	}
-
-	/** Show what the next level gives */
-	function upgradeNextValue(id: UpgradeId, lv: number): string {
-		const nextLv = Math.min(lv + 1, 999);
-		return upgradeCurrentValue(id, nextLv);
-	}
-
 	function buyBattleUpgrade(id: UpgradeId) {
 		if (!engine) return;
 		const upgradeDef = BATTLE_UPGRADES.find(u => u.id === id);
@@ -441,19 +422,11 @@
 			toast(getOpLogMessage('upgradeNotEnough'), 'error');
 		}
 	}
-	function bLv(id: UpgradeId): number { return snap?.upgradeLevels[id] ?? 0; }
 
-	/** Check if a field upgrade is blueprint-locked */
-	function isUpgradeLocked(id: UpgradeId): boolean {
-		const save = getCachedSave();
-		const unlockedBPs = (save?.unlockedBlueprints ?? []) as import('$lib/game/engine/gameTypes').BlueprintId[];
-		return !isFieldUpgradeUnlocked(id, unlockedBPs);
-	}
-
-	/** Get the blueprint name that locks this upgrade */
-	function getLockBlueprintName(id: UpgradeId): string {
-		const bp = getBlueprintForFieldUpgrade(id);
-		return bp ? bp.name : 'Unknown';
+	async function handleExportSave() {
+		const s = await exportSave();
+		navigator.clipboard?.writeText(s);
+		toast(getOpLogMessage('saveExported'), 'success');
 	}
 
 	function handleResetSave() {
@@ -489,7 +462,6 @@
 <div class="play-layout" role="main">
 	<Toasts controller={toasts} vertical="top" offsetRem={3} />
 
-
 	<!-- Top Bar -->
 	<header class="topbar">
 		<a href="/" class="tb-back" aria-label="Home" title="Home"><Icon name="back" size={18} /></a>
@@ -522,7 +494,7 @@
 				<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu" title="Export / Import / Reset save data"><Icon name="save" size={17} /></button>
 				{#if showSaveMenu}
 					<div class="sv-drop">
-						<button onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); showSaveMenu = false; }}><Icon name="export" size={15} /> Export</button>
+						<button onclick={() => { handleExportSave(); showSaveMenu = false; }}><Icon name="export" size={15} /> Export</button>
 						<button onclick={() => { showImportDialog = true; showSaveMenu = false; }}><Icon name="import" size={15} /> Import</button>
 						<button onclick={() => { showResetConfirm = true; showSaveMenu = false; }}><Icon name="reset" size={15} /> Reset</button>
 						<button onclick={() => { showSaveMenu = false; }}><Icon name="close" size={15} /> Close</button>
@@ -594,35 +566,16 @@
 
 	<!-- Game Over -->
 	{#if showGameOver}
-		<div class="overlay" role="dialog" aria-modal="true">
-			<div class="go-panel" class:go-record={gameOverWave >= highestWave && highestWave > 0}>
-				<div class="go-glow"></div>
-				<div class="go-glow-ring"></div>
-				<div class="go-icon"><Icon name={gameOverWave >= highestWave && highestWave > 0 ? 'crit' : 'kill'} size={44} stroke={1.6} /></div>
-				<h2 class="go-title">{gameOverWave >= highestWave && highestWave > 0 ? 'New Record!' : 'Tower Lost'}</h2>
-				<div class="go-wave">Reached <strong>Wave {gameOverWave}</strong></div>
-				{#if highestWave > 0 && gameOverWave < highestWave}
-					<div class="go-wave-sub">Best: Wave {highestWave} ({(gameOverWave / highestWave * 100).toFixed(0)}%)</div>
-				{/if}
-				<div class="go-stats">
-					<div class="go-s"><span class="go-si"><Icon name="alloy" size={20} /></span><span class="go-sv">+{gameOverCoins.toLocaleString()}</span><span class="go-sl">Alloy</span></div>
-					<div class="go-sd"></div>
-					<div class="go-s"><span class="go-si"><Icon name="kill" size={20} /></span><span class="go-sv">{gameOverKills.toLocaleString()}</span><span class="go-sl">Kills</span></div>
-					<div class="go-sd"></div>
-					<div class="go-s"><span class="go-si"><Icon name="boss" size={20} /></span><span class="go-sv">{gameOverBosses}</span><span class="go-sl">Bosses</span></div>
-				</div>
-				<div class="go-stats-sub">
-					<span><Icon name="energy" size={13} /> {Math.floor(gameOverCash).toLocaleString()} Energy harvested</span>
-					<span><Icon name="crit" size={13} /> Best: Wave {highestWave}</span>
-				</div>
-				<button class="go-btn" bind:this={goBtn} onclick={startRun}><Icon name="play" size={16} /> Launch Deployment</button>
-				<button class="go-btn2" style="margin-top:.5rem;width:100%" onclick={startRun}><Icon name="play" size={15} /> Quick Redeploy (Same Front)</button>
-				<div class="go-row2">
-					<a href="/hub" class="go-btn2"><Icon name="hub" size={15} /> Orbital Command</a>
-					<button class="go-btn2" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}><Icon name="export" size={15} /> Export</button>
-				</div>
-			</div>
-		</div>
+		<GameOverPanel
+			wave={gameOverWave}
+			best={highestWave}
+			coins={gameOverCoins}
+			kills={gameOverKills}
+			bosses={gameOverBosses}
+			cash={gameOverCash}
+			onRedeploy={startRun}
+			onExport={handleExportSave}
+		/>
 	{/if}
 
 	<!-- Import Dialog -->
@@ -690,43 +643,14 @@
 			<TowerStatsPanel {snap} />
 			<EnemyStatsPanel {snap} />
 			{#if showLaunchScreen}
-				<div class="start-ol">
-					<div class="start-card">
-						<div class="sc-accent"></div>
-						<div class="sc-icon"><img class="sc-logo" src="/branding/flatland-logo-medium.svg" alt="Flatland TD" /></div>
-						<h2 class="sc-title">Flatland TD</h2>
-						<p class="sc-sub">Deploy from orbit. Defend the plane. Field upgrades are lost with the tower — Orbital research endures.</p>
-						{#if highestWave > 0}
-							<div class="sc-rec">
-								<div class="sc-r"><Icon name="crit" size={15} /> Best: Wave {highestWave}</div>
-								<div class="sc-r"><Icon name="alloy" size={15} /> {coins.toLocaleString()} Alloy</div>
-								<div class="sc-r"><Icon name="play" size={15} /> {totalRuns} Runs</div>
-							</div>
-						{/if}
-						<!-- Front (tier) selector -->
-						<div class="front-sel">
-							<div class="front-sel-h"><Icon name="hub" size={13} /> Select Front</div>
-							<div class="front-list">
-								{#each TIERS as t}
-									{@const unlocked = unlockedFronts.includes(t.id)}
-									<button
-										class="front-opt"
-										class:on={selectedFront === t.id}
-										class:locked={!unlocked}
-										disabled={!unlocked}
-										onclick={() => selectedFront = t.id}
-										title={unlocked ? t.name : 'Locked — reach Wave ' + FRONT_UNLOCK_WAVE + ' on ' + (getPreviousFront(t.id) ? getFrontName(getPreviousFront(t.id)!) : '')}
-									>
-										<span class="front-n">{getFrontName(t.id)}</span>
-										<span class="front-sub">{unlocked ? (t.id === TierId.Tier1 ? 'Baseline · ×' + getFrontAlloyMultiplier(1).toFixed(1) + ' Alloy' : '×' + getTierNumber(t.id) + ' front · ×' + getFrontAlloyMultiplier(getTierNumber(t.id)).toFixed(1) + ' Alloy') : '🔒 W' + FRONT_UNLOCK_WAVE + '·T' + (getPreviousFront(t.id) ? getTierNumber(getPreviousFront(t.id)!) : '')}</span>
-									</button>
-								{/each}
-							</div>
-						</div>
-						<button class="sc-btn" onclick={startRun}><span class="sc-bi"></span><span class="sc-bt"><Icon name="play" size={16} /> Deploy to {getFrontName(selectedFront)}</span></button>
-						<p class="sc-hint"><kbd>Enter</kbd> start · <kbd>Space</kbd> pause · <kbd>1-4</kbd> speed</p>
-					</div>
-				</div>
+				<LaunchScreen
+					{highestWave}
+					{coins}
+					{totalRuns}
+					bind:selectedFront
+					{unlockedFronts}
+					onDeploy={startRun}
+				/>
 			{/if}
 		</div>
 
@@ -738,39 +662,7 @@
 					<div class="pc">
 						<div class="ps"><div class="pst">⚡ Field Upgrades</div>
 							{#if snap?.runActive}
-								<div class="cat-tabs">
-<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'} title="Damage, Attack Speed, Range, Multishot, Crit"><Icon name="offense" size={13} /> Offense</button>
-									<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} title="Defense (flat reduction), Max HP"><Icon name="defense" size={13} /> Defense</button>
-									<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} title="Energy Amp (+% energy per kill)"><Icon name="utility" size={13} /> Utility</button>
-								</div>
-								<div class="buy-mult">
-									<span class="mult-label">Buy</span>
-									{#each [1, 5, 10, 50, 'max'] as m}
-										{@const val = m === 'max' ? 'max' as const : m as number}
-										<button class="mult-btn" class:on={buyMultiplier === val} onclick={() => buyMultiplier = val} title={val === 'max' ? 'Buy max affordable (Ctrl)' : val === 50 ? 'Buy ×50 (Shift+Ctrl)' : val === 5 ? 'Buy ×5 (Shift)' : 'Buy ×1'}>{val === 'max' ? 'Max' : '×' + val}</button>
-									{/each}
-								</div>
-								<div class="ug">
-									{#each BATTLE_UPGRADES.filter(u => u.category === upgradeCategory) as u}
-										{@const lv = bLv(u.id)}
-										{@const nl = Math.min(lv + 1, u.maxLevel)}
-										{@const cost = u.cost(lv)}
-										{@const aff = snap.cash >= cost}
-										{@const mx = lv >= u.maxLevel}
-										{@const locked = isUpgradeLocked(u.id)}
-										{@const justBought = purchasedUpgrade === u.id}
-										<button class="uc" class:aff={aff && !mx && !locked} class:mx={mx} class:locked={locked} class:purchased={justBought} disabled={!aff || mx || locked || !snap?.runActive} onclick={() => buyBattleUpgrade(u.id)} title={locked ? 'Locked: requires ' + getLockBlueprintName(u.id) + ' Blueprint' : 'Current: ' + upgradeCurrentValue(u.id, lv) + ' | Next: ' + upgradeNextValue(u.id, lv) + ' | Cost: ' + cost + ' Energy'}>
-											<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
-											{#if !locked}
-												<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
-												<div class="uc-eff">{upgradeCurrentValue(u.id, lv)}</div>
-												<div class="uc-b">	<span class="ucc">⚡{cost}</span><span class="ucnx">{mx ? 'MAXED' : '→ ' + upgradeNextValue(u.id, lv)}</span></div>
-											{:else}
-												<div class="uc-eff" style="color:var(--text-dim)">🔒 Requires {getLockBlueprintName(u.id)}</div>
-											{/if}
-										</button>
-									{/each}
-								</div>
+								<FieldUpgrades {snap} bind:upgradeCategory bind:buyMultiplier purchasedId={purchasedUpgrade} onBuy={buyBattleUpgrade} />
 								<div class="hub-shortcut"><a href="/hub">⚙ Forge · Research · Archives →</a></div>
 							{:else}<div class="pe">Start a run to buy upgrades. The tower arrives pre-configured with mild disappointment.</div>{/if}
 						</div>
@@ -793,32 +685,7 @@
 					<span>⚡ Field Upgrades</span>
 					<button class="mob-ug-close" onclick={() => showMobileUpgrades = false}>✕</button>
 				</div>
-				<div class="cat-tabs">
-					<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'} title="Damage, Attack Speed, Range, Multishot, Crit"><Icon name="offense" size={13} /> Offense</button>
-					<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} title="Defense, Max HP"><Icon name="defense" size={13} /> Defense</button>
-					<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} title="Energy Amp"><Icon name="utility" size={13} /> Utility</button>
-				</div>
-				<div class="ug mob-ug-list">
-					{#each BATTLE_UPGRADES.filter(u => u.category === upgradeCategory) as u}
-						{@const lv = bLv(u.id)}
-						{@const nl = Math.min(lv + 1, u.maxLevel)}
-						{@const cost = u.cost(lv)}
-						{@const aff = snap.cash >= cost}
-						{@const mx = lv >= u.maxLevel}
-						{@const locked = isUpgradeLocked(u.id)}
-						{@const justBought = purchasedUpgrade === u.id}
-						<button class="uc" class:aff={aff && !mx && !locked} class:mx={mx} class:locked={locked} class:purchased={justBought} disabled={!aff || mx || locked || !snap?.runActive} onclick={() => buyBattleUpgrade(u.id)}>
-							<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
-							{#if !locked}
-								<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
-								<div class="uc-eff">{upgradeCurrentValue(u.id, lv)}</div>
-								<div class="uc-b">	<span class="ucc">⚡{cost}</span><span class="ucnx">{mx ? 'MAXED' : '→ ' + upgradeNextValue(u.id, lv)}</span></div>
-							{:else}
-								<div class="uc-eff" style="color:var(--text-dim)">🔒 Requires {getLockBlueprintName(u.id)}</div>
-							{/if}
-						</button>
-					{/each}
-				</div>
+				<FieldUpgrades {snap} bind:upgradeCategory bind:buyMultiplier showBuyMultiplier={false} scrollList purchasedId={purchasedUpgrade} onBuy={buyBattleUpgrade} />
 			</div>
 		{/if}
 	{/if}
@@ -874,32 +741,6 @@
 	.mob-spd-opt:hover { color:var(--text-primary); }
 	.game-body { flex:1; display:flex; overflow:hidden; position:relative; }
 	.game-canvas { flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; background:var(--bg-primary); }
-	.start-ol { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center,rgba(7,8,18,.5) 0%,var(--bg-primary) 100%); z-index:10; }
-	.start-card { position:relative; text-align:center; padding:2.25rem 2.25rem 1.75rem; background:var(--bg-glass-strong); border:1px solid var(--border-neon); border-radius:var(--radius-xl); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); max-width:380px; width:90%; animation:si .35s ease; box-shadow:0 0 60px rgba(0,255,255,.06); }
-	.sc-accent { position:absolute; top:-1px; left:20%; right:20%; height:1px; background:linear-gradient(90deg,transparent,var(--cyan),transparent); opacity:.6; }
-	.sc-icon { font-size:var(--fs-icon-2xl); display:block; margin-bottom:.5rem; filter:drop-shadow(0 0 20px rgba(0,255,255,.3)); }
-	.sc-logo { width:100%; max-width:280px; height:auto; }
-	.sc-title { font-size:var(--fs-icon-lg); margin-bottom:.2rem; }
-	.sc-sub { font-size:var(--fs-body); color:var(--text-secondary); margin-bottom:1.1rem; }
-	.sc-rec { display:flex; flex-direction:column; gap:.2rem; margin-bottom:1.1rem; padding:.6rem; background:rgba(0,0,0,.2); border-radius:var(--radius-md); }
-	.front-sel { margin-bottom:1.1rem; width:100%; max-width:340px; }
-	.front-sel-h { display:flex; align-items:center; gap:.3rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); margin-bottom:.45rem; }
-	.front-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(58px,1fr)); gap:.35rem; }
-	.front-opt { display:flex; flex-direction:column; align-items:center; gap:.1rem; padding:.45rem .3rem; border-radius:var(--radius-sm); background:var(--bg-tertiary); border:1px solid var(--border-neon); transition:all var(--transition-fast); cursor:pointer; }
-	.front-opt:hover:not(:disabled) { border-color:var(--cyan); background:rgba(0,255,255,.06); }
-	.front-opt.on { border-color:var(--cyan); background:rgba(0,255,255,.12); box-shadow:0 0 12px rgba(0,255,255,.18); }
-	.front-opt.locked { opacity:.4; cursor:not-allowed; }
-	.front-n { font-family:var(--font-display); font-weight:700; font-size:var(--fs-body-sm); color:var(--text-primary); }
-	.front-sub { font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); white-space:nowrap; }
-	.front-opt.on .front-n { color:var(--cyan); }
-	.sc-r { font-size:var(--fs-body-sm); font-family:var(--font-mono); color:var(--text-secondary); display:flex; gap:.3rem; align-items:center; }
-	.sc-btn { position:relative; display:inline-flex; align-items:center; gap:.4rem; padding:.7rem 2rem; border-radius:var(--radius-md); background:linear-gradient(135deg,var(--cyan),var(--blue)); color:var(--bg-primary); font-weight:700; font-size:var(--fs-btn); cursor:pointer; overflow:hidden; transition:all var(--transition-normal); box-shadow:0 0 30px rgba(0,255,255,.2); }
-	.sc-btn:hover { transform:translateY(-2px); box-shadow:0 0 50px rgba(0,255,255,.35); }
-	.sc-bi { position:absolute; inset:0; background:linear-gradient(135deg,transparent,rgba(255,255,255,.12),transparent); transition:opacity var(--transition-normal); opacity:0; }
-	.sc-btn:hover .sc-bi { opacity:1; }
-	.sc-bt { position:relative; z-index:1; }
-	.sc-hint { margin-top:.5rem; font-size:var(--fs-caption-sm); color:var(--text-secondary); }
-	.sc-hint kbd { padding:.08rem .3rem; background:var(--bg-tertiary); border-radius:3px; font-family:var(--font-mono); font-size:var(--fs-caption-sm); border:1px solid var(--border-neon); }
 	.panel { display:flex; flex-direction:column; background:var(--bg-glass); border-left:1px solid var(--border-neon); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); position:relative; transition:width var(--transition-normal); width:265px; flex-shrink:0; overflow:hidden; z-index:5; }
 	.panel.coll { width:24px; }
 	.left { border-left:none; border-right:1px solid var(--border-neon); }
@@ -916,64 +757,9 @@
 	.ir:nth-child(odd) { background:rgba(0,0,0,.1); }
 	.il { color:var(--text-secondary); } .iv { color:var(--text-primary); font-family:var(--font-mono); font-weight:500; }
 	.hp-iv { color:var(--green); } .cash-iv { color:var(--green); } .im { color:var(--text-dim); font-size:var(--fs-caption); }
-	.ug { display:flex; flex-direction:column; gap:2px; }
-	.uc { display:flex; flex-direction:column; gap:.15rem; padding:.52rem .55rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition-fast); text-align:left; width:100%; }
-	.uc.aff { border-color:rgba(68,255,136,.25); }
-	.uc.aff:hover { border-color:var(--cyan); background:rgba(0,255,255,.05); box-shadow:0 0 8px rgba(0,255,255,.06); }
-	.uc.purchased { animation:purchaseGlow .5s ease-out; }
-	@keyframes purchaseGlow { 0%{box-shadow:0 0 0 rgba(0,255,255,0);transform:scale(1)} 25%{box-shadow:0 0 25px rgba(0,255,255,.8),0 0 50px rgba(0,255,255,.3);transform:scale(1.03)} 100%{box-shadow:0 0 0 rgba(0,255,255,0);transform:scale(1)} }
-	.uc.mx { opacity:.45; cursor:default; }
-	.uc:disabled:not(.mx) { opacity:.55; cursor:default; }
-	.uc-t { display:flex; align-items:center; gap:.25rem; }
-	.uci { font-size:var(--fs-mono-lg); flex-shrink:0; }
-	.ucn { flex:1; font-size:var(--fs-mono-lg); font-weight:500; color:var(--text-primary); }
-	.ucl { font-size:var(--fs-mono-sm); font-family:var(--font-mono); color:var(--text-secondary); }
-	.uc-btr { height:3px; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
-	.uc-btf { height:100%; background:linear-gradient(90deg,var(--cyan),var(--blue)); border-radius:2px; transition:width var(--transition-normal); }
-	.uc.aff .uc-btf { background:linear-gradient(90deg,var(--green),var(--cyan)); }
-	.uc-eff { font-size:var(--fs-mono); color:var(--text-secondary); font-family:var(--font-mono); padding:.05rem 0; }
-	.uc.aff .uc-eff { color:var(--green); }
-	.uc-b { display:flex; align-items:center; gap:.3rem; font-size:var(--fs-mono); }
-	.ucc { font-family:var(--font-mono); color:var(--yellow); }
-	.ucnx { margin-left:auto; color:var(--text-secondary); font-family:var(--font-mono); }
-	.uc.aff .ucnx { color:var(--green); }
-	.cat-tabs { display:flex; gap:2px; margin-bottom:.35rem; padding:2px; background:rgba(0,0,0,.12); border-radius:var(--radius-sm); }
-	.cat-tab { flex:1; padding:.25rem .2rem; font-size:var(--fs-body-sm); color:var(--text-secondary); border-radius:4px; transition:all var(--transition-fast); text-align:center; cursor:pointer; }
-	.cat-tab.on { color:var(--cyan); background:rgba(0,255,255,.08); }
-	.cat-tab:hover:not(.on) { color:var(--text-primary); background:rgba(255,255,255,.02); }
-	.buy-mult { display:flex; align-items:center; gap:2px; margin-bottom:.35rem; }
-	.mult-label { font-size:var(--fs-caption-sm); color:var(--text-dim); font-family:var(--font-mono); margin-right:.2rem; }
-	.mult-btn { padding:.15rem .35rem; font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); border-radius:4px; background:rgba(0,0,0,.12); border:1px solid transparent; cursor:pointer; transition:all var(--transition-fast); }
-	.mult-btn:hover { color:var(--text-secondary); border-color:var(--border-neon); }
-	.mult-btn.on { color:var(--cyan); background:rgba(0,255,255,.1); border-color:rgba(0,255,255,.25); }
 	.hub-shortcut { margin-top:.5rem; text-align:center; font-size:var(--fs-caption); }
 	.hub-shortcut a { color:var(--text-secondary); text-decoration:none; transition:all var(--transition-fast); }
 	.hub-shortcut a:hover { color:var(--cyan); }
-	.go-panel { position:relative; text-align:center; padding:2rem 1.75rem 1.5rem; background:var(--bg-secondary); border:1px solid rgba(255,68,170,.2); border-radius:var(--radius-xl); max-width:400px; width:90%; overflow:hidden; animation:goAppear .4s cubic-bezier(0.34,1.56,0.64,1); box-shadow:0 0 80px rgba(255,68,170,.08),0 0 160px rgba(0,0,0,.4); }
-	.go-panel.go-record { border-color:rgba(255,221,68,.3); box-shadow:0 0 80px rgba(255,221,68,.1),0 0 160px rgba(0,0,0,.4); }
-	@keyframes goAppear { from{opacity:0;transform:scale(.9) translateY(20px)} to{opacity:1;transform:scale(1) translateY(0)} }
-	.go-glow { position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:radial-gradient(circle at center,rgba(255,68,170,.05) 0%,transparent 60%); pointer-events:none; }
-	.go-glow-ring { position:absolute; top:50%; left:50%; width:200px; height:200px; transform:translate(-50%,-50%); border-radius:50%; border:1px solid rgba(255,68,170,.06); pointer-events:none; animation:goRingPulse 3s ease-in-out infinite; }
-	@keyframes goRingPulse { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.3} 50%{transform:translate(-50%,-50%) scale(1.8);opacity:0} }
-	.go-panel.go-record .go-glow-ring { border-color:rgba(255,221,68,.1); }
-	.go-icon { font-size:var(--fs-icon-2xl); margin-bottom:.3rem; display:block; filter:drop-shadow(0 0 20px rgba(255,68,170,.3)); }
-	.go-panel.go-record .go-icon { filter:drop-shadow(0 0 20px rgba(255,221,68,.4)); }
-	.go-title { font-size:var(--fs-hero); color:var(--pink); margin-bottom:.15rem; }
-	.go-wave { font-size:var(--fs-heading); color:var(--text-secondary); margin-bottom:.1rem; font-family:var(--font-mono); }
-	.go-wave strong { color:var(--text-primary); }
-	.go-wave-sub { font-size:var(--fs-body); color:var(--text-secondary); margin-bottom:1rem; font-family:var(--font-mono); }
-	.go-stats { display:flex; align-items:center; justify-content:center; gap:.8rem; margin-bottom:.5rem; padding:.6rem .75rem; background:rgba(0,0,0,.12); border-radius:var(--radius-md); }
-	.go-stats-sub { display:flex; justify-content:center; gap:1rem; font-size:var(--fs-caption); color:var(--text-secondary); margin-bottom:1rem; font-family:var(--font-mono); }
-	.go-s { text-align:center; min-width:55px; }
-	.go-si { font-size:var(--fs-icon-md); display:block; margin-bottom:.1rem; }
-	.go-sv { font-size:var(--fs-icon-md); font-weight:700; font-family:var(--font-mono); color:var(--text-primary); }
-	.go-sl { font-size:var(--fs-caption-sm); color:var(--text-secondary); margin-top:.05rem; text-transform:uppercase; letter-spacing:.05em; }
-	.go-sd { width:1px; height:28px; background:var(--border-neon); }
-	.go-btn { display:block; width:100%; padding:.75rem; background:linear-gradient(135deg,var(--cyan),var(--blue)); color:var(--bg-primary); font-weight:700; font-size:var(--fs-btn); border-radius:var(--radius-md); cursor:pointer; transition:all var(--transition-normal); box-shadow:0 0 20px rgba(0,255,255,.1); }
-	.go-btn:hover { box-shadow:0 0 30px rgba(0,255,255,.2); transform:translateY(-1px); }
-	.go-row2 { display:flex; gap:.4rem; margin-top:.45rem; }
-	.go-btn2 { flex:1; padding:.5rem; font-size:var(--fs-btn-sm); border-radius:var(--radius-sm); background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); cursor:pointer; text-decoration:none; display:block; text-align:center; transition:all var(--transition-fast); }
-	.go-btn2:hover { border-color:var(--text-secondary); color:var(--text-primary); }
 	.overlay { position:fixed; inset:0; background:rgba(7,8,18,.85); display:flex; align-items:center; justify-content:center; z-index:200; padding:1rem; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); animation:fi .2s ease; }
 	.dlg { background:var(--bg-secondary); border:1px solid var(--border-neon-strong); border-radius:var(--radius-xl); padding:1.75rem; max-width:400px; width:100%; animation:si .25s ease; }
 	.dlg h3 { font-size:var(--fs-subheading); margin-bottom:.4rem; }
@@ -993,7 +779,6 @@
 	.mob-upgrade-drawer { position:fixed; bottom:var(--mob-nav-h,48px); left:0; right:0; max-height:60vh; background:var(--bg-secondary); border-top:1px solid var(--border-neon-strong); border-radius:var(--radius-xl) var(--radius-xl) 0 0; z-index:150; overflow-y:auto; padding:.5rem .65rem .75rem; padding-bottom: calc(.75rem + env(safe-area-inset-bottom, 0px)); animation:mobDrawerIn .25s cubic-bezier(.34,1.56,.64,1); box-shadow:0 -8px 32px rgba(0,0,0,.5); }
 	.mob-ug-header { display:flex; justify-content:space-between; align-items:center; font-size:var(--fs-caption); color:var(--cyan); font-family:var(--font-mono); margin-bottom:.35rem; }
 	.mob-ug-close { color:var(--text-dim); font-size:var(--fs-body-sm); padding:.1rem .3rem; cursor:pointer; }
-	.mob-ug-list { max-height:35vh; overflow-y:auto; }
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	@keyframes si { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
 	@keyframes mobDrawerIn { from{opacity:0;transform:translateY(100%)} to{opacity:1;transform:translateY(0)} }
@@ -1010,6 +795,5 @@
 		.ibtn{min-width:40px;min-height:40px;padding:.4rem}
 		.ptog{min-width:36px;min-height:36px}
 		:root{--mob-nav-h:48px}
-		.go-panel{max-width:340px;padding:1.5rem 1.25rem 1.25rem}
 	}
 </style>
