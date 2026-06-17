@@ -11,7 +11,7 @@
 		applicationCategory: 'GameApplication',
 		operatingSystem: 'Any',
 		description: 'A neon cyber idle tower defense game. Defend your tower against endless waves of digital enemies.',
-		url: GITHUB_URL,
+		url: 'https://flatlandtd.app',
 		author: { '@type': 'Person', name: 'Timo' },
 		offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 	};

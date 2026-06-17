@@ -1,6 +1,12 @@
 <script lang="ts">
 </script>
 
+<svelte:head>
+	<title>Imprint / Impressum — Flatland TD · FLTD</title>
+	<meta name="description" content="Flatland TD imprint and legal notice. Operator contact, liability, copyright information." />
+	<meta name="robots" content="index, follow" />
+</svelte:head>
+
 <main class="imprint-page">
 	<div class="bg-grid"></div>
 	<a href="/" class="back-link">← Back to Flatland TD</a>

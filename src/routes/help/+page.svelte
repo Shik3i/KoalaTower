@@ -75,11 +75,22 @@
 			a: 'Yes. Flatland TD is a static app with no backend. All data is in your browser. No analytics, no cookies, no tracking, no external network calls during gameplay. Not even the Shapes know your high score. See the Privacy page for full details.',
 		},
 	];
+
+	const jsonLdFaq = {
+		'@context': 'https://schema.org',
+		'@type': 'FAQPage',
+		mainEntity: faqs.map(f => ({
+			'@type': 'Question',
+			name: f.q,
+			acceptedAnswer: { '@type': 'Answer', text: f.a }
+		}))
+	};
 </script>
 
 <svelte:head>
 	<title>Help — Flatland TD · FLTD</title>
 	<meta name="description" content="Flatland TD help guide and FAQ. Learn about currencies, enemy types, upgrades, bosses, and game mechanics." />
+	<script type="application/ld+json">{JSON.stringify(jsonLdFaq)}</script>
 </svelte:head>
 
 <div class="help-page">
