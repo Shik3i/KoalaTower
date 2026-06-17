@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import Tutorial, { type TutorialStep } from '$lib/components/Tutorial.svelte';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
 	import { buildWorkshopUpgradeList, getWorkshopUpgradeCost, getWorkshopUpgradeEffect } from '$lib/game/balance/workshopUpgrades';
@@ -21,6 +22,17 @@
 	let totalRuns = $state(0);
 	let activeSection = $state<'workshop' | 'lab' | 'blueprints' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings'>('workshop');
 	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
+
+	const HUB_TUTORIAL_KEY = 'geocore-td-hub-tutorial-done';
+	const hubTutorialSteps: TutorialStep[] = [
+		{ title: '🛰️ Welcome to Orbital Command', desc: 'This is your permanent base between deployments. Here you spend Alloy (🔩) on permanent upgrades that persist across all runs. The Tower may fall — your research endures.', target: '', placement: 'center' },
+		{ title: '⚙ Forge — Permanent Upgrades', desc: 'The Forge pre-installs tower upgrades BEFORE every deployment. Damage, Fire Rate, Range, HP — every level makes every future run stronger. Spend Alloy wisely. Procurement approves this spending. Mostly.', target: '.hub-nav-btn:nth-child(1)', placement: 'right' },
+		{ title: '🔬 Research Deck — Time-Based Projects', desc: 'Research runs in real time — even offline! Each level gives a multiplicative bonus that stacks with Forge upgrades. Start a project, come back later. The scientists work while you sleep. Allegedly.', target: '.hub-nav-btn:nth-child(2)', placement: 'right' },
+		{ title: '📐 Blueprints — Unlock New Paths', desc: 'New upgrade paths are discovered during deployments. Once a schematic is found, research it here with Alloy to unlock hidden Forge and Field upgrades. Some blueprints were definitely not lost by Procurement.', target: '.hub-nav-btn:nth-child(3)', placement: 'right' },
+		{ title: '🌍 Fronts & Special Ops', desc: 'Fronts are difficulty tiers — push deeper to unlock harder planets with better rewards. Special Operations are challenge modes with modified rules. Simulation lets you preview enemy stats at any wave.', target: '.hub-nav-btn:nth-child(4)', placement: 'right' },
+		{ title: '📊 Archives & Systems', desc: 'Archives track your campaign statistics. Systems lets you configure visuals, sound, and lab notifications. Everything is saved automatically to your browser. No cloud. No tracking. Not even the Shapes know your high score.', target: '.hub-nav-btn:nth-child(7)', placement: 'right' },
+		{ title: '🚀 Ready to Deploy', desc: 'Upgrade your Forge, start some Research, then head to Deployment and drop a Tower. Orbital Command will be here when you return — with more Alloy and fewer questions.', target: '.hub-back', placement: 'bottom' },
+	];
 
 	let simWave = $state(1);
 	let simFront = $state(1);
@@ -181,6 +193,8 @@
 
 <main class="hub-page">
 	<div class="bg-grid"></div>
+
+	<Tutorial steps={hubTutorialSteps} tutorialKey={HUB_TUTORIAL_KEY} />
 
 	{#if toasts.length}
 		<div class="toast-c" aria-live="polite" role="alert">{#each toasts as t}<div class="toast toast-{t.type}">{t.msg}</div>{/each}</div>

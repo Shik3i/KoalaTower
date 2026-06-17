@@ -49,6 +49,16 @@
 	let ctrlHeld = $state(false);
 	let showMobileSpeed = $state(false);
 
+	const PLAY_TUTORIAL_KEY = 'geocore-td-tutorial-done';
+	const playTutorialSteps = [
+		{ title: 'Welcome to Flatland TD!', desc: 'This is an open source neon cyber idle tower defense. Your tower automatically shoots enemies. Click "Launch Deployment" to begin. Orbital Command has prepared a brief orientation. It is brief because nobody read the long version.', target: '.sc-btn, .start-btn, .btn-start', placement: 'center' as const },
+		{ title: 'Energy & Alloy', desc: 'Kill enemies to harvest Energy (⚡, temporary) and refine Alloy (🔩, permanent). Energy overclocks your Tower during the deployment. Alloy unlocks permanent upgrades. Energy is temporary — like enthusiasm. Alloy is permanent — like paperwork.', target: '.tb-stats', placement: 'bottom' as const },
+		{ title: 'Speed Controls', desc: 'Speed up the action! Use 1x-5x buttons or press Space to pause. Keys 1-4 switch speed instantly. Warning: 5× speed may cause shapes to appear statistically more aggressive.', target: '.spd-grp', placement: 'bottom' as const },
+		{ title: 'Battle Upgrades', desc: 'The right panel has Field Upgrades split into Offense, Defense, and Utility. Spend Energy to overclock your tower during a deployment. Field Upgrades are lost when the tower falls. Orbital Command calls this \'performance-based incentive architecture.\'', target: '.panel.right', placement: 'left' as const },
+		{ title: 'Workshop & Lab', desc: 'The Forge has permanent pre-installed tower upgrades using Alloy. The Research Deck runs orbital projects for multiplicative bonuses. The Forge never sleeps. The Research Deck never finishes. Both demand Alloy.', target: '.hub-link, [href="/hub"]', placement: 'bottom' as const },
+		{ title: 'Ready!', desc: 'That is all you need. Start a run, upgrade your tower, and see how far you can get. Good luck, commander! Orbital Command has reviewed your file. It is... acceptable.', target: '', placement: 'center' as const },
+	];
+
 	function updateBuyMultiplier() {
 		if (!shiftHeld && !ctrlHeld) { /* keep current, don't override manual toggle */ }
 		else if (shiftHeld && ctrlHeld) buyMultiplier = 50;
@@ -559,7 +569,7 @@
 	</header>
 
 	<!-- ===== Tutorial ===== -->
-	<Tutorial />
+	<Tutorial steps={playTutorialSteps} tutorialKey={PLAY_TUTORIAL_KEY} />
 
 	<!-- Mobile Speed Bar -->
 	{#if isMobile && snap?.runActive}

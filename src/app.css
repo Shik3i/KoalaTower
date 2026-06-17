@@ -32,8 +32,8 @@
 	--text-secondary: rgba(240, 247, 255, 0.82);
 	--text-dim: rgba(240, 247, 255, 0.50);
 	--font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-	--font-sans: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-	--font-display: 'Orbitron', 'Rajdhani', -apple-system, sans-serif;
+	--font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+	--font-display: 'Orbitron', -apple-system, BlinkMacSystemFont, sans-serif;
 	--radius-sm: 6px;
 	--radius-md: 10px;
 	--radius-lg: 16px;
@@ -45,26 +45,26 @@
 	--transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 	--transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 	/* ── Typographic scale ─────────────────────────────────── */
-	--fs-hero:       clamp(1.5rem, 2.5vw, 1.8rem);   /* page titles */
-	--fs-heading:    clamp(1.2rem, 2.0vw, 1.5rem);   /* section headings */
-	--fs-subheading: clamp(1.0rem, 1.35vw, 1.2rem);   /* card titles */
-	--fs-body:       clamp(0.95rem, 1.25vw, 1.05rem); /* normal text, info rows */
-	--fs-body-sm:    clamp(0.85rem, 1.05vw, 0.92rem); /* secondary text */
-	--fs-caption:    clamp(0.78rem, 0.95vw, 0.82rem); /* labels, sub-text */
-	--fs-caption-sm: clamp(0.68rem, 0.82vw, 0.72rem); /* tiny labels */
+	--fs-hero:       clamp(1.6rem, 2.8vw, 2.0rem);   /* page titles */
+	--fs-heading:    clamp(1.35rem, 2.2vw, 1.7rem);  /* section headings */
+	--fs-subheading: clamp(1.15rem, 1.5vw, 1.35rem); /* card titles */
+	--fs-body:       clamp(1.05rem, 1.35vw, 1.2rem); /* normal text, info rows */
+	--fs-body-sm:    clamp(0.95rem, 1.15vw, 1.05rem);/* secondary text */
+	--fs-caption:    clamp(0.85rem, 1.05vw, 0.95rem);/* labels, sub-text */
+	--fs-caption-sm: clamp(0.75rem, 0.9vw, 0.82rem); /* tiny labels */
 	/* Monospace — tuned larger for readability in stats panels */
-	--fs-mono-lg:    clamp(1.05rem, 1.35vw, 1.15rem); /* upgrade names, values */
-	--fs-mono:       clamp(0.95rem, 1.25vw, 1.05rem); /* stat rows, pill values */
-	--fs-mono-sm:    clamp(0.82rem, 1.0vw, 0.88rem);  /* smaller mono text */
+	--fs-mono-lg:    clamp(1.05rem, 1.35vw, 1.25rem); /* upgrade names, values */
+	--fs-mono:       clamp(0.95rem, 1.25vw, 1.15rem); /* stat rows, pill values */
+	--fs-mono-sm:    clamp(0.85rem, 1.05vw, 0.95rem); /* smaller mono text */
 	/* Interactive */
-	--fs-btn:        clamp(1.05rem, 1.45vw, 1.25rem); /* primary buttons */
-	--fs-btn-sm:     clamp(0.9rem, 1.15vw, 0.98rem);  /* small buttons */
+	--fs-btn:        clamp(1.1rem, 1.5vw, 1.35rem);  /* primary buttons */
+	--fs-btn-sm:     clamp(0.95rem, 1.2vw, 1.05rem); /* small buttons */
 	--fs-icon-sm:    0.7rem;
 	--fs-icon-md:    1rem;
 	--fs-icon-lg:    1.3rem;
 	--fs-icon-xl:    1.6rem;
 	--fs-icon-2xl:   2.6rem;
-	font-size: 18px;
+	font-size: 20px;
 }
 
 html {

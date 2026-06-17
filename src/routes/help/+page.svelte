@@ -1,5 +1,12 @@
 <script lang="ts">
 	let activeFaq = $state<string | null>(null);
+	let replayMsg = $state('');
+
+	function replayTutorial(key: string, name: string) {
+		localStorage.removeItem(key);
+		replayMsg = name + ' tutorial will replay on next visit.';
+		setTimeout(() => { replayMsg = ''; }, 3000);
+	}
 
 	const faqs = [
 		{
@@ -393,7 +400,9 @@
 			<div class="control-item"><kbd>3</kbd><span>🚀 Speed 3×</span></div>
 			<div class="control-item"><kbd>4</kbd><span>⚡ Speed 5×</span></div>
 		</div>
-		<button class="replay-tutorial-btn" onclick={() => { localStorage.removeItem('geocore-td-tutorial-done'); alert('Tutorial will replay on your next visit to the Deployment page.'); }}>🔄 Replay Tutorial</button>
+		<button class="replay-tutorial-btn" onclick={() => replayTutorial('geocore-td-tutorial-done', 'Deployment')}>🔄 Replay Deployment Tutorial</button>
+		<button class="replay-tutorial-btn" onclick={() => replayTutorial('geocore-td-hub-tutorial-done', 'Orbital Command')}>🛰️ Replay Hub Tutorial</button>
+		{#if replayMsg}<p class="replay-msg">{replayMsg}</p>{/if}
 	</section>
 
 	<!-- FAQ -->
@@ -527,8 +536,9 @@
 	.help-footer { text-align:center; padding:2rem 0; color:var(--text-dim); font-size:var(--fs-caption); position:relative; z-index:1; }
 	.help-footer a { color:var(--cyan); }
 
-	.replay-tutorial-btn { margin-top:.75rem; padding:.55rem 1.2rem; font-size:var(--fs-body-sm); border-radius:var(--radius-sm); background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); cursor:pointer; transition:all var(--transition-fast); }
+	.replay-tutorial-btn { margin-top:.75rem; margin-right:.5rem; padding:.55rem 1.2rem; font-size:var(--fs-body-sm); border-radius:var(--radius-sm); background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); cursor:pointer; transition:all var(--transition-fast); }
 	.replay-tutorial-btn:hover { border-color:var(--cyan); color:var(--text-primary); }
+	.replay-msg { margin-top:.4rem; font-size:var(--fs-caption); color:var(--green); }
 
 	.lore-egg {
 		padding: 1rem 1.25rem;
