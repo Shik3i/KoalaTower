@@ -109,7 +109,7 @@ export enum UpgradeId {
 	Regen = 'regen',
 	Lifesteal = 'lifesteal',
 	Thorns = 'thorns',
-	GoldAmp = 'goldAmp',
+	EnergyAmp = 'energyAmp',
 	CashPerWave = 'cashPerWave',
 }
 
@@ -124,17 +124,17 @@ export enum WorkshopUpgradeId {
 	Lifesteal = 'lifesteal',
 	Thorns = 'thorns',
 	CoinBonus = 'coinBonus',
-	CashBonus = 'cashBonus',
+	EnergyBonus = 'energyBonus',
 	CritBonus = 'critBonus',
-	StartingCash = 'startingCash'
+	StartingEnergy = 'startingEnergy'
 }
 
 export enum LabId {
 	DamageResearch = 'damageResearch',
 	AttackSpeedResearch = 'attackSpeedResearch',
 	HealthResearch = 'healthResearch',
-	CoinEfficiency = 'coinEfficiency',
-	CashEfficiency = 'cashEfficiency',
+	AlloyEfficiency = 'alloyEfficiency',
+	EnergyEfficiency = 'energyEfficiency',
 }
 
 export enum TierId {
@@ -164,6 +164,21 @@ export enum ChallengeId {
 }
 
 export type UpgradeCategory = 'offense' | 'defense' | 'utility';
+
+export enum BlueprintId {
+	CriticalTargeting = 'criticalTargeting',
+	SplitBeamGeometry = 'splitBeamGeometry',
+	ExtendedCoreOptics = 'extendedCoreOptics',
+	PlatedCoreShell = 'platedCoreShell',
+	PhaseDampener = 'phaseDampener',
+	ReactiveSurface = 'reactiveSurface',
+	EnergyReclaimer = 'energyReclaimer',
+	AlloyExtraction = 'alloyExtraction',
+	EnergyCondenser = 'energyCondenser',
+	DeploymentReserves = 'deploymentReserves',
+}
+
+export type BlueprintCategory = 'attack' | 'defense' | 'utility';
 
 export interface BattleUpgrade {
 	id: UpgradeId;

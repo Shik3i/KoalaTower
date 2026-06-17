@@ -6,4 +6,4 @@
  */
 export const APP_VERSION: string = import.meta.env.VITE_APP_VERSION || 'DEV';
 
-export const GITHUB_URL = 'https://github.com/Shik3i/GeoCoreTD';
+export const GITHUB_URL = 'https://github.com/Shik3i/KoalaTower';

@@ -1,6 +1,6 @@
-# KoalaTower 🐨
+# Flatland TD (FLTD)
 
-**Neon Cyber Idle Tower Defense**
+**Open Source Neon Cyber Idle Tower Defense**
 
 A beautiful, playable idle tower defense game built with SvelteKit, TypeScript, and Canvas 2D rendering. No backend, no tracking, no cookies — just a standalone static web app.
 
@@ -20,8 +20,8 @@ npm test         # run tests
 - Central neon tower with auto-targeting and 5 enemy types (Normal, Fast, Tank, Ranged, Boss)
 - Endless wave progression with scaling difficulty (supports 10k+ waves)
 - Enemy armor system — armor reduces incoming damage, scales with wave
-- Battle upgrades (Gold) — 9 upgrades per run
-- Workshop upgrades (KoalaCoins) — 8 permanent upgrades between runs
+- Field upgrades (Energy) — 9 temporary upgrades per deployment
+- Foundry upgrades (Alloy) — 8 permanent upgrades between deployments
 - Lab research system — real-time research with timers (progresses offline)
 - Tier system — 5 tiers with progression requirements
 - Challenge system — 3 challenge scaffolds
@@ -40,7 +40,7 @@ npm test         # run tests
 - Projectile trails with glow
 - Particle death bursts
 - Floating damage numbers with crit distinction
-- Gold & KoalaCoin popup feedback on enemy kills
+- Energy & Alloy popup feedback on shape kills
 - Screen shake on damage (configurable)
 - Animated starfield and grid background
 - Wave start and boss warning animations
@@ -143,7 +143,7 @@ The multi-stage Dockerfile:
 # 1. Ensure a Docker network named "caddy_net" exists
 docker network create caddy_net
 
-# 2. Start KoalaTower
+# 2. Start Flatland TD
 docker compose -f docker-compose.example.yml up -d
 ```
 

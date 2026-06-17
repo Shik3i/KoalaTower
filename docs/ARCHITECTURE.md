@@ -1,8 +1,8 @@
-# KoalaTower Architecture
+# Flatland TD Architecture
 
 ## Overview
 
-KoalaTower is a fully client-side, static web application. It uses a layered architecture to keep game logic, rendering, and UI separate.
+Flatland TD is a fully client-side, static web application. It uses a layered architecture to keep game logic, rendering, and UI separate.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -91,10 +91,10 @@ koala-tower/
 
 ## Currency System
 
-| Currency   | Icon | Type       | Earned by         | Spent on                    |
-|-----------|------|------------|-------------------|-----------------------------|
-| Gold       | 💰   | Temporary  | Killing enemies   | Battle upgrades (per run)   |
-| KoalaCoins | 🪙   | Permanent  | Killing enemies   | Workshop + Lab upgrades     |
+| Currency | Icon | Type       | Earned by          | Spent on                                  |
+|----------|------|------------|--------------------|-------------------------------------------|
+| Energy   | ⚡   | Temporary  | Destroying shapes  | Field upgrades / overclocks (per deployment) |
+| Alloy    | 🔩   | Permanent  | Destroying shapes  | Foundry + Research Deck upgrades           |
 
 ## Wave Scaling
 

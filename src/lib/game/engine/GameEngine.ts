@@ -8,14 +8,17 @@ import type {
 	GameState,
 	UpgradeId,
 	WorkshopUpgradeId,
+	LabId,
+	BlueprintId,
 } from './gameTypes';
 import { EnemyType, DEFAULT_SETTINGS } from './gameTypes';
 import { createTowerState, applyBattleUpgrades, applyRegen } from '../systems/towerSystem';
 import { updateEnemySystem, updateProjectileSystem, updateTowerTargeting, resetProjectileIdCounter } from '../systems/enemySystem';
 import { updateWaveSystem, removeDeadEnemies } from '../systems/waveSystem';
-import { getStartingGold } from '../systems/economySystem';
+import { getStartingEnergy } from '../systems/economySystem';
 import { resetEnemyIdCounter } from '../balance/enemies';
 import { getBattleUpgradeCost, buildBattleUpgradeList } from '../balance/battleUpgrades';
+import { isFieldUpgradeUnlocked } from '../balance/blueprints';
 import { setFeedbackHooks } from '../systems/enemySystem';
 
 export type MuzzleFlashCallback = () => void;
@@ -36,6 +39,8 @@ export class GameEngine {
 	private onMilestone: ((text: string) => void) | null = null;
 	private onStateChange: (() => void) | null = null;
 	private muzzleFlashCallback: MuzzleFlashCallback | null = null;
+	private unlockedFieldBlueprints: BlueprintId[] = [];
+	private statsDirty: boolean = true;
 
 	constructor() {
 		this.state = this.createInitialState();
@@ -110,7 +115,7 @@ export class GameEngine {
 		if (opts.onStateChange) this.onStateChange = opts.onStateChange;
 	}
 
-	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, labLevels: Partial<Record<import('./gameTypes').LabId, number>>, startingCoins: number): void {
+	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, labLevels: Partial<Record<LabId, number>>, startingCoins: number, unlockedBlueprints: BlueprintId[] = []): void {
 		resetEnemyIdCounter();
 		resetProjectileIdCounter();
 		this.particles = [];
@@ -122,14 +127,16 @@ export class GameEngine {
 
 		this.state = this.createInitialState();
 		this.state.workshopUpgrades = { ...workshopUpgrades } as Record<WorkshopUpgradeId, number>;
-		this.state.labLevels = { ...labLevels } as Record<import('./gameTypes').LabId, number>;
+		this.state.labLevels = { ...labLevels } as Record<LabId, number>;
 		this.state.coins = startingCoins;
 		this.state.runActive = true;
 		this.state.gameOver = false;
 		this.state.paused = false;
+		this.unlockedFieldBlueprints = [...unlockedBlueprints];
+		this.statsDirty = true;
 
 		this.state.tower = createTowerState(this.state);
-		this.state.cash = getStartingGold(this.state);
+		this.state.cash = getStartingEnergy(this.state);
 
 		this.state.wave.betweenWaveTimer = 1.0;
 		this.emitImmediateSnapshot();
@@ -137,12 +144,17 @@ export class GameEngine {
 	}
 
 	public update(dt: number): void {
+		// Always check game over — even if inactive, to handle external triggers
+		this.checkGameOver();
 		if (!this.state.runActive || this.state.gameOver || this.state.paused) return;
 
 		const effectiveDt = Math.min(dt * this.speedMultiplier, GAME_CONFIG.CLAMP_DELTA);
 		this.state.elapsedTime += effectiveDt;
 
-		applyBattleUpgrades(this.state);
+		if (this.statsDirty) {
+			applyBattleUpgrades(this.state);
+			this.statsDirty = false;
+		}
 		applyRegen(this.state, effectiveDt);
 		updateWaveSystem(this.state, effectiveDt);
 
@@ -244,11 +256,18 @@ export class GameEngine {
 		const upgrades = buildBattleUpgradeList();
 		const upgrade = upgrades.find(u => u.id === id);
 		if (!upgrade) return false;
+
+		// Check blueprint lock
+		if (upgrade.requiredBlueprint && !this.unlockedFieldBlueprints.includes(upgrade.requiredBlueprint)) {
+			return false;
+		}
+
 		const maxLv = upgrade.maxLevel;
 		const cost = getBattleUpgradeCost(id, currentLevel);
 		if (this.state.cash >= cost && currentLevel < maxLv) {
 			this.state.cash -= cost;
 			this.state.battleUpgrades[id] = currentLevel + 1;
+			this.statsDirty = true;
 			applyBattleUpgrades(this.state);
 			this.emitImmediateSnapshot();
 			this.onStateChange?.();

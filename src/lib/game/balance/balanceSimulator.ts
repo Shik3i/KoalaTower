@@ -1,5 +1,5 @@
 /**
- * balanceSimulator.ts — Long-tail simulator with three strategy levels.
+ * balanceSimulator.ts — Long-tail simulator with blueprint-gating and strategy levels.
  *
  * Strategies:
  *   'confused' — terrible buying (saves too long, buys random upgrades late)
@@ -8,6 +8,11 @@
  *
  * Models: layered defense (%, abs), regen, lifesteal, thorns, and full
  * workshop baseline with the new long-tail upgrade values.
+ *
+ * Blueprint Gating:
+ * The simulator respects blueprint locks. Fresh accounts only have access
+ * to starter upgrades. Scenarios can specify unlockedBlueprints to simulate
+ * progression after unlocking specific paths.
  */
 
 import { hybridCost, additiveEffect } from './balanceMath';
@@ -17,7 +22,8 @@ import {
 import { BATTLE_UPGRADE_DEFS, getBattleUpgradeCost, getBattleUpgradeEffect } from './battleUpgrades';
 import { WORKSHOP_UPGRADE_DEFS, getWorkshopUpgradeEffect } from './workshopUpgrades';
 import { getLabEffect } from './labs';
-import { UpgradeId, WorkshopUpgradeId, EnemyType } from '../engine/gameTypes';
+import { UpgradeId, WorkshopUpgradeId, EnemyType, BlueprintId } from '../engine/gameTypes';
+import { isFieldUpgradeUnlocked } from './blueprints';
 
 export type Strategy = 'confused' | 'reasonable' | 'optimal';
 
@@ -30,6 +36,7 @@ export interface SimResult {
 	dps: number; effectiveHp: number;
 	bottleneck: string; diedTo: string;
 	tier: number; strategy: Strategy; labLevels: Record<string, number>;
+	lockedUpgradesSkipped: number;
 }
 
 interface SimState {
@@ -42,6 +49,8 @@ interface SimState {
 	cashEarned: number; coinsEarned: number;
 	battleLevels: Record<string, number>;
 	tier: number; labLevels: Record<string, number>;
+	unlockedBlueprints: BlueprintId[];
+	lockedUpgradesSkipped: number;
 }
 
 function computeBaseline(ws: Record<string, number>, lab: Record<string, number>) {
@@ -50,17 +59,17 @@ function computeBaseline(ws: Record<string, number>, lab: Record<string, number>
 	const lDmg = 1 + getLabEffect('damageResearch' as any, l('damageResearch'));
 	const lFR = 1 + getLabEffect('attackSpeedResearch' as any, l('attackSpeedResearch'));
 	const lHP = 1 + getLabEffect('healthResearch' as any, l('healthResearch'));
-	const lCoin = 1 + getLabEffect('coinEfficiency' as any, l('coinEfficiency'));
-	const lCash = 1 + getLabEffect('cashEfficiency' as any, l('cashEfficiency'));
+	const lCoin = 1 + getLabEffect('alloyEfficiency' as any, l('alloyEfficiency'));
+	const lCash = 1 + getLabEffect('energyEfficiency' as any, l('energyEfficiency'));
 	return {
 		damage: (8 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, g(WorkshopUpgradeId.BaseDamage))) * lDmg,
 		fireRate: (1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, g(WorkshopUpgradeId.BaseFireRate))) * lFR,
 		range: 180 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, g(WorkshopUpgradeId.BaseRange)),
-		hp: (80 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, g(WorkshopUpgradeId.StartingHp))) * lHP,
+		hp: (60 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, g(WorkshopUpgradeId.StartingHp))) * lHP,
 		critChance: Math.min(0.30, 0.05 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, g(WorkshopUpgradeId.CritBonus))),
-		cashMult: (1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CashBonus, g(WorkshopUpgradeId.CashBonus))) * lCash,
+		cashMult: (1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.EnergyBonus, g(WorkshopUpgradeId.EnergyBonus))) * lCash,
 		coinMult: (1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, g(WorkshopUpgradeId.CoinBonus))) * lCoin,
-		startingCash: 20 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingCash, g(WorkshopUpgradeId.StartingCash)),
+		startingCash: 20 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingEnergy, g(WorkshopUpgradeId.StartingEnergy)),
 		wsDefAbs: getWorkshopUpgradeEffect(WorkshopUpgradeId.DefenseAbsolute, g(WorkshopUpgradeId.DefenseAbsolute)),
 		wsDefPct: Math.min(0.50, getWorkshopUpgradeEffect(WorkshopUpgradeId.DefensePercent, g(WorkshopUpgradeId.DefensePercent))),
 		wsRegen: getWorkshopUpgradeEffect(WorkshopUpgradeId.Regen, g(WorkshopUpgradeId.Regen)),
@@ -70,8 +79,8 @@ function computeBaseline(ws: Record<string, number>, lab: Record<string, number>
 	};
 }
 
-function isUpgradeUnlocked(def: { unlockWave?: number }, wave: number): boolean {
-	return !def.unlockWave || wave >= def.unlockWave;
+function isUpgradeAvailable(defId: UpgradeId, unlockedBlueprints: BlueprintId[]): boolean {
+	return isFieldUpgradeUnlocked(defId, unlockedBlueprints);
 }
 
 function tryBuyUpgrades(state: SimState, priority: UpgradeId[], threshold: number): void {
@@ -81,7 +90,10 @@ function tryBuyUpgrades(state: SimState, priority: UpgradeId[], threshold: numbe
 		for (const id of priority) {
 			const def = BATTLE_UPGRADE_DEFS.find(d => d.id === id);
 			if (!def) continue;
-			if (!isUpgradeUnlocked(def, state.wave)) continue;
+			if (!isUpgradeAvailable(def.id, state.unlockedBlueprints)) {
+				state.lockedUpgradesSkipped++;
+				continue;
+			}
 			const lv = state.battleLevels[id] ?? 0;
 			if (lv >= def.maxLevel) continue;
 			const cost = getBattleUpgradeCost(id, lv);
@@ -124,12 +136,32 @@ function waveCoinReward(wave: number, coinMult: number): number {
 	return Math.floor(wave * mult * coinMult);
 }
 
+/**
+ * Checks if a blueprint should be auto-unlocked during simulation
+ * based on wave/boss progress.
+ *
+ * IMPORTANT: In the actual game, blueprints are discovered (become purchasable)
+ * but require Alloy to purchase. The simulator does NOT model Alloy purchases,
+ * so it does NOT auto-unlock blueprints. Blueprints only come from the
+ * unlockedBlueprints parameter (pre-owned).
+ *
+ * This function is kept for documentation but returns early.
+ */
+function tryUnlockBlueprints(_state: SimState, _bossesDefeated: number): void {
+	// Blueprints are NOT auto-unlocked during simulation.
+	// They must be passed via the unlockedBlueprints parameter.
+	// In the real game, blueprints become DISCOVERABLE at wave thresholds
+	// but still require Alloy purchase, which the simulator does not model.
+	return;
+}
+
 export function simulateRun(
 	workshopLevels: Record<string, number>,
 	labLevels: Record<string, number> = {},
 	maxWaves: number = 5000,
 	tier: number = 1,
 	strategy: Strategy = 'optimal',
+	unlockedBlueprints: BlueprintId[] = [],
 ): SimResult {
 	const ws = computeBaseline(workshopLevels, labLevels);
 
@@ -143,26 +175,30 @@ export function simulateRun(
 		cash: ws.startingCash, coins: 0,
 		wave: 0, kills: 0, cashEarned: ws.startingCash, coinsEarned: 0,
 		battleLevels: {}, tier, labLevels,
+		unlockedBlueprints: [...unlockedBlueprints],
+		lockedUpgradesSkipped: 0,
 	};
 
 	// Define strategy buy priorities and thresholds
 	let priority: UpgradeId[];
 	let threshold: number;
 	if (strategy === 'confused') {
-		// Confused: only buys Damage and Max HP, hoards cash (5x threshold)
-		priority = [UpgradeId.Damage, UpgradeId.MaxHp];
-		threshold = 5;
+		// Confused: buys HP and regen only, very expensive threshold (hoards cash)
+		priority = [UpgradeId.MaxHp, UpgradeId.Regen];
+		threshold = 8;
 	} else if (strategy === 'reasonable') {
-		// Reasonable: buys Damage, FireRate, HP, DefAbs; moderate (3x)
-		priority = [UpgradeId.Damage, UpgradeId.FireRate, UpgradeId.MaxHp, UpgradeId.Defense];
-		threshold = 3;
+		// Reasonable: buys HP then damage, no economy, moderate hoarding
+		priority = [UpgradeId.MaxHp, UpgradeId.Damage, UpgradeId.Regen];
+		threshold = 5;
 	} else {
-		// Optimal: full priority, conservative spending (3x threshold)
+		// Optimal: balanced — HP first, then economy + damage
 		priority = [
-			UpgradeId.Damage, UpgradeId.FireRate, UpgradeId.Multishot,
-			UpgradeId.CritChance, UpgradeId.MaxHp, UpgradeId.Defense,
-			UpgradeId.DefensePercent, UpgradeId.Regen, UpgradeId.Lifesteal,
-			UpgradeId.Thorns, UpgradeId.Range, UpgradeId.GoldAmp,
+			UpgradeId.MaxHp, UpgradeId.Damage, UpgradeId.CashPerWave,
+			UpgradeId.FireRate, UpgradeId.Regen,
+			// Locked without blueprints, listed for when available:
+			UpgradeId.Multishot, UpgradeId.CritChance, UpgradeId.Defense,
+			UpgradeId.DefensePercent, UpgradeId.Lifesteal,
+			UpgradeId.Thorns, UpgradeId.Range, UpgradeId.EnergyAmp,
 		];
 		threshold = 3;
 	}
@@ -171,10 +207,15 @@ export function simulateRun(
 	recompute(state, ws);
 	let diedTo = 'unknown';
 
+	let totalBossesDefeated = 0;
+
 	for (let wave = 1; wave <= maxWaves; wave++) {
 		state.wave = wave;
 		const isBossWave = wave % 10 === 0;
 		const count = isBossWave ? bossEscortCount(wave) + 1 : enemiesPerWave(wave);
+
+		// Try to unlock blueprints as we progress
+		tryUnlockBlueprints(state, totalBossesDefeated);
 
 		for (let e = 0; e < count; e++) {
 			let type: EnemyType;
@@ -201,17 +242,17 @@ export function simulateRun(
 
 			// Layered defense
 			const afterPct = Math.max(0, config.damage * (1 - state.defensePercent));
-			const dmgPerHit = Math.max(isBoss ? 2 : 1, Math.floor(afterPct - state.defense));
+			const dmgFloor = isBoss ? Math.max(5, Math.floor(wave * 0.5)) : 1;
+			const dmgPerHit = Math.max(dmgFloor, Math.floor(afterPct - state.defense));
 
 			const travel = Math.max(2, 450 / Math.max(1, config.speed));
 			const engage = Math.max(0, ttk - travel);
-			// Piecewise min hits: very low early, ramps mid-game, caps at 1.0
-			// This lets early players learn while preventing mid-game sustain loops
-			const minHits = wave <= 15 ? 0.10 :
-				wave <= 30 ? 0.10 + (wave - 15) * 0.04 :
-				Math.min(1.0, 0.70 + (wave - 30) * 0.005);
+			const minHits = wave <= 10 ? 0.20 :
+				wave <= 20 ? 0.20 + (wave - 10) * 0.03 :
+				wave <= 30 ? 0.50 + (wave - 20) * 0.025 :
+				Math.min(1.0, 0.75 + (wave - 30) * 0.005);
 			const hitsFromEnemy = engage > 0 ? Math.max(minHits, engage / config.attackCooldown) : minHits;
-			const totalDmg = hitsFromEnemy * dmgPerHit * 0.85;
+			const totalDmg = hitsFromEnemy * dmgPerHit;
 
 			// Lifesteal from damage dealt
 			if (state.lifesteal > 0) {
@@ -238,6 +279,7 @@ export function simulateRun(
 				state.coinsEarned += Math.floor(ws.killCoinBonus);
 			}
 			if (isBoss) {
+				totalBossesDefeated++;
 				const bossCoins = Math.floor(5 * ws.coinMult);
 				state.coins += bossCoins;
 				state.coinsEarned += bossCoins;
@@ -246,7 +288,7 @@ export function simulateRun(
 		if (state.hp <= 0) break;
 
 		// Wave completion
-		const cashBonus = 5 + wave + (state.battleLevels[UpgradeId.CashPerWave] ?? 0) * 3;
+		const cashBonus = 5 + wave + (state.battleLevels[UpgradeId.CashPerWave] ?? 0) * 1;
 		state.cash += cashBonus;
 		state.cashEarned += cashBonus;
 
@@ -254,6 +296,8 @@ export function simulateRun(
 		state.coins += wc;
 		state.coinsEarned += wc;
 
+		// Re-check blueprint unlocks
+		tryUnlockBlueprints(state, totalBossesDefeated);
 		tryBuyUpgrades(state, priority, threshold);
 		recompute(state, ws);
 	}
@@ -280,6 +324,7 @@ export function simulateRun(
 		finalCritChance: state.critChance, finalDefense: state.defense,
 		dps, effectiveHp: effHp, bottleneck, diedTo,
 		tier, strategy, labLevels,
+		lockedUpgradesSkipped: state.lockedUpgradesSkipped,
 	};
 }
 
@@ -295,76 +340,108 @@ export interface SimScenario {
 	workshop: Record<string, number>;
 	labs: Record<string, number>;
 	tier: number; strategy: Strategy;
+	unlockedBlueprints: BlueprintId[];
 	desc: string;
 }
 
 export const SCENARIOS: SimScenario[] = [
-	{ name: 'Fresh Confused', workshop: {}, labs: {}, tier: 1, strategy: 'confused',
-		desc: 'First-ever run, confused buying (hoards cash, buys only damage/HP).' },
-	{ name: 'Fresh Reasonable', workshop: {}, labs: {}, tier: 1, strategy: 'reasonable',
-		desc: 'First run, reasonable buying (damage, fire rate, HP, def abs).' },
-	{ name: 'Fresh Optimal', workshop: {}, labs: {}, tier: 1, strategy: 'optimal',
-		desc: 'First run, optimal priority buying.' },
-	{ name: '5 WS Purchases', workshop: { [WorkshopUpgradeId.BaseDamage]: 3, [WorkshopUpgradeId.StartingHp]: 2 },
+	{
+		name: 'Fresh Confused', workshop: {}, labs: {}, tier: 1, strategy: 'confused',
+		unlockedBlueprints: [],
+		desc: 'First-ever run, confused buying (hoards cash, buys only damage/HP). No blueprints.'
+	},
+	{
+		name: 'Fresh Reasonable', workshop: {}, labs: {}, tier: 1, strategy: 'reasonable',
+		unlockedBlueprints: [],
+		desc: 'First run, reasonable buying (damage, fire rate, HP, regen, energy/wave). No blueprints.'
+	},
+	{
+		name: 'Fresh Optimal', workshop: {}, labs: {}, tier: 1, strategy: 'optimal',
+		unlockedBlueprints: [],
+		desc: 'First run, optimal priority buying. No blueprints — only starter upgrades available.'
+	},
+	{
+		name: 'After First Blueprint', workshop: {}, labs: {}, tier: 1, strategy: 'optimal',
+		unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell],
+		desc: 'Unlocked Extended Tower Optics (Range) + Plated Tower Shell (Def Abs) after reaching wave 25.'
+	},
+	{
+		name: '5 Foundry Purchases', workshop: { [WorkshopUpgradeId.BaseDamage]: 3, [WorkshopUpgradeId.StartingHp]: 2 },
 		labs: {}, tier: 1, strategy: 'optimal',
-		desc: 'Minimal workshop: 3 damage, 2 HP.' },
-	{ name: '25 WS Purchases', workshop: {
+		unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell],
+		desc: 'Minimal foundry: 3 damage, 2 HP. Early blueprints unlocked.'
+	},
+	{
+		name: '25 Foundry Purchases', workshop: {
 			[WorkshopUpgradeId.BaseDamage]: 12, [WorkshopUpgradeId.StartingHp]: 5,
-			[WorkshopUpgradeId.BaseFireRate]: 3, [WorkshopUpgradeId.CashBonus]: 3,
-			[WorkshopUpgradeId.StartingCash]: 2 },
+			[WorkshopUpgradeId.BaseFireRate]: 3, [WorkshopUpgradeId.Regen]: 3,
+			[WorkshopUpgradeId.CoinBonus]: 2 },
 		labs: {}, tier: 1, strategy: 'optimal',
-		desc: 'Short session: ~25 WS levels.' },
-	{ name: '100 WS + 10 Labs', workshop: {
+		unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell, BlueprintId.CriticalTargeting, BlueprintId.AlloyExtraction],
+		desc: '~25 foundry levels. Mid-game blueprints unlocked.'
+	},
+	{
+		name: '100 Foundry + Early Labs', workshop: {
 			[WorkshopUpgradeId.BaseDamage]: 40, [WorkshopUpgradeId.StartingHp]: 20,
 			[WorkshopUpgradeId.BaseFireRate]: 10, [WorkshopUpgradeId.BaseRange]: 5,
-			[WorkshopUpgradeId.CashBonus]: 10, [WorkshopUpgradeId.CoinBonus]: 5,
-			[WorkshopUpgradeId.StartingCash]: 5, [WorkshopUpgradeId.DefenseAbsolute]: 5 },
+			[WorkshopUpgradeId.EnergyBonus]: 10, [WorkshopUpgradeId.CoinBonus]: 5,
+			[WorkshopUpgradeId.DefenseAbsolute]: 5, [WorkshopUpgradeId.Regen]: 5 },
 		labs: { damageResearch: 5, healthResearch: 3, attackSpeedResearch: 2 },
 		tier: 1, strategy: 'optimal',
-		desc: '~100 WS + early labs.' },
-	{ name: '500 WS + 100 Labs', workshop: {
+		unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell, BlueprintId.CriticalTargeting, BlueprintId.AlloyExtraction, BlueprintId.PhaseDampener, BlueprintId.SplitBeamGeometry, BlueprintId.EnergyCondenser, BlueprintId.DeploymentReserves, BlueprintId.ReactiveSurface],
+		desc: '~100 foundry + early labs. Most blueprints unlocked.'
+	},
+	{
+		name: '500 Foundry + Labs', workshop: {
 			[WorkshopUpgradeId.BaseDamage]: 200, [WorkshopUpgradeId.StartingHp]: 100,
 			[WorkshopUpgradeId.BaseFireRate]: 40, [WorkshopUpgradeId.DefenseAbsolute]: 50,
-			[WorkshopUpgradeId.BaseRange]: 20, [WorkshopUpgradeId.CashBonus]: 30,
+			[WorkshopUpgradeId.BaseRange]: 20, [WorkshopUpgradeId.EnergyBonus]: 30,
 			[WorkshopUpgradeId.CoinBonus]: 20, [WorkshopUpgradeId.Regen]: 10,
-			[WorkshopUpgradeId.StartingCash]: 10 },
+			[WorkshopUpgradeId.StartingEnergy]: 10, [WorkshopUpgradeId.DefensePercent]: 5,
+			[WorkshopUpgradeId.Thorns]: 5, [WorkshopUpgradeId.CritBonus]: 5 },
 		labs: { damageResearch: 40, healthResearch: 20, attackSpeedResearch: 15,
-			coinEfficiency: 15, cashEfficiency: 10 },
+			alloyEfficiency: 15, energyEfficiency: 10 },
 		tier: 1, strategy: 'optimal',
-		desc: '~500 WS + 100 labs — meaningful long-term.' },
-	{ name: '1000 WS + 250 Labs', workshop: {
+		unlockedBlueprints: Object.values(BlueprintId),
+		desc: '~500 foundry + 100 labs — meaningful long-term. All blueprints.'
+	},
+	{
+		name: '1000 Foundry + 250 Labs', workshop: {
 			[WorkshopUpgradeId.BaseDamage]: 500, [WorkshopUpgradeId.StartingHp]: 300,
 			[WorkshopUpgradeId.BaseFireRate]: 70, [WorkshopUpgradeId.DefenseAbsolute]: 100,
 			[WorkshopUpgradeId.BaseRange]: 40, [WorkshopUpgradeId.Regen]: 30,
-			[WorkshopUpgradeId.CashBonus]: 100, [WorkshopUpgradeId.CoinBonus]: 80,
-			[WorkshopUpgradeId.StartingCash]: 30 },
+			[WorkshopUpgradeId.EnergyBonus]: 100, [WorkshopUpgradeId.CoinBonus]: 80,
+			[WorkshopUpgradeId.StartingEnergy]: 30, [WorkshopUpgradeId.DefensePercent]: 15,
+			[WorkshopUpgradeId.Thorns]: 15, [WorkshopUpgradeId.CritBonus]: 15,
+			[WorkshopUpgradeId.Lifesteal]: 3 },
 		labs: { damageResearch: 100, healthResearch: 80, attackSpeedResearch: 40,
-			coinEfficiency: 30, cashEfficiency: 20 },
+			alloyEfficiency: 30, energyEfficiency: 20 },
 		tier: 1, strategy: 'optimal',
-		desc: 'Deep veteran: ~1000 WS + 250 labs.' },
-	{ name: 'Tier 2 First Try', workshop: {
+		unlockedBlueprints: Object.values(BlueprintId),
+		desc: 'Deep veteran: ~1000 foundry + 250 labs. All blueprints.'
+	},
+	{
+		name: 'Tier 2 First Try', workshop: {
 			[WorkshopUpgradeId.BaseDamage]: 40, [WorkshopUpgradeId.StartingHp]: 20,
-			[WorkshopUpgradeId.BaseFireRate]: 10, [WorkshopUpgradeId.CashBonus]: 10,
-			[WorkshopUpgradeId.CoinBonus]: 5, [WorkshopUpgradeId.DefenseAbsolute]: 5 },
+			[WorkshopUpgradeId.BaseFireRate]: 10, [WorkshopUpgradeId.EnergyBonus]: 10,
+			[WorkshopUpgradeId.CoinBonus]: 5, [WorkshopUpgradeId.DefenseAbsolute]: 5,
+			[WorkshopUpgradeId.BaseRange]: 5 },
 		labs: { damageResearch: 5, healthResearch: 3, attackSpeedResearch: 2 },
 		tier: 2, strategy: 'optimal',
-		desc: 'Same as 100 WS but Tier 2. Should be much harder.' },
-	{ name: 'Tier 2 Strong', workshop: {
+		unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell, BlueprintId.CriticalTargeting, BlueprintId.AlloyExtraction, BlueprintId.SplitBeamGeometry, BlueprintId.EnergyCondenser, BlueprintId.DeploymentReserves],
+		desc: 'Same as 100 foundry but Tier 2. Should be much harder.'
+	},
+	{
+		name: 'Tier 2 Strong', workshop: {
 			[WorkshopUpgradeId.BaseDamage]: 200, [WorkshopUpgradeId.StartingHp]: 100,
 			[WorkshopUpgradeId.BaseFireRate]: 40, [WorkshopUpgradeId.DefenseAbsolute]: 50,
-			[WorkshopUpgradeId.BaseRange]: 20, [WorkshopUpgradeId.CashBonus]: 30,
-			[WorkshopUpgradeId.CoinBonus]: 20, [WorkshopUpgradeId.Regen]: 10 },
+			[WorkshopUpgradeId.BaseRange]: 20, [WorkshopUpgradeId.EnergyBonus]: 30,
+			[WorkshopUpgradeId.CoinBonus]: 20, [WorkshopUpgradeId.Regen]: 10,
+			[WorkshopUpgradeId.DefensePercent]: 5 },
 		labs: { damageResearch: 40, healthResearch: 20, attackSpeedResearch: 15,
-			coinEfficiency: 15, cashEfficiency: 10 },
+			alloyEfficiency: 15, energyEfficiency: 10 },
 		tier: 2, strategy: 'optimal',
-		desc: '500 WS farmer tries Tier 2.' },
-	{ name: 'Tier 3 First Try', workshop: {
-			[WorkshopUpgradeId.BaseDamage]: 200, [WorkshopUpgradeId.StartingHp]: 100,
-			[WorkshopUpgradeId.BaseFireRate]: 40, [WorkshopUpgradeId.DefenseAbsolute]: 50,
-			[WorkshopUpgradeId.BaseRange]: 20, [WorkshopUpgradeId.CashBonus]: 30,
-			[WorkshopUpgradeId.CoinBonus]: 20, [WorkshopUpgradeId.Regen]: 10 },
-		labs: { damageResearch: 40, healthResearch: 20, attackSpeedResearch: 15,
-			coinEfficiency: 15, cashEfficiency: 10 },
-		tier: 3, strategy: 'optimal',
-		desc: '500 WS farmer tries Tier 3 (8× HP, 4.5× ATK).' },
+		unlockedBlueprints: Object.values(BlueprintId),
+		desc: '500 foundry farmer tries Tier 2.'
+	},
 ];

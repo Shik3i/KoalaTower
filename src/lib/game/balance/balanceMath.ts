@@ -2,7 +2,7 @@
  * balanceMath.ts — Long-tail idle tower defense scaling formulas.
  *
  * DESIGN PHILOSOPHY:
- * This is NOT a 20-wave roguelite. GeoCore TD supports thousands of waves
+ * This is NOT a 20-wave roguelite. Flatland TD supports thousands of waves
  * across months/years of permanent progression. All formulas are designed
  * for long-term compounding without numerical collapse.
  *
@@ -71,7 +71,7 @@ export function waveHpMultiplier(wave: number): number {
 }
 
 export function waveAttackMultiplier(wave: number): number {
-	return 1 + wave * 0.025 + Math.pow(wave, 1.2) * 0.0004;
+	return 1 + wave * 0.04 + Math.pow(wave, 1.15) * 0.0008;
 }
 
 export function waveSpeedMultiplier(wave: number): number {
@@ -94,7 +94,7 @@ export function waveCoinRewardMultiplier(wave: number): number {
 // Boss stats relative to a normal enemy at the same wave × tier.
 
 export function bossHpMultiplier(wave: number): number {
-	return 8 + wave * 0.15;
+	return 7 + wave * 0.13;
 }
 
 export function bossAttackMultiplier(wave: number): number {
@@ -157,7 +157,7 @@ export const ENEMY_BASE_STATS: Record<EnemyType, {
 	[EnemyType.Fast]:    { hp: 5,   speed: 120, attack: 1,  attackRange: 25,  attackCooldown: 1.0, size: 13 },
 	[EnemyType.Tank]:    { hp: 35,  speed: 30,  attack: 4,  attackRange: 30,  attackCooldown: 2.0, size: 24 },
 	[EnemyType.Ranged]:  { hp: 8,   speed: 50,  attack: 2,  attackRange: 200, attackCooldown: 2.5, size: 15 },
-	[EnemyType.Boss]:    { hp: 250, speed: 30,  attack: 15, attackRange: 50,  attackCooldown: 1.5, size: 40 },
+	[EnemyType.Boss]:    { hp: 200, speed: 30,  attack: 15, attackRange: 50,  attackCooldown: 1.5, size: 40 },
 };
 
 export const ENEMY_TYPE_MODIFIERS: Record<EnemyType, {
@@ -167,9 +167,9 @@ export const ENEMY_TYPE_MODIFIERS: Record<EnemyType, {
 	reward: number;
 }> = {
 	[EnemyType.Normal]:  { hp: 1.0,  attack: 1.0,  speed: 1.0,  reward: 1.0 },
-	[EnemyType.Fast]:    { hp: 0.5,  attack: 0.75, speed: 1.8,  reward: 1.3 },
-	[EnemyType.Tank]:    { hp: 3.0,  attack: 1.25, speed: 0.6,  reward: 2.2 },
-	[EnemyType.Ranged]:  { hp: 1.3,  attack: 0.7,  speed: 0.8,  reward: 1.7 },
+	[EnemyType.Fast]:    { hp: 0.5,  attack: 1.0,  speed: 1.8,  reward: 1.3 },
+	[EnemyType.Tank]:    { hp: 3.0,  attack: 1.5,  speed: 0.6,  reward: 2.2 },
+	[EnemyType.Ranged]:  { hp: 1.3,  attack: 1.2,  speed: 0.8,  reward: 1.7 },
 	[EnemyType.Boss]:    { hp: 1.0,  attack: 1.0,  speed: 1.0,  reward: 1.0 },
 };
 

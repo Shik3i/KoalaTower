@@ -92,9 +92,9 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 			wave.waveActive = false;
 			wave.subWaveActive = false;
 			wave.betweenWaveTimer = 0;
-			// Award wave completion bonus (Gold)
+			// Award wave completion energy
 			state.cash += getWaveCompletionBonus(state, state.wave.currentWave);
-			// Award wave completion coins (primary coin source)
+			// Award wave completion alloy (primary alloy source)
 			state.coins += getWaveCoinReward(state, state.wave.currentWave);
 		}
 }
@@ -117,7 +117,7 @@ function spawnEnemy(state: GameState): void {
 	}
 
 	const { x, y } = getSpawnPosition(state);
-	const enemy = createEnemy(type, state.wave.currentWave, x, y);
+	const enemy = createEnemy(type, state.wave.currentWave, x, y, 1);
 	state.enemies.push(enemy);
 	state.wave.enemiesSpawned++;
 	state.wave.enemiesSpawnedInSubWave++;

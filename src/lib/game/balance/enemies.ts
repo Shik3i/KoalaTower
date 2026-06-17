@@ -93,8 +93,8 @@ export function consumeBossEscort(): boolean {
  * Create an Enemy object from type and wave.
  * Uses computeEnemyConfig from balanceMath for all stats.
  */
-export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawnY: number): Enemy {
-	const config = computeEnemyConfig(type, wave);
+export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawnY: number, tier: number = 1): Enemy {
+	const config = computeEnemyConfig(type, wave, tier);
 	const id = nextEnemyId++;
 	return {
 		id,

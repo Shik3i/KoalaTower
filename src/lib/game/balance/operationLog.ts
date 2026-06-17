@@ -1,13 +1,12 @@
 /**
- * operationLog.ts — Flavor text for in-game operation log messages.
+ * operationLog.ts — Flatland Wars flavor text for operation log messages.
  *
- * These are short, dry, slightly absurd messages displayed as toast/banner
- * entries during gameplay. They give the game narrative personality without
- * interrupting play.
+ * Tone: dry, self-ironic, sarcastic sci-fi command voice. Bureaucratic
+ * military absurdity. Orbital Command speaking like it is very confident
+ * and slightly useless. Geometric war jokes. Concise, funny, readable.
  *
  * Add new messages to the relevant category arrays. Keep them short.
  */
-
 export interface OpLogCategory {
 	deploymentStart: string[];
 	waveMilestone: string[];
@@ -17,61 +16,82 @@ export interface OpLogCategory {
 	coreLost: string[];
 	tierUnlock: string[];
 	labUnlock: string[];
+	blueprintUnlocked: string[];
+	researchStarted: string[];
+	researchCompleted: string[];
+	forgeUpgraded: string[];
+	saveExported: string[];
+	saveImported: string[];
+	saveImportFailed: string[];
+	saveReset: string[];
+	frontUnlocked: string[];
 }
 
 const POOLS: OpLogCategory = {
 	deploymentStart: [
-		'GeoCore deployed. Atmosphere breathable. Enemies: not.',
-		'Dropping Core into hostile geometry. Usual drill.',
-		'Telemetry online. Core is down. Enemies are... everywhere.',
-		'Another planet, another swarm. Command sighs.',
-		'Core away. Budget already exceeded. Godspeed.',
+		'Tower deployed. Flatland has noticed.',
+		'Dropping tower into hostile geometry. Usual drill.',
+		'Telemetry online. Tower is down. Shapes are... everywhere.',
+		'Another front, another swarm. Command sighs.',
+		'Tower away. Budget already exceeded. Godspeed.',
 		'Deployment logged. No plan survives first contact. Send it.',
+		'Tower insertion confirmed. Flatland remains extremely two-dimensional.',
+		'Deploying tower. The geometry department has been notified.',
 	],
 
 	waveMilestone: [
 		'Wave {wave} cleared. Command is mildly impressed.',
 		'Wave {wave} achieved. Nobody saw that coming.',
-		'Core holding at wave {wave}. The coffee is cold.',
+		'Tower holding at wave {wave}. The coffee is cold.',
 		'Wave {wave}. The geometry is getting personal.',
-		'Command notes: Core still standing at wave {wave}. Unexpected.',
-		'{wave} waves down. The swarm is learning. So is the Core.',
+		'Command notes: tower still standing at wave {wave}. Unexpected.',
+		'{wave} waves down. The swarm is learning. So is the tower.',
+		'Wave {wave} telemetry confirms the enemy remains extremely two-dimensional.',
+		'Wave {wave}. The shapes have requested reinforcements. Denied.',
 	],
 
 	bossIncoming: [
 		'Large polygon detected. It has opinions.',
 		'Command confirms: the triangle situation has escalated.',
 		'High-value target incoming. Try not to miss.',
-		'Boss signature identified. It is notably unpleasant.',
-		'Enemy command unit en route. Budget for a replacement Core just in case.',
+		'Prime shape identified. It is notably unpleasant.',
+		'Enemy apex unit en route. It looks expensive.',
 		'Something big just warped in. Geometry critical.',
+		'A larger polygon has entered the argument.',
+		'Boss inbound. Orbital Command describes it as "sub-optimal geometry."',
 	],
 
 	bossDefeated: [
-		'Boss neutralized. Debrief: it was very rude.',
-		'Command acknowledges the boss removal. Good work.',
+		'Prime shape neutralized. Debrief: it was very rude.',
+		'Command acknowledges the apex removal. Good work.',
 		'Enemy command structure disrupted. Temporarily.',
 		'Boss down. Telemetry suggests it was as annoying as it looked.',
-		'Core successfully argued its point. The boss disagreed permanently.',
+		'Tower successfully argued its point. The boss disagreed permanently.',
 		'Hostile shape eliminated. Its math will be missed. (No it will not.)',
+		'Prime Shape defeated. Geometry has filed a complaint.',
+		'Boss terminated. The remaining shapes are now considerably less confident.',
 	],
 
 	newBestWave: [
 		'New best wave: {wave}. Records were made to be broken.',
 		'Command logs new record: wave {wave}. Somebody is getting a bonus.',
-		'Previous best exceeded. Core performance: acceptable.',
+		'Previous best exceeded. Tower performance: acceptable.',
 		'Wave {wave} — new personal best. The swarm is not happy.',
 		'Telemetry confirms: this is the deepest deployment yet. Barely.',
+		'New record. Propaganda department notified.',
+		'Wave {wave}. Command will now pretend this was always the plan.',
 	],
 
 	coreLost: [
-		'Core lost. Salvage: minimal. Morale: also minimal.',
-		'GeoCore destroyed. Telemetry recovered. Core: not so much.',
-		'The Core has fallen. The swarm sends its regards.',
-		'Deployment terminated. Core unrecoverable. Standard outcome.',
-		'Command registers the loss of another Core. File: thick.',
-		'Core went down fighting. It went down. That is the part that matters.',
+		'Tower lost. Flatland wins this round.',
+		'Tower destroyed. Telemetry recovered. Tower: not so much.',
+		'The tower has fallen. The shapes send their regards.',
+		'Deployment terminated. Tower unrecoverable. Standard outcome.',
+		'Command registers the loss of another tower. File: thick.',
+		'Tower went down fighting. It went down. That is the part that matters.',
 		'Telemetry stream ended. The last transmission was mostly static and one curse word.',
+		'Tower Lost. Orbital Command describes this as an expected delivery outcome.',
+		'Deployment failed. Tower lost. Telemetry recovered. Morale has been adjusted upward.',
 	],
 
 	tierUnlock: [
@@ -87,6 +107,63 @@ const POOLS: OpLogCategory = {
 		'{lab} now available. Orbital research initiated. Results: pending.',
 		'New research project: {lab}. Papers will be filed. Eventually.',
 		'{lab} online. The scientists are excited. This is never good.',
+	],
+
+	blueprintUnlocked: [
+		'Blueprint recovered. Procurement denies ever losing it.',
+		'Schematic unlocked: {name}. Somebody in R&D is taking credit.',
+		'Blueprint {name} added to archives. It was definitely not stolen.',
+		'{name} unlocked. Command insists this was always in the budget.',
+	],
+
+	researchStarted: [
+		'Research started: {name}. Scientists have been locked in the bright room.',
+		'{name} research initiated. Estimated completion: eventually.',
+		'Project {name} underway. The lab smells like ozone and regret.',
+		'Research Deck active: {name}. Please do not disturb the scientists. They bite.',
+	],
+
+	researchCompleted: [
+		'Research complete: {name}. The bright room has been reopened.',
+		'{name} finished. The scientists insist this was intentional.',
+		'Project {name} concluded. Results: promising. Side effects: manageable.',
+		'{name} research done. Command is already demanding the next project.',
+	],
+
+	forgeUpgraded: [
+		'Forge upgrade installed: {name}. Future Towers may now fail more impressively.',
+		'{name} upgraded. The Forge reports increased humming.',
+		'Forge upgrade complete: {name}. Efficiency improved. Marginally.',
+	],
+
+	saveExported: [
+		'Save exported. The archives have been backed up to a questionable location.',
+		'Export complete. Your progress now exists in two places. Briefly.',
+		'Save data exported. Treat it with the respect it does not deserve.',
+	],
+
+	saveImported: [
+		'Import accepted. The archives have chosen to believe you.',
+		'Save imported. Command is pretending not to notice the discrepancies.',
+		'Archives restored. Some records appear... edited. We will not ask.',
+	],
+
+	saveImportFailed: [
+		'Import rejected. The file contains suspiciously ambitious geometry.',
+		'Save import failed. This is not a Flatland TD archive.',
+		'Import error. Orbital Command cannot validate this data.',
+	],
+
+	saveReset: [
+		'Save reset. History has been simplified.',
+		'All data cleared. Command describes this as "a fresh strategic posture."',
+		'Save wiped. The archives are empty. The war begins again.',
+	],
+
+	frontUnlocked: [
+		'New front operational: {name}. Enemy geometry density: unacceptable.',
+		'{name} front opened. The shapes there are reportedly very rude.',
+		'Command authorizes deployment to {name}. Good luck. You will need it.',
 	],
 };
 

@@ -160,7 +160,12 @@ export class PixiGameView {
 		}
 		this.tower.muzzleFlash = this.muzzleFlash;
 
-		this.engine.update(rawDt);
+		try {
+			this.engine.update(rawDt);
+		} catch (e) {
+			console.error('[PixiGameView] Engine update crashed:', e);
+			// Continue the render loop so the canvas doesn't freeze permanently
+		}
 
 		const state = this.engine.state;
 		const settings = state.settings;

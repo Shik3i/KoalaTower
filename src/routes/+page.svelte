@@ -6,7 +6,7 @@
 	const jsonLd = {
 		'@context': 'https://schema.org',
 		'@type': 'WebApplication',
-		name: 'GeoCore TD',
+		name: 'Flatland TD',
 		applicationCategory: 'GameApplication',
 		operatingSystem: 'Any',
 		description: 'A neon cyber idle tower defense game. Defend your tower against endless waves of digital enemies.',
@@ -31,10 +31,10 @@
 </script>
 
 <svelte:head>
-	<title>GeoCore TD — Open Source Neon Cyber Idle Tower Defense</title>
-	<meta name="description" content="Deploy GeoCores from orbit into hostile geometric fronts. Research permanent upgrades on your Orbital Command. Open source neon cyber idle tower defense. No tracking." />
-	<meta property="og:title" content="GeoCore TD — Deploy Now" />
-	<meta property="og:description" content="Deploy GeoCores from orbit into hostile geometric fronts. Research permanent upgrades on your Orbital Command." />
+	<title>Flatland TD · FLTD — Open Source Neon Cyber Idle Tower Defense</title>
+	<meta name="description" content="Deploy towers from orbit into hostile geometric fronts. Research permanent upgrades on your Orbital Command. Open source neon cyber idle tower defense. No tracking." />
+	<meta property="og:title" content="Flatland TD — Deploy Now" />
+	<meta property="og:description" content="Deploy towers from orbit into hostile geometric fronts. Research permanent upgrades on your Orbital Command." />
 	<script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
 </svelte:head>
 
@@ -57,15 +57,14 @@
 				<span class="version-text">{APP_VERSION}</span>
 			</a>
 			<h1 class="title">
-				<span class="title-emoji">🗼</span>
-				<span class="title-text">GeoCore TD</span>
+				<img class="hero-logo" src="/branding/flatland-logo-large.svg" alt="Flatland TD logo" />
 			</h1>
 			<p class="subtitle">Open source neon cyber idle tower defense</p>
 				<p class="description">
-				Flatland is at war. Deploy GeoCores from orbit onto hostile fronts,
-				harvest energy from destroyed enemies to overclock your tower,
+				Flatland is at war. Deploy towers from orbit onto hostile geometric fronts,
+				harvest energy from destroyed shapes to overclock your tower,
 				and refine alloy for permanent upgrades aboard Orbital Command.
-				Each front is a new battlefield — the Core is lost with every drop.
+				Each front is a new battlefield — the tower is lost with every drop.
 			</p>
 			<div class="cta-buttons">
 				<a href="/play" class="btn-primary">
@@ -240,41 +239,17 @@
 	}
 
 	.title {
-		font-size: 3.5rem;
-		font-weight: 800;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 0.75rem;
 		margin-bottom: 0.75rem;
 	}
 
-	.title-emoji {
-		font-size: 3.2rem;
-		filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.3));
-	}
-
-	.title-text {
-		background: linear-gradient(
-			135deg,
-			var(--cyan) 0%,
-			#33CCFF 20%,
-			var(--blue) 40%,
-			#6666FF 60%,
-			var(--violet) 80%,
-			var(--pink) 100%
-		);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
-		background-size: 300% auto;
-		animation: shimmer 12s ease-in-out infinite;
-	}
-
-	@keyframes shimmer {
-		0% { background-position: 0% center; }
-		50% { background-position: 100% center; }
-		100% { background-position: 0% center; }
+	.hero-logo {
+		width: 100%;
+		max-width: 500px;
+		height: auto;
+		filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.15));
 	}
 
 	.subtitle {
@@ -501,10 +476,10 @@
 
 	@media (max-width: 767px) {
 		.title {
-			font-size: 2.4rem;
+			margin-bottom: 0.5rem;
 		}
-		.title-emoji {
-			font-size: 2.2rem;
+		.hero-logo {
+			max-width: 340px;
 		}
 		.hero {
 			padding: 3rem 1rem 2rem;

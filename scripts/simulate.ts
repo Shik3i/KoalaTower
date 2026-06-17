@@ -6,7 +6,7 @@
 import { simulateRun, totalWSLevels, totalLabLevels, SCENARIOS } from '../src/lib/game/balance/balanceSimulator';
 
 console.log('='.repeat(110));
-console.log('  GeoCore TD — Simulator (Confused / Reasonable / Optimal)');
+console.log('  Flatland TD — Simulator (Confused / Reasonable / Optimal)');
 console.log('  Tests progression with proper long-tail workshop scaling.');
 console.log('='.repeat(110));
 

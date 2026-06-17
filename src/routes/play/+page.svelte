@@ -8,6 +8,7 @@
 	import { buildBattleUpgradeList, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
 	import { formatBattleEffect } from '$lib/game/balance/upgradeScaling';
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
+	import { isFieldUpgradeUnlocked, getBlueprintForFieldUpgrade } from '$lib/game/balance/blueprints';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
@@ -20,6 +21,7 @@
 	let isMobile = $state(false);
 	let leftPanelOpen = $state(false);
 	let rightPanelOpen = $state(true);
+	let showLaunchScreen = $state(true);
 	let showGameOver = $state(false);
 	let gameOverCoins = $state(0);
 	let gameOverWave = $state(0);
@@ -78,6 +80,14 @@
 				syncSettingsToEngine(settings);
 				// Rewire callbacks for the new component instance
 				wireEngineCallbacks();
+				// If a run is active, hide the launch screen
+				if (engine.state.runActive) {
+					showLaunchScreen = false;
+				}
+				// If game over, show the game over panel
+				if (engine.state.gameOver) {
+					showGameOver = true;
+				}
 			}
 		});
 
@@ -119,7 +129,7 @@
 			elapsedTime: st.elapsedTime, gameOver: st.gameOver, runActive: st.runActive,
 			highestWave: st.highestWave, enemyCount: st.enemies.length, speed: engine.speedMultiplier,
 			towerDamage: t.stats.damage, towerFireRate: t.stats.fireRate, towerRange: t.stats.range,
-			towerMultishotChance: t.stats.multishotChance, towerMultishotCount: t.stats.multishotCount, towerCritChance: t.stats.critChance,
+			towerMultishotChance: t.stats.multishotChance, towerMultishotCount: t.stats.multishotCount, towerCritChance: t.stats.critChance, towerCritMultiplier: t.stats.critMultiplier,
 			upgradeLevels: { ...st.battleUpgrades as Record<string, number> },
 			enemiesInWave: w.enemiesInWave, enemiesSpawned: w.enemiesSpawned,
 			enemiesKilledThisWave: w.enemiesKilled, waveActive: w.waveActive,
@@ -211,11 +221,13 @@
 	function startRun() {
 		if (!engine) initEngine();
 		if (!engine) return;
+		showLaunchScreen = false;
 		showGameOver = false;
 		showMobileUpgrades = false;
 		speed = 1; paused = false;
 		const save = getCachedSave();
-		engine.startRun(save?.workshopUpgrades ?? {}, save?.labLevels ?? {}, coins);
+		const unlockedBPs = (save?.unlockedBlueprints ?? []) as import('$lib/game/engine/gameTypes').BlueprintId[];
+		engine.startRun(save?.workshopUpgrades ?? {}, save?.labLevels ?? {}, coins, unlockedBPs);
 		syncSettingsToEngine(save?.settings ?? { reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false });
 		gameView?.start();
 		refreshSnap();
@@ -254,12 +266,25 @@
 	}
 	function bLv(id: UpgradeId): number { return snap?.upgradeLevels[id] ?? 0; }
 
+	/** Check if a field upgrade is blueprint-locked */
+	function isUpgradeLocked(id: UpgradeId): boolean {
+		const save = getCachedSave();
+		const unlockedBPs = (save?.unlockedBlueprints ?? []) as import('$lib/game/engine/gameTypes').BlueprintId[];
+		return !isFieldUpgradeUnlocked(id, unlockedBPs);
+	}
+
+	/** Get the blueprint name that locks this upgrade */
+	function getLockBlueprintName(id: UpgradeId): string {
+		const bp = getBlueprintForFieldUpgrade(id);
+		return bp ? bp.name : 'Unknown';
+	}
+
 	function handleResetSave() {
 		resetSave().then(() => {
 			showResetConfirm = false;
 			coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0);
 			settingsStore.set({ reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false });
-			toast('🗑 Reset!', 'warning');
+			toast(getOpLogMessage('saveReset'), 'warning');
 		});
 	}
 
@@ -280,8 +305,8 @@
 </script>
 
 <svelte:head>
-	<title>Play — GeoCore TD</title>
-	<meta name="description" content="Play GeoCore TD — defend your tower against endless waves of enemies. Battle upgrades, real-time lab research, and permanent workshop upgrades." />
+	<title>Deployment — Flatland TD · FLTD</title>
+	<meta name="description" content="Deploy a tower into Flatland. Harvest energy for field upgrades, refine alloy for permanent upgrades." />
 </svelte:head>
 
 <div class="play-layout" role="main">
@@ -292,7 +317,7 @@
 	<!-- Top Bar -->
 	<header class="topbar">
 		<a href="/" class="tb-back" aria-label="Home">←</a>
-		<div class="tb-brand">GeoCore TD</div>
+		<div class="tb-brand">Flatland TD</div>
 		<div class="tb-div"></div>
 		<div class="tb-stats">
 			{#if snap?.runActive}
@@ -319,7 +344,7 @@
 				<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu" title="Export / Import / Reset save data">💾</button>
 				{#if showSaveMenu}
 					<div class="sv-drop">
-						<button onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast('📋 Exported!', 'success'); showSaveMenu = false; }}>📋 Export</button>
+						<button onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); showSaveMenu = false; }}>📋 Export</button>
 						<button onclick={() => { showImportDialog = true; showSaveMenu = false; }}>📂 Import</button>
 						<button onclick={() => { showResetConfirm = true; showSaveMenu = false; }}>🗑 Reset</button>
 						<button onclick={() => { showSaveMenu = false; }}>✕ Close</button>
@@ -377,7 +402,7 @@
 				<div class="go-glow"></div>
 				<div class="go-glow-ring"></div>
 				<div class="go-icon">{gameOverWave >= highestWave && highestWave > 0 ? '🏆' : '💀'}</div>
-				<h2 class="go-title">{gameOverWave >= highestWave && highestWave > 0 ? 'New Record!' : 'Core Lost'}</h2>
+				<h2 class="go-title">{gameOverWave >= highestWave && highestWave > 0 ? 'New Record!' : 'Tower Lost'}</h2>
 				<div class="go-wave">Reached <strong>Wave {gameOverWave}</strong></div>
 				{#if highestWave > 0 && gameOverWave < highestWave}
 					<div class="go-wave-sub">Best: Wave {highestWave} ({(gameOverWave / highestWave * 100).toFixed(0)}%)</div>
@@ -396,7 +421,7 @@
 				<button class="go-btn" onclick={startRun} autofocus>▶ Launch Deployment</button>
 				<div class="go-row2">
 					<a href="/hub" class="go-btn2">🛰️ Orbital Command</a>
-					<button class="go-btn2" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast('📋 Exported!', 'success'); }}>💾 Export</button>
+					<button class="go-btn2" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}>💾 Export</button>
 				</div>
 			</div>
 		</div>
@@ -404,10 +429,10 @@
 
 	<!-- Import Dialog -->
 	{#if showImportDialog}
-		<div class="overlay" role="dialog"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON below.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); toast(r.success ? '✅ Imported!' : '❌ ' + r.error, r.success ? 'success' : 'error'); showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
+		<div class="overlay" role="dialog"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON below.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); } else { toast(getOpLogMessage('saveImportFailed'), 'error'); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
 	{/if}
 	{#if showResetConfirm}
-		<div class="overlay" role="dialog"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">All progress will be lost. Cannot be undone.</p><div class="dlg-a"><button class="dlg-dng-btn" onclick={handleResetSave}>Reset</button><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button></div></div></div>
+		<div class="overlay" role="dialog"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Blueprints, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-dng-btn" onclick={handleResetSave}>Reset</button><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button></div></div></div>
 	{/if}
 
 	<div class="game-body">
@@ -466,13 +491,13 @@
 					<div class="hud-row hud-dmg"><span title="Damage per shot">⚔ {snap.towerDamage.toFixed(1)}</span><span title="Attack range">🎯 {snap.towerRange.toFixed(0)}</span><span title="Crit">⚡ {(snap.towerCritChance * 100).toFixed(1)}%×{snap.towerCritMultiplier.toFixed(1)}</span></div>
 				</div>
 			{/if}
-			{#if !snap?.runActive && !showGameOver}
+			{#if showLaunchScreen}
 				<div class="start-ol">
 					<div class="start-card">
 						<div class="sc-accent"></div>
-						<div class="sc-icon">🗼</div>
-						<h2 class="sc-title">GeoCore TD</h2>
-						<p class="sc-sub">Deploy from orbit. Defend the planet. Field upgrades are lost with the Core — Orbital research endures.</p>
+						<div class="sc-icon"><img class="sc-logo" src="/branding/flatland-logo-medium.svg" alt="Flatland TD" /></div>
+						<h2 class="sc-title">Flatland TD</h2>
+						<p class="sc-sub">Deploy from orbit. Defend the plane. Field upgrades are lost with the tower — Orbital research endures.</p>
 						{#if highestWave > 0}
 							<div class="sc-rec">
 								<div class="sc-r"><span>🏆</span> Best: Wave {highestWave}</div>
@@ -507,12 +532,17 @@
 										{@const cost = u.cost(lv)}
 										{@const aff = snap.cash >= cost}
 										{@const mx = lv >= u.maxLevel}
+										{@const locked = isUpgradeLocked(u.id)}
 										{@const justBought = purchasedUpgrade === u.id}
-										<button class="uc" class:aff={aff && !mx} class:mx={mx} class:purchased={justBought} disabled={!aff || mx || !snap?.runActive} onclick={() => buyBattleUpgrade(u.id)} title={'Current: ' + upgradeCurrentValue(u.id, lv) + '\nNext: ' + upgradeNextValue(u.id, lv) + '\nCost: ' + cost + ' Energy'}>
-											<div class="uc-t"><span class="uci">{u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">Lv.{lv}</span></div>
-											<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
-											<div class="uc-eff">{upgradeCurrentValue(u.id, lv)}</div>
-											<div class="uc-b">	<span class="ucc">⚡{cost}</span><span class="ucnx">{mx ? 'MAXED' : '→ ' + upgradeNextValue(u.id, lv)}</span></div>
+										<button class="uc" class:aff={aff && !mx && !locked} class:mx={mx} class:locked={locked} class:purchased={justBought} disabled={!aff || mx || locked || !snap?.runActive} onclick={() => buyBattleUpgrade(u.id)} title={locked ? 'Locked: requires ' + getLockBlueprintName(u.id) + ' Blueprint' : 'Current: ' + upgradeCurrentValue(u.id, lv) + '\nNext: ' + upgradeNextValue(u.id, lv) + '\nCost: ' + cost + ' Energy'}>
+											<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
+											{#if !locked}
+												<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
+												<div class="uc-eff">{upgradeCurrentValue(u.id, lv)}</div>
+												<div class="uc-b">	<span class="ucc">⚡{cost}</span><span class="ucnx">{mx ? 'MAXED' : '→ ' + upgradeNextValue(u.id, lv)}</span></div>
+											{:else}
+												<div class="uc-eff" style="color:var(--text-dim)">🔒 Requires {getLockBlueprintName(u.id)}</div>
+											{/if}
 										</button>
 									{/each}
 								</div>
@@ -550,12 +580,17 @@
 						{@const cost = u.cost(lv)}
 						{@const aff = snap.cash >= cost}
 						{@const mx = lv >= u.maxLevel}
+						{@const locked = isUpgradeLocked(u.id)}
 						{@const justBought = purchasedUpgrade === u.id}
-						<button class="uc" class:aff={aff && !mx} class:mx={mx} class:purchased={justBought} disabled={!aff || mx || !snap?.runActive} onclick={() => buyBattleUpgrade(u.id)}>
-							<div class="uc-t"><span class="uci">{u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">Lv.{lv}</span></div>
-							<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
-							<div class="uc-eff">{upgradeCurrentValue(u.id, lv)}</div>
-							<div class="uc-b">	<span class="ucc">⚡{cost}</span><span class="ucnx">{mx ? 'MAXED' : '→ ' + upgradeNextValue(u.id, lv)}</span></div>
+						<button class="uc" class:aff={aff && !mx && !locked} class:mx={mx} class:locked={locked} class:purchased={justBought} disabled={!aff || mx || locked || !snap?.runActive} onclick={() => buyBattleUpgrade(u.id)}>
+							<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
+							{#if !locked}
+								<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
+								<div class="uc-eff">{upgradeCurrentValue(u.id, lv)}</div>
+								<div class="uc-b">	<span class="ucc">⚡{cost}</span><span class="ucnx">{mx ? 'MAXED' : '→ ' + upgradeNextValue(u.id, lv)}</span></div>
+							{:else}
+								<div class="uc-eff" style="color:var(--text-dim)">🔒 Requires {getLockBlueprintName(u.id)}</div>
+							{/if}
 						</button>
 					{/each}
 				</div>
@@ -626,6 +661,7 @@
 	.start-card { position:relative; text-align:center; padding:2.25rem 2.25rem 1.75rem; background:var(--bg-glass-strong); border:1px solid var(--border-neon); border-radius:var(--radius-xl); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); max-width:340px; width:90%; animation:si .35s ease; box-shadow:0 0 60px rgba(0,255,255,.06); }
 	.sc-accent { position:absolute; top:-1px; left:20%; right:20%; height:1px; background:linear-gradient(90deg,transparent,var(--cyan),transparent); opacity:.6; }
 	.sc-icon { font-size:2.6rem; display:block; margin-bottom:.5rem; filter:drop-shadow(0 0 20px rgba(0,255,255,.3)); }
+	.sc-logo { width:100%; max-width:280px; height:auto; }
 	.sc-title { font-size:1.3rem; margin-bottom:.2rem; }
 	.sc-sub { font-size:.75rem; color:var(--text-dim); margin-bottom:1.1rem; }
 	.sc-rec { display:flex; flex-direction:column; gap:.2rem; margin-bottom:1.1rem; padding:.6rem; background:rgba(0,0,0,.2); border-radius:var(--radius-md); }

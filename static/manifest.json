@@ -1,0 +1,17 @@
+{
+  "name": "Flatland TD",
+  "short_name": "FLTD",
+  "description": "Open source neon cyber idle tower defense",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070812",
+  "theme_color": "#070812",
+  "icons": [
+    {
+      "src": "/branding/flatland-logo-small.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,8 +1,7 @@
 import { GAME_CONFIG } from '../engine/gameConfig';
-import { EnemyType, UpgradeId, type Enemy, type GameState, type Projectile } from '../engine/gameTypes';
+import { EnemyType, type Enemy, type GameState, type Projectile } from '../engine/gameTypes';
 import { damageTower, applyThorns, applyLifesteal, computeDamageToTower } from './towerSystem';
-import { calculateGoldFromKill, getBossCoinReward, getCoinsPerKill } from './economySystem';
-import { getBattleUpgradeEffect } from '../balance/battleUpgrades';
+import { calculateEnergyFromKill, getBossCoinReward, getCoinsPerKill } from './economySystem';
 
 // Feedback helpers
 let _addDmg: ((x: number, y: number, text: string, color: number) => void) | null = null;
@@ -143,12 +142,9 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 					_addParticles?.(target.position.x, target.position.y, GAME_CONFIG.NEON_YELLOW, 6, 180);
 				}
 
-				// Gold (temporary run currency)
-				let gold = calculateGoldFromKill(state, target.reward);
-				const goldAmpLevel = state.battleUpgrades[UpgradeId.GoldAmp] ?? 0;
-				const goldAmpBonus = getBattleUpgradeEffect(UpgradeId.GoldAmp, goldAmpLevel);
-				gold = Math.floor(gold * (1 + goldAmpBonus));
-				state.cash += gold;
+				// Energy (temporary field resource) — Energy Amp already applied in calculateEnergyFromKill
+				const energy = calculateEnergyFromKill(state, target.reward);
+				state.cash += energy;
 
 				// GeoCoin (permanent currency) — per-kill (scales with Coin Bonus) + boss bonus
 				const killCoins = getCoinsPerKill(state);
@@ -162,7 +158,7 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 				}
 
 				// Feedback popups — stagger them slightly for readability
-				_addDmg?.(target.position.x, target.position.y + target.size * 0.6, '+' + gold + ' ⚡', GAME_CONFIG.NEON_GREEN);
+				_addDmg?.(target.position.x, target.position.y + target.size * 0.6, '+' + energy + ' ⚡', GAME_CONFIG.NEON_GREEN);
 			}
 			proj.alive = false;
 			continue;

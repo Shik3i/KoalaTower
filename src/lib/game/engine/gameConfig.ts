@@ -64,7 +64,7 @@ export function getDefaultTowerStats(): TowerStats {
 }
 
 /** Base HP for the tower before any upgrades. */
-export const TOWER_HP_BASE = 80;
+export const TOWER_HP_BASE = 60;
 
 /** Cash the player starts with on a fresh run (before Starting Cash workshop). */
 export const STARTING_CASH_BASE = 20;

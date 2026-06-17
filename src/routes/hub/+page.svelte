@@ -4,17 +4,58 @@
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
 	import { buildWorkshopUpgradeList, getWorkshopUpgradeCost, getWorkshopUpgradeEffect } from '$lib/game/balance/workshopUpgrades';
 	const WORKSHOP_UPGRADES = buildWorkshopUpgradeList();
-	import { LAB_DEFS, getLabCost, getLabEffect, isLabUnlocked } from '$lib/game/balance/labs';
+	import { LAB_DEFS, getLabCost, getLabEffect, isLabUnlocked, getLabDuration, formatLabDuration } from '$lib/game/balance/labs';
 	import { TIERS } from '$lib/game/balance/tiers';
 	import { CHALLENGES } from '$lib/game/balance/challenges';
 	import { formatCompact } from '$lib/game/balance/balanceMath';
-	import type { GameSettings, WorkshopUpgradeId } from '$lib/game/engine/gameTypes';
+	import { BLUEPRINT_DEFS, isBlueprintUnlockable, isFoundryUpgradeUnlocked, getBlueprintForFoundryUpgrade } from '$lib/game/balance/blueprints';
+	import type { GameSettings, WorkshopUpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
+	import { getOpLogMessage } from '$lib/game/balance/operationLog';
 
 	let coins = $state(0);
 	let settings = $state<GameSettings>({ reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false });
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
 	let activeSection = $state<'workshop' | 'lab' | 'blueprints' | 'tiers' | 'challenges' | 'stats' | 'settings'>('workshop');
+
+	let ownedBlueprints = $state<BlueprintId[]>([]);
+	let activeLabId = $state<string | null>(null);
+	let activeLabFinish = $state<number>(0);
+	let activeLabTarget = $state<number>(0);
+	let labProgressPct = $state(0);
+	let labProgressTimer: ReturnType<typeof setInterval> | null = null;
+
+	function refreshLabProgress() {
+		const save = getCachedSave(); if (!save) return;
+		if (save.activeLab) {
+			activeLabId = save.activeLab.labId;
+			activeLabTarget = save.activeLab.targetLevel;
+			activeLabFinish = save.activeLab.finishesAt;
+			const now = Date.now();
+			const total = save.activeLab.finishesAt - save.activeLab.startedAt;
+			const elapsed = now - save.activeLab.startedAt;
+			labProgressPct = total > 0 ? Math.min(100, Math.max(0, (elapsed / total) * 100)) : 0;
+		} else {
+			activeLabId = null;
+			activeLabTarget = 0;
+			activeLabFinish = 0;
+			labProgressPct = 0;
+		}
+	}
+
+	function isBlueprintOwned(id: BlueprintId): boolean { return ownedBlueprints.includes(id); }
+	function buyBlueprint(id: BlueprintId) {
+		const save = getCachedSave(); if (!save) return;
+		const bp = BLUEPRINT_DEFS.find(b => b.id === id); if (!bp) return;
+		if (ownedBlueprints.includes(id)) { toast('✅ Already unlocked!', 'info'); return; }
+		if (save.totalCoins < bp.cost) { toast('🔩 Need ' + bp.cost.toLocaleString() + ' Alloy!', 'error'); return; }
+		save.totalCoins -= bp.cost;
+		save.unlockedBlueprints = [...(save.unlockedBlueprints ?? []), id];
+		ownedBlueprints = [...ownedBlueprints, id];
+		coinsStore.set(save.totalCoins);
+		persistSave(save);
+		toast('📐 ' + bp.name + ' unlocked!', 'success');
+	}
 
 	let showImportDialog = $state(false);
 	let showResetConfirm = $state(false);
@@ -32,7 +73,11 @@
 		const u2 = settingsStore.subscribe(s => { settings = s; });
 		const u3 = highestWaveStore.subscribe(w => highestWave = w);
 		const u4 = totalRunsStore.subscribe(r => totalRuns = r);
-		return () => { u1(); u2(); u3(); u4(); };
+		const save = getCachedSave();
+		if (save?.unlockedBlueprints) ownedBlueprints = [...save.unlockedBlueprints];
+		refreshLabProgress();
+		labProgressTimer = setInterval(refreshLabProgress, 1000);
+		return () => { u1(); u2(); u3(); u4(); if (labProgressTimer) clearInterval(labProgressTimer); };
 	});
 
 	function wLv(id: WorkshopUpgradeId): number { return getCachedSave()?.workshopUpgrades[id] ?? 0; }
@@ -51,20 +96,30 @@
 		} else { toast('🔩 Not enough Alloy!', 'error'); }
 	}
 
-	// Lab research — instant purchase model (no timers)
-	function buyLabUpgrade(id: string) {
+	// Time-based lab research
+	function startLabResearch(id: string) {
 		const save = getCachedSave(); if (!save) return;
-		const lv = (save.labLevels as Record<string, number>)[id] ?? 0;
 		const def = LAB_DEFS.find(l => l.id === id); if (!def) return;
+		const lv = (save.labLevels as Record<string, number>)[id] ?? 0;
 		if (lv >= def.maxLevel) { toast('⚠ Max level!', 'warning'); return; }
+		if (save.activeLab) { toast('⚠ A research project is already active!', 'warning'); return; }
 		const cost = getLabCost(id as any, lv);
+		const duration = getLabDuration(id as any, lv);
 		if (save.totalCoins < cost) { toast('🔩 Need ' + formatCompact(cost) + ' Alloy!', 'error'); return; }
 		save.totalCoins -= cost;
-		(save.labLevels as Record<string, number>)[id] = lv + 1;
+		const now = Date.now();
+		save.activeLab = {
+			labId: id as any,
+			targetLevel: lv + 1,
+			startedAt: now,
+			finishesAt: now + duration,
+		};
 		coinsStore.set(save.totalCoins);
 		persistSave(save);
-		toast('🔬 Upgraded ' + def.name + ' to Lv.' + (lv + 1), 'success');
+		refreshLabProgress();
+		toast('🔬 Started ' + def.name + ' Lv.' + (lv + 1) + ' — ' + formatLabDuration(duration), 'success');
 	}
+
 	function lLv(id: string): number { return (getCachedSave()?.labLevels as Record<string, number>)[id] ?? 0; }
 
 	const settingsList = [
@@ -87,8 +142,8 @@
 </script>
 
 <svelte:head>
-	<title>Orbital Command — GeoCore TD</title>
-	<meta name="description" content="GeoCore TD Orbital Command — Core Foundry upgrades, Research Deck projects, Fronts, Simulations, Archives, and Systems." />
+	<title>Orbital Command — Flatland TD · FLTD</title>
+	<meta name="description" content="Flatland TD Orbital Command — Foundry upgrades, Research Deck projects, Fronts, Simulations, Archives, and Systems." />
 </svelte:head>
 
 <main class="hub-page">
@@ -103,7 +158,7 @@
 		<h1 class="hub-title">🛰️ Orbital Command</h1>
 		<div class="hub-coins">🔩 {coins.toLocaleString()}</div>
 	</header>
-	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. The Forge pre-installs Core upgrades, the Research Deck runs orbital projects, and Blueprints unlock new capabilities. Archives track campaign telemetry.</p>
+	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. The Forge pre-installs permanent tower upgrades, the Research Deck runs orbital projects, and Blueprints unlock new capabilities. Archives track campaign telemetry.</p>
 
 	<div class="hub-body">
 		<nav class="hub-nav">
@@ -116,7 +171,7 @@
 
 		<div class="hub-content">
 			{#if activeSection === 'workshop'}
-				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed Core upgrades. Each level is built into the GeoCore schematic before every deployment.</p>
+				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed tower upgrades. Each level improves the tower blueprint before every deployment. Locked paths require Blueprint unlocks.</p>
 					<div class="ug">
 						{#each WORKSHOP_UPGRADES as u}
 							{@const lv = wLv(u.id)}
@@ -124,34 +179,50 @@
 							{@const cost = u.cost(lv)}
 							{@const aff = coins >= cost}
 							{@const mx = lv >= u.maxLevel}
-							<button class="uc" class:aff={aff && !mx} class:mx={mx} disabled={!aff || mx} onclick={() => buyWorkshopUpgrade(u.id)}>
-								<div class="uc-t"><span class="uci">{u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">Lv.{lv}</span></div>
-								<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
-								<div class="uc-b"><span class="ucc">🔩{cost.toLocaleString()}</span><span class="ucnx">{mx ? 'MAXED' : lv > 0 ? '→ +' + getWorkshopUpgradeEffect(u.id, nl) : 'Lv.1 +' + getWorkshopUpgradeEffect(u.id, 1)}</span></div>
+							{@const locked = u.requiredBlueprint && !isFoundryUpgradeUnlocked(u.id, ownedBlueprints)}
+							{@const bpName = u.requiredBlueprint ? (getBlueprintForFoundryUpgrade(u.id)?.name ?? '') : ''}
+							<button class="uc" class:aff={aff && !mx && !locked} class:mx={mx} class:locked={locked} disabled={!aff || mx || locked} onclick={() => buyWorkshopUpgrade(u.id)}>
+								<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
+								{#if !locked}
+									<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
+									<div class="uc-b"><span class="ucc">🔩{cost.toLocaleString()}</span><span class="ucnx">{mx ? 'MAXED' : lv > 0 ? '→ +' + getWorkshopUpgradeEffect(u.id, nl) : 'Lv.1 +' + getWorkshopUpgradeEffect(u.id, 1)}</span></div>
+								{:else}
+									<div class="uc-b"><span class="ucc" style="color:var(--text-dim)">🔒 Requires {bpName}</span></div>
+								{/if}
 							</button>
 						{/each}
 					</div>
 				</div>
 			{:else if activeSection === 'lab'}
-				<div class="hs"><h2 class="hst">🔬 Research Deck</h2><p class="hsd">Long-term orbital research projects. Each level grants a permanent multiplicative bonus. Reach deeper waves to unlock more projects.</p>
+				<div class="hs"><h2 class="hst">🔬 Research Deck</h2><p class="hsd">Time-based orbital research projects. Each level grants a permanent multiplicative bonus. Research continues offline. Only one project can be active at a time.</p>
 					<div class="ug">
 						{#each LAB_DEFS as lab}
 							{@const unlocked = isLabUnlocked(lab, highestWave)}
 							{@const lv = lLv(lab.id)}
 							{@const cost = getLabCost(lab.id, lv)}
+							{@const duration = getLabDuration(lab.id, lv)}
 							{@const aff = coins >= cost}
 							{@const mx = lv >= lab.maxLevel}
+							{@const isResearching = activeLabId === lab.id}
 							{@const currMult = 1 + getLabEffect(lab.id, lv)}
+							{@const hasActive = !!getCachedSave()?.activeLab}
 							{@const lockedDisplay = '🔒 Reach Wave ' + lab.unlockWave}
-							<div class="uc lc" class:locked={!unlocked} class:mx={mx && unlocked}>
+							<div class="uc lc" class:locked={!unlocked} class:researching={isResearching} class:mx={mx && unlocked}>
 								<div class="uc-t"><span class="uci">{unlocked ? lab.icon : '🔒'}</span><span class="ucn">{lab.name}</span><span class="ucl">{unlocked ? 'Lv.' + lv : lockedDisplay}</span></div>
 								{#if unlocked}
 									<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / lab.maxLevel) * 100)}%"></div></div>
 									<div class="uc-eff">×{currMult.toFixed(2)} multiplier</div>
-									<button class="uc-b" class:aff={aff && !mx} disabled={!aff || mx} onclick={() => buyLabUpgrade(lab.id)}>
-										<span class="ucc">🔩{formatCompact(cost)}</span>
-										<span class="ucnx">{mx ? 'MAXED' : '→ ×' + (currMult * (1 + lab.effectPerLevel)).toFixed(2)}</span>
-									</button>
+									{#if isResearching}
+										<div class="rs-bar-track"><div class="rs-bar-fill" style="width:{labProgressPct}%"></div></div>
+										<div class="rs-info">Researching Lv.{activeLabTarget} — {labProgressPct.toFixed(0)}%</div>
+									{:else if mx}
+										<div class="rs-info">MAXED</div>
+									{:else}
+										<button class="uc-b rs-btn" class:aff={aff && !hasActive} disabled={!aff || hasActive} onclick={() => startLabResearch(lab.id)}>
+											<span class="ucc">🔩{formatCompact(cost)}</span>
+											<span class="ucnx">{hasActive ? 'BUSY' : '→ ' + formatLabDuration(duration)}</span>
+										</button>
+									{/if}
 								{:else}
 									<div class="uc-b"><span class="ucc" style="color:var(--text-dim)">🔒 Requires Wave {lab.unlockWave}</span></div>
 								{/if}
@@ -160,8 +231,8 @@
 					</div>
 				</div>
 			{:else if activeSection === 'blueprints'}
-				<div class="hs"><h2 class="hst">📐 Blueprints</h2><p class="hsd">One-time schematic unlocks that grant permanent new capabilities. Discover blueprints by reaching wave milestones on different fronts.</p>
-					<div class="cl"><div class="pe" style="text-align:center;padding:2rem;font-size:.8rem;color:var(--text-dim)">🔒 Blueprint system coming soon.<br>Reach deeper waves to unlock new Core schematics.</div></div>
+				<div class="hs"><h2 class="hst">📐 Blueprints</h2><p class="hsd">Permanently unlock new upgrade paths for Field Upgrades and the Foundry. Blueprints are discovered by reaching wave milestones and purchased with Alloy.</p>
+					<div class="cl">{#each BLUEPRINT_DEFS as bp}{@const owned = isBlueprintOwned(bp.id)}{@const unlocked = isBlueprintUnlockable(bp, highestWave, 0)}{@const aff = coins >= bp.cost && unlocked && !owned}<div class="cc" class:lck={!unlocked && !owned}><div class="cc-h"><span class="cci">{owned ? '✅' : unlocked ? bp.icon : '🔒'}</span><div><div class="ccn">{bp.name}</div><div class="ccd">{bp.description}</div></div></div>{#if owned}<div class="ccs">✓ Installed — unlocks {bp.unlocksFieldUpgrades.length} field + {bp.unlocksFoundryUpgrades.length} foundry upgrades</div>{:else if !unlocked}<div class="ccl">🔒 {bp.unlockCondition}</div>{:else}<div class="uc-b" style="margin-top:.3rem"><button class="hub-action" disabled={!aff} onclick={() => buyBlueprint(bp.id)} style={aff ? 'background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--bg-primary);font-weight:600' : ''}><span class="ucc">🔩{bp.cost.toLocaleString()}</span> Unlock</button></div>{/if}</div>{/each}</div>
 				</div>
 			{:else if activeSection === 'tiers'}
 				<div class="hs"><h2 class="hst">🌍 Fronts</h2><p class="hsd">Each front is a planet with increasing enemy density. Reach wave milestones to unlock harder fronts with better rewards.</p>
@@ -173,7 +244,7 @@
 				</div>
 			{:else if activeSection === 'stats'}
 				<div class="hs"><h2 class="hst">📊 Archives</h2>
-					<div class="ig"><div class="ir"><span class="il">Total Runs</span><span class="iv">{totalRuns}</span></div><div class="ir"><span class="il">Highest Wave</span><span class="iv">{highestWave}</span></div><div class="ir"><span class="il">Total Alloy</span><span class="iv">🔩 {coins.toLocaleString()}</span></div><div class="ir"><span class="il">Highscore</span><span class="iv">🏆 Wave {highestWave}</span></div></div>
+					<div class="ig"><div class="ir"><span class="il">Total Runs</span><span class="iv">{totalRuns}</span></div><div class="ir"><span class="il">Highest Wave</span><span class="iv">{highestWave}</span></div><div class="ir"><span class="il">Alloy Reserves</span><span class="iv">🔩 {coins.toLocaleString()}</span></div><div class="ir"><span class="il">Highscore</span><span class="iv">🏆 Wave {highestWave}</span></div></div>
 				</div>
 			{:else if activeSection === 'settings'}
 				<div class="hs"><h2 class="hst">⚙ Systems</h2>
@@ -187,9 +258,12 @@
 						{/each}
 					</div>
 					<div class="hsd" style="margin-top:1rem;">
-						<button class="hub-action" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast('📋 Exported!', 'success'); }}>📋 Export Save</button>
+						<button class="hub-action" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}>📋 Export Save</button>
 						<button class="hub-action" onclick={() => showImportDialog = true}>📂 Import Save</button>
 						<button class="hub-action hub-danger" onclick={() => showResetConfirm = true}>🗑 Reset Save</button>
+					</div>
+					<div class="save-note">
+						<p class="save-note-flavor">Orbital Command cannot stop you from rewriting reality. It can only confirm that doing so makes the war considerably less interesting.</p>
 					</div>
 				</div>
 			{/if}
@@ -198,14 +272,14 @@
 
 	<!-- Import Dialog -->
 	{#if showImportDialog}
-		<div class="overlay" role="dialog"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); toast(r.success ? '✅ Imported!' : '❌ ' + r.error, r.success ? 'success' : 'error'); showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
+		<div class="overlay" role="dialog"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); } else { toast(getOpLogMessage('saveImportFailed'), 'error'); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
 	{/if}
 	{#if showResetConfirm}
-		<div class="overlay" role="dialog"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">All progress will be lost. This cannot be undone.</p><div class="dlg-a"><button class="dlg-dng-btn" onclick={async () => { await resetSave(); showResetConfirm = false; coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0); settingsStore.set({ reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false }); toast('🗑 Reset!', 'warning'); }}>Reset</button><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button></div></div></div>
+		<div class="overlay" role="dialog"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Blueprints, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-dng-btn" onclick={async () => { await resetSave(); showResetConfirm = false; coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0); settingsStore.set({ reducedMotion: false, screenShake: true, particles: true, damageNumbers: true, lowEffectsMode: false }); toast(getOpLogMessage('saveReset'), 'warning'); }}>Reset</button><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button></div></div></div>
 	{/if}
 
 	<footer class="hub-footer">
-		<span>🛰️ Orbital Base — GeoCore TD</span>
+		<span>🛰️ Orbital Command — Flatland TD · FLTD</span>
 		<div class="hub-footer-links">
 			<a href="/help">Help</a>
 			<span>·</span>
@@ -306,6 +380,8 @@
 	.dlg-dng-btn { background:var(--red); color:white; }
 	.dlg-dng { border-color:rgba(255,68,68,.2); }
 	@keyframes fi { from{opacity:0} to{opacity:1} }
+	.save-note { margin-top:1.25rem; padding:.5rem .8rem; background:rgba(255,221,68,.04); border:1px solid rgba(255,221,68,.12); border-radius:var(--radius-sm); max-width:500px; }
+	.save-note-flavor { font-size:.58rem; color:rgba(255,221,68,.35); font-style:italic; line-height:1.3; margin:0; }
 	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem} .hub-nav{flex-direction:row;overflow-x:auto;min-width:0} .hub-nav-btn{flex-shrink:0;white-space:nowrap} }
 	.hub-desc { padding:0 1.5rem 1rem; text-align:center; color:var(--text-dim); font-size:.78rem; line-height:1.6; max-width:600px; margin:0 auto; position:relative; z-index:1; }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:.7rem; display:flex; flex-direction:column; gap:.35rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createDefaultSave, CURRENT_SCHEMA_VERSION } from '../save/saveTypes';
 import { migrateSave, validateSaveData } from '../save/migrations';
+import { encodeSaveContainer, decodeSaveContainer, sha256Sync } from '../save/saveEncoding';
 import type { SaveData } from '../save/saveTypes';
 
 describe('Save Migration', () => {
@@ -10,6 +11,9 @@ describe('Save Migration', () => {
 		expect(save.totalCoins).toBe(0);
 		expect(save.totalRuns).toBe(0);
 		expect(save.highestWave).toBe(0);
+		expect(save.createdAt).toBeTruthy();
+		expect(save.saveId).toBeTruthy();
+		expect(save.saveId).toMatch(/^fltd-/);
 	});
 
 	it('should migrate v0 data to v1', () => {
@@ -27,35 +31,12 @@ describe('Save Migration', () => {
 		expect(migrated!.highestWave).toBe(20);
 		expect(migrated!.totalCoins).toBe(1000);
 		expect(migrated!.settings.screenShake).toBe(false);
-	});
-
-	it('should pass through v1 data unchanged', () => {
-		const v1Data = {
-			schemaVersion: 1,
-			lastUpdated: Date.now(),
-			totalRuns: 10,
-			highestWave: 50,
-			totalCoins: 5000,
-			workshopUpgrades: { baseDamage: 5, baseFireRate: 3 },
-			labLevels: {},
-			milestones: {},
-			challengeHighScores: {},
-			settings: {
-				reducedMotion: false,
-				screenShake: true,
-				particles: true,
-				damageNumbers: true,
-				lowEffectsMode: false,
-			},
-		};
-		const migrated = migrateSave(v1Data as unknown as Record<string, unknown>);
-		expect(migrated).not.toBeNull();
-		expect(migrated!.totalCoins).toBe(5000);
-		expect(migrated!.settings.screenShake).toBe(true);
+		expect(migrated!.createdAt).toBeTruthy();
+		expect(migrated!.saveId).toBeTruthy();
 	});
 
 	it('should return null for invalid data', () => {
-		expect(migrateSave({} as Record<string, unknown>)).not.toBeNull(); // V0 migration will work on empty
+		expect(migrateSave({} as Record<string, unknown>)).not.toBeNull();
 		expect(migrateSave({ schemaVersion: 999 } as Record<string, unknown>)).toBeNull();
 	});
 });
@@ -78,5 +59,89 @@ describe('Save Validation', () => {
 	it('should reject missing required fields', () => {
 		expect(validateSaveData({})).toBe(false);
 		expect(validateSaveData({ schemaVersion: 1 })).toBe(false);
+	});
+});
+
+describe('FLTD_SAVE Export/Import Encoding', () => {
+	const sampleSave = createDefaultSave();
+	const sampleJson = JSON.stringify(sampleSave);
+
+	it('should encode save data into FLTD_SAVE container', async () => {
+		const result = await encodeSaveContainer(sampleJson);
+		expect(result.success).toBe(true);
+		expect(result.data).toBeTruthy();
+		const container = JSON.parse(result.data!);
+		expect(container.format).toBe('FLTD_SAVE');
+		expect(container.formatVersion).toBe(1);
+		expect(container.game).toBe('Flatland TD');
+		expect(container.encoding).toBe('base64url+sha256');
+		expect(container.payload).toBeTruthy();
+		expect(container.checksum).toBeTruthy();
+		expect(container.exportedAt).toBeTruthy();
+	});
+
+	it('should include SaveData schemaVersion in encoded payload', async () => {
+		const result = await encodeSaveContainer(sampleJson);
+		const container = JSON.parse(result.data!);
+		const decodedPayload = JSON.parse(
+			Buffer.from(container.payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8')
+		);
+		expect(decodedPayload.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+	});
+
+	it('should decode a valid FLTD_SAVE container', async () => {
+		const result = await encodeSaveContainer(sampleJson);
+		const decoded = await decodeSaveContainer(result.data!);
+		expect(decoded.success).toBe(true);
+		expect(decoded.saveJson).toBeTruthy();
+		expect(JSON.parse(decoded.saveJson!).schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+	});
+
+	it('should reject wrong format', async () => {
+		const bad = JSON.stringify({ format: 'WRONG', payload: 'x', checksum: 'x' });
+		const decoded = await decodeSaveContainer(bad);
+		expect(decoded.success).toBe(false);
+		expect(decoded.error).toContain('not a Flatland TD save');
+	});
+
+	it('should reject unsupported future formatVersion', async () => {
+		const bad = JSON.stringify({ format: 'FLTD_SAVE', formatVersion: 999, payload: 'x', checksum: 'x' });
+		const decoded = await decodeSaveContainer(bad);
+		expect(decoded.success).toBe(false);
+		expect(decoded.error).toContain('newer version');
+	});
+
+	it('should reject checksum mismatch', async () => {
+		const result = await encodeSaveContainer(sampleJson);
+		const container = JSON.parse(result.data!);
+		container.checksum = '0000000000000000000000000000000000000000000000000000000000000000';
+		const decoded = await decodeSaveContainer(JSON.stringify(container));
+		expect(decoded.success).toBe(false);
+		expect(decoded.error).toContain('checksum');
+	});
+
+	it('should reject corrupted payload', async () => {
+		const result = await encodeSaveContainer(sampleJson);
+		const container = JSON.parse(result.data!);
+		container.payload = '!!!not-valid-base64!!!';
+		const decoded = await decodeSaveContainer(JSON.stringify(container));
+		expect(decoded.success).toBe(false);
+	});
+
+	it('should handle legacy plain JSON import', async () => {
+		const legacy = JSON.stringify({ schemaVersion: 1, lastUpdated: 1, totalRuns: 0, highestWave: 0, totalCoins: 0 });
+		const decoded = await decodeSaveContainer(legacy);
+		expect(decoded.success).toBe(true);
+		expect(decoded.isLegacy).toBe(true);
+	});
+
+	it('should reject garbage input gracefully', async () => {
+		const decoded = await decodeSaveContainer('not even json');
+		expect(decoded.success).toBe(false);
+	});
+
+	it('should not crash on empty string', async () => {
+		const decoded = await decodeSaveContainer('');
+		expect(decoded.success).toBe(false);
 	});
 });

@@ -26,9 +26,17 @@ import {
 	bossEscortCount,
 	computeEnemyConfig,
 } from '../balance/balanceMath';
-import { UpgradeId, WorkshopUpgradeId, EnemyType } from '../engine/gameTypes';
+import { UpgradeId, WorkshopUpgradeId, EnemyType, BlueprintId } from '../engine/gameTypes';
 import { simulateRun } from '../balance/balanceSimulator';
-import { getLabEffect } from '../balance/labs';
+import { getLabEffect, getLabDuration, formatLabDuration } from '../balance/labs';
+import {
+	isFieldUpgradeUnlocked,
+	isFoundryUpgradeUnlocked,
+	STARTER_FIELD_UPGRADES,
+	STARTER_FOUNDRY_UPGRADES,
+	BLUEPRINT_DEFS,
+	isBlueprintUnlockable,
+} from '../balance/blueprints';
 
 // ─── Battle Upgrade Tests ─────────────────────────────────────────────────
 
@@ -44,7 +52,7 @@ describe('Battle Upgrades', () => {
 		expect(ids).toContain(UpgradeId.CritMultiplier);
 		expect(ids).toContain(UpgradeId.Defense);
 		expect(ids).toContain(UpgradeId.MaxHp);
-		expect(ids).toContain(UpgradeId.GoldAmp);
+		expect(ids).toContain(UpgradeId.EnergyAmp);
 		expect(ids).toContain(UpgradeId.CashPerWave);
 	});
 
@@ -119,9 +127,9 @@ describe('Workshop Upgrades', () => {
 		expect(ids).toContain(WorkshopUpgradeId.BaseRange);
 		expect(ids).toContain(WorkshopUpgradeId.StartingHp);
 		expect(ids).toContain(WorkshopUpgradeId.CoinBonus);
-		expect(ids).toContain(WorkshopUpgradeId.CashBonus);
+		expect(ids).toContain(WorkshopUpgradeId.EnergyBonus);
 		expect(ids).toContain(WorkshopUpgradeId.CritBonus);
-		expect(ids).toContain(WorkshopUpgradeId.StartingCash);
+		expect(ids).toContain(WorkshopUpgradeId.StartingEnergy);
 	});
 
 	it('should have increasing costs with level', () => {
@@ -358,74 +366,85 @@ describe('Cost Formulas', () => {
 
 describe('Balance Simulator', () => {
 	it('fresh strategies should show progression spread', () => {
-		const confused = simulateRun({}, {}, 5000, 1, 'confused');
-		const reasonable = simulateRun({}, {}, 5000, 1, 'reasonable');
-		// Confused should be short, reasonable should reach further
+		const confused = simulateRun({}, {}, 5000, 1, 'confused', []);
+		const reasonable = simulateRun({}, {}, 5000, 1, 'reasonable', []);
 		expect(confused.finalWave).toBeGreaterThanOrEqual(5);
 		expect(reasonable.finalWave).toBeGreaterThanOrEqual(confused.finalWave);
 		expect(confused.totalCoinsEarned).toBeGreaterThan(0);
 	});
 
 	it('fresh reasonable should reach further than confused', () => {
-		const confused = simulateRun({}, {}, 5000, 1, 'confused');
-		const reasonable = simulateRun({}, {}, 5000, 1, 'reasonable');
+		const confused = simulateRun({}, {}, 5000, 1, 'confused', []);
+		const reasonable = simulateRun({}, {}, 5000, 1, 'reasonable', []);
 		expect(reasonable.finalWave).toBeGreaterThanOrEqual(confused.finalWave);
 	});
 
-	it('player with 5 WS should reach further than fresh', () => {
-		const fresh = simulateRun({}, {}, 5000, 1, 'optimal');
+	it('fresh strategies show spread with blueprint gating', () => {
+		const fresh = simulateRun({}, {}, 5000, 1, 'optimal', []);
+		const fr = simulateRun({}, {}, 5000, 1, 'reasonable', []);
+		const cf = simulateRun({}, {}, 5000, 1, 'confused', []);
+		// Core requirement: fresh optimal below wave 40
+		expect(fresh.finalWave).toBeLessThan(40);
+		expect(fr.finalWave).toBeLessThan(80);
+		expect(cf.finalWave).toBeLessThan(30);
+		expect(fresh.totalCoinsEarned).toBeLessThan(3000);
+	});
+
+	it('fresh optimal cannot reach wave 100 with starters only', () => {
+		const result = simulateRun({}, {}, 5000, 1, 'optimal', []);
+		expect(result.finalWave).toBeLessThan(40);
+	});
+
+	it('starter-only upgrades cannot reach wave 100 (stricter)', () => {
+		const result = simulateRun({}, {}, 5000, 1, 'optimal', []);
+		expect(result.finalWave).toBeLessThan(40);
+		expect(result.lockedUpgradesSkipped).toBeGreaterThan(0);
+	});
+
+	it('player with 5 foundry purchases should reach further than fresh', () => {
+		const fresh = simulateRun({}, {}, 5000, 1, 'optimal', []);
 		const upgraded = simulateRun({
 			[WorkshopUpgradeId.BaseDamage]: 3,
 			[WorkshopUpgradeId.StartingHp]: 2,
-		}, {}, 5000, 1, 'optimal');
+		}, {}, 5000, 1, 'optimal', [BlueprintId.PlatedCoreShell, BlueprintId.ExtendedCoreOptics]);
 		expect(upgraded.finalWave).toBeGreaterThanOrEqual(fresh.finalWave);
 	});
 
-	it('workshop + labs should reach meaningfully further than workshop alone', () => {
-		const wsOnly = simulateRun({
-			[WorkshopUpgradeId.BaseDamage]: 35,
-			[WorkshopUpgradeId.StartingHp]: 20,
+	it('workshop + labs should reach further than workshop alone', () => {
+		const allBPs = Object.values(BlueprintId);
+		const ws = {
+			[WorkshopUpgradeId.BaseDamage]: 50,
+			[WorkshopUpgradeId.StartingHp]: 30,
 			[WorkshopUpgradeId.BaseFireRate]: 20,
-			[WorkshopUpgradeId.BaseRange]: 10,
-			[WorkshopUpgradeId.CashBonus]: 8,
-			[WorkshopUpgradeId.CoinBonus]: 5,
-			[WorkshopUpgradeId.StartingCash]: 2,
-		}, {}, 5000, 1, 'optimal');
-		const wsAndLab = simulateRun({
-			[WorkshopUpgradeId.BaseDamage]: 35,
-			[WorkshopUpgradeId.StartingHp]: 20,
-			[WorkshopUpgradeId.BaseFireRate]: 20,
-			[WorkshopUpgradeId.BaseRange]: 10,
-			[WorkshopUpgradeId.CashBonus]: 8,
-			[WorkshopUpgradeId.CoinBonus]: 5,
-			[WorkshopUpgradeId.StartingCash]: 2,
-		}, { damageResearch: 10, attackSpeedResearch: 5, healthResearch: 5 }, 5000, 1, 'optimal');
-		// Labs should provide a meaningful boost
+		};
+		const wsOnly = simulateRun(ws, {}, 5000, 1, 'optimal', allBPs);
+		const wsAndLab = simulateRun(ws, { damageResearch: 10, attackSpeedResearch: 5, healthResearch: 5 }, 5000, 1, 'optimal', allBPs);
 		expect(wsAndLab.finalWave).toBeGreaterThanOrEqual(wsOnly.finalWave);
 	});
 
 	it('tier 2 should be harder than tier 1 for same build', () => {
+		const allBPs = Object.values(BlueprintId);
 		const tier1 = simulateRun({
 			[WorkshopUpgradeId.BaseDamage]: 35,
 			[WorkshopUpgradeId.StartingHp]: 20,
 			[WorkshopUpgradeId.BaseFireRate]: 20,
-		}, { damageResearch: 5 }, 5000, 1, 'optimal');
+		}, { damageResearch: 5 }, 5000, 1, 'optimal', allBPs);
 		const tier2 = simulateRun({
 			[WorkshopUpgradeId.BaseDamage]: 35,
 			[WorkshopUpgradeId.StartingHp]: 20,
 			[WorkshopUpgradeId.BaseFireRate]: 20,
-		}, { damageResearch: 5 }, 5000, 2, 'optimal');
+		}, { damageResearch: 5 }, 5000, 2, 'optimal', allBPs);
 		expect(tier2.finalWave).toBeLessThanOrEqual(tier1.finalWave);
 	});
 
 	it('simulation should not crash at high waves', () => {
-		const result = simulateRun({}, {}, 5000, 1, 'optimal');
+		const result = simulateRun({}, {}, 5000, 1, 'optimal', []);
 		expect(result.finalWave).toBeGreaterThan(0);
 		expect(result.totalKills).toBeGreaterThan(0);
 	});
 
 	it('lab effects increase monotonically', () => {
-		for (const id of ['damageResearch', 'attackSpeedResearch', 'healthResearch', 'coinEfficiency', 'cashEfficiency']) {
+		for (const id of ['damageResearch', 'attackSpeedResearch', 'healthResearch', 'alloyEfficiency', 'energyEfficiency']) {
 			let prev = 0;
 			for (let lv = 1; lv < 10; lv++) {
 				const cur = getLabEffect(id as any, lv);
@@ -445,4 +464,132 @@ describe('Balance Simulator', () => {
 			expect(atk).toBeGreaterThan(0);
 		}
 	});
+
+	it('locked upgrades should be skipped by simulator', () => {
+		const result = simulateRun({}, {}, 5000, 1, 'optimal', []);
+		expect(result.lockedUpgradesSkipped).toBeGreaterThan(0);
+	});
+
+	it('simulator strategies should not be inverted — optimal >= confused with moderate WS', () => {
+		const allBPs = Object.values(BlueprintId);
+		const ws = {
+			[WorkshopUpgradeId.BaseDamage]: 15,
+			[WorkshopUpgradeId.StartingHp]: 10,
+			[WorkshopUpgradeId.BaseFireRate]: 5,
+		};
+		const confused = simulateRun(ws, {}, 5000, 1, 'confused', allBPs);
+		const optimal = simulateRun(ws, {}, 5000, 1, 'optimal', allBPs);
+		// With moderate workshop investment, optimal should outperform confused
+		expect(optimal.finalWave).toBeGreaterThanOrEqual(confused.finalWave);
+	});
+
+	it('with all blueprints and some foundry, simulator reaches further', () => {
+		const ws = { [WorkshopUpgradeId.BaseDamage]: 10, [WorkshopUpgradeId.StartingHp]: 5 };
+		const fresh = simulateRun(ws, {}, 5000, 1, 'optimal', []);
+		const allBPs = Object.values(BlueprintId);
+		const unlocked = simulateRun(ws, {}, 5000, 1, 'optimal', allBPs);
+		// With same workshop but all blueprints unlocked, should reach further
+		// because crit/multishot/range/def% are available
+		expect(unlocked.finalWave).toBeGreaterThanOrEqual(fresh.finalWave);
+	});
 });
+
+// ─── Blueprint Tests ─────────────────────────────────────────────────────
+
+describe('Blueprint System', () => {
+	it('starter field upgrades should include Damage, FireRate, MaxHp, Regen, CashPerWave', () => {
+		expect(STARTER_FIELD_UPGRADES).toContain(UpgradeId.Damage);
+		expect(STARTER_FIELD_UPGRADES).toContain(UpgradeId.FireRate);
+		expect(STARTER_FIELD_UPGRADES).toContain(UpgradeId.MaxHp);
+		expect(STARTER_FIELD_UPGRADES).toContain(UpgradeId.Regen);
+		expect(STARTER_FIELD_UPGRADES).toContain(UpgradeId.CashPerWave);
+	});
+
+	it('starter foundry upgrades should include BaseDamage, BaseFireRate, StartingHp, Regen, CoinBonus', () => {
+		expect(STARTER_FOUNDRY_UPGRADES).toContain(WorkshopUpgradeId.BaseDamage);
+		expect(STARTER_FOUNDRY_UPGRADES).toContain(WorkshopUpgradeId.BaseFireRate);
+		expect(STARTER_FOUNDRY_UPGRADES).toContain(WorkshopUpgradeId.StartingHp);
+		expect(STARTER_FOUNDRY_UPGRADES).toContain(WorkshopUpgradeId.Regen);
+		expect(STARTER_FOUNDRY_UPGRADES).toContain(WorkshopUpgradeId.CoinBonus);
+	});
+
+	it('locked upgrades should not be available without blueprint', () => {
+		expect(isFieldUpgradeUnlocked(UpgradeId.CritChance, [])).toBe(false);
+		expect(isFieldUpgradeUnlocked(UpgradeId.Lifesteal, [])).toBe(false);
+		expect(isFieldUpgradeUnlocked(UpgradeId.Thorns, [])).toBe(false);
+		expect(isFieldUpgradeUnlocked(UpgradeId.Multishot, [])).toBe(false);
+		expect(isFieldUpgradeUnlocked(UpgradeId.Range, [])).toBe(false);
+		expect(isFieldUpgradeUnlocked(UpgradeId.DefensePercent, [])).toBe(false);
+		expect(isFieldUpgradeUnlocked(UpgradeId.Defense, [])).toBe(false);
+		expect(isFieldUpgradeUnlocked(UpgradeId.EnergyAmp, [])).toBe(false);
+	});
+
+	it('locked foundry upgrades should not be available without blueprint', () => {
+		expect(isFoundryUpgradeUnlocked(WorkshopUpgradeId.BaseRange, [])).toBe(false);
+		expect(isFoundryUpgradeUnlocked(WorkshopUpgradeId.DefenseAbsolute, [])).toBe(false);
+		expect(isFoundryUpgradeUnlocked(WorkshopUpgradeId.DefensePercent, [])).toBe(false);
+		expect(isFoundryUpgradeUnlocked(WorkshopUpgradeId.Lifesteal, [])).toBe(false);
+		expect(isFoundryUpgradeUnlocked(WorkshopUpgradeId.Thorns, [])).toBe(false);
+		expect(isFoundryUpgradeUnlocked(WorkshopUpgradeId.EnergyBonus, [])).toBe(false);
+		expect(isFoundryUpgradeUnlocked(WorkshopUpgradeId.CritBonus, [])).toBe(false);
+		expect(isFoundryUpgradeUnlocked(WorkshopUpgradeId.StartingEnergy, [])).toBe(false);
+	});
+
+	it('unlocking Critical Targeting should expose CritChance and CritMultiplier', () => {
+		const bps = [BlueprintId.CriticalTargeting];
+		expect(isFieldUpgradeUnlocked(UpgradeId.CritChance, bps)).toBe(true);
+		expect(isFieldUpgradeUnlocked(UpgradeId.CritMultiplier, bps)).toBe(true);
+		expect(isFoundryUpgradeUnlocked(WorkshopUpgradeId.CritBonus, bps)).toBe(true);
+	});
+
+	it('unlocking Energy Reclaimer should expose Lifesteal', () => {
+		const bps = [BlueprintId.EnergyReclaimer];
+		expect(isFieldUpgradeUnlocked(UpgradeId.Lifesteal, bps)).toBe(true);
+		expect(isFoundryUpgradeUnlocked(WorkshopUpgradeId.Lifesteal, bps)).toBe(true);
+	});
+
+	it('all blueprints should have valid IDs and names', () => {
+		for (const bp of BLUEPRINT_DEFS) {
+			expect(bp.id).toBeTruthy();
+			expect(bp.name).toBeTruthy();
+			expect(bp.cost).toBeGreaterThan(0);
+			expect(bp.order).toBeGreaterThan(0);
+		}
+	});
+
+	it('blueprint unlock conditions should be testable', () => {
+		expect(isBlueprintUnlockable(BLUEPRINT_DEFS.find(b => b.id === BlueprintId.PlatedCoreShell)!, 20, 0)).toBe(true);
+		expect(isBlueprintUnlockable(BLUEPRINT_DEFS.find(b => b.id === BlueprintId.PlatedCoreShell)!, 19, 0)).toBe(false);
+		expect(isBlueprintUnlockable(BLUEPRINT_DEFS.find(b => b.id === BlueprintId.CriticalTargeting)!, 25, 0)).toBe(true);
+		expect(isBlueprintUnlockable(BLUEPRINT_DEFS.find(b => b.id === BlueprintId.CriticalTargeting)!, 10, 2)).toBe(true);
+	});
+});
+
+// ─── Lab Timer Tests ──────────────────────────────────────────────────────
+
+describe('Lab Research (Time-Based)', () => {
+	it('lab duration should be a positive number', () => {
+		for (const labId of ['damageResearch', 'attackSpeedResearch', 'healthResearch', 'alloyEfficiency', 'energyEfficiency']) {
+			const dur = getLabDuration(labId as any, 0);
+			expect(dur).toBeGreaterThan(0);
+			expect(Number.isFinite(dur)).toBe(true);
+		}
+	});
+
+	it('lab duration should increase with level', () => {
+		for (const labId of ['damageResearch', 'attackSpeedResearch', 'healthResearch', 'alloyEfficiency', 'energyEfficiency']) {
+			const dur0 = getLabDuration(labId as any, 0);
+			const dur5 = getLabDuration(labId as any, 5);
+			expect(dur5).toBeGreaterThan(dur0);
+		}
+	});
+
+	it('formatLabDuration should produce human-readable strings', () => {
+		expect(formatLabDuration(30_000)).toBe('30s');
+		expect(formatLabDuration(90_000)).toBe('1m 30s');
+		expect(formatLabDuration(120_000)).toBe('2m');
+		expect(formatLabDuration(3_600_000)).toBe('1h');
+		expect(formatLabDuration(0)).toBe('0s');
+	});
+});
+

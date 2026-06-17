@@ -9,10 +9,15 @@
  *
  * Per-level effects are strong enough that upgrading feels impactful
  * each time, while the growing costs prevent infinite single-run scaling.
+ *
+ * PROGRESSION GATING:
+ * Upgrades are gated by Blueprints. Starter upgrades (Damage, Attack Speed,
+ * Max HP, Regen, Cash/Wave) are always available. Advanced upgrades require
+ * the corresponding Blueprint to be purchased first.
  */
 
-import type { UpgradeCategory } from '../engine/gameTypes';
-import { UpgradeId } from '../engine/gameTypes';
+import type { UpgradeCategory, BlueprintId } from '../engine/gameTypes';
+import { UpgradeId, BlueprintId as BP } from '../engine/gameTypes';
 import { hybridCost, additiveEffect, formatBattleEffect as fmtEffect } from './upgradeScaling';
 
 export interface BattleUpgradeDef {
@@ -27,43 +32,41 @@ export interface BattleUpgradeDef {
 	costExponent: number;
 	effectPerLevel: number;
 	effectCap?: number;
-	/** Wave at which this upgrade becomes purchasable (0 = always) */
-	unlockWave?: number;
+	/** Blueprint required to unlock this upgrade (null = starter, always available) */
+	requiredBlueprint?: BlueprintId;
 }
 
 export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 	{
-		// Core damage. Very high cap. Each level is +3 damage.
-		// With 50 levels: +150 damage during a run.
 		id: UpgradeId.Damage,
 		name: 'Damage',
-		description: '+3 damage per projectile per level. Core scaling stat.',
+		description: '+1.0 damage per projectile per level. Core scaling stat.',
 		icon: '⚡',
 		category: 'offense',
 		maxLevel: 999,
-		baseCost: 100,
+		baseCost: 60,
 		costGrowth: 1.18,
 		costExponent: 0.50,
-		effectPerLevel: 1.5,
+		effectPerLevel: 1.0,
+		// STARTER — always available
 	},
 	{
-		// Attack speed. Critical early and mid game.
 		id: UpgradeId.FireRate,
 		name: 'Attack Speed',
-		description: '+0.04 attacks per second per level.',
+		description: '+0.03 attacks per second per level.',
 		icon: '🔥',
 		category: 'offense',
 		maxLevel: 399,
-		baseCost: 80,
+		baseCost: 50,
 		costGrowth: 1.16,
 		costExponent: 0.52,
-		effectPerLevel: 0.04,
+		effectPerLevel: 0.03,
+		// STARTER — always available
 	},
 	{
-		// Range. Medium cap.
 		id: UpgradeId.Range,
 		name: 'Range',
-		description: '+2 range per level.',
+		description: '+2 range per level. Unlocks via Extended Tower Optics.',
 		icon: '🎯',
 		category: 'offense',
 		maxLevel: 199,
@@ -71,9 +74,9 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costGrowth: 1.11,
 		costExponent: 0.45,
 		effectPerLevel: 2,
+		requiredBlueprint: BP.ExtendedCoreOptics,
 	},
 	{
-		// Multishot chance. Unlocks at wave 10 so early runs focus on basics.
 		id: UpgradeId.Multishot,
 		name: 'Multishot Chance',
 		description: '+0.6% chance per level to fire extra projectiles. Caps at 50%.',
@@ -85,10 +88,9 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costExponent: 0.50,
 		effectPerLevel: 0.006,
 		effectCap: 0.50,
-		unlockWave: 10,
+		requiredBlueprint: BP.SplitBeamGeometry,
 	},
 	{
-		// Multishot targets. Low cap — each level adds +1 projectile.
 		id: UpgradeId.MultishotProjectiles,
 		name: 'Multishot Targets',
 		description: '+1 extra projectile when Multishot triggers.',
@@ -99,9 +101,9 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costGrowth: 2.2,
 		costExponent: 0.20,
 		effectPerLevel: 1,
+		requiredBlueprint: BP.SplitBeamGeometry,
 	},
 	{
-		// Crit chance. Unlocks at wave 10.
 		id: UpgradeId.CritChance,
 		name: 'Crit Chance',
 		description: '+0.6% crit chance per level. Caps at 45%.',
@@ -113,13 +115,12 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costExponent: 0.48,
 		effectPerLevel: 0.006,
 		effectCap: 0.45,
-		unlockWave: 10,
+		requiredBlueprint: BP.CriticalTargeting,
 	},
 	{
-		// Crit multiplier. Unlocks at wave 10.
 		id: UpgradeId.CritMultiplier,
 		name: 'Crit Multiplier',
-		description: '+0.08× crit damage per level. Base 2.0×.',
+		description: '+0.08x crit damage per level. Base 2.0x.',
 		icon: '✨',
 		category: 'offense',
 		maxLevel: 49,
@@ -127,25 +128,22 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costGrowth: 1.16,
 		costExponent: 0.55,
 		effectPerLevel: 0.08,
-		unlockWave: 10,
+		requiredBlueprint: BP.CriticalTargeting,
 	},
 	{
-		// Max HP. High cap for survivability builds.
 		id: UpgradeId.MaxHp,
 		name: 'Max HP',
-		description: '+12 max HP per level. Core survivability.',
+		description: '+4 max HP per level. Core survivability.',
 		icon: '❤️',
 		category: 'defense',
 		maxLevel: 399,
-		baseCost: 18,
-		costGrowth: 1.11,
-		costExponent: 0.42,
-		effectPerLevel: 12,
+		baseCost: 25,
+		costGrowth: 1.13,
+		costExponent: 0.45,
+		effectPerLevel: 4,
+		// STARTER — always available
 	},
 	{
-		// Defense Absolute: flat damage reduction after defense%.
-		// Reduced from 1.0 to 0.5 per level — prevents trivializing mid-game.
-		// Players need many levels for meaningful reduction.
 		id: UpgradeId.Defense,
 		name: 'Defense Abs',
 		description: 'Flat -0.5 damage per hit after defense%. Minimum 1 damage.',
@@ -156,10 +154,9 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costGrowth: 1.11,
 		costExponent: 0.44,
 		effectPerLevel: 0.5,
+		requiredBlueprint: BP.PlatedCoreShell,
 	},
 	{
-		// Defense Percent: percentage damage reduction. Capped at 50%.
-		// Unlocks at wave 15 — gating prevents early immortality.
 		id: UpgradeId.DefensePercent,
 		name: 'Defense %',
 		description: '-1% incoming damage per level. Caps at 50%.',
@@ -171,32 +168,26 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costExponent: 0.52,
 		effectPerLevel: 0.01,
 		effectCap: 0.50,
-		unlockWave: 15,
+		requiredBlueprint: BP.PhaseDampener,
 	},
 	{
-		// Health Regen: minor HP/sec. Unlocks at wave 15 so early runs
-		// can't sustain through chip damage. Small per-level keeps it
-		// as a long-term investment, not a quick fix.
 		id: UpgradeId.Regen,
 		name: 'Regen',
-		description: '+0.2 HP/sec per level. Minor sustain.',
+		description: '+0.06 HP/sec per level. Caps at 2 HP/s. Minor sustain — smooths chip damage only.',
 		icon: '💚',
 		category: 'defense',
 		maxLevel: 199,
-		baseCost: 20,
-		costGrowth: 1.11,
-		costExponent: 0.42,
-		effectPerLevel: 0.2,
-		unlockWave: 15,
+		baseCost: 30,
+		costGrowth: 1.13,
+		costExponent: 0.45,
+		effectPerLevel: 0.06,
+		effectCap: 2.0,
+		// STARTER — always available, intentionally weak
 	},
 	{
-		// Lifesteal: heal fraction of projectile damage dealt.
-		// Unlocks at wave 50 — deep into mid-game.
-		// This is intentionally late because lifesteal with even moderate
-		// DPS completely negates all chip damage forever.
 		id: UpgradeId.Lifesteal,
 		name: 'Lifesteal',
-		description: '+0.2% of damage healed per level. Caps at 5%. Unlocks wave 50.',
+		description: '+0.2% of damage healed per level. Caps at 5%. Deep progression sustain.',
 		icon: '🩸',
 		category: 'defense',
 		maxLevel: 24,
@@ -205,11 +196,9 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costExponent: 0.58,
 		effectPerLevel: 0.002,
 		effectCap: 0.05,
-		unlockWave: 50,
+		requiredBlueprint: BP.EnergyReclaimer,
 	},
 	{
-		// Thorns: reflect damage to melee attackers.
-		// Unlocks at wave 15.
 		id: UpgradeId.Thorns,
 		name: 'Thorns',
 		description: '+2 reflected damage per hit per level. Bosses take 50%.',
@@ -220,13 +209,12 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costGrowth: 1.15,
 		costExponent: 0.50,
 		effectPerLevel: 2,
-		unlockWave: 15,
+		requiredBlueprint: BP.ReactiveSurface,
 	},
 	{
-		// Cash bonus. Economy upgrades matter.
-		id: UpgradeId.GoldAmp,
+		id: UpgradeId.EnergyAmp,
 		name: 'Energy Amp',
-		description: '+2% energy per kill per level.',
+		description: '+2% energy per kill per level. Unlocks via Alloy Extraction.',
 		icon: '⚡',
 		category: 'utility',
 		maxLevel: 199,
@@ -234,19 +222,20 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costGrowth: 1.12,
 		costExponent: 0.45,
 		effectPerLevel: 0.02,
+		requiredBlueprint: BP.AlloyExtraction,
 	},
 	{
-		// Cash per wave. Steady income source.
 		id: UpgradeId.CashPerWave,
-		name: 'Cash/Wave',
-		description: '+3 bonus cash per wave cleared per level.',
+		name: 'Energy/Wave',
+		description: '+1 bonus energy per wave cleared per level.',
 		icon: '💎',
 		category: 'utility',
 		maxLevel: 299,
-		baseCost: 15,
-		costGrowth: 1.10,
-		costExponent: 0.38,
-		effectPerLevel: 3,
+		baseCost: 25,
+		costGrowth: 1.12,
+		costExponent: 0.42,
+		effectPerLevel: 1,
+		// STARTER — always available
 	},
 ];
 
@@ -284,6 +273,7 @@ export function buildBattleUpgradeList(): Array<{
 	maxLevel: number;
 	cost: (level: number) => number;
 	icon: string;
+	requiredBlueprint?: BlueprintId;
 }> {
 	return BATTLE_UPGRADE_DEFS.map(def => ({
 		id: def.id,
@@ -294,5 +284,6 @@ export function buildBattleUpgradeList(): Array<{
 		maxLevel: def.maxLevel,
 		cost: (level: number) => getBattleUpgradeCost(def.id, level),
 		icon: def.icon,
+		requiredBlueprint: def.requiredBlueprint,
 	}));
 }

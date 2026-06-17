@@ -14,6 +14,7 @@ import { GAME_CONFIG, TOWER_HP_BASE } from '../engine/gameConfig';
 import {
 	UpgradeId,
 	WorkshopUpgradeId,
+	LabId,
 	type Enemy,
 	type GameState,
 	type TowerState,
@@ -24,14 +25,14 @@ import { getLabMultiplier } from '../balance/labs';
 
 export function createTowerState(state: GameState): TowerState {
 	const ws = state.workshopUpgrades;
-	const lab = getLabMultiplier(state);
+	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
 
 	const w = (id: WorkshopUpgradeId) => ws[id] ?? 0;
 
 	const baseDamage = (8 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, w(WorkshopUpgradeId.BaseDamage))) * lab.dmg;
 	const baseFireRate = (1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, w(WorkshopUpgradeId.BaseFireRate))) * lab.fireRate;
 	const baseRange = 180 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, w(WorkshopUpgradeId.BaseRange));
-	const baseHp = Math.floor((80 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, w(WorkshopUpgradeId.StartingHp))) * lab.hp);
+	const baseHp = Math.floor((TOWER_HP_BASE + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, w(WorkshopUpgradeId.StartingHp))) * lab.hp);
 	const baseCrit = Math.min(0.30, 0.05 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, w(WorkshopUpgradeId.CritBonus)));
 
 	return {
@@ -61,7 +62,7 @@ export function applyBattleUpgrades(state: GameState): void {
 	const tower = state.tower;
 	const bu = state.battleUpgrades;
 	const ws = state.workshopUpgrades;
-	const lab = getLabMultiplier(state);
+	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
 
 	const w = (id: WorkshopUpgradeId) => ws[id] ?? 0;
 	const b = (id: UpgradeId) => bu[id] ?? 0;
@@ -93,7 +94,7 @@ export function applyBattleUpgrades(state: GameState): void {
 	tower.stats.thorns = wsThorns + getBattleUpgradeEffect(UpgradeId.Thorns, b(UpgradeId.Thorns));
 
 	// Max HP: base + workshop × lab + battle
-	tower.maxHp = Math.floor((80 + wsHP) * lab.hp) + getBattleUpgradeEffect(UpgradeId.MaxHp, b(UpgradeId.MaxHp));
+	tower.maxHp = Math.floor((TOWER_HP_BASE + wsHP) * lab.hp) + getBattleUpgradeEffect(UpgradeId.MaxHp, b(UpgradeId.MaxHp));
 	tower.hp = Math.min(tower.hp, tower.maxHp);
 }
 
@@ -128,7 +129,9 @@ export function computeDamageToTower(rawDamage: number, state: GameState, isBoss
 	const defPct = state.tower.stats.defensePercent;
 	const defAbs = state.tower.stats.defenseAbsolute;
 	const afterPct = Math.max(0, rawDamage * (1 - defPct));
-	return Math.max(isBoss ? 2 : 1, Math.floor(afterPct - defAbs));
+	const wave = state.wave.currentWave;
+	const dmgFloor = isBoss ? Math.max(5, Math.floor(wave * 0.5)) : 1;
+	return Math.max(dmgFloor, Math.floor(afterPct - defAbs));
 }
 
 export function damageTower(state: GameState, rawDamage: number, isBoss: boolean = false): void {

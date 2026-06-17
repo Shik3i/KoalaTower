@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { loadSave, persistSave, getCachedSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
-	import { LAB_ITEMS } from '$lib/game/balance/labs';
+	import { LAB_DEFS } from '$lib/game/balance/labs';
 
 	let { children } = $props();
 
@@ -29,20 +29,41 @@
 			}
 		});
 
-		// Global lab research polling
+		// Global lab research polling — checks active research completion via timestamps
 		labInterval = setInterval(() => {
 			const save = getCachedSave(); if (!save) return;
+			const now = Date.now();
 			let changed = false;
-			for (const item of LAB_ITEMS) {
+
+			// Check active lab research for completion
+			if (save.activeLab && save.activeLab.finishesAt <= now) {
+				const labId = save.activeLab.labId;
+				const currentLevel = (save.labLevels as Record<string, number>)[labId] ?? 0;
+				(save.labLevels as Record<string, number>)[labId] = Math.max(currentLevel, save.activeLab.targetLevel);
+				// Mark the old-style labResearch as complete too for compat
+				const rs = save.labResearch[labId];
+				if (rs) {
+					rs.complete = true;
+				}
+				save.activeLab = null;
+				changed = true;
+			}
+
+			// Legacy: also check old-style labResearch for any remaining research state
+			for (const item of LAB_DEFS) {
 				const rs = save.labResearch[item.id];
 				if (!rs || rs.researchStart === 0 || rs.complete) continue;
-				if (Date.now() - rs.researchStart >= rs.duration) {
+				if (now - rs.researchStart >= rs.duration) {
 					rs.complete = true;
 					(save.labLevels as Record<string, number>)[item.id] = (rs.level ?? 0) + 1;
 					changed = true;
 				}
 			}
-			if (changed) { coinsStore.set(save.totalCoins); persistSave(save); }
+
+			if (changed) {
+				coinsStore.set(save.totalCoins);
+				persistSave(save);
+			}
 		}, 2000);
 	});
 

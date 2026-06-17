@@ -14,63 +14,63 @@ import { WorkshopUpgradeId, LabId, UpgradeId, type GameState } from '../engine/g
 import { getWorkshopUpgradeEffect } from '../balance/workshopUpgrades';
 import { getLabMultiplier } from '../balance/labs';
 
-/** Gold from a kill — scales with wave, workshop, lab, and battle Cash Bonus. */
-export function calculateGoldFromKill(state: GameState, baseReward: number): number {
-	const wsCashLv = state.workshopUpgrades[WorkshopUpgradeId.CashBonus] ?? 0;
-	const wsCashMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CashBonus, wsCashLv);
-	const lab = getLabMultiplier(state);
-	const battleBonus = (state.battleUpgrades[UpgradeId.GoldAmp] ?? 0) * 0.02;
-	return Math.floor(baseReward * wsCashMult * lab.cash * (1 + battleBonus));
+/** Energy from a kill — scales with wave, workshop, lab, and Energy Amp. */
+export function calculateEnergyFromKill(state: GameState, baseReward: number): number {
+	const wsEnergyLv = state.workshopUpgrades[WorkshopUpgradeId.EnergyBonus] ?? 0;
+	const wsEnergyMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.EnergyBonus, wsEnergyLv);
+	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
+	const battleBonus = (state.battleUpgrades[UpgradeId.EnergyAmp] ?? 0) * 0.02;
+	return Math.floor(baseReward * wsEnergyMult * lab.energy * (1 + battleBonus));
 }
 
 /**
- * Tiny kill coins — scales with Coin Bonus workshop.
- * baseCoinPerKill = floor(wsCoinLevel * 0.01)
+ * Tiny kill alloy — scales with Alloy Bonus workshop.
+ * baseAlloyPerKill = floor(wsAlloyLevel * 0.01)
  * At level 0: 0, level 50: 0, level 100: 1, level 1000: 10
- * Multiplied by lab Coin Research.
+ * Multiplied by lab Alloy Research.
  */
 export function getCoinsPerKill(state: GameState): number {
-	const wsCoinLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
-	const base = Math.floor(wsCoinLv * 0.01);
+	const wsAlloyLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
+	const base = Math.floor(wsAlloyLv * 0.01);
 	if (base <= 0) return 0;
-	const lab = getLabMultiplier(state);
-	return Math.max(0, Math.floor(base * lab.coin));
+	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
+	return Math.max(0, Math.floor(base * lab.alloy));
 }
 
 /**
- * Wave completion coins — progressive curve:
+ * Wave completion alloy — progressive curve:
  *   Wave 1-10:   wave × 0.4
  *   Wave 11-25:  wave × 0.7
  *   Wave 26+:    wave × 1.0
- * Multiplied by wsCoinMult × lab.coin.
+ * Multiplied by wsAlloyMult × lab.alloy.
  */
 export function getWaveCoinReward(state: GameState, wave: number): number {
-	const wsCoinLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
-	const wsCoinMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, wsCoinLv);
-	const lab = getLabMultiplier(state);
+	const wsAlloyLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
+	const wsAlloyMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, wsAlloyLv);
+	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
 	const mult = wave <= 10 ? 0.5 : wave <= 25 ? 0.8 : 1.2;
-	return Math.floor(wave * mult * wsCoinMult * lab.coin);
+	return Math.floor(wave * mult * wsAlloyMult * lab.alloy);
 }
 
-/** Boss kill bonus coins. */
+/** Boss kill bonus alloy. */
 export function getBossCoinReward(state: GameState): number {
-	const wsCoinLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
-	const wsCoinMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, wsCoinLv);
-	const lab = getLabMultiplier(state);
-	return Math.floor(5 * wsCoinMult * lab.coin);
+	const wsAlloyLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
+	const wsAlloyMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, wsAlloyLv);
+	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
+	return Math.floor(5 * wsAlloyMult * lab.alloy);
 }
 
-/** Starting gold for a run. */
-export function getStartingGold(state: GameState): number {
-	const lv = state.workshopUpgrades[WorkshopUpgradeId.StartingCash] ?? 0;
-	return 20 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingCash, lv);
+/** Starting energy for a deployment. */
+export function getStartingEnergy(state: GameState): number {
+	const lv = state.workshopUpgrades[WorkshopUpgradeId.StartingEnergy] ?? 0;
+	return 20 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingEnergy, lv);
 }
 
 /** Gold bonus on wave completion. */
 export function getWaveCompletionBonus(state: GameState, wave: number): number {
 	const base = 5 + wave;
 	const cashWaveLv = state.battleUpgrades[UpgradeId.CashPerWave] ?? 0;
-	return Math.floor(base + cashWaveLv * 3);
+	return Math.floor(base + cashWaveLv * 1);
 }
 
 /** Legacy — kept for compat, returns 0 base (kill coins now use getCoinsPerKill). */

@@ -5,12 +5,12 @@
 		{
 			id: 'start',
 			q: 'How do I start playing?',
-			a: 'Go to Deployment and click "Launch Deployment". A GeoCore tower is dropped from orbit. Enemies spawn from the edges and move toward it. The tower fires automatically at the nearest enemy. Spend Energy (⚡) on temporary Field Upgrades during the deployment, and refine Alloy (🔩) for permanent Forge upgrades between deployments.',
+			a: 'Go to Deployment and click "Launch Deployment". A tower is dropped from orbit into Flatland. Enemies spawn from the edges and move toward it. The tower fires automatically at the nearest shape. Spend Energy (⚡) on temporary Field Upgrades during the deployment, and refine Alloy (🔩) for permanent Forge upgrades between deployments.',
 		},
 		{
 			id: 'currencies',
 			q: 'What are Energy and Alloy?',
-			a: 'Energy (⚡) is harvested from destroyed enemies during a deployment. It powers temporary Field Overclocks and is lost when the GeoCore is destroyed. Alloy (🔩) is refined from enemy remnants and beamed back to Orbital Command. It is permanent — spent in the Forge and Research Deck.',
+			a: 'Energy (⚡) is harvested from destroyed shapes during a deployment. It powers temporary Field Overclocks and is lost when the tower is destroyed. Alloy (🔩) is refined from shape remnants and beamed back to Orbital Command. It is permanent — spent in the Forge and Research Deck.',
 		},
 		{
 			id: 'enemies',
@@ -25,7 +25,7 @@
 		{
 			id: 'battle-upgrades',
 			q: 'How do Field Upgrades work?',
-			a: 'During a deployment, the right panel shows Field Upgrades in three categories: Offense (Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier), Defense (Defense, Max HP), Utility (Energy Amp). Spend Energy (⚡) to overclock your Core. All Field Upgrades are lost when the GeoCore is destroyed.',
+			a: 'During a deployment, the right panel shows Field Upgrades in three categories: Offense (Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier), Defense (Defense, Max HP), Utility (Energy Amp). Spend Energy (⚡) to overclock your tower. All Field Upgrades are lost when the tower is destroyed.',
 		},
 		{
 			id: 'upgrade-caps',
@@ -35,7 +35,7 @@
 		{
 			id: 'workshop',
 			q: 'What is the Foundry?',
-			a: 'The Forge (⚙) contains permanent pre-installed Core upgrades bought with Alloy (🔩): Base Damage, Base Fire Rate, Base Range, Starting HP, Alloy Bonus, Energy Bonus, Crit Bonus, Starting Energy. These improve the Core schematic and apply to every deployment.',
+			a: 'The Forge (⚙) contains permanent pre-installed tower upgrades bought with Alloy (🔩): Base Damage, Base Fire Rate, Base Range, Starting HP, Alloy Bonus, Energy Bonus, Crit Bonus, Starting Energy. These improve the tower blueprint and apply to every deployment.',
 		},
 		{
 			id: 'lab',
@@ -50,7 +50,7 @@
 		{
 			id: 'gameover',
 			q: 'What happens when the tower dies?',
-			a: 'The GeoCore is destroyed. The deployment is over. All Alloy (🔩) harvested is safely transmitted back to Orbital Command. Your highest wave record is saved. The Core Lost screen shows wave reached, kills, bosses defeated, and Energy harvested. Click "Launch Deployment" to drop a new Core.',
+			a: 'The tower is destroyed. The deployment is over. All Alloy (🔩) harvested is safely transmitted back to Orbital Command. Your highest wave record is saved. The Tower Lost screen shows wave reached, kills, bosses defeated, and Energy harvested. Click "Launch Deployment" to deploy a new tower.',
 		},
 		{
 			id: 'waves',
@@ -65,14 +65,14 @@
 		{
 			id: 'privacy',
 			q: 'Is my data private?',
-			a: 'Yes. GeoCore TD is a static app with no backend. All data is in your browser. No analytics, no cookies, no tracking. See the Privacy page for full details.',
+			a: 'Yes. Flatland TD is a static app with no backend. All data is in your browser. No analytics, no cookies, no tracking. See the Privacy page for full details.',
 		},
 	];
 </script>
 
 <svelte:head>
-	<title>Help — GeoCore TD</title>
-	<meta name="description" content="GeoCore TD help guide and FAQ. Learn about currencies, enemy types, upgrades, bosses, lab research, and game mechanics." />
+	<title>Help — Flatland TD · FLTD</title>
+	<meta name="description" content="Flatland TD help guide and FAQ. Learn about currencies, enemy types, upgrades, bosses, and game mechanics." />
 </svelte:head>
 
 <div class="help-page">
@@ -81,7 +81,7 @@
 
 	<div class="help-header glass-panel">
 		<h1>Help & FAQ</h1>
-		<p>Everything you need to know about GeoCore TD.</p>
+		<p>Everything you need to know about Flatland TD.</p>
 	</div>
 
 	<!-- Getting Started -->
@@ -92,7 +92,7 @@
 				<div class="help-step-num">1</div>
 				<div class="help-step-content">
 					<h3>▶ Launch a Deployment</h3>
-					<p>Go to <a href="/play">Deployment</a> and click "Launch Deployment". Your GeoCore tower is dropped from orbit and fires automatically at the nearest enemy.</p>
+					<p>Go to <a href="/play">Deployment</a> and click "Launch Deployment". Your tower is dropped from orbit into Flatland and fires automatically at the nearest shape.</p>
 				</div>
 			</div>
 			<div class="help-step">
@@ -124,34 +124,34 @@
 		<h2>📖 The War in Flatland</h2>
 		<div class="lore-box">
 			<p><strong>Flatland</strong> is a two-dimensional universe — a vast, infinite plane of digital matter. For centuries, the civilizations of Flatland lived in peace. Then came <strong>The Grid</strong>: a relentless, self-replicating swarm of geometric enemies that consumes everything in its path.</p>
-			<p>You command <strong>🛰️ Orbital Command</strong> — a mobile command station in high orbit. From here, you manufacture and deploy <strong>GeoCore towers</strong>: advanced defense platforms that are dropped onto the surface of besieged planets.</p>
+			<p>You command <strong>🛰️ Orbital Command</strong> — a mobile command station in high orbit. From here, you manufacture and deploy <strong>towers</strong>: advanced defense platforms that are dropped into hostile Flatland fronts.</p>
 			<div class="lore-mechanics">
 				<div class="lore-m">
 					<span class="lore-mi">🛰️</span>
 					<div>
 						<strong>Orbital Command</strong>
-						<span>Your permanent base between deployments. The Forge pre-installs Core upgrades, the Research Deck runs orbital projects, and Blueprints unlock new capabilities.</span>
+						<span>Your permanent base between deployments. The Forge pre-installs tower upgrades, the Research Deck runs orbital projects, and Blueprints unlock new capabilities.</span>
 					</div>
 				</div>
 				<div class="lore-m">
-					<span class="lore-mi">🗼</span>
+					<span class="lore-mi"><img src="/branding/flatland-logo-small.svg" alt="Tower" class="lore-icon-img" /></span>
 					<div>
-						<strong>Planetary Drop</strong>
-						<span>A GeoCore tower is deployed from orbit onto a planet's surface. Once the battle is lost, the tower is destroyed — it cannot be recovered. Each drop is a new installation.</span>
+						<strong>Front Deployment</strong>
+						<span>A tower is deployed from orbit into a hostile Flatland front. Once the battle is lost, the tower is destroyed — it cannot be recovered. Each deployment is a new installation.</span>
 					</div>
 				</div>
 				<div class="lore-m">
 					<span class="lore-mi">⚡</span>
 					<div>
 						<strong>Harvested Energy</strong>
-						<span>Energy is harvested from destroyed geometric enemies. It powers temporary Field Overclocks during the deployment — raw energy cannot be transmitted, so it is lost with the Core.</span>
+						<span>Energy is harvested from destroyed geometric enemies. It powers temporary Field Overclocks during the deployment — raw energy cannot be transmitted, so it is lost with the tower.</span>
 					</div>
 				</div>
 				<div class="lore-m">
 					<span class="lore-mi">🔩</span>
 					<div>
 						<strong>Refined Alloy</strong>
-						<span>Alloy is refined from enemy remnants. It is dense, stable, and transmits perfectly — it beams back to Orbital Command before the Core falls. Permanent material for upgrades.</span>
+						<span>Alloy is refined from shape remnants. It is dense, stable, and transmits perfectly — it beams back to Orbital Command before the tower falls. Permanent material for upgrades.</span>
 					</div>
 				</div>
 				<div class="lore-m">
@@ -173,13 +173,13 @@
 				<div class="info-icon">⚡</div>
 				<h3>Energy</h3>
 				<span class="info-badge">Temporary</span>
-				<p>Harvested from destroyed enemies during a deployment. Spent on <strong>Field Overclocks</strong> to supercharge the Core. Lost when the GeoCore is destroyed. Boosted by <strong>Energy Amp</strong> and <strong>Energy Bonus</strong> Forge upgrades.</p>
+				<p>Harvested from destroyed shapes during a deployment. Spent on <strong>Field Overclocks</strong> to supercharge the tower. Lost when the tower is destroyed. Boosted by <strong>Energy Amp</strong> and <strong>Energy Bonus</strong> Forge upgrades.</p>
 			</div>
 			<div class="info-card coin">
 				<div class="info-icon">🔩</div>
 				<h3>Alloy</h3>
 				<span class="info-badge">Permanent</span>
-				<p>Refined from enemy remnants. Spent at the <strong>Forge</strong> for pre-installed Core upgrades and on the <strong>Research Deck</strong> for orbital projects. Boosted by <strong>Alloy Bonus</strong>. Persists forever across all deployments.</p>
+				<p>Refined from shape remnants. Spent at the <strong>Forge</strong> for pre-installed tower upgrades and on the <strong>Research Deck</strong> for orbital projects. Boosted by <strong>Alloy Bonus</strong>. Persists forever across all deployments.</p>
 			</div>
 		</div>
 	</section>
@@ -219,7 +219,7 @@
 	<!-- Foundry Upgrades -->
 	<section class="help-section">
 		<h2>⚙ Forge</h2>
-		<p class="section-desc">Permanent pre-installed Core upgrades bought with Alloy (🔩). Each level is built into the GeoCore schematic before deployment.</p>
+		<p class="section-desc">Permanent pre-installed tower upgrades bought with Alloy (🔩). Each level is built into the tower blueprint before deployment.</p>
 		<div class="card-grid">
 			<div class="help-card ws">
 				<div class="help-card-icon">⚡</div>
@@ -374,7 +374,7 @@
 	<!-- Field Upgrades -->
 	<section class="help-section">
 		<h2>⚡ Field Upgrades (Overclocks)</h2>
-		<p class="section-desc">Temporary overclocks powered by Energy (⚡) during a deployment. They expire when the GeoCore is destroyed. Three categories to choose from.</p>
+		<p class="section-desc">Temporary overclocks powered by Energy (⚡) during a deployment. They expire when the tower is destroyed. Three categories to choose from.</p>
 		<div class="upgrade-table">
 			<div class="ut-header"><span>Category</span><span>Upgrades</span><span>Cap</span></div>
 			<div class="ut-row"><span>⚔️ Offense</span><span>Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier</span><span>% ones capped</span></div>
@@ -414,7 +414,7 @@
 	</section>
 
 	<footer class="help-footer">
-		<p>Still have questions? Open an issue on <a href="https://github.com/Shik3i/GeoCoreTD/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+		<p>Still have questions? Open an issue on <a href="https://github.com/Shik3i/KoalaTower/issues" target="_blank" rel="noopener">GitHub</a>.</p>
 	</footer>
 </div>
 
@@ -444,6 +444,7 @@
 	.lore-mechanics { display:flex; flex-direction:column; gap:.5rem; }
 	.lore-m { display:flex; gap:.65rem; align-items:flex-start; padding:.55rem .65rem; background:var(--bg-tertiary); border:1px solid rgba(0,255,255,.06); border-radius:var(--radius-sm); }
 	.lore-mi { font-size:1.15rem; flex-shrink:0; margin-top:1px; }
+	.lore-icon-img { width:28px; height:28px; }
 	.lore-m div { display:flex; flex-direction:column; gap:.08rem; }
 	.lore-m strong { font-size:.72rem; color:var(--text-secondary); }
 	.lore-m span { font-size:.65rem; color:var(--text-dim); line-height:1.45; }

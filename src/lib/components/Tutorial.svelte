@@ -13,14 +13,14 @@
 
 	const steps = [
 		{
-			title: 'Welcome to GeoCore TD!',
-			desc: 'This is an open source neon cyber idle tower defense. Your tower automatically shoots enemies. Click "Start Run" to begin.',
+			title: 'Welcome to Flatland TD!',
+			desc: 'This is an open source neon cyber idle tower defense. Your tower automatically shoots enemies. Click "Launch Deployment" to begin.',
 			target: '.sc-btn, .start-btn, .btn-start',
 			placement: 'center' as const,
 		},
 		{
 			title: 'Energy & Alloy',
-			desc: 'Kill enemies to harvest Energy (⚡, temporary) and refine Alloy (🔩, permanent). Energy overclocks your Core during the deployment. Alloy unlocks permanent upgrades.',
+			desc: 'Kill enemies to harvest Energy (⚡, temporary) and refine Alloy (🔩, permanent). Energy overclocks your Tower during the deployment. Alloy unlocks permanent upgrades.',
 			target: '.tb-stats',
 			placement: 'bottom' as const,
 		},
@@ -32,13 +32,13 @@
 		},
 		{
 			title: 'Battle Upgrades',
-			desc: 'The right panel has Field Upgrades split into Offense, Defense, and Utility. Spend Energy to overclock your Core during a deployment.',
+			desc: 'The right panel has Field Upgrades split into Offense, Defense, and Utility. Spend Energy to overclock your tower during a deployment.',
 			target: '.panel.right',
 			placement: 'left' as const,
 		},
 		{
 			title: 'Workshop & Lab',
-			desc: 'The Forge has permanent pre-installed upgrades using Alloy. The Research Deck runs orbital projects for multiplicative bonuses.',
+			desc: 'The Forge has permanent pre-installed tower upgrades using Alloy. The Research Deck runs orbital projects for multiplicative bonuses.',
 			target: '.hub-link, [href="/hub"]',
 			placement: 'bottom' as const,
 		},

@@ -1,30 +1,22 @@
 /**
- * labs.ts — Real Lab system for long-term multiplicative progression.
+ * labs.ts — Time-based Research Deck system.
  *
- * Labs are permanent account-wide multipliers purchased with Coins.
- * They provide the second layer of progression (after Workshop) and
- * are the primary driver of long-term wave depth.
+ * Labs are permanent account-wide multipliers that require Alloy + real time.
+ * Each lab level takes time to research. Research continues offline via
+ * timestamps. Early levels are short (seconds), later levels get longer.
  *
- * EFFECT MODEL:
- * Each lab level adds a multiplicative bonus to its stat:
- *   effectiveStat = baseStat × (1 + labLevel × effectPerLevel)
- *
- * At level 100, Damage Lab (3%/level) gives 4× damage multiplier.
- * Combined with Workshop base, this enables deep wave progression.
- *
- * LAB LIST:
- * 1. Damage Research      — +3% damage per level (cap 199)
- * 2. Attack Speed Research — +2% fire rate per level (cap 149)
- * 3. Health Research       — +3% max HP per level (cap 199)
- * 4. Coin Research         — +3% coin gain per level (cap 199)
- * 5. Cash Research         — +3% cash gain per level (cap 199)
- *
- * FUTURE: Timed research (progress continues offline) can be added
- * without changing the effect formulas.
+ * DESIGN:
+ * - Labs use Alloy (permanent currency) plus real time.
+ * - One active research slot (at least).
+ * - Research progress saved with startedAt/finishesAt timestamps.
+ * - Offline completion works via Date.now().
+ * - Early levels: 30s - 5min for alpha testing.
+ * - Later levels: hours/days.
+ * - Starter labs locked behind milestones/blueprints.
  */
 
-import { LabId, type GameState } from '../engine/gameTypes';
-import { hybridCost, additiveEffect, formatCompact } from './balanceMath';
+import { LabId } from '../engine/gameTypes';
+import { hybridCost, formatCompact } from './balanceMath';
 
 export interface LabDef {
 	id: LabId;
@@ -35,10 +27,14 @@ export interface LabDef {
 	baseCost: number;
 	costGrowth: number;
 	costExponent: number;
-	/** Multiplicative effect per level: 0.03 = +3% */
+	/** Multiplicative effect per level: 0.02 = +2% */
 	effectPerLevel: number;
-	/** Wave at which this lab unlocks (0 = always available) */
+	/** Wave at which this lab unlocks for research (0 = always) */
 	unlockWave: number;
+	/** Base duration in ms for level 1 */
+	baseDurationMs: number;
+	/** Duration multiplier per level (e.g. 1.5 = 50% longer each level) */
+	durationGrowth: number;
 }
 
 export const LAB_DEFS: LabDef[] = [
@@ -53,6 +49,8 @@ export const LAB_DEFS: LabDef[] = [
 		costExponent: 0.45,
 		effectPerLevel: 0.02,
 		unlockWave: 25,
+		baseDurationMs: 30_000,     // 30 seconds for level 1
+		durationGrowth: 1.6,        // ~1.6x longer each level
 	},
 	{
 		id: LabId.AttackSpeedResearch,
@@ -65,6 +63,8 @@ export const LAB_DEFS: LabDef[] = [
 		costExponent: 0.48,
 		effectPerLevel: 0.015,
 		unlockWave: 50,
+		baseDurationMs: 45_000,
+		durationGrowth: 1.6,
 	},
 	{
 		id: LabId.HealthResearch,
@@ -77,9 +77,11 @@ export const LAB_DEFS: LabDef[] = [
 		costExponent: 0.45,
 		effectPerLevel: 0.02,
 		unlockWave: 25,
+		baseDurationMs: 30_000,
+		durationGrowth: 1.6,
 	},
 	{
-		id: LabId.CoinEfficiency,
+		id: LabId.AlloyEfficiency,
 		name: 'Alloy Research',
 		description: '+2% alloy gain per level. More alloy from all sources.',
 		icon: '🔩',
@@ -89,9 +91,11 @@ export const LAB_DEFS: LabDef[] = [
 		costExponent: 0.45,
 		effectPerLevel: 0.02,
 		unlockWave: 50,
+		baseDurationMs: 45_000,
+		durationGrowth: 1.6,
 	},
 	{
-		id: LabId.CashEfficiency,
+		id: LabId.EnergyEfficiency,
 		name: 'Energy Research',
 		description: '+2% energy gain per level. More energy from kills and waves.',
 		icon: '⚡',
@@ -101,6 +105,8 @@ export const LAB_DEFS: LabDef[] = [
 		costExponent: 0.45,
 		effectPerLevel: 0.02,
 		unlockWave: 50,
+		baseDurationMs: 45_000,
+		durationGrowth: 1.6,
 	},
 ];
 
@@ -123,27 +129,53 @@ export function getLabCost(id: LabId, level: number): number {
 	return hybridCost(def.baseCost, def.costGrowth, def.costExponent, level);
 }
 
+/**
+ * Returns the duration in ms for researching the given lab level.
+ */
+export function getLabDuration(id: LabId, level: number): number {
+	const def = defMap.get(id);
+	if (!def) return Infinity;
+	return Math.floor(def.baseDurationMs * Math.pow(def.durationGrowth, level));
+}
+
 export function getLabEffect(id: LabId, level: number): number {
 	const def = defMap.get(id);
 	if (!def) return 0;
 	return level * def.effectPerLevel;
 }
 
-export function getLabMultiplier(state: GameState): {
+export interface LabMultipliers {
 	dmg: number;
 	fireRate: number;
 	hp: number;
-	coin: number;
-	cash: number;
-} {
-	const lab = state.labLevels;
+	alloy: number;
+	energy: number;
+}
+
+export function getLabMultiplier(labLevels: Partial<Record<LabId, number>>): LabMultipliers {
+	const lab = labLevels;
 	return {
 		dmg: 1 + getLabEffect(LabId.DamageResearch, lab[LabId.DamageResearch] ?? 0),
 		fireRate: 1 + getLabEffect(LabId.AttackSpeedResearch, lab[LabId.AttackSpeedResearch] ?? 0),
 		hp: 1 + getLabEffect(LabId.HealthResearch, lab[LabId.HealthResearch] ?? 0),
-		coin: 1 + getLabEffect(LabId.CoinEfficiency, lab[LabId.CoinEfficiency] ?? 0),
-		cash: 1 + getLabEffect(LabId.CashEfficiency, lab[LabId.CashEfficiency] ?? 0),
+		alloy: 1 + getLabEffect(LabId.AlloyEfficiency, lab[LabId.AlloyEfficiency] ?? 0),
+		energy: 1 + getLabEffect(LabId.EnergyEfficiency, lab[LabId.EnergyEfficiency] ?? 0),
 	};
+}
+
+/**
+ * Returns formatted duration string (e.g. "30s", "2m 15s", "1h 30m").
+ */
+export function formatLabDuration(ms: number): string {
+	if (ms <= 0) return '0s';
+	const sec = Math.floor(ms / 1000);
+	if (sec < 60) return sec + 's';
+	const min = Math.floor(sec / 60);
+	const remSec = sec % 60;
+	if (min < 60) return remSec > 0 ? min + 'm ' + remSec + 's' : min + 'm';
+	const hr = Math.floor(min / 60);
+	const remMin = min % 60;
+	return remMin > 0 ? hr + 'h ' + remMin + 'm' : hr + 'h';
 }
 
 // Legacy exports for backward compatibility
@@ -161,8 +193,8 @@ export function getLabItemCost(id: LabId, level: number): number {
 	return getLabCost(id, level);
 }
 
-export function getLabItemDuration(_id: LabId, _level: number): number {
-	return 0; // No timers for MVP — instant purchase
+export function getLabItemDuration(id: LabId, level: number): number {
+	return getLabDuration(id, level);
 }
 
 export function getLabItemEffect(id: LabId, level: number): number {

@@ -1,5 +1,5 @@
 /**
- * workshopUpgrades.ts — Long-tail Workshop with original-like scaling.
+ * workshopUpgrades.ts — Long-tail Workshop (Foundry) with original-like scaling.
  *
  * DESIGN PHILOSOPHY:
  * - High-cap stats (Damage, HP, DefAbs, Regen) have 5000+ levels with
@@ -10,6 +10,10 @@
  * - Cost curves use gentle polynomial growth for high-cap stats and
  *   steeper hybrid growth for capped stats.
  *
+ * PROGRESSION GATING:
+ * Starter upgrades (Damage, Attack Speed, HP, Regen, CoinBonus) are always
+ * available. Advanced upgrades require purchasing the corresponding Blueprint.
+ *
  * Level targets:
  *   First 10:   cheap, buyable after 1-2 runs
  *   Level 100:  farmable after moderate play (hours)
@@ -17,7 +21,7 @@
  *   Level 5000: extreme long-term goal (months/years)
  */
 
-import { WorkshopUpgradeId } from '../engine/gameTypes';
+import { WorkshopUpgradeId, BlueprintId } from '../engine/gameTypes';
 import { polynomialCost, hybridCost, additiveEffect, formatCompact } from './balanceMath';
 
 export interface WorkshopUpgradeDef {
@@ -36,12 +40,12 @@ export interface WorkshopUpgradeDef {
 	effectPerLevel: number;
 	effectCap?: number;
 	targetStat: string;
+	/** Blueprint required to unlock (null = starter, always available) */
+	requiredBlueprint?: BlueprintId;
 }
 
 export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 	{
-		// Damage: 5000 levels, +0.5 per level. At 5000: +2500 base damage.
-		// Combined with lab multiplier ×100+: massive deep scaling.
 		id: WorkshopUpgradeId.BaseDamage,
 		name: 'Damage',
 		description: '+0.5 base damage per level. Core long-term stat.',
@@ -52,10 +56,9 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam1: 1.6,
 		effectPerLevel: 0.5,
 		targetStat: 'damage',
+		// STARTER — always available
 	},
 	{
-		// FireRate: capped at 99 levels, small per-level, expensive.
-		// Too much attack speed would make projectiles spammy.
 		id: WorkshopUpgradeId.BaseFireRate,
 		name: 'Attack Speed',
 		description: '+0.02 base attacks/sec per level. Powerful, capped.',
@@ -67,9 +70,9 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam2: 0.55,
 		effectPerLevel: 0.02,
 		targetStat: 'fireRate',
+		// STARTER — always available
 	},
 	{
-		// Range: medium cap.
 		id: WorkshopUpgradeId.BaseRange,
 		name: 'Range',
 		description: '+1.5 base range per level.',
@@ -81,9 +84,9 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam2: 0.55,
 		effectPerLevel: 1.5,
 		targetStat: 'range',
+		requiredBlueprint: BlueprintId.ExtendedCoreOptics,
 	},
 	{
-		// HP: 6000 levels, +0.8 per level. At 6000: +4800 base HP.
 		id: WorkshopUpgradeId.StartingHp,
 		name: 'Health',
 		description: '+0.8 max HP per level. High-cap survivability stat.',
@@ -94,10 +97,9 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam1: 1.55,
 		effectPerLevel: 0.8,
 		targetStat: 'hp',
+		// STARTER — always available
 	},
 	{
-		// Defense Absolute: 5000 levels, +0.3 per level.
-		// Flat damage reduction after defense%. Good early, needs many levels late.
 		id: WorkshopUpgradeId.DefenseAbsolute,
 		name: 'Defense Abs',
 		description: '+0.3 flat damage reduction per level after defense%.',
@@ -108,9 +110,9 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam1: 1.58,
 		effectPerLevel: 0.3,
 		targetStat: 'defenseAbsolute',
+		requiredBlueprint: BlueprintId.PlatedCoreShell,
 	},
 	{
-		// Regen: 5000 levels, +0.03 HP/s per level. At 5000: 150 HP/s.
 		id: WorkshopUpgradeId.Regen,
 		name: 'Regen',
 		description: '+0.03 HP/sec per level. Many levels for meaningful sustain.',
@@ -121,9 +123,9 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam1: 1.57,
 		effectPerLevel: 0.03,
 		targetStat: 'regen',
+		// STARTER — always available, intentionally weak
 	},
 	{
-		// Defense Percent: strict low cap.
 		id: WorkshopUpgradeId.DefensePercent,
 		name: 'Defense %',
 		description: '+1% damage reduction per level. Caps at 50%. Steep cost.',
@@ -136,9 +138,9 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		effectPerLevel: 0.01,
 		effectCap: 0.50,
 		targetStat: 'defensePercent',
+		requiredBlueprint: BlueprintId.PhaseDampener,
 	},
 	{
-		// Lifesteal: strict low cap.
 		id: WorkshopUpgradeId.Lifesteal,
 		name: 'Lifesteal',
 		description: '+0.5% lifesteal per level. Caps at 10%. Very expensive.',
@@ -151,9 +153,9 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		effectPerLevel: 0.005,
 		effectCap: 0.10,
 		targetStat: 'lifesteal',
+		requiredBlueprint: BlueprintId.EnergyReclaimer,
 	},
 	{
-		// Thorns: medium cap.
 		id: WorkshopUpgradeId.Thorns,
 		name: 'Thorns',
 		description: '+1 reflected damage per level. Bosses take 50%.',
@@ -165,12 +167,12 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam2: 0.52,
 		effectPerLevel: 1,
 		targetStat: 'thorns',
+		requiredBlueprint: BlueprintId.ReactiveSurface,
 	},
 	{
-		// Coin bonus: 1000 levels, +1% per level.
 		id: WorkshopUpgradeId.CoinBonus,
-		name: 'Coin Bonus',
-		description: '+1% coin income per level. 1000 levels for 10× coins.',
+		name: 'Alloy/Wave',
+		description: '+1% alloy income per level. 1000 levels for 10× alloy.',
 		icon: '🪙',
 		maxLevel: 1000,
 		costType: 'polynomial',
@@ -178,10 +180,10 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam1: 1.7,
 		effectPerLevel: 0.01,
 		targetStat: 'coinBonus',
+		// STARTER — always available (basic alloy economy)
 	},
 	{
-		// Cash bonus: 1000 levels, +1% per level.
-		id: WorkshopUpgradeId.CashBonus,
+		id: WorkshopUpgradeId.EnergyBonus,
 		name: 'Energy Bonus',
 		description: '+1% energy income per level. 1000 levels for 10× energy.',
 		icon: '⚡',
@@ -191,9 +193,9 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam1: 1.65,
 		effectPerLevel: 0.01,
 		targetStat: 'cashBonus',
+		requiredBlueprint: BlueprintId.EnergyCondenser,
 	},
 	{
-		// Crit bonus: low cap.
 		id: WorkshopUpgradeId.CritBonus,
 		name: 'Crit Bonus',
 		description: '+0.5% base crit chance per level.',
@@ -205,10 +207,10 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam2: 0.55,
 		effectPerLevel: 0.005,
 		targetStat: 'critChance',
+		requiredBlueprint: BlueprintId.CriticalTargeting,
 	},
 	{
-		// Starting cash: convenience, not progression.
-		id: WorkshopUpgradeId.StartingCash,
+		id: WorkshopUpgradeId.StartingEnergy,
 		name: 'Starting Energy',
 		description: '+4 starting energy per level.',
 		icon: '⚡',
@@ -219,6 +221,7 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam2: 0.50,
 		effectPerLevel: 4,
 		targetStat: 'startingCash',
+		requiredBlueprint: BlueprintId.DeploymentReserves,
 	},
 ];
 
@@ -254,6 +257,7 @@ export function buildWorkshopUpgradeList(): Array<{
 	maxLevel: number;
 	cost: (level: number) => number;
 	icon: string;
+	requiredBlueprint?: BlueprintId;
 }> {
 	return WORKSHOP_UPGRADE_DEFS.map(def => ({
 		id: def.id,
@@ -263,5 +267,6 @@ export function buildWorkshopUpgradeList(): Array<{
 		maxLevel: def.maxLevel,
 		cost: (level: number) => getWorkshopUpgradeCost(def.id, level),
 		icon: def.icon,
+		requiredBlueprint: def.requiredBlueprint,
 	}));
 }

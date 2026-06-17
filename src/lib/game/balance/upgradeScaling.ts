@@ -24,7 +24,7 @@ export function formatBattleEffect(id: UpgradeId, value: number): string {
 		case UpgradeId.Regen: return '+' + value.toFixed(1) + ' HP/s';
 		case UpgradeId.Lifesteal: return '+' + (value * 100).toFixed(1) + '%';
 		case UpgradeId.Thorns: return '+' + value.toFixed(0) + ' dmg';
-		case UpgradeId.GoldAmp: return '+' + (value * 100).toFixed(1) + '%';
+		case UpgradeId.EnergyAmp: return '+' + (value * 100).toFixed(1) + '%';
 		case UpgradeId.CashPerWave: return '+' + value.toFixed(0) + ' /wave';
 		default: return String(value);
 	}
