@@ -76,7 +76,8 @@ export const STARTER_FIELD_UPGRADES: UpgradeId[] = [
 	UpgradeId.FireRate,
 	UpgradeId.MaxHp,
 	UpgradeId.Regen,
-	UpgradeId.CashPerWave,
+	UpgradeId.CritChance,
+	UpgradeId.CritMultiplier,
 ];
 
 /**
@@ -277,7 +278,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 		unlockCondition: 'Reach Wave 25',
 		cost: 250,
 		order: 10,
-		unlocksFieldUpgrades: [UpgradeId.EnergyAmp],
+		unlocksFieldUpgrades: [UpgradeId.EnergyAmp, UpgradeId.CashPerWave],
 		unlocksFoundryUpgrades: [],
 	},
 	{

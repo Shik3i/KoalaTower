@@ -48,13 +48,13 @@ export const GAME_CONFIG = {
  */
 export function getDefaultTowerStats(): TowerStats {
 	return {
-		damage: 8,
+		damage: 50,
 		fireRate: 1.0,
 		range: 180,
 		multishotChance: 0,
 		multishotCount: 1,
-		critChance: 0.05,
-		critMultiplier: 2.0,
+		critChance: 0.01,
+		critMultiplier: 1.20,
 		defensePercent: 0,
 		defenseAbsolute: 0,
 		regen: 0,
@@ -64,10 +64,10 @@ export function getDefaultTowerStats(): TowerStats {
 }
 
 /** Base HP for the tower before any upgrades. */
-export const TOWER_HP_BASE = 60;
+export const TOWER_HP_BASE = 100;
 
 /** Cash the player starts with on a fresh run (before Starting Cash workshop). */
-export const STARTING_CASH_BASE = 20;
+export const STARTING_CASH_BASE = 100;
 
 /** Bonus cash awarded per wave cleared. */
 export const CASH_PER_WAVE_BASE = 5;

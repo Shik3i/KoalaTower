@@ -24,6 +24,7 @@ export interface EnemyConfig {
 	size: number;
 	color: number;
 	shape: 'square' | 'triangle' | 'hexagon' | 'diamond' | 'pentagon';
+	isShiny?: boolean;
 }
 
 export interface Enemy {
@@ -51,6 +52,7 @@ export interface Enemy {
 	spawnProgress: number;
 	stopped: boolean;
 	isBoss: boolean;
+	isShiny: boolean;
 	wave: number;
 }
 
@@ -180,6 +182,53 @@ export enum BlueprintId {
 
 export type BlueprintCategory = 'attack' | 'defense' | 'utility';
 
+export enum AchievementId {
+	Deployments1 = 'deployments1',
+	Deployments10 = 'deployments10',
+	Deployments100 = 'deployments100',
+	Deployments1000 = 'deployments1000',
+	Deployments10000 = 'deployments10000',
+	Deployments100000 = 'deployments100000',
+	BestWave2 = 'bestWave2',
+	BestWave5 = 'bestWave5',
+	BestWave10 = 'bestWave10',
+	BestWave25 = 'bestWave25',
+	BestWave50 = 'bestWave50',
+	BestWave100 = 'bestWave100',
+	BestWave250 = 'bestWave250',
+	BestWave500 = 'bestWave500',
+	BestWave1000 = 'bestWave1000',
+	BestWave2500 = 'bestWave2500',
+	BestWave5000 = 'bestWave5000',
+	ShapesDestroyed10 = 'shapesDestroyed10',
+	ShapesDestroyed100 = 'shapesDestroyed100',
+	ShapesDestroyed1000 = 'shapesDestroyed1000',
+	ShapesDestroyed10000 = 'shapesDestroyed10000',
+	ShapesDestroyed100000 = 'shapesDestroyed100000',
+	BossesDefeated1 = 'bossesDefeated1',
+	BossesDefeated10 = 'bossesDefeated10',
+	BossesDefeated100 = 'bossesDefeated100',
+	BossesDefeated1000 = 'bossesDefeated1000',
+	FieldUpgradesPurchased10 = 'fieldUpgradesPurchased10',
+	FieldUpgradesPurchased100 = 'fieldUpgradesPurchased100',
+	FieldUpgradesPurchased1000 = 'fieldUpgradesPurchased1000',
+	FieldUpgradesPurchased10000 = 'fieldUpgradesPurchased10000',
+	AlloyEarned100 = 'alloyEarned100',
+	AlloyEarned1000 = 'alloyEarned1000',
+	AlloyEarned10000 = 'alloyEarned10000',
+	AlloyEarned100000 = 'alloyEarned100000',
+}
+
+export interface AchievementDef {
+	id: AchievementId;
+	name: string;
+	description: string;
+	category: 'deployments' | 'bestWave' | 'shapesDestroyed' | 'bossesDefeated' | 'fieldUpgrades' | 'alloyEarned';
+	threshold: number;
+	reward: number;
+	rewardLabel: string;
+}
+
 export interface BattleUpgrade {
 	id: UpgradeId;
 	name: string;
@@ -299,6 +348,7 @@ export interface GameState {
 	highestWave: number;
 	totalRuns: number;
 	settings: GameSettings;
+	shiniesKilled: number;
 }
 
 export interface GameSettings {

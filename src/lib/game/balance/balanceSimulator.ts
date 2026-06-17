@@ -18,6 +18,7 @@
 import { hybridCost, additiveEffect } from './balanceMath';
 import {
 	computeEnemyConfig, enemiesPerWave, bossEscortCount, availableEnemyTypes,
+	spawnIntervalForWave,
 } from './balanceMath';
 import { BATTLE_UPGRADE_DEFS, getBattleUpgradeCost, getBattleUpgradeEffect } from './battleUpgrades';
 import { WORKSHOP_UPGRADE_DEFS, getWorkshopUpgradeEffect } from './workshopUpgrades';
@@ -37,6 +38,7 @@ export interface SimResult {
 	bottleneck: string; diedTo: string;
 	tier: number; strategy: Strategy; labLevels: Record<string, number>;
 	lockedUpgradesSkipped: number;
+	totalShiniesKilled: number;
 }
 
 interface SimState {
@@ -51,6 +53,8 @@ interface SimState {
 	tier: number; labLevels: Record<string, number>;
 	unlockedBlueprints: BlueprintId[];
 	lockedUpgradesSkipped: number;
+	strategy: Strategy;
+	shiniesKilled: number;
 }
 
 function computeBaseline(ws: Record<string, number>, lab: Record<string, number>) {
@@ -62,14 +66,14 @@ function computeBaseline(ws: Record<string, number>, lab: Record<string, number>
 	const lCoin = 1 + getLabEffect('alloyEfficiency' as any, l('alloyEfficiency'));
 	const lCash = 1 + getLabEffect('energyEfficiency' as any, l('energyEfficiency'));
 	return {
-		damage: (8 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, g(WorkshopUpgradeId.BaseDamage))) * lDmg,
+		damage: (50 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, g(WorkshopUpgradeId.BaseDamage))) * lDmg,
 		fireRate: (1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, g(WorkshopUpgradeId.BaseFireRate))) * lFR,
 		range: 180 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, g(WorkshopUpgradeId.BaseRange)),
-		hp: Math.floor((60 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, g(WorkshopUpgradeId.StartingHp))) * lHP),
-		critChance: Math.min(0.30, 0.05 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, g(WorkshopUpgradeId.CritBonus))),
+		hp: Math.floor((100 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, g(WorkshopUpgradeId.StartingHp))) * lHP),
+		critChance: Math.min(0.30, 0.01 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, g(WorkshopUpgradeId.CritBonus))),
 		cashMult: (1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.EnergyBonus, g(WorkshopUpgradeId.EnergyBonus))) * lCash,
 		coinMult: (1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, g(WorkshopUpgradeId.CoinBonus))) * lCoin,
-		startingCash: 20 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingEnergy, g(WorkshopUpgradeId.StartingEnergy)),
+		startingCash: 100 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingEnergy, g(WorkshopUpgradeId.StartingEnergy)),
 		wsDefAbs: getWorkshopUpgradeEffect(WorkshopUpgradeId.DefenseAbsolute, g(WorkshopUpgradeId.DefenseAbsolute)),
 		wsDefPct: Math.min(0.50, getWorkshopUpgradeEffect(WorkshopUpgradeId.DefensePercent, g(WorkshopUpgradeId.DefensePercent))),
 		wsRegen: getWorkshopUpgradeEffect(WorkshopUpgradeId.Regen, g(WorkshopUpgradeId.Regen)),
@@ -115,7 +119,7 @@ function recompute(state: SimState, ws: ReturnType<typeof computeBaseline>): voi
 	state.multishotChance = getBattleUpgradeEffect(UpgradeId.Multishot, bl(UpgradeId.Multishot));
 	state.multishotCount = 1 + getBattleUpgradeEffect(UpgradeId.MultishotProjectiles, bl(UpgradeId.MultishotProjectiles));
 	state.critChance = ws.critChance + getBattleUpgradeEffect(UpgradeId.CritChance, bl(UpgradeId.CritChance));
-	state.critMultiplier = 2.0 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, bl(UpgradeId.CritMultiplier));
+	state.critMultiplier = 1.20 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, bl(UpgradeId.CritMultiplier));
 	state.defense = ws.wsDefAbs + getBattleUpgradeEffect(UpgradeId.Defense, bl(UpgradeId.Defense));
 	state.defensePercent = Math.min(0.50, ws.wsDefPct + getBattleUpgradeEffect(UpgradeId.DefensePercent, bl(UpgradeId.DefensePercent)));
 	state.regen = ws.wsRegen + getBattleUpgradeEffect(UpgradeId.Regen, bl(UpgradeId.Regen));
@@ -123,7 +127,7 @@ function recompute(state: SimState, ws: ReturnType<typeof computeBaseline>): voi
 	state.thorns = ws.wsThorns + getBattleUpgradeEffect(UpgradeId.Thorns, bl(UpgradeId.Thorns));
 	const hpBonus = getBattleUpgradeEffect(UpgradeId.MaxHp, bl(UpgradeId.MaxHp));
 	state.maxHp = Math.floor(ws.hp + hpBonus);
-	state.hp = Math.min(state.hp, state.maxHp);
+	state.hp = Math.min(state.hp + 30, state.maxHp);
 }
 
 function estimateDps(s: SimState): number {
@@ -178,7 +182,7 @@ export function simulateRun(
 	const state: SimState = {
 		damage: ws.damage, fireRate: ws.fireRate, range: ws.range,
 		multishotChance: 0, multishotCount: 1,
-		critChance: ws.critChance, critMultiplier: 2.0,
+		critChance: ws.critChance, critMultiplier: 1.20,
 		maxHp: ws.hp, hp: ws.hp,
 		defense: ws.wsDefAbs, defensePercent: ws.wsDefPct,
 		regen: ws.wsRegen, lifesteal: ws.wsLifesteal, thorns: ws.wsThorns,
@@ -187,34 +191,38 @@ export function simulateRun(
 		battleLevels: {}, tier, labLevels,
 		unlockedBlueprints: [...unlockedBlueprints],
 		lockedUpgradesSkipped: 0,
+		strategy,
+		shiniesKilled: 0,
 	};
 
 	// Define strategy buy priorities and thresholds
 	let priority: UpgradeId[];
 	let threshold: number;
 	if (strategy === 'confused') {
-		// Confused: buys HP and regen only, very expensive threshold (hoards cash)
-		priority = [UpgradeId.MaxHp, UpgradeId.Regen];
-		threshold = 8;
+		// Confused: extreme hoarding, buys almost nothing
+		priority = [UpgradeId.MaxHp];
+		threshold = 20;
 	} else if (strategy === 'reasonable') {
-		// Reasonable: buys HP then damage, no economy, moderate hoarding
+		// Reasonable: buys HP then damage, moderate hoarding
 		priority = [UpgradeId.MaxHp, UpgradeId.Damage, UpgradeId.Regen];
-		threshold = 5;
+		threshold = 4;
 	} else {
-		// Optimal: balanced — HP first, then economy + damage
+		// Optimal: balanced buying, priorities damage and HP
 		priority = [
-			UpgradeId.MaxHp, UpgradeId.Damage, UpgradeId.CashPerWave,
-			UpgradeId.FireRate, UpgradeId.Regen,
+			UpgradeId.MaxHp, UpgradeId.Damage, UpgradeId.Regen,
+			UpgradeId.FireRate, UpgradeId.CritChance, UpgradeId.CritMultiplier,
 			// Locked without blueprints, listed for when available:
-			UpgradeId.Multishot, UpgradeId.CritChance, UpgradeId.Defense,
-			UpgradeId.DefensePercent, UpgradeId.Lifesteal,
+			UpgradeId.CashPerWave, UpgradeId.Multishot,
+			UpgradeId.Defense, UpgradeId.DefensePercent, UpgradeId.Lifesteal,
 			UpgradeId.Thorns, UpgradeId.Range, UpgradeId.EnergyAmp,
 		];
-		threshold = 3;
+		threshold = 2;
 	}
 
 	tryBuyUpgrades(state, priority, threshold);
 	recompute(state, ws);
+	// Tower starts each run at full HP — the +30 heal in recompute is for mid-run purchases
+	state.hp = state.maxHp;
 	let diedTo = 'unknown';
 
 	let totalBossesDefeated = 0;
@@ -223,6 +231,14 @@ export function simulateRun(
 		state.wave = wave;
 		const isBossWave = wave % 10 === 0;
 		const count = isBossWave ? bossEscortCount(wave) + 1 : enemiesPerWave(wave);
+		const spawnInt = spawnIntervalForWave(wave);
+
+		// ── Wave-level combat summary ──────────────────────────────────
+		// Model the battle as a continuous process:
+		// - Tower kills at fireRate/hitsToKill enemies per second
+		// - Enemies arrive at 1/spawnInterval enemies per second
+		// - If kill rate >= arrival rate, tower stays ahead (minimal damage)
+		// - If kill rate < arrival rate, enemies pile up and deal damage
 
 		// Try to unlock blueprints as we progress
 		tryUnlockBlueprints(state, totalBossesDefeated);
@@ -237,7 +253,9 @@ export function simulateRun(
 				type = availableEnemyTypes(wave)[Math.floor(rng() * availableEnemyTypes(wave).length)]!;
 			}
 			const isBoss = type === EnemyType.Boss;
-			const config = computeEnemyConfig(type, wave, tier);
+			// 5% shiny chance, exclude bosses for safety
+			const isShiny = !isBoss && rng() < 0.05;
+			const config = computeEnemyConfig(type, wave, tier, isShiny);
 
 			const multAvg = 1 + state.multishotChance * state.multishotCount;
 			const critAvg = 1 + state.critChance * (state.critMultiplier - 1);
@@ -255,14 +273,44 @@ export function simulateRun(
 			const dmgFloor = isBoss ? Math.max(5, Math.floor(wave * 0.5)) : 1;
 			const dmgPerHit = Math.max(dmgFloor, Math.floor(afterPct - state.defense));
 
-			const travel = Math.max(2, 450 / Math.max(1, config.speed));
-			const engage = Math.max(0, ttk - travel);
-			const minHits = wave <= 10 ? 0.20 :
-				wave <= 20 ? 0.20 + (wave - 10) * 0.03 :
-				wave <= 30 ? 0.50 + (wave - 20) * 0.025 :
-				Math.min(1.0, 0.75 + (wave - 30) * 0.005);
-			const hitsFromEnemy = engage > 0 ? Math.max(minHits, engage / config.attackCooldown) : minHits;
+			// ── Rate-based contact model ────────────────────────────────
+			// Tower kill rate: enemies killed per second
+			const killRate = state.fireRate / hits;
+			// Enemy arrival rate: enemies spawned per second
+			const arrivalRate = 1 / Math.max(0.06, spawnInt);
+
+			// Approach time: seconds for enemy to cross from spawn to range edge
+			const approachDist = 220; // px from viewport edge to tower range (400 - 180)
+			const approachTime = Math.max(0.5, approachDist / Math.max(1, config.speed));
+
+			// Time enemy spends alive and in attack range
+			// If one-shot: enemy dies before or right at range edge
+			// If multi-hit: enemy may survive into range
+			const surviveInRange = Math.max(0, ttk - approachTime);
+			const attackTime = surviveInRange;
+
+			// Base hits: time in range / attack cooldown
+			let hitsFromEnemy = attackTime / Math.max(0.1, config.attackCooldown);
+
+			// Overflow damage: when enemies arrive faster than tower kills,
+			// some enemies reach the tower while tower is busy
+			if (killRate < arrivalRate) {
+				const overflowRate = arrivalRate - killRate;
+				const overflowTime = count / arrivalRate; // approximate wave duration
+				const overflowEnemies = Math.min(count, overflowRate * overflowTime);
+				// Each overflow enemy gets roughly 1 additional attack window
+				const extraHitsPerOverflow = Math.min(1.0, approachTime / config.attackCooldown);
+				hitsFromEnemy += (overflowEnemies / count) * extraHitsPerOverflow;
+			}
+
+			// Tiny leak floor for edge cases — but NOT a flat 0.20 per enemy
+			// Only applies if the enemy type could theoretically slip through
+			const leakFloor = hits <= 1 ? 0 : 0.02;
+			hitsFromEnemy = Math.max(leakFloor, hitsFromEnemy);
+
 			const totalDmg = hitsFromEnemy * dmgPerHit;
+
+			// ── End contact model ──────────────────────────────────────
 
 			// Lifesteal from damage dealt
 			if (state.lifesteal > 0) {
@@ -272,6 +320,7 @@ export function simulateRun(
 			}
 
 			state.hp -= totalDmg;
+
 			if (state.hp <= 0) {
 				diedTo = `Wave ${wave} — ${type}`;
 				state.hp = 0;
@@ -279,14 +328,17 @@ export function simulateRun(
 			}
 
 			state.kills++;
+			if (isShiny) state.shiniesKilled++;
+
 			const cashReward = config.cashReward * ws.cashMult;
 			state.cash += cashReward;
 			state.cashEarned += cashReward;
 
-			// Coins: tiny per-kill + boss bonus
-			if (ws.killCoinBonus > 0) {
-				state.coins += Math.floor(ws.killCoinBonus);
-				state.coinsEarned += Math.floor(ws.killCoinBonus);
+			// Alloy from shiny enemies or boss
+			if (config.coinReward > 0) {
+				const coinRwd = Math.floor(config.coinReward * ws.coinMult);
+				state.coins += coinRwd;
+				state.coinsEarned += coinRwd;
 			}
 			if (isBoss) {
 				totalBossesDefeated++;
@@ -315,7 +367,8 @@ export function simulateRun(
 	const dps = estimateDps(state);
 	const effHp = state.maxHp;
 	let bottleneck = 'unknown';
-	if (state.wave <= 8) bottleneck = 'very early: low damage/hp';
+	if (state.wave <= 3) bottleneck = 'very early: tower overwhelmed';
+	else if (state.wave <= 8) bottleneck = 'early: need more damage/hp';
 	else if (state.wave <= 18) bottleneck = 'first boss: need more damage/hp';
 	else if (state.wave <= 35) bottleneck = 'mid-game: damage vs enemy HP';
 	else if (state.wave <= 70) bottleneck = 'progression: DPS vs tank scaling';
@@ -335,6 +388,7 @@ export function simulateRun(
 		dps, effectiveHp: effHp, bottleneck, diedTo,
 		tier, strategy, labLevels,
 		lockedUpgradesSkipped: state.lockedUpgradesSkipped,
+		totalShiniesKilled: state.shiniesKilled,
 	};
 }
 
@@ -358,22 +412,44 @@ export const SCENARIOS: SimScenario[] = [
 	{
 		name: 'Fresh Confused', workshop: {}, labs: {}, tier: 1, strategy: 'confused',
 		unlockedBlueprints: [],
-		desc: 'First-ever run, confused buying (hoards cash, buys only damage/HP). No blueprints.'
+		desc: 'First-ever run, confused buying (hoards cash, buys almost nothing). No blueprints.'
 	},
 	{
 		name: 'Fresh Reasonable', workshop: {}, labs: {}, tier: 1, strategy: 'reasonable',
 		unlockedBlueprints: [],
-		desc: 'First run, reasonable buying (damage, fire rate, HP, regen, energy/wave). No blueprints.'
+		desc: 'First run, reasonable buying (HP, damage, regen). No blueprints.'
 	},
 	{
 		name: 'Fresh Optimal', workshop: {}, labs: {}, tier: 1, strategy: 'optimal',
 		unlockedBlueprints: [],
-		desc: 'First run, optimal priority buying. No blueprints — only starter upgrades available.'
+		desc: 'First run, optimal priority buying. Only starter upgrades available.'
 	},
 	{
-		name: 'After First Blueprint', workshop: {}, labs: {}, tier: 1, strategy: 'optimal',
+		name: 'Post First Achievement + 1 Forge', workshop: { [WorkshopUpgradeId.BaseDamage]: 1 },
+		labs: {}, tier: 1, strategy: 'optimal',
+		unlockedBlueprints: [],
+		desc: 'After first deployment achievement (50 alloy) + one Forge damage upgrade.'
+	},
+	{
+		name: 'After 3 Deployments / Few Forge', workshop: {
+			[WorkshopUpgradeId.BaseDamage]: 2,
+			[WorkshopUpgradeId.StartingHp]: 1,
+			[WorkshopUpgradeId.BaseFireRate]: 1,
+		},
+		labs: {}, tier: 1, strategy: 'optimal',
 		unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell],
-		desc: 'Unlocked Extended Tower Optics (Range) + Plated Tower Shell (Def Abs) after reaching wave 25.'
+		desc: 'After a few deployments: 2 damage, 1 HP, 1 fire rate forge. Early blueprints.'
+	},
+	{
+		name: 'First Boss Attempt', workshop: {
+			[WorkshopUpgradeId.BaseDamage]: 5,
+			[WorkshopUpgradeId.StartingHp]: 3,
+			[WorkshopUpgradeId.BaseFireRate]: 2,
+			[WorkshopUpgradeId.Regen]: 1,
+		},
+		labs: {}, tier: 1, strategy: 'optimal',
+		unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell, BlueprintId.CriticalTargeting],
+		desc: 'Attempting first boss at wave 10. Moderate forge investment.'
 	},
 	{
 		name: '5 Foundry Purchases', workshop: { [WorkshopUpgradeId.BaseDamage]: 3, [WorkshopUpgradeId.StartingHp]: 2 },

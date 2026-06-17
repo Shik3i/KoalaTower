@@ -48,13 +48,13 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 	{
 		id: WorkshopUpgradeId.BaseDamage,
 		name: 'Damage',
-		description: '+0.5 base damage per level. Core long-term stat.',
+		description: '+5 base damage per level. Front-loaded for early impact.',
 		icon: '⚡',
 		maxLevel: 5000,
 		costType: 'polynomial',
-		baseCost: 50,
+		baseCost: 30,
 		costParam1: 1.6,
-		effectPerLevel: 0.5,
+		effectPerLevel: 5,
 		targetStat: 'damage',
 		// STARTER — always available
 	},
@@ -65,7 +65,7 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		icon: '🔥',
 		maxLevel: 99,
 		costType: 'hybrid',
-		baseCost: 40,
+		baseCost: 30,
 		costParam1: 1.18,
 		costParam2: 0.55,
 		effectPerLevel: 0.02,
@@ -89,13 +89,13 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 	{
 		id: WorkshopUpgradeId.StartingHp,
 		name: 'Health',
-		description: '+0.8 max HP per level. High-cap survivability stat.',
+		description: '+10 max HP per level. Front-loaded for early survivability.',
 		icon: '❤️',
 		maxLevel: 6000,
 		costType: 'polynomial',
-		baseCost: 25,
+		baseCost: 20,
 		costParam1: 1.55,
-		effectPerLevel: 0.8,
+		effectPerLevel: 10,
 		targetStat: 'hp',
 		// STARTER — always available
 	},
@@ -115,15 +115,15 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 	{
 		id: WorkshopUpgradeId.Regen,
 		name: 'Regen',
-		description: '+0.03 HP/sec per level. Many levels for meaningful sustain.',
+		description: '+0.3 HP/sec per level. Many levels for meaningful sustain.',
 		icon: '💚',
 		maxLevel: 5000,
 		costType: 'polynomial',
 		baseCost: 25,
 		costParam1: 1.57,
-		effectPerLevel: 0.03,
+		effectPerLevel: 0.3,
 		targetStat: 'regen',
-		// STARTER — always available, intentionally weak
+		// STARTER — always available
 	},
 	{
 		id: WorkshopUpgradeId.DefensePercent,

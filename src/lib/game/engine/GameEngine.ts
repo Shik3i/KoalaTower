@@ -96,6 +96,7 @@ export class GameEngine {
 			waveStartTime: 0,
 			killCount: 0,
 			bossesDefeated: 0,
+			shiniesKilled: 0,
 			totalDamageDealt: 0,
 			highestWave: 0,
 			totalRuns: 0,

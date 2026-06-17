@@ -29,11 +29,11 @@ export function createTowerState(state: GameState): TowerState {
 
 	const w = (id: WorkshopUpgradeId) => ws[id] ?? 0;
 
-	const baseDamage = (8 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, w(WorkshopUpgradeId.BaseDamage))) * lab.dmg;
+	const baseDamage = (50 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, w(WorkshopUpgradeId.BaseDamage))) * lab.dmg;
 	const baseFireRate = (1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, w(WorkshopUpgradeId.BaseFireRate))) * lab.fireRate;
 	const baseRange = 180 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, w(WorkshopUpgradeId.BaseRange));
 	const baseHp = Math.floor((TOWER_HP_BASE + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, w(WorkshopUpgradeId.StartingHp))) * lab.hp);
-	const baseCrit = Math.min(0.30, 0.05 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, w(WorkshopUpgradeId.CritBonus)));
+	const baseCrit = Math.min(0.30, 0.01 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, w(WorkshopUpgradeId.CritBonus)));
 
 	return {
 		position: { x: GAME_CONFIG.VIEW_WIDTH / 2, y: GAME_CONFIG.VIEW_HEIGHT / 2 },
@@ -46,7 +46,7 @@ export function createTowerState(state: GameState): TowerState {
 			multishotChance: 0,
 			multishotCount: 1,
 			critChance: baseCrit,
-			critMultiplier: 2.0,
+			critMultiplier: 1.20,
 			defensePercent: Math.min(0.50, getWorkshopUpgradeEffect(WorkshopUpgradeId.DefensePercent, w(WorkshopUpgradeId.DefensePercent))),
 			defenseAbsolute: getWorkshopUpgradeEffect(WorkshopUpgradeId.DefenseAbsolute, w(WorkshopUpgradeId.DefenseAbsolute)),
 			regen: getWorkshopUpgradeEffect(WorkshopUpgradeId.Regen, w(WorkshopUpgradeId.Regen)),
@@ -80,13 +80,13 @@ export function applyBattleUpgrades(state: GameState): void {
 	const wsThorns = getWorkshopUpgradeEffect(WorkshopUpgradeId.Thorns, w(WorkshopUpgradeId.Thorns));
 
 	// Effective = base × lab + battle
-	tower.stats.damage = (8 + wsDmg) * lab.dmg + getBattleUpgradeEffect(UpgradeId.Damage, b(UpgradeId.Damage));
+	tower.stats.damage = (50 + wsDmg) * lab.dmg + getBattleUpgradeEffect(UpgradeId.Damage, b(UpgradeId.Damage));
 	tower.stats.fireRate = (1.0 + wsFR) * lab.fireRate + getBattleUpgradeEffect(UpgradeId.FireRate, b(UpgradeId.FireRate));
 	tower.stats.range = 180 + wsRange + getBattleUpgradeEffect(UpgradeId.Range, b(UpgradeId.Range));
 	tower.stats.multishotChance = getBattleUpgradeEffect(UpgradeId.Multishot, b(UpgradeId.Multishot));
 	tower.stats.multishotCount = 1 + getBattleUpgradeEffect(UpgradeId.MultishotProjectiles, b(UpgradeId.MultishotProjectiles));
-	tower.stats.critChance = Math.min(0.30, 0.05 + wsCrit) + getBattleUpgradeEffect(UpgradeId.CritChance, b(UpgradeId.CritChance));
-	tower.stats.critMultiplier = 2.0 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, b(UpgradeId.CritMultiplier));
+	tower.stats.critChance = Math.min(0.30, 0.01 + wsCrit) + getBattleUpgradeEffect(UpgradeId.CritChance, b(UpgradeId.CritChance));
+	tower.stats.critMultiplier = 1.20 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, b(UpgradeId.CritMultiplier));
 	tower.stats.defensePercent = Math.min(0.50, wsDefPct + getBattleUpgradeEffect(UpgradeId.DefensePercent, b(UpgradeId.DefensePercent)));
 	tower.stats.defenseAbsolute = wsDefAbs + getBattleUpgradeEffect(UpgradeId.Defense, b(UpgradeId.Defense));
 	tower.stats.regen = wsRegen + getBattleUpgradeEffect(UpgradeId.Regen, b(UpgradeId.Regen));
@@ -95,7 +95,8 @@ export function applyBattleUpgrades(state: GameState): void {
 
 	// Max HP: base + workshop × lab + battle
 	tower.maxHp = Math.floor((TOWER_HP_BASE + wsHP) * lab.hp) + getBattleUpgradeEffect(UpgradeId.MaxHp, b(UpgradeId.MaxHp));
-	tower.hp = Math.min(tower.hp, tower.maxHp);
+	// Small flat heal (+30 HP) on upgrade + keep existing HP (capped at new max)
+	tower.hp = Math.min(tower.hp + 30, tower.maxHp);
 }
 
 export function applyRegen(state: GameState, dt: number): void {

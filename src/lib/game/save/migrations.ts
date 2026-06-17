@@ -1,5 +1,5 @@
 import { CURRENT_SCHEMA_VERSION, type SaveData } from './saveTypes';
-import { BlueprintId } from '../engine/gameTypes';
+import { BlueprintId, AchievementId } from '../engine/gameTypes';
 import { computeGrandfatheredBlueprints } from '../balance/blueprints';
 
 export function migrateSave(data: Record<string, unknown>): SaveData | null {
@@ -22,8 +22,10 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		if (version < 5) {
 			save = migrateV4toV5(save);
 		}
+		if (version < 6) {
+			save = migrateV5toV6(save);
+		}
 
-		// Ensure metadata fields exist (backfill for any migration path)
 		save = ensureMetadata(save);
 
 		if (save.schemaVersion !== CURRENT_SCHEMA_VERSION) {
@@ -39,7 +41,7 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 function migrateV0toV1(data: Record<string, unknown>): SaveData {
 	const now = Date.now();
 	return {
-		schemaVersion: 5,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
 		createdAt: new Date(now).toISOString(),
 		lastUpdated: now,
 		saveId: 'fltd-legacy-' + Math.random().toString(36).slice(2, 10),
@@ -61,21 +63,31 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 			damageNumbers: true,
 			lowEffectsMode: false,
 		},
+		achievements: {},
+		totalKills: 0,
+		totalBossesDefeated: 0,
+		totalFieldUpgradesPurchased: 0,
+		totalAlloyEarned: 0,
+		totalShiniesKilled: 0,
 	};
 }
 
 function migrateV1toV2(save: SaveData): SaveData {
 	return {
 		...save,
-		schemaVersion: 5,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
 		labResearch: {},
 		blueprints: [],
 		unlockedBlueprints: [],
 		activeLab: null,
+		achievements: save.achievements ?? {},
+		totalKills: save.totalKills ?? 0,
+		totalBossesDefeated: save.totalBossesDefeated ?? 0,
+		totalFieldUpgradesPurchased: save.totalFieldUpgradesPurchased ?? 0,
+		totalAlloyEarned: save.totalAlloyEarned ?? 0,
 	};
 }
 
-/** V2→V3: Map old lab IDs to new ones */
 function migrateV2toV3(save: SaveData): SaveData {
 	const oldLabLevels = save.labLevels as Record<string, number> | undefined;
 	const newLabLevels: Record<string, number> = {};
@@ -94,14 +106,18 @@ function migrateV2toV3(save: SaveData): SaveData {
 
 	return {
 		...save,
-		schemaVersion: 5,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
 		labLevels: newLabLevels,
 		unlockedBlueprints: [],
 		activeLab: null,
+		achievements: save.achievements ?? {},
+		totalKills: save.totalKills ?? 0,
+		totalBossesDefeated: save.totalBossesDefeated ?? 0,
+		totalFieldUpgradesPurchased: save.totalFieldUpgradesPurchased ?? 0,
+		totalAlloyEarned: save.totalAlloyEarned ?? 0,
 	};
 }
 
-/** V3→V4: Rename lab, workshop, and battle upgrade enum keys */
 function migrateV3toV4(save: SaveData): SaveData {
 	const oldLab = save.labLevels as Record<string, number> | undefined;
 	const newLab: Record<string, number> = {};
@@ -125,35 +141,31 @@ function migrateV3toV4(save: SaveData): SaveData {
 
 	return {
 		...save,
-		schemaVersion: 5,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
 		labLevels: newLab as Record<string, number>,
 		workshopUpgrades: newWs as Record<string, number>,
 		blueprints: Array.isArray((save as unknown as Record<string, unknown>).blueprints) ? ((save as unknown as Record<string, unknown>).blueprints as string[]) : [],
 		unlockedBlueprints: [],
 		activeLab: null,
+		achievements: save.achievements ?? {},
+		totalKills: save.totalKills ?? 0,
+		totalBossesDefeated: save.totalBossesDefeated ?? 0,
+		totalFieldUpgradesPurchased: save.totalFieldUpgradesPurchased ?? 0,
+		totalAlloyEarned: save.totalAlloyEarned ?? 0,
 	};
 }
 
-/**
- * V4→V5: Add unlockedBlueprints with grandfathering.
- *
- * If the player already has levels in now-locked workshop upgrades,
- * auto-unlock the corresponding Blueprint so they don't lose access.
- * Lab levels in now-locked labs also trigger grandfathering.
- */
 function migrateV4toV5(save: SaveData): SaveData {
 	const existingBlueprints: string[] = Array.isArray((save as unknown as Record<string, unknown>).blueprints)
 		? ((save as unknown as Record<string, unknown>).blueprints as string[])
 		: [];
 
-	// Compute grandfathered blueprints from existing workshop + lab levels
 	const grandfathered = computeGrandfatheredBlueprints(
 		save.workshopUpgrades,
-		{}, // battle levels are not persisted across runs
+		{},
 		save.labLevels,
 	);
 
-	// Merge: keep old blueprints + add grandfathered ones (dedup)
 	const all = new Set<BlueprintId>([
 		...existingBlueprints.filter(Boolean) as BlueprintId[],
 		...grandfathered,
@@ -161,9 +173,27 @@ function migrateV4toV5(save: SaveData): SaveData {
 
 	return {
 		...save,
-		schemaVersion: 5,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
 		unlockedBlueprints: Array.from(all),
 		activeLab: (save as unknown as Record<string, unknown>).activeLab as SaveData['activeLab'] || null,
+		achievements: save.achievements ?? {},
+		totalKills: save.totalKills ?? 0,
+		totalBossesDefeated: save.totalBossesDefeated ?? 0,
+		totalFieldUpgradesPurchased: save.totalFieldUpgradesPurchased ?? 0,
+		totalAlloyEarned: save.totalAlloyEarned ?? 0,
+	};
+}
+
+function migrateV5toV6(save: SaveData): SaveData {
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		achievements: (save as unknown as Record<string, unknown>).achievements as SaveData['achievements'] ?? {},
+		totalKills: (save.totalKills as number) ?? 0,
+		totalBossesDefeated: (save.totalBossesDefeated as number) ?? 0,
+		totalFieldUpgradesPurchased: (save.totalFieldUpgradesPurchased as number) ?? 0,
+		totalAlloyEarned: (save.totalAlloyEarned as number) ?? 0,
+		totalShiniesKilled: (save as any).totalShiniesKilled ?? 0,
 	};
 }
 
@@ -178,7 +208,6 @@ export function validateSaveData(data: unknown): data is SaveData {
 	return true;
 }
 
-/** Ensure createdAt and saveId exist, generating defaults if missing from old saves. */
 function ensureMetadata(save: SaveData): SaveData {
 	const now = Date.now();
 	return {
@@ -186,5 +215,11 @@ function ensureMetadata(save: SaveData): SaveData {
 		createdAt: save.createdAt || new Date(now).toISOString(),
 		saveId: save.saveId || 'fltd-' + Math.random().toString(36).slice(2, 10),
 		lastUpdated: save.lastUpdated || now,
+		achievements: (save as any).achievements ?? {},
+		totalKills: (save as any).totalKills ?? 0,
+		totalBossesDefeated: (save as any).totalBossesDefeated ?? 0,
+		totalFieldUpgradesPurchased: (save as any).totalFieldUpgradesPurchased ?? 0,
+		totalAlloyEarned: (save as any).totalAlloyEarned ?? 0,
+		totalShiniesKilled: (save as any).totalShiniesKilled ?? 0,
 	};
 }

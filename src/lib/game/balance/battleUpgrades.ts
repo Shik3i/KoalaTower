@@ -1,24 +1,6 @@
-/**
- * battleUpgrades.ts — Long-tail Battle Upgrade definitions.
- *
- * DESIGN PHILOSOPHY:
- * Battle upgrades reset each run but provide strong temporary scaling.
- * They build on top of the Workshop baseline. During a good run, a
- * player should buy many levels of core upgrades. Costs ramp
- * exponentially so there are diminishing returns within a single run.
- *
- * Per-level effects are strong enough that upgrading feels impactful
- * each time, while the growing costs prevent infinite single-run scaling.
- *
- * PROGRESSION GATING:
- * Upgrades are gated by Blueprints. Starter upgrades (Damage, Attack Speed,
- * Max HP, Regen, Cash/Wave) are always available. Advanced upgrades require
- * the corresponding Blueprint to be purchased first.
- */
-
 import type { UpgradeCategory, BlueprintId } from '../engine/gameTypes';
 import { UpgradeId, BlueprintId as BP } from '../engine/gameTypes';
-import { hybridCost, additiveEffect, formatBattleEffect as fmtEffect } from './upgradeScaling';
+import { hybridCost, additiveEffect, roundedCost, formatBattleEffect as fmtEffect } from './upgradeScaling';
 
 export interface BattleUpgradeDef {
 	id: UpgradeId;
@@ -32,7 +14,6 @@ export interface BattleUpgradeDef {
 	costExponent: number;
 	effectPerLevel: number;
 	effectCap?: number;
-	/** Blueprint required to unlock this upgrade (null = starter, always available) */
 	requiredBlueprint?: BlueprintId;
 }
 
@@ -40,28 +21,26 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 	{
 		id: UpgradeId.Damage,
 		name: 'Damage',
-		description: '+1.0 damage per projectile per level. Core scaling stat.',
+		description: '+25 damage per level. First purchase takes you from 50 to 75.',
 		icon: '⚡',
 		category: 'offense',
 		maxLevel: 999,
-		baseCost: 60,
-		costGrowth: 1.18,
-		costExponent: 0.50,
-		effectPerLevel: 1.0,
-		// STARTER — always available
+		baseCost: 13,
+		costGrowth: 1.20,
+		costExponent: 0,
+		effectPerLevel: 25,
 	},
 	{
 		id: UpgradeId.FireRate,
 		name: 'Attack Speed',
-		description: '+0.03 attacks per second per level.',
+		description: '+0.05 attacks per second per level.',
 		icon: '🔥',
 		category: 'offense',
 		maxLevel: 399,
-		baseCost: 50,
-		costGrowth: 1.16,
-		costExponent: 0.52,
-		effectPerLevel: 0.03,
-		// STARTER — always available
+		baseCost: 20,
+		costGrowth: 1.20,
+		costExponent: 0,
+		effectPerLevel: 0.05,
 	},
 	{
 		id: UpgradeId.Range,
@@ -106,42 +85,39 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 	{
 		id: UpgradeId.CritChance,
 		name: 'Crit Chance',
-		description: '+0.6% crit chance per level. Caps at 45%.',
+		description: '+1% crit chance per level. Doubles on first purchase.',
 		icon: '⭐',
 		category: 'offense',
 		maxLevel: 89,
-		baseCost: 28,
-		costGrowth: 1.13,
-		costExponent: 0.48,
-		effectPerLevel: 0.006,
+		baseCost: 5,
+		costGrowth: 1.20,
+		costExponent: 0,
+		effectPerLevel: 0.01,
 		effectCap: 0.45,
-		requiredBlueprint: BP.CriticalTargeting,
 	},
 	{
 		id: UpgradeId.CritMultiplier,
 		name: 'Crit Multiplier',
-		description: '+0.08x crit damage per level. Base 2.0x.',
+		description: '+0.10x crit damage per level.',
 		icon: '✨',
 		category: 'offense',
 		maxLevel: 49,
-		baseCost: 60,
-		costGrowth: 1.16,
-		costExponent: 0.55,
-		effectPerLevel: 0.08,
-		requiredBlueprint: BP.CriticalTargeting,
+		baseCost: 13,
+		costGrowth: 1.20,
+		costExponent: 0,
+		effectPerLevel: 0.10,
 	},
 	{
 		id: UpgradeId.MaxHp,
 		name: 'Max HP',
-		description: '+4 max HP per level. Core survivability.',
+		description: '+100 max HP per level. Doubles base HP on first purchase.',
 		icon: '❤️',
 		category: 'defense',
 		maxLevel: 399,
-		baseCost: 25,
-		costGrowth: 1.13,
-		costExponent: 0.45,
-		effectPerLevel: 4,
-		// STARTER — always available
+		baseCost: 13,
+		costGrowth: 1.20,
+		costExponent: 0,
+		effectPerLevel: 100,
 	},
 	{
 		id: UpgradeId.Defense,
@@ -173,16 +149,15 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 	{
 		id: UpgradeId.Regen,
 		name: 'Regen',
-		description: '+0.06 HP/sec per level. Caps at 2 HP/s. Minor sustain — smooths chip damage only.',
+		description: '+0.50 HP/sec per level. First level enables regen from zero.',
 		icon: '💚',
 		category: 'defense',
 		maxLevel: 199,
-		baseCost: 30,
-		costGrowth: 1.13,
-		costExponent: 0.45,
-		effectPerLevel: 0.06,
-		effectCap: 2.0,
-		// STARTER — always available, intentionally weak
+		baseCost: 7,
+		costGrowth: 1.20,
+		costExponent: 0,
+		effectPerLevel: 0.50,
+		effectCap: 10.0,
 	},
 	{
 		id: UpgradeId.Lifesteal,
@@ -231,11 +206,11 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		icon: '💎',
 		category: 'utility',
 		maxLevel: 299,
-		baseCost: 25,
-		costGrowth: 1.12,
-		costExponent: 0.42,
+		baseCost: 30,
+		costGrowth: 1.22,
+		costExponent: 0,
 		effectPerLevel: 1,
-		// STARTER — always available
+		requiredBlueprint: BP.AlloyExtraction,
 	},
 ];
 
@@ -251,6 +226,9 @@ export function getBattleUpgradeDef(id: UpgradeId): BattleUpgradeDef | undefined
 export function getBattleUpgradeCost(id: UpgradeId, level: number): number {
 	const def = defMap.get(id);
 	if (!def) return Infinity;
+	if (def.costExponent === 0) {
+		return roundedCost(def.baseCost, def.costGrowth, level);
+	}
 	return hybridCost(def.baseCost, def.costGrowth, def.costExponent, level);
 }
 

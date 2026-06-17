@@ -116,8 +116,11 @@ function spawnEnemy(state: GameState): void {
 		state.wave.spawnInterval = getSpawnIntervalForWave(state.wave.currentWave);
 	}
 
+	const isBoss = type === EnemyType.Boss;
+	const isShiny = !isBoss && Math.random() < 0.05;
+
 	const { x, y } = getSpawnPosition(state);
-	const enemy = createEnemy(type, state.wave.currentWave, x, y, 1);
+	const enemy = createEnemy(type, state.wave.currentWave, x, y, 1, isShiny);
 	state.enemies.push(enemy);
 	state.wave.enemiesSpawned++;
 	state.wave.enemiesSpawnedInSubWave++;

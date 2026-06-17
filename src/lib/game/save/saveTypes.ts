@@ -1,4 +1,4 @@
-import type { GameSettings, WorkshopUpgradeId, LabId, MilestoneId, ChallengeId, BlueprintId } from '../engine/gameTypes';
+import type { GameSettings, WorkshopUpgradeId, LabId, MilestoneId, ChallengeId, BlueprintId, AchievementId } from '../engine/gameTypes';
 
 export interface LabResearch {
 	level: number;
@@ -36,9 +36,17 @@ export interface SaveData {
 	milestones: Partial<Record<MilestoneId, boolean>>;
 	challengeHighScores: Partial<Record<ChallengeId, number>>;
 	settings: GameSettings;
+	/** v6: Achievement IDs that have been claimed */
+	achievements: Partial<Record<AchievementId, boolean>>;
+	/** v6: Lifetime stats for achievement tracking */
+	totalKills: number;
+	totalBossesDefeated: number;
+	totalFieldUpgradesPurchased: number;
+	totalAlloyEarned: number;
+	totalShiniesKilled: number;
 }
 
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 6;
 
 export function createDefaultSave(): SaveData {
 	const now = Date.now();
@@ -65,5 +73,11 @@ export function createDefaultSave(): SaveData {
 			damageNumbers: true,
 			lowEffectsMode: false,
 		},
+		achievements: {},
+		totalKills: 0,
+		totalBossesDefeated: 0,
+		totalFieldUpgradesPurchased: 0,
+		totalAlloyEarned: 0,
+		totalShiniesKilled: 0,
 	};
 }

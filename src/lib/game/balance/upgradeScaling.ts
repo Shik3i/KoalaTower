@@ -3,8 +3,8 @@
  */
 
 import { UpgradeId } from '../engine/gameTypes';
-import { hybridCost, additiveEffect } from './balanceMath';
-export { hybridCost, additiveEffect };
+import { hybridCost, additiveEffect, roundedCost } from './balanceMath';
+export { hybridCost, additiveEffect, roundedCost };
 
 /**
  * Format an effect value for UI display based on upgrade ID.

@@ -63,7 +63,7 @@ export function getBossCoinReward(state: GameState): number {
 /** Starting energy for a deployment. */
 export function getStartingEnergy(state: GameState): number {
 	const lv = state.workshopUpgrades[WorkshopUpgradeId.StartingEnergy] ?? 0;
-	return 20 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingEnergy, lv);
+	return 100 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingEnergy, lv);
 }
 
 /** Gold bonus on wave completion. */

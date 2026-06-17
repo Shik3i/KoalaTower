@@ -4,9 +4,11 @@ import type { Enemy } from '../engine/gameTypes';
 interface EnemyMeta {
 	shape: Graphics;
 	inner: Graphics;
+	glow: Graphics;
 	type: string;
 	size: number;
 	boss: boolean;
+	shiny: boolean;
 }
 
 const _meta = new WeakMap<Container, EnemyMeta>();
@@ -51,10 +53,12 @@ export class EnemyRenderer {
 		const c = new Container();
 		const shape = new Graphics();
 		const inner = new Graphics();
+		const glow = new Graphics();
+		c.addChild(glow);
 		c.addChild(shape);
 		c.addChild(inner);
-		_meta.set(c, { shape, inner, type: enemy.type, size: enemy.size, boss: enemy.isBoss });
-		this.draw(enemy, shape, inner);
+		_meta.set(c, { shape, inner, glow, type: enemy.type, size: enemy.size, boss: enemy.isBoss, shiny: enemy.isShiny });
+		this.draw(enemy, shape, inner, glow);
 		return c;
 	}
 
@@ -62,11 +66,12 @@ export class EnemyRenderer {
 		const meta = _meta.get(c);
 		if (!meta) return;
 
-		if (meta.type !== enemy.type || meta.size !== enemy.size || meta.boss !== enemy.isBoss) {
-			this.draw(enemy, meta.shape, meta.inner);
+		if (meta.type !== enemy.type || meta.size !== enemy.size || meta.boss !== enemy.isBoss || meta.shiny !== enemy.isShiny) {
+			this.draw(enemy, meta.shape, meta.inner, meta.glow);
 			meta.type = enemy.type;
 			meta.size = enemy.size;
 			meta.boss = enemy.isBoss;
+			meta.shiny = enemy.isShiny;
 		}
 
 		const flash = enemy.hitFlashTimer > 0;
@@ -75,20 +80,40 @@ export class EnemyRenderer {
 		// Hit flash — briefly brighten plus scale pulse
 		if (flash) {
 			meta.shape.tint = 0xDDDDFF;
+			meta.glow.tint = 0xDDDDFF;
 			c.scale.set(1.08);
 		} else {
 			meta.shape.tint = 0xFFFFFF;
+			meta.glow.tint = 0xFFFFFF;
 			c.scale.set(1);
+		}
+
+		// Shiny glow pulse
+		if (enemy.isShiny) {
+			const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.005 + enemy.id * 0.5);
+			meta.glow.alpha = pulse * 0.6;
+		} else {
+			meta.glow.alpha = 0;
 		}
 	}
 
-	private draw(enemy: Enemy, s: Graphics, inner: Graphics): void {
+	private draw(enemy: Enemy, s: Graphics, inner: Graphics, glow: Graphics): void {
 		const hw = enemy.size / 2;
 		const color = enemy.color;
 		const lw = enemy.isBoss ? 3 : 2;
 
 		s.clear();
 		inner.clear();
+		glow.clear();
+
+		// Shiny glow circle
+		if (enemy.isShiny) {
+			glow.circle(0, 0, enemy.size * 1.4)
+				.fill({ color: 0xFFD700, alpha: 0.12 })
+				.stroke({ width: 2.5, color: 0xFFD700, alpha: 0.5 });
+			glow.circle(0, 0, enemy.size * 2.0)
+				.stroke({ width: 1.5, color: 0xFFD700, alpha: 0.2 });
+		}
 
 		// Semi-transparent fill for all enemies
 		const fillAlpha = enemy.isBoss ? 0.15 : 0.1;

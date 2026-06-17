@@ -25,6 +25,7 @@ export interface OpLogCategory {
 	saveImportFailed: string[];
 	saveReset: string[];
 	frontUnlocked: string[];
+	achievementUnlocked: string[];
 }
 
 const POOLS: OpLogCategory = {
@@ -182,6 +183,15 @@ const POOLS: OpLogCategory = {
 		'New front operational: {name}. Enemy geometry density: unacceptable.',
 		'{name} front opened. The shapes there are reportedly very rude.',
 		'Command authorizes deployment to {name}. Good luck. You will need it.',
+	],
+
+	achievementUnlocked: [
+		'Achievement unlocked: {name}. Orbital Command is vaguely impressed.',
+		'{name} achieved. The archives have been updated accordingly.',
+		'Achievement recorded: {name}. Reward approved. Procurement pretends this was budgeted.',
+		'{name}. Telemetry confirms: Orbital Command did not expect this so soon.',
+		'Achievement: {name}. The coffee machine has been notified.',
+		'{name} — logged. The bureaucracy has accepted this with minimum paperwork.',
 	],
 };
 

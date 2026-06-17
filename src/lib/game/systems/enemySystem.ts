@@ -156,9 +156,19 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 					state.coins += bossCoins;
 					_addDmg?.(target.position.x, target.position.y + target.size * 1.1, '+' + bossCoins + ' 🪙', GAME_CONFIG.NEON_YELLOW);
 				}
+				// Shiny enemies grant Alloy directly from their config coinReward
+				if (target.isShiny) {
+					state.shiniesKilled++;
+					const shinyAlloy = target.coinReward;
+					if (shinyAlloy > 0) {
+						state.coins += shinyAlloy;
+						_addDmg?.(target.position.x, target.position.y + target.size * 1.2, '+' + shinyAlloy + ' 🪙', GAME_CONFIG.NEON_YELLOW);
+					}
+				}
 
 				// Feedback popups — stagger them slightly for readability
-				_addDmg?.(target.position.x, target.position.y + target.size * 0.6, '+' + energy + ' ⚡', GAME_CONFIG.NEON_GREEN);
+				const energyLabel = target.isShiny ? '+' + energy + ' ⚡✨' : '+' + energy + ' ⚡';
+				_addDmg?.(target.position.x, target.position.y + target.size * 0.6, energyLabel, target.isShiny ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_GREEN);
 			}
 			proj.alive = false;
 			continue;

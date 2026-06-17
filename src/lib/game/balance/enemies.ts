@@ -93,8 +93,8 @@ export function consumeBossEscort(): boolean {
  * Create an Enemy object from type and wave.
  * Uses computeEnemyConfig from balanceMath for all stats.
  */
-export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawnY: number, tier: number = 1): Enemy {
-	const config = computeEnemyConfig(type, wave, tier);
+export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawnY: number, tier: number = 1, isShiny: boolean = false): Enemy {
+	const config = computeEnemyConfig(type, wave, tier, isShiny);
 	const id = nextEnemyId++;
 	return {
 		id,
@@ -112,6 +112,7 @@ export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawn
 			size: config.size,
 			color: config.color,
 			shape: config.shape,
+			isShiny,
 		},
 		position: { x: spawnX, y: spawnY },
 		hp: config.hp,
@@ -133,6 +134,7 @@ export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawn
 		spawnProgress: 1,
 		stopped: false,
 		isBoss: type === EnemyType.Boss,
+		isShiny,
 		wave,
 	};
 }
