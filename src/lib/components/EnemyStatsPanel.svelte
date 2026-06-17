@@ -79,9 +79,9 @@
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
 		font-family: var(--font-mono);
-		font-size: 0.6rem;
+		font-size: clamp(0.58rem, 0.75vw, 0.65rem);
 		pointer-events: auto;
-		min-width: 110px;
+		min-width: 120px;
 		box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
 		animation: fadeIn 0.2s ease;
 	}

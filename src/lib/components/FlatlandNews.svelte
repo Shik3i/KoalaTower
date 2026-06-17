@@ -174,16 +174,16 @@
 	}
 
 	.nc-cat {
-		font-size: 0.5rem;
-		color: var(--cyan-dim);
+		font-size: 0.58rem;
+		color: var(--cyan);
 		font-family: var(--font-mono);
 		letter-spacing: 0.04em;
 	}
 
 	.nc-class {
-		font-size: 0.45rem;
+		font-size: 0.52rem;
 		font-weight: 600;
-		padding: 0.05rem 0.3rem;
+		padding: 0.06rem 0.35rem;
 		border-radius: 100px;
 		letter-spacing: 0.03em;
 	}
@@ -209,18 +209,18 @@
 	}
 
 	.nc-headline {
-		font-size: 0.65rem;
-		color: var(--text-secondary);
+		font-size: 0.72rem;
+		color: var(--text-primary);
 		font-weight: 600;
-		line-height: 1.3;
+		line-height: 1.35;
 		padding: 0;
 		margin: 0;
 	}
 
 	.nc-snippet {
-		font-size: 0.58rem;
-		color: var(--text-dim);
-		line-height: 1.4;
+		font-size: 0.65rem;
+		color: var(--text-secondary);
+		line-height: 1.45;
 		margin: 0;
 		display: -webkit-box;
 		-webkit-line-clamp: 3;
@@ -229,10 +229,9 @@
 	}
 
 	.nc-cycle {
-		font-size: 0.48rem;
+		font-size: 0.52rem;
 		color: var(--text-dim);
 		font-family: var(--font-mono);
-		opacity: 0.5;
 		margin-top: auto;
 	}
 

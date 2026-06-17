@@ -115,7 +115,7 @@
 				<span class="feature-icon">🏗️</span>
 			</div>
 			<h3>Build & Upgrade</h3>
-			<p>Strengthen your tower with battle upgrades mid-run and permanent workshop upgrades.</p>
+			<p>Overclock your Tower with temporary Field Upgrades mid-deployment. Permanent Forge improvements between deployments. Procurement approves this spending. Mostly.</p>
 		</div>
 		<div class="feature-card">
 			<div class="feature-icon-wrap">
@@ -123,7 +123,7 @@
 				<span class="feature-icon">🌊</span>
 			</div>
 			<h3>Endless Waves</h3>
-			<p>Face increasingly difficult waves with 5 unique enemy types and escalating rewards.</p>
+			<p>Hostile geometry scales indefinitely. Five shape types, increasing density, and the distinct sensation that the swarm has a plan. It does not. Probably.</p>
 		</div>
 		<div class="feature-card">
 			<div class="feature-icon-wrap">
@@ -131,7 +131,7 @@
 				<span class="feature-icon">🔬</span>
 			</div>
 			<h3>Research & Progress</h3>
-			<p>Unlock labs, tiers, milestones, and challenges as you grow stronger.</p>
+			<p>Unlock new Fronts, run orbital Research Deck projects (results sanitized for morale), and attempt Simulations that may not be simulations. The war waits for nobody. Especially not Accounting.</p>
 		</div>
 	</div>
 
@@ -191,7 +191,7 @@
 	.hero {
 		position: relative;
 		width: 100%;
-		padding: 5rem 1.5rem 3rem;
+		padding: clamp(3.5rem, 8vh, 6rem) 1.5rem clamp(2rem, 4vh, 3.5rem);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -226,7 +226,7 @@
 	.hero-content {
 		position: relative;
 		z-index: 1;
-		max-width: 600px;
+		max-width: min(800px, 90vw);
 		animation: fadeInUp 0.6s ease;
 	}
 
@@ -268,27 +268,27 @@
 
 	.hero-logo {
 		width: 100%;
-		max-width: 500px;
+		max-width: clamp(380px, 55vw, 640px);
 		height: auto;
 		filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.15));
 	}
 
 	.subtitle {
-		font-size: 1rem;
+		font-size: clamp(0.95rem, 1.6vw, 1.25rem);
 		color: var(--text-secondary);
 		font-family: var(--font-mono);
-		margin-bottom: 1.5rem;
-		letter-spacing: 0.05em;
+		margin-bottom: 1.75rem;
+		letter-spacing: 0.04em;
 		animation: fadeInUp 0.4s ease;
 		transition: opacity 0.3s ease;
 	}
 
 	.description {
-		color: var(--text-dim);
-		font-size: 0.9rem;
+		color: var(--text-secondary);
+		font-size: clamp(0.9rem, 1.4vw, 1.1rem);
 		line-height: 1.8;
-		margin-bottom: 2rem;
-		max-width: 480px;
+		margin-bottom: 2.25rem;
+		max-width: 580px;
 		margin-left: auto;
 		margin-right: auto;
 	}
@@ -305,10 +305,10 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.6rem;
-		padding: 0.85rem 2.25rem;
+		padding: clamp(0.8rem, 1.4vw, 1.1rem) clamp(1.8rem, 3vw, 2.8rem);
 		border-radius: var(--radius-md);
-		font-weight: 600;
-		font-size: 1rem;
+		font-weight: 700;
+		font-size: clamp(0.95rem, 1.3vw, 1.15rem);
 		transition: all var(--transition-normal);
 		text-decoration: none;
 		cursor: pointer;
@@ -341,10 +341,10 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.6rem;
-		padding: 0.85rem 2.25rem;
+		padding: clamp(0.8rem, 1.4vw, 1.1rem) clamp(1.8rem, 3vw, 2.8rem);
 		border-radius: var(--radius-md);
 		font-weight: 600;
-		font-size: 1rem;
+		font-size: clamp(0.95rem, 1.3vw, 1.15rem);
 		transition: all var(--transition-normal);
 		text-decoration: none;
 		cursor: pointer;
@@ -394,10 +394,10 @@
 
 	.features {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-		gap: 1rem;
-		padding: 1rem 1.5rem 3rem;
-		max-width: 760px;
+		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+		gap: 1.25rem;
+		padding: 1.5rem 1.5rem 3rem;
+		max-width: 900px;
 		width: 100%;
 		z-index: 1;
 	}
@@ -406,7 +406,7 @@
 		background: var(--bg-glass);
 		border: 1px solid var(--border-neon);
 		border-radius: var(--radius-lg);
-		padding: 1.5rem;
+		padding: 1.75rem 1.5rem;
 		text-align: center;
 		backdrop-filter: blur(8px);
 		-webkit-backdrop-filter: blur(8px);
@@ -455,26 +455,26 @@
 	}
 
 	.feature-card h3 {
-		font-size: 0.95rem;
+		font-size: clamp(0.9rem, 1.2vw, 1.05rem);
 		margin-bottom: 0.5rem;
 		color: var(--cyan);
 	}
 
 	.feature-card p {
-		font-size: 0.8rem;
-		color: var(--text-dim);
+		font-size: clamp(0.75rem, 1vw, 0.88rem);
+		color: var(--text-secondary);
 		line-height: 1.6;
 	}
 
 	.footer {
-		padding: 1.5rem;
+		padding: 2rem 1.5rem;
 		color: var(--text-dim);
-		font-size: 0.75rem;
+		font-size: clamp(0.72rem, 0.9vw, 0.82rem);
 		text-align: center;
 		z-index: 1;
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0.6rem;
 		align-items: center;
 		justify-content: center;
 	}
@@ -498,21 +498,15 @@
 	}
 
 	@media (max-width: 767px) {
-		.title {
-			margin-bottom: 0.5rem;
+		.hero {
+			padding: 2.5rem 1rem 1.5rem;
 		}
 		.hero-logo {
-			max-width: 340px;
-		}
-		.hero {
-			padding: 3rem 1rem 2rem;
+			max-width: 320px;
 		}
 		.features {
-			padding: 1rem 1rem 2rem;
+			padding: 1rem 1rem 1.5rem;
 			grid-template-columns: 1fr;
-		}
-		.description {
-			font-size: 0.85rem;
 		}
 	}
 </style>
