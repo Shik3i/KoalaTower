@@ -277,15 +277,13 @@ export const ENEMY_TYPE_MODIFIERS: Record<EnemyType, {
 export const ENEMY_BASE_ARMOR: Record<EnemyType, number> = {
 	[EnemyType.Normal]:  0,
 	[EnemyType.Fast]:    0,
-	[EnemyType.Tank]:    0.15,
+	[EnemyType.Tank]:    0,
 	[EnemyType.Ranged]:  0,
-	[EnemyType.Boss]:    0.10,
+	[EnemyType.Boss]:    0,
 };
 
 export function waveArmorBonus(wave: number, isBoss: boolean): number {
-	if (wave <= 15) return 0;
-	const raw = (wave - 15) * 0.001;
-	return Math.min(raw, isBoss ? 0.50 : 0.40);
+	return 0;
 }
 
 export const ENEMY_BASE_CASH_REWARD: Record<EnemyType, number> = {

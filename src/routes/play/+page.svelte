@@ -6,7 +6,7 @@
 	import TowerStatsPanel from '$lib/components/TowerStatsPanel.svelte';
 	import EnemyStatsPanel from '$lib/components/EnemyStatsPanel.svelte';
 	import { GAME_CONFIG } from '$lib/game/engine/gameConfig';
-	import { UpgradeId, type GameSnapshot, type GameSettings } from '$lib/game/engine/gameTypes';
+	import { UpgradeId, type GameSnapshot, type GameSettings, AchievementId } from '$lib/game/engine/gameTypes';
 	import { buildBattleUpgradeList, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
 	import { formatBattleEffect } from '$lib/game/balance/upgradeScaling';
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
@@ -14,6 +14,7 @@
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
+	import { checkAchievements } from '$lib/game/balance/achievements';
 	import { engineStore } from '$lib/stores/gameStore';
 
 	let container = $state<HTMLDivElement>();
@@ -52,6 +53,7 @@
 	let showImportDialog = $state(false);
 	let showResetConfirm = $state(false);
 	let goBtn = $state<HTMLButtonElement>();
+	let coinsAtRunStart = $state(0);
 
 	$effect(() => {
 		if (showGameOver) {
@@ -192,9 +194,49 @@
 				const save = getCachedSave();
 				if (save && engine) {
 					const isNewBest = engine.state.highestWave > save.highestWave;
+					const runCoinsEarned = Math.max(0, engine.state.coins - coinsAtRunStart);
+
 					save.totalCoins = engine.state.coins;
 					save.totalRuns = engine.state.totalRuns;
 					save.highestWave = Math.max(save.highestWave, engine.state.highestWave);
+
+					save.totalKills += engine.state.killCount;
+					save.totalBossesDefeated += engine.state.bossesDefeated;
+					save.totalShiniesKilled += engine.state.shiniesKilled;
+					save.totalAlloyEarned += runCoinsEarned;
+
+					const bLevels = engine.state.battleUpgrades;
+					let runFieldUpgrades = 0;
+					for (const v of Object.values(bLevels)) { runFieldUpgrades += v as number; }
+					save.totalFieldUpgradesPurchased += runFieldUpgrades;
+
+					// Check achievements
+					const claimedIds = new Set<AchievementId>();
+					const ach = save.achievements;
+					for (const [id, val] of Object.entries(ach)) {
+						if (val) claimedIds.add(id as AchievementId);
+					}
+					const earned = checkAchievements(claimedIds,
+						{
+							totalRuns: save.totalRuns,
+							bestWave: save.highestWave,
+							totalKills: save.totalKills,
+							bossesDefeated: save.totalBossesDefeated,
+							fieldUpgradesPurchased: save.totalFieldUpgradesPurchased,
+							totalAlloyEarned: save.totalAlloyEarned,
+						},
+					);
+					let totalReward = 0;
+					for (const a of earned) {
+						(save.achievements as Record<string, boolean>)[a.id] = true;
+						save.totalCoins += a.reward;
+						totalReward += a.reward;
+						toast('🏆 ' + a.name + ' — +' + a.reward.toLocaleString() + ' Alloy!', 'milestone');
+					}
+					if (totalReward > 0) {
+						gameOverCoins += totalReward;
+					}
+
 					coinsStore.set(save.totalCoins);
 					highestWaveStore.set(save.highestWave);
 					totalRunsStore.set(save.totalRuns);
@@ -235,6 +277,7 @@
 		showGameOver = false;
 		showMobileUpgrades = false;
 		speed = 1; paused = false;
+		coinsAtRunStart = coins;
 		const save = getCachedSave();
 		const unlockedBPs = (save?.unlockedBlueprints ?? []) as import('$lib/game/engine/gameTypes').BlueprintId[];
 		engine.startRun(save?.workshopUpgrades ?? {}, save?.labLevels ?? {}, coins, unlockedBPs);

@@ -272,9 +272,9 @@ describe('Enemy Config', () => {
 		expect(boss.cashReward).toBeGreaterThan(normal.cashReward * 5);
 	});
 
-	it('boss should have armor', () => {
-		const boss = computeEnemyConfig(EnemyType.Boss, 20);
-		expect(boss.armor).toBeGreaterThan(0);
+	it('boss armor is 0 for Front 1 (MVP armor policy)', () => {
+		const boss = computeEnemyConfig(EnemyType.Boss, 20, 1);
+		expect(boss.armor).toBe(0);
 	});
 });
 
