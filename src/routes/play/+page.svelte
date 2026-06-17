@@ -276,7 +276,7 @@
 					save.frontBestWave = { ...(save.frontBestWave ?? {}), [save.selectedFront]: Math.max(frontPrev, reachedWave) };
 					const justUnlocked = getUnlockedFronts(save.frontBestWave).length > getUnlockedFronts(frontBestWave).length;
 					frontBestWave = { ...save.frontBestWave };
-					if (justUnlocked) toast('🌍 New Front unlocked — choose it at deployment!', 'milestone');
+					if (justUnlocked) toast('🌍 ' + getOpLogMessage('frontUnlocked', { name: getFrontName(save.selectedFront) }), 'milestone');
 
 					const bLevels = engine.state.battleUpgrades;
 					let runFieldUpgrades = 0;
@@ -327,7 +327,7 @@
 						save.discoveredBlueprints = [...(save.discoveredBlueprints ?? []), ...found];
 						for (const id of found) {
 							const def = getBlueprintDef(id);
-							toast('🔍 Blueprint discovered: ' + (def?.name ?? id) + ' — research it in Orbital Command', 'milestone');
+							toast('🔍 ' + getOpLogMessage('blueprintDiscovered', { name: def?.name ?? id }), 'milestone');
 						}
 						audio.play('milestone');
 					}
@@ -391,8 +391,15 @@
 
 	function handleSpeed(preset: number) {
 		if (!engine) return;
-		if (preset === 0) { engine.togglePause(); toast(engine.isPaused() ? '⏸ Paused' : '▶ Resumed', 'info'); }
-		else { const spds = GAME_CONFIG.SPEED_PRESETS; engine.setSpeed(spds[preset - 1] ?? 1); toast('⏩ ' + (spds[preset - 1] ?? 1) + '×', 'info'); }
+		if (preset === 0) {
+			engine.togglePause();
+			toast(engine.isPaused() ? getOpLogMessage('pauseGame') : getOpLogMessage('resumeGame'), 'info');
+		} else {
+			const spds = GAME_CONFIG.SPEED_PRESETS;
+			const sp = spds[preset - 1] ?? 1;
+			engine.setSpeed(sp);
+			toast(getOpLogMessage('speedChange', { speed: sp }), 'info');
+		}
 		refreshSnap();
 	}
 
@@ -414,7 +421,7 @@
 		const upgradeName = upgradeDef?.name ?? '';
 		const maxLv = upgradeDef?.maxLevel ?? 99;
 		const initialLv = engine.state.battleUpgrades[id] ?? 0;
-		if (initialLv >= maxLv) { toast('⚠ Max level!', 'warning'); return; }
+		if (initialLv >= maxLv) { toast(getOpLogMessage('upgradeMaxLevel'), 'warning'); return; }
 
 		let bought = 0;
 		const isMax = buyMultiplier === 'max';
@@ -433,7 +440,7 @@
 			const newLv = initialLv + bought;
 			toast('⬆ ' + upgradeName + ' → Lv.' + newLv + (bought > 1 ? ' (+' + bought + ')' : ''), 'success');
 		} else {
-			toast('⚡ Not enough Energy!', 'error');
+			toast(getOpLogMessage('upgradeNotEnough'), 'error');
 		}
 	}
 	function bLv(id: UpgradeId): number { return snap?.upgradeLevels[id] ?? 0; }

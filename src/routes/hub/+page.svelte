@@ -70,9 +70,9 @@
 	function buyBlueprint(id: BlueprintId) {
 		const save = getCachedSave(); if (!save) return;
 		const bp = BLUEPRINT_DEFS.find(b => b.id === id); if (!bp) return;
-		if (ownedBlueprints.includes(id)) { toast('Already researched.', 'info'); return; }
-		if (!discoveredBlueprints.includes(id)) { toast('Not yet discovered — find it in the field first.', 'error'); return; }
-		if (save.totalCoins < bp.cost) { toast('Need ' + bp.cost.toLocaleString() + ' Alloy!', 'error'); return; }
+		if (ownedBlueprints.includes(id)) { toast(getOpLogMessage('blueprintAlreadyOwned'), 'info'); return; }
+		if (!discoveredBlueprints.includes(id)) { toast(getOpLogMessage('blueprintNotYetFound'), 'error'); return; }
+		if (save.totalCoins < bp.cost) { toast(getOpLogMessage('workshopNotEnough'), 'error'); return; }
 		save.totalCoins -= bp.cost;
 		save.unlockedBlueprints = [...(save.unlockedBlueprints ?? []), id];
 		ownedBlueprints = [...ownedBlueprints, id];
@@ -112,7 +112,7 @@
 		const upgrade = WORKSHOP_UPGRADES.find(u => u.id === id);
 		const maxLv = upgrade?.maxLevel ?? 100;
 		const initialLv = save.workshopUpgrades[id] ?? 0;
-		if (initialLv >= maxLv) { toast('⚠ Max level!', 'warning'); return; }
+		if (initialLv >= maxLv) { toast(getOpLogMessage('workshopMaxLevel'), 'warning'); return; }
 
 		let bought = 0;
 		const isMax = buyMultiplier === 'max';
@@ -132,7 +132,7 @@
 			const newLv = initialLv + bought;
 			toast('🔧 ' + (upgrade?.name ?? id) + ' → Lv.' + newLv + (bought > 1 ? ' (+' + bought + ')' : ''), 'success');
 		} else {
-			toast('🔩 Not enough Alloy!', 'error');
+			toast(getOpLogMessage('workshopNotEnough'), 'error');
 		}
 	}
 
@@ -141,11 +141,11 @@
 		const save = getCachedSave(); if (!save) return;
 		const def = LAB_DEFS.find(l => l.id === id); if (!def) return;
 		const lv = (save.labLevels as Record<string, number>)[id] ?? 0;
-		if (lv >= def.maxLevel) { toast('⚠ Max level!', 'warning'); return; }
-		if (save.activeLab) { toast('⚠ A research project is already active!', 'warning'); return; }
+		if (lv >= def.maxLevel) { toast(getOpLogMessage('labMaxLevel'), 'warning'); return; }
+		if (save.activeLab) { toast(getOpLogMessage('labAlreadyActive'), 'warning'); return; }
 		const cost = getLabCost(id as any, lv);
 		const duration = getLabDuration(id as any, lv);
-		if (save.totalCoins < cost) { toast('🔩 Need ' + formatCompact(cost) + ' Alloy!', 'error'); return; }
+		if (save.totalCoins < cost) { toast(getOpLogMessage('workshopNotEnough'), 'error'); return; }
 		save.totalCoins -= cost;
 		const now = Date.now();
 		save.activeLab = {
