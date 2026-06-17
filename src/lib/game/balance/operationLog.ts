@@ -37,6 +37,8 @@ const POOLS: OpLogCategory = {
 		'Deployment logged. No plan survives first contact. Send it.',
 		'Tower insertion confirmed. Flatland remains extremely two-dimensional.',
 		'Deploying tower. The geometry department has been notified.',
+		'Tower deployed. Flatland has filed a formal complaint.',
+		'Deployment initiated. The Tower has been informed this is voluntary.',
 	],
 
 	waveMilestone: [
@@ -48,6 +50,8 @@ const POOLS: OpLogCategory = {
 		'{wave} waves down. The swarm is learning. So is the tower.',
 		'Wave {wave} telemetry confirms the enemy remains extremely two-dimensional.',
 		'Wave {wave}. The shapes have requested reinforcements. Denied.',
+		'Wave {wave}. Hostile geometry detected. Negotiations have been pre-declined.',
+		'Reached wave {wave}. The swarm is now statistically significant.',
 	],
 
 	bossIncoming: [
@@ -59,6 +63,8 @@ const POOLS: OpLogCategory = {
 		'Something big just warped in. Geometry critical.',
 		'A larger polygon has entered the argument.',
 		'Boss inbound. Orbital Command describes it as "sub-optimal geometry."',
+		'Boss incoming. It appears larger, angrier, and more geometrically entitled.',
+		'Large hostile shape confirmed. Its angles are considered extremely rude.',
 	],
 
 	bossDefeated: [
@@ -70,6 +76,8 @@ const POOLS: OpLogCategory = {
 		'Hostile shape eliminated. Its math will be missed. (No it will not.)',
 		'Prime Shape defeated. Geometry has filed a complaint.',
 		'Boss terminated. The remaining shapes are now considerably less confident.',
+		'Prime Shape defeated. Its angles have been informed.',
+		'Boss eliminated. Orbital Command reassures everyone this was the plan all along.',
 	],
 
 	newBestWave: [
@@ -80,6 +88,8 @@ const POOLS: OpLogCategory = {
 		'Telemetry confirms: this is the deepest deployment yet. Barely.',
 		'New record. Propaganda department notified.',
 		'Wave {wave}. Command will now pretend this was always the plan.',
+		'New record. Historians have been ordered to sound impressed.',
+		'Best wave updated: {wave}. The archives have been revised accordingly.',
 	],
 
 	coreLost: [
@@ -92,6 +102,8 @@ const POOLS: OpLogCategory = {
 		'Telemetry stream ended. The last transmission was mostly static and one curse word.',
 		'Tower Lost. Orbital Command describes this as an expected delivery outcome.',
 		'Deployment failed. Tower lost. Telemetry recovered. Morale has been adjusted upward.',
+		'Tower Lost. Orbital Command thanks it for its reusable spirit.',
+		'Tower destroyed. The shapes have been politely asked to return it. They declined.',
 	],
 
 	tierUnlock: [
@@ -114,6 +126,8 @@ const POOLS: OpLogCategory = {
 		'Schematic unlocked: {name}. Somebody in R&D is taking credit.',
 		'Blueprint {name} added to archives. It was definitely not stolen.',
 		'{name} unlocked. Command insists this was always in the budget.',
+		'Blueprint recovered. Procurement has stopped sweating. Temporarily.',
+		'New schematic: {name}. It was found behind a filing cabinet. Allegedly.',
 	],
 
 	researchStarted: [
@@ -128,12 +142,16 @@ const POOLS: OpLogCategory = {
 		'{name} finished. The scientists insist this was intentional.',
 		'Project {name} concluded. Results: promising. Side effects: manageable.',
 		'{name} research done. Command is already demanding the next project.',
+		'Research complete: {name}. The conclusion has been approved retroactively.',
+		'{name} project finished. The scientists have been released back into general population.',
 	],
 
 	forgeUpgraded: [
 		'Forge upgrade installed: {name}. Future Towers may now fail more impressively.',
 		'{name} upgraded. The Forge reports increased humming.',
 		'Forge upgrade complete: {name}. Efficiency improved. Marginally.',
+		'Forge upgrade installed: {name}. Future losses may now be more expensive.',
+		'{name} upgraded. The assembly line has acknowledged the change with moderate enthusiasm.',
 	],
 
 	saveExported: [

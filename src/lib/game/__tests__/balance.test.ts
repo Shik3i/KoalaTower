@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { getOpLogMessage } from '../balance/operationLog';
 import {
 	getBattleUpgradeCost,
 	getBattleUpgradeEffect,
@@ -590,6 +591,42 @@ describe('Lab Research (Time-Based)', () => {
 		expect(formatLabDuration(120_000)).toBe('2m');
 		expect(formatLabDuration(3_600_000)).toBe('1h');
 		expect(formatLabDuration(0)).toBe('0s');
+	});
+});
+
+describe('Operation Log', () => {
+	const categories = [
+		'deploymentStart', 'waveMilestone', 'bossIncoming', 'bossDefeated',
+		'newBestWave', 'coreLost', 'tierUnlock', 'labUnlock',
+		'blueprintUnlocked', 'researchStarted', 'researchCompleted',
+		'forgeUpgraded', 'saveExported', 'saveImported', 'saveImportFailed',
+		'saveReset', 'frontUnlocked',
+	] as const;
+
+	it('every category has at least 2 messages', () => {
+		for (const cat of categories) {
+			const msg1 = getOpLogMessage(cat);
+			const msg2 = getOpLogMessage(cat);
+			expect(msg1).toBeTruthy();
+			expect(msg2).toBeTruthy();
+		}
+	});
+
+	it('messages with tokens replace correctly', () => {
+		const msg = getOpLogMessage('waveMilestone', { wave: 42 });
+		expect(msg).toContain('42');
+	});
+
+	it('getOpLogMessage returns empty string for unknown category', () => {
+		const msg = getOpLogMessage('nonexistent' as any);
+		expect(msg).toBe('');
+	});
+
+	it('all categories return unique messages across multiple calls', () => {
+		for (const cat of categories) {
+			const msgs = new Set(Array.from({ length: 20 }, () => getOpLogMessage(cat)));
+			expect(msgs.size).toBeGreaterThan(1);
+		}
 	});
 });
 

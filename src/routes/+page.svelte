@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { coinsStore } from '$lib/stores/gameUiStore';
 	import { APP_VERSION, GITHUB_URL } from '$lib/version';
+	import FlatlandNews from '$lib/components/FlatlandNews.svelte';
 
 	const jsonLd = {
 		'@context': 'https://schema.org',
@@ -28,6 +29,24 @@
 		size: 0.5 + Math.random() * 2,
 		delay: Math.random() * 5,
 	}));
+
+	const subtitles = [
+		'Open source neon cyber idle tower defense',
+		'Your tax dollars, geometrically allocated',
+		'The war against shapes continues. Barely.',
+		'Deploy towers. Question nothing. Refine Alloy.',
+		'Flatland is flat. The war is not.',
+		'Orbital Command has reviewed the situation. It is not great.',
+	];
+
+	let subtitleIdx = $state(0);
+
+	onMount(() => {
+		const interval = setInterval(() => {
+			subtitleIdx = (subtitleIdx + 1) % subtitles.length;
+		}, 5000);
+		return () => clearInterval(interval);
+	});
 </script>
 
 <svelte:head>
@@ -59,7 +78,7 @@
 			<h1 class="title">
 				<img class="hero-logo" src="/branding/flatland-logo-large.svg" alt="Flatland TD logo" />
 			</h1>
-			<p class="subtitle">Open source neon cyber idle tower defense</p>
+			<p class="subtitle">{subtitles[subtitleIdx]}</p>
 				<p class="description">
 				Flatland is at war. Deploy towers from orbit onto hostile geometric fronts,
 				harvest energy from destroyed shapes to overclock your tower,
@@ -116,8 +135,10 @@
 		</div>
 	</div>
 
+	<FlatlandNews />
+
 	<footer class="footer">
-		<p>All data stored locally in your browser. No tracking, no cookies.</p>
+		<p>All data stored locally in your browser. No tracking, no cookies. The Shapes remain hostile, flat, and statistically inconvenient.</p>
 		<nav class="footer-links" aria-label="Footer navigation">
 			<a href="/help" class="footer-link">Help</a>
 			<span class="footer-sep" aria-hidden="true">·</span>
@@ -258,6 +279,8 @@
 		font-family: var(--font-mono);
 		margin-bottom: 1.5rem;
 		letter-spacing: 0.05em;
+		animation: fadeInUp 0.4s ease;
+		transition: opacity 0.3s ease;
 	}
 
 	.description {

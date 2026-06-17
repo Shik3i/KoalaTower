@@ -339,6 +339,11 @@ export interface GameSnapshot {
 	towerMultishotCount: number;
 	towerCritChance: number;
 	towerCritMultiplier: number;
+	towerDefensePercent: number;
+	towerDefenseAbsolute: number;
+	towerRegen: number;
+	towerLifesteal: number;
+	towerThorns: number;
 	upgradeLevels: Record<string, number>;
 	enemiesInWave: number;
 	enemiesSpawned: number;

@@ -3,6 +3,8 @@
 	import { PixiGameView } from '$lib/game/render/PixiGameView';
 	import { GameEngine } from '$lib/game/engine/GameEngine';
 	import Tutorial from '$lib/components/Tutorial.svelte';
+	import TowerStatsPanel from '$lib/components/TowerStatsPanel.svelte';
+	import EnemyStatsPanel from '$lib/components/EnemyStatsPanel.svelte';
 	import { GAME_CONFIG } from '$lib/game/engine/gameConfig';
 	import { UpgradeId, type GameSnapshot, type GameSettings } from '$lib/game/engine/gameTypes';
 	import { buildBattleUpgradeList, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
@@ -49,6 +51,13 @@
 	let importText = $state('');
 	let showImportDialog = $state(false);
 	let showResetConfirm = $state(false);
+	let goBtn = $state<HTMLButtonElement>();
+
+	$effect(() => {
+		if (showGameOver) {
+			requestAnimationFrame(() => goBtn?.focus());
+		}
+	});
 
 	let toasts: { id: number; msg: string; type: string }[] = $state([]);
 	let nextToast = 0;
@@ -130,6 +139,7 @@
 			highestWave: st.highestWave, enemyCount: st.enemies.length, speed: engine.speedMultiplier,
 			towerDamage: t.stats.damage, towerFireRate: t.stats.fireRate, towerRange: t.stats.range,
 			towerMultishotChance: t.stats.multishotChance, towerMultishotCount: t.stats.multishotCount, towerCritChance: t.stats.critChance, towerCritMultiplier: t.stats.critMultiplier,
+			towerDefensePercent: t.stats.defensePercent, towerDefenseAbsolute: t.stats.defenseAbsolute, towerRegen: t.stats.regen, towerLifesteal: t.stats.lifesteal, towerThorns: t.stats.thorns,
 			upgradeLevels: { ...st.battleUpgrades as Record<string, number> },
 			enemiesInWave: w.enemiesInWave, enemiesSpawned: w.enemiesSpawned,
 			enemiesKilledThisWave: w.enemiesKilled, waveActive: w.waveActive,
@@ -418,7 +428,7 @@
 					<span>⚡ {Math.floor(gameOverCash).toLocaleString()} Energy harvested</span>
 					<span>🏆 Best: Wave {highestWave}</span>
 				</div>
-				<button class="go-btn" onclick={startRun} autofocus>▶ Launch Deployment</button>
+				<button class="go-btn" bind:this={goBtn} onclick={startRun}>▶ Launch Deployment</button>
 				<div class="go-row2">
 					<a href="/hub" class="go-btn2">🛰️ Orbital Command</a>
 					<button class="go-btn2" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}>💾 Export</button>
@@ -483,7 +493,7 @@
 		{/if}
 
 		<!-- Game Canvas + HUD -->
-		<div class="gcc" bind:this={container}>
+		<div class="game-canvas" bind:this={container}>
 			{#if snap?.runActive && !leftPanelOpen}
 				<div class="hud">
 					<div class="hud-row"><span class="hud-wave" title="Current wave">🌊 Wave {snap.wave}</span><span class="hud-enemies" title="Enemies alive on screen">👾 {snap.enemyCount}</span></div>
@@ -491,6 +501,8 @@
 					<div class="hud-row hud-dmg"><span title="Damage per shot">⚔ {snap.towerDamage.toFixed(1)}</span><span title="Attack range">🎯 {snap.towerRange.toFixed(0)}</span><span title="Crit">⚡ {(snap.towerCritChance * 100).toFixed(1)}%×{snap.towerCritMultiplier.toFixed(1)}</span></div>
 				</div>
 			{/if}
+			<TowerStatsPanel {snap} />
+			<EnemyStatsPanel {snap} />
 			{#if showLaunchScreen}
 				<div class="start-ol">
 					<div class="start-card">
@@ -637,7 +649,7 @@
 	.ibtn { padding:.25rem; border-radius:var(--radius-sm); color:var(--text-dim); transition:all var(--transition-fast); font-size:.8rem; line-height:1; cursor:pointer; }
 	.ibtn:hover { color:var(--cyan); background:rgba(0,255,255,.08); }
 	.sv-wrap { position:relative; }
-	.sv-drop { position:absolute; top:calc(100%+4px); right:0; min-width:150px; background:var(--bg-secondary); border:1px solid var(--border-neon-strong); border-radius:var(--radius-md); z-index:200; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.5); animation:fi .12s ease; }
+	.sv-drop { position:absolute; top:calc(100% + 4px); right:0; min-width:150px; background:var(--bg-secondary); border:1px solid var(--border-neon-strong); border-radius:var(--radius-md); z-index:200; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.5); animation:fi .12s ease; }
 	.sv-drop button { display:block; width:100%; padding:.5rem .8rem; font-size:.72rem; text-align:left; color:var(--text-secondary); transition:all var(--transition-fast); }
 	.sv-drop button:hover { background:rgba(0,255,255,.06); color:var(--text-primary); }
 	.settings-drop { min-width:200px; padding:.3rem 0; }
@@ -650,7 +662,7 @@
 	.mob-spd .spd-btn { padding:.25rem .5rem; font-size:.65rem; }
 	.mob-spd-lbl { margin-left:auto; font-size:.65rem; color:var(--cyan); font-family:var(--font-mono); }
 	.game-body { flex:1; display:flex; overflow:hidden; position:relative; }
-	.gcc { flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; background:var(--bg-primary); }
+	.game-canvas { flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; background:var(--bg-primary); }
 	.hud { position:absolute; top:.5rem; left:.5rem; z-index:8; display:flex; flex-direction:column; gap:.2rem; pointer-events:none; }
 	.hud-row { display:flex; gap:.4rem; }
 	.hud-row span { padding:.15rem .5rem; background:rgba(7,8,18,.7); border:1px solid var(--border-neon); border-radius:100px; font-size:.62rem; font-family:var(--font-mono); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); color:var(--text-secondary); }

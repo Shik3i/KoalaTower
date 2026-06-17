@@ -5,67 +5,67 @@
 		{
 			id: 'start',
 			q: 'How do I start playing?',
-			a: 'Go to Deployment and click "Launch Deployment". A tower is dropped from orbit into Flatland. Enemies spawn from the edges and move toward it. The tower fires automatically at the nearest shape. Spend Energy (⚡) on temporary Field Upgrades during the deployment, and refine Alloy (🔩) for permanent Forge upgrades between deployments.',
+			a: 'Go to Deployment and click "Launch Deployment". A tower is dropped from orbit into Flatland. Enemies spawn from the edges and move toward it. The tower fires automatically at the nearest shape. Spend Energy (⚡) on temporary Field Upgrades during the deployment, and refine Alloy (🔩) for permanent Forge upgrades between deployments. Every deployment ends eventually. Officially, this is called data collection.',
 		},
 		{
 			id: 'currencies',
 			q: 'What are Energy and Alloy?',
-			a: 'Energy (⚡) is harvested from destroyed shapes during a deployment. It powers temporary Field Overclocks and is lost when the tower is destroyed. Alloy (🔩) is refined from shape remnants and beamed back to Orbital Command. It is permanent — spent in the Forge and Research Deck.',
+			a: 'Energy (⚡) is harvested from destroyed shapes during a deployment. It powers temporary Field Overclocks and is lost when the tower is destroyed. Orbital Command regrets to confirm that raw energy transmission remains "budgetarily unfeasible." Alloy (🔩) is refined from shape remnants — dense, stable, and transmits perfectly. It is permanent, spent in the Forge and Research Deck. Alloy survives the deployment. So does the paperwork.',
 		},
 		{
 			id: 'enemies',
 			q: 'What enemy types exist?',
-			a: 'Five types, each with a unique outline shape: ■ Square = Normal (balanced), ◆ Diamond = Fast (quick, low HP), ⬡ Hexagon = Tank (slow, high HP), ▶ Triangle = Ranged (stops at range, shoots from distance), ⬠ Pentagon = Boss (appears every 10 waves with escorts, high HP and damage). Watch their shapes to identify them instantly.',
+			a: 'Five types, each with a unique outline shape: ■ Square = Normal (balanced, confident), ◆ Diamond = Fast (quick, low HP, no patience), ⬡ Hexagon = Tank (slow, high HP, geometrically dense), ▶ Triangle = Ranged (stops at range, shoots from a distance, legally classified as aggressive), ⬠ Pentagon = Boss (appears every 10 waves with escorts, high HP and damage, extremely entitled). Watch their shapes to identify them instantly.',
 		},
 		{
 			id: 'bosses',
 			q: 'How do boss waves work?',
-			a: 'Every 10th wave is a boss wave. Escort enemies spawn first, then the boss appears last. Bosses are larger, have a pulsing aura ring, and deal heavy damage. Killing a boss triggers a screen shake and extra particle effects. Boss rewards are much higher.',
+			a: 'Every 10th wave is a boss wave. Escort enemies spawn first, then the Prime Shape appears last. Bosses are larger, have a pulsing aura ring, and deal heavy damage. Killing a boss triggers a screen shake and extra particle effects. Boss rewards are significantly higher. The geometric chain of command has been disrupted.',
 		},
 		{
 			id: 'battle-upgrades',
 			q: 'How do Field Upgrades work?',
-			a: 'During a deployment, the right panel shows Field Upgrades in three categories: Offense (Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier), Defense (Defense, Max HP), Utility (Energy Amp). Spend Energy (⚡) to overclock your tower. All Field Upgrades are lost when the tower is destroyed.',
+			a: 'During a deployment, the right panel shows Field Upgrades in three categories: Offense (Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier), Defense (Defense, Max HP), Utility (Energy Amp). Spend Energy (⚡) to overclock your tower. All Field Upgrades are lost when the tower is destroyed. Orbital Command describes this as "performance-based incentive architecture."',
 		},
 		{
 			id: 'upgrade-caps',
 			q: 'Do Field Upgrades have limits?',
-			a: 'Yes. Percentage-based Field Upgrades have hard caps: Multishot Chance at 50%, Crit Chance at 45%. Flat upgrades (Damage, Attack Speed, Range, Defense, HP) have high max levels. The UI shows MAXED at the cap.',
+			a: 'Yes. Percentage-based Field Upgrades have hard caps: Multishot Chance at 50%, Crit Chance at 45%. Flat upgrades (Damage, Attack Speed, Range, Defense, HP) have high max levels. The UI shows MAXED at the cap. Even the Tower has limits. It has been informed of this regulation.',
 		},
 		{
 			id: 'workshop',
-			q: 'What is the Foundry?',
-			a: 'The Forge (⚙) contains permanent pre-installed tower upgrades bought with Alloy (🔩): Base Damage, Base Fire Rate, Base Range, Starting HP, Alloy Bonus, Energy Bonus, Crit Bonus, Starting Energy. These improve the tower blueprint and apply to every deployment.',
+			q: 'What is the Forge?',
+			a: 'The Forge (⚙) contains permanent pre-installed tower upgrades bought with Alloy (🔩): Base Damage, Base Fire Rate, Base Range, Starting HP, Alloy Bonus, Energy Bonus, Crit Bonus, Starting Energy. These improve the tower blueprint and apply to every deployment. Blueprints do not make you stronger by themselves. They authorize new ways to make questionable decisions.',
 		},
 		{
 			id: 'lab',
 			q: 'How does the Research Deck work?',
-			a: 'The Research Deck runs orbital projects: Damage Research, Attack Speed Research, Health Research, Alloy Research, Energy Research. Purchase a level and it is applied instantly. Each level grants a permanent multiplicative bonus that stacks with the Forge. Higher levels cost more.',
+			a: 'The Research Deck runs orbital projects: Damage Research, Attack Speed Research, Health Research, Alloy Research, Energy Research. Purchase a level — research takes real time (it continues offline). Each level grants a permanent multiplicative bonus that stacks with the Forge. Higher levels cost more. The Research Deck turns time, Alloy, and suspicious optimism into small permanent improvements. Results are reviewed for morale compliance before release.',
 		},
 		{
 			id: 'speed',
 			q: 'How do I change game speed?',
-			a: 'Use the speed buttons in the top bar: 1× (normal), 2×, 3×, 5×. Press Space to pause. Keyboard shortcuts: 1-4 for speed levels, Space for pause/resume. The game simulation speeds up internally — higher speeds let you progress faster.',
+			a: 'Use the speed buttons in the top bar: 1× (normal), 2×, 3×, 5×. Press Space to pause. Keyboard shortcuts: 1-4 for speed levels, Space for pause/resume. The game simulation speeds up internally — higher speeds let you progress faster. Warning: 5× may cause Shapes to appear statistically more aggressive.',
 		},
 		{
 			id: 'gameover',
 			q: 'What happens when the tower dies?',
-			a: 'The tower is destroyed. The deployment is over. All Alloy (🔩) harvested is safely transmitted back to Orbital Command. Your highest wave record is saved. The Tower Lost screen shows wave reached, kills, bosses defeated, and Energy harvested. Click "Launch Deployment" to deploy a new tower.',
+			a: 'The tower is destroyed. The deployment is over. All Alloy (🔩) harvested is safely transmitted back to Orbital Command. Your highest wave record is saved. The Tower Lost screen shows wave reached, kills, bosses defeated, and Energy harvested. Click "Launch Deployment" to deploy a new tower. The Tower is reusable in spirit. In practice, it is a fresh install every time.',
 		},
 		{
 			id: 'waves',
 			q: 'How do waves scale?',
-			a: 'Waves are endless. Enemy HP, damage, and speed increase gradually. Armor (damage reduction) appears after wave 10 and caps at 70%. More enemy types unlock at higher waves: Fast at wave 3, Tank at wave 5, Ranged at wave 8. Keep upgrading to survive.',
+			a: 'Waves are endless. Enemy HP, damage, and speed increase gradually. Armor (damage reduction) appears after wave 10 and caps at 70%. More enemy types unlock at higher waves: Fast at wave 3, Tank at wave 5, Ranged at wave 8. Keep upgrading to survive. The swarm is learning. So is the Tower. One of them is better at it.',
 		},
 		{
 			id: 'save',
 			q: 'How do I save my progress?',
-			a: 'Auto-saved to your browser (IndexedDB). You can also export/import your save as JSON from the 💾 menu. All data is stored locally — no cloud, no backend, no account needed.',
+			a: 'Auto-saved to your browser (IndexedDB). You can also export/import your save as JSON from the 💾 menu. All data is stored locally — no cloud, no backend, no account needed. Editing saves is technically possible. Orbital Command cannot stop you from rewriting reality. It can only confirm that doing so makes the war considerably less interesting.',
 		},
 		{
 			id: 'privacy',
 			q: 'Is my data private?',
-			a: 'Yes. Flatland TD is a static app with no backend. All data is in your browser. No analytics, no cookies, no tracking. See the Privacy page for full details.',
+			a: 'Yes. Flatland TD is a static app with no backend. All data is in your browser. No analytics, no cookies, no tracking, no external network calls during gameplay. Not even the Shapes know your high score. See the Privacy page for full details.',
 		},
 	];
 </script>
@@ -80,40 +80,40 @@
 	<a href="/" class="back-link">← Back to Home</a>
 
 	<div class="help-header glass-panel">
-		<h1>Help & FAQ</h1>
-		<p>Everything you need to know about Flatland TD.</p>
+		<h1>Orbital Command Field Manual</h1>
+		<p>Everything you need to know about the Flatland Wars. Read carefully. There will not be a test. Unless the Shapes decide otherwise.</p>
 	</div>
 
 	<!-- Getting Started -->
 	<section class="help-section">
-		<h2>🚀 Getting Started</h2>
+		<h2>🚀 Deployment Protocol</h2>
 		<div class="help-steps">
 			<div class="help-step">
 				<div class="help-step-num">1</div>
 				<div class="help-step-content">
 					<h3>▶ Launch a Deployment</h3>
-					<p>Go to <a href="/play">Deployment</a> and click "Launch Deployment". Your tower is dropped from orbit into Flatland and fires automatically at the nearest shape.</p>
+					<p>Go to <a href="/play">Deployment</a> and click "Launch Deployment". Your tower is dropped from orbit into Flatland and fires automatically at the nearest hostile shape. The Tower understands its purpose. It does not understand mercy.</p>
 				</div>
 			</div>
 			<div class="help-step">
 				<div class="help-step-num">2</div>
 				<div class="help-step-content">
-					<h3>⚡ Harvest Energy</h3>
-					<p>Kill enemies → harvest <strong>Energy (⚡)</strong> for temporary Field Overclocks and refine <strong>Alloy (🔩)</strong> permanently. Energy resets each deployment, Alloy is saved to Orbital Command.</p>
+					<h3>⚡ Harvest Resources</h3>
+					<p>Destroyed shapes yield <strong>Energy (⚡)</strong> for temporary Field Overclocks and <strong>Alloy (🔩)</strong> for permanent upgrades. Energy disappears when the Tower falls — Accounting insisted. Alloy is beamed safely to Orbital Command before impact.</p>
 				</div>
 			</div>
 			<div class="help-step">
 				<div class="help-step-num">3</div>
 				<div class="help-step-content">
 					<h3>⚡ Apply Field Upgrades</h3>
-					<p>Field Upgrades (right panel) with Energy (⚡) during a deployment. Permanent <a href="/hub">Forge</a> upgrades with Alloy (🔩) between deployments.</p>
+					<p>Spend Energy (⚡) on the right panel to overclock the Tower mid-deployment. Permanent upgrades are bought with Alloy (🔩) at the <a href="/hub">Forge</a> between deployments. One is temporary excitement. The other is bureaucracy. Both are essential.</p>
 				</div>
 			</div>
 			<div class="help-step">
 				<div class="help-step-num">4</div>
 				<div class="help-step-content">
 					<h3>🏆 Advance the Campaign</h3>
-					<p>Research on the <a href="/hub">Research Deck</a>, unlock new Fronts by reaching wave milestones, and run Simulations for tactical challenges.</p>
+					<p>Research on the <a href="/hub">Research Deck</a>, unlock new Fronts by reaching wave milestones, and run Simulations — which may or may not be simulations. Orbital Command is not at liberty to clarify.</p>
 				</div>
 			</div>
 		</div>
@@ -123,42 +123,42 @@
 	<section class="help-section">
 		<h2>📖 The War in Flatland</h2>
 		<div class="lore-box">
-			<p><strong>Flatland</strong> is a two-dimensional universe — a vast, infinite plane of digital matter. For centuries, the civilizations of Flatland lived in peace. Then came <strong>The Grid</strong>: a relentless, self-replicating swarm of geometric enemies that consumes everything in its path.</p>
-			<p>You command <strong>🛰️ Orbital Command</strong> — a mobile command station in high orbit. From here, you manufacture and deploy <strong>towers</strong>: advanced defense platforms that are dropped into hostile Flatland fronts.</p>
+			<p><strong>Flatland</strong> is a two-dimensional universe — a vast, infinite plane of digital matter. For centuries, the civilizations of Flatland lived in peace. Then came <strong>The Swarm</strong>: a relentless proliferation of geometric hostiles that consumes everything in its path. <em>Or so Orbital Command reports. Some archived fragments suggest the first shots may have been administrative in nature. These records have been sealed.</em></p>
+			<p>You command <strong>🛰️ Orbital Command</strong> — a mobile command station in high orbit that manufactures and deploys <strong>Towers</strong>: advanced platforms dropped into hostile Flatland fronts. The Tower is reusable in spirit. In practice, it is replaced every deployment. Procurement has strong feelings about this.</p>
 			<div class="lore-mechanics">
 				<div class="lore-m">
 					<span class="lore-mi">🛰️</span>
 					<div>
 						<strong>Orbital Command</strong>
-						<span>Your permanent base between deployments. The Forge pre-installs tower upgrades, the Research Deck runs orbital projects, and Blueprints unlock new capabilities.</span>
+						<span>Your permanent base between deployments. The Forge pre-installs upgrades, the Research Deck runs orbital projects (results are sanitized for morale reasons), and Blueprints unlock new capabilities — assuming Procurement has not lost them.</span>
 					</div>
 				</div>
 				<div class="lore-m">
 					<span class="lore-mi"><img src="/branding/flatland-logo-small.svg" alt="Tower" class="lore-icon-img" /></span>
 					<div>
 						<strong>Front Deployment</strong>
-						<span>A tower is deployed from orbit into a hostile Flatland front. Once the battle is lost, the tower is destroyed — it cannot be recovered. Each deployment is a new installation.</span>
+						<span>A Tower is dropped from orbit into a hostile Flatland front. When the battle is lost, the Tower is destroyed — it cannot be recovered. Each deployment is a new installation. Orbital Command has considered parachutes. The idea was rejected on principle.</span>
 					</div>
 				</div>
 				<div class="lore-m">
 					<span class="lore-mi">⚡</span>
 					<div>
 						<strong>Harvested Energy</strong>
-						<span>Energy is harvested from destroyed geometric enemies. It powers temporary Field Overclocks during the deployment — raw energy cannot be transmitted, so it is lost with the tower.</span>
+						<span>Energy is harvested from destroyed geometric enemies. It powers temporary Field Overclocks but cannot be transmitted to orbit. Accounting has deemed transmission "financially irresponsible." It is lost with the Tower.</span>
 					</div>
 				</div>
 				<div class="lore-m">
 					<span class="lore-mi">🔩</span>
 					<div>
 						<strong>Refined Alloy</strong>
-						<span>Alloy is refined from shape remnants. It is dense, stable, and transmits perfectly — it beams back to Orbital Command before the tower falls. Permanent material for upgrades.</span>
+						<span>Alloy is refined from shape remnants. It is dense, stable, and transmits perfectly — it beams back before the Tower falls. Permanent material for upgrades. Also used as a low-orbit currency. Morale is calibrated in Alloy-equivalent units.</span>
 					</div>
 				</div>
 				<div class="lore-m">
 					<span class="lore-mi">🌍</span>
 					<div>
-						<strong>Planets = Difficulty</strong>
-						<span>Each planet has a different atmospheric density and swarm activity. These are your Tiers: from peaceful frontier worlds (Tier 1) to the heart of Grid space (Tier 5). The deeper you go, the greater the rewards — and the stronger the enemy.</span>
+						<strong>Fronts = Difficulty</strong>
+						<span>Each Front has different swarm density. From peaceful frontier zones (Front 01) to deep-swarm territory. Fronts 04, 07, and 09 exist but have been omitted from public charts for morale reasons. Deeper fronts offer greater rewards — and more geometry.</span>
 					</div>
 				</div>
 			</div>
@@ -413,6 +413,16 @@
 		</div>
 	</section>
 
+	<!-- Lore easter egg -->
+	<section class="help-section">
+		<div class="lore-egg">
+			<p><strong>🔒 Orbital Command Internal Memo — EYES ONLY</strong></p>
+			<p>Field report FR-2144-D suggests the first hostile Shape may have been responding to a misrouted supply beacon. The Geometry Liaison Office was dissolved shortly after the incident. All related records have been reclassified as "simulation data."</p>
+			<p>Additionally, Front 04 was never opened for deployment. Orbital Command maintains this is a navigation hazard. Independent analysts note the Front's coordinates correspond precisely to a former Procurement audit office.</p>
+			<p class="lore-egg-class">Classification: Redacted · Clearance: None · This memo does not exist.</p>
+		</div>
+	</section>
+
 	<footer class="help-footer">
 		<p>Still have questions? Open an issue on <a href="https://github.com/Shik3i/KoalaTower/issues" target="_blank" rel="noopener">GitHub</a>.</p>
 	</footer>
@@ -516,6 +526,31 @@
 	.faq-answer p { font-size:.74rem; color:var(--text-dim); line-height:1.6; }
 	.help-footer { text-align:center; padding:2rem 0; color:var(--text-dim); font-size:.75rem; position:relative; z-index:1; }
 	.help-footer a { color:var(--cyan-dim); }
+
+	.lore-egg {
+		padding: 0.75rem 1rem;
+		background: rgba(255, 68, 68, 0.03);
+		border: 1px solid rgba(255, 68, 68, 0.1);
+		border-radius: var(--radius-sm);
+		font-size: 0.62rem;
+		color: rgba(255, 68, 68, 0.35);
+		line-height: 1.5;
+	}
+
+	.lore-egg p {
+		margin-bottom: 0.3rem;
+	}
+
+	.lore-egg p strong {
+		color: rgba(255, 68, 68, 0.4);
+	}
+
+	.lore-egg-class {
+		font-family: var(--font-mono);
+		font-size: 0.5rem;
+		color: rgba(255, 68, 68, 0.2);
+		margin-top: 0.3rem;
+	}
 
 	@media(max-width:767px) {
 		.help-page{padding:1rem}

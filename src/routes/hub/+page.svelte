@@ -244,7 +244,8 @@
 				</div>
 			{:else if activeSection === 'stats'}
 				<div class="hs"><h2 class="hst">📊 Archives</h2>
-					<div class="ig"><div class="ir"><span class="il">Total Runs</span><span class="iv">{totalRuns}</span></div><div class="ir"><span class="il">Highest Wave</span><span class="iv">{highestWave}</span></div><div class="ir"><span class="il">Alloy Reserves</span><span class="iv">🔩 {coins.toLocaleString()}</span></div><div class="ir"><span class="il">Highscore</span><span class="iv">🏆 Wave {highestWave}</span></div></div>
+					<p class="hsd">Campaign telemetry and historical records. Some data has been revised for clarity. Some has been revised for morale. Some has been revised because we forgot what happened.</p>
+					<div class="ig"><div class="ir"><span class="il">Total Deployments</span><span class="iv">{totalRuns}</span></div><div class="ir"><span class="il">Highest Wave</span><span class="iv">{highestWave}</span></div><div class="ir"><span class="il">Alloy Reserves</span><span class="iv">🔩 {coins.toLocaleString()}</span></div><div class="ir"><span class="il">Peak Performance</span><span class="iv">🏆 Wave {highestWave}</span></div></div>
 				</div>
 			{:else if activeSection === 'settings'}
 				<div class="hs"><h2 class="hst">⚙ Systems</h2>
@@ -280,6 +281,7 @@
 
 	<footer class="hub-footer">
 		<span>🛰️ Orbital Command — Flatland TD · FLTD</span>
+		<p class="hub-footer-flavor">Geometry is legally classified as aggressive. Angles below 90° must be reported.</p>
 		<div class="hub-footer-links">
 			<a href="/help">Help</a>
 			<span>·</span>
@@ -385,6 +387,7 @@
 	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem} .hub-nav{flex-direction:row;overflow-x:auto;min-width:0} .hub-nav-btn{flex-shrink:0;white-space:nowrap} }
 	.hub-desc { padding:0 1.5rem 1rem; text-align:center; color:var(--text-dim); font-size:.78rem; line-height:1.6; max-width:600px; margin:0 auto; position:relative; z-index:1; }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:.7rem; display:flex; flex-direction:column; gap:.35rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
+	.hub-footer-flavor { font-size:.5rem; color:var(--text-dim); opacity:0.3; margin:0; }
 	.hub-footer-links { display:flex; gap:.35rem; align-items:center; }
 	.hub-footer-links a { color:var(--cyan-dim); text-decoration:underline; text-underline-offset:3px; text-decoration-color:rgba(0,255,255,.2); }
 </style>

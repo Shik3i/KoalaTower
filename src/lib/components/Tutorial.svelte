@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { computePlacement } from '$lib/utils/viewportPlacement';
 
 	const TUTORIAL_KEY = 'geocore-td-tutorial-done';
 
@@ -10,6 +11,13 @@
 
 	let highlightEl = $state<HTMLElement | null>(null);
 	let highlightRect = $state<DOMRect | null>(null);
+
+	let tooltipEl = $state<HTMLDivElement | undefined>(undefined);
+	let tooltipStyle = $state('');
+	let isMobile = $state(false);
+
+	const MARGIN = 14;
+	const MOBILE_BREAKPOINT = 768;
 
 	const steps = [
 		{
@@ -52,7 +60,6 @@
 
 	function findTarget(selector: string): HTMLElement | null {
 		if (!selector) return null;
-		// Try each selector in the comma-separated list
 		for (const sel of selector.split(',').map(s => s.trim())) {
 			const el = document.querySelector(sel);
 			if (el instanceof HTMLElement) return el;
@@ -77,10 +84,42 @@
 		}
 	}
 
+	function recalcPosition() {
+		updateHighlight();
+		if (!tooltipEl) return;
+		const vw = window.innerWidth;
+		const vh = window.innerHeight;
+		isMobile = vw < MOBILE_BREAKPOINT;
+
+		const s = steps[step];
+		if (!s?.target || !highlightRect) {
+			tooltipStyle = '';
+			return;
+		}
+
+		if (isMobile) {
+			tooltipStyle = 'position:fixed; left:0; right:0; bottom:0;';
+			return;
+		}
+
+		const tw = tooltipEl.offsetWidth || 320;
+		const th = tooltipEl.offsetHeight || 200;
+		const result = computePlacement({
+			targetRect: highlightRect,
+			tooltipWidth: tw,
+			tooltipHeight: th,
+			preferred: s.placement,
+			viewportWidth: vw,
+			viewportHeight: vh,
+			margin: MARGIN,
+		});
+		tooltipStyle = `position:fixed; left:${result.left}px; top:${result.top}px;`;
+	}
+
 	function next() {
 		if (step < steps.length - 1) {
 			step++;
-			updateHighlight();
+			requestAnimationFrame(() => recalcPosition());
 		} else {
 			finish();
 		}
@@ -89,7 +128,7 @@
 	function prev() {
 		if (step > 0) {
 			step--;
-			updateHighlight();
+			requestAnimationFrame(() => recalcPosition());
 		}
 	}
 
@@ -103,21 +142,29 @@
 		finish();
 	}
 
+	function onKey(e: KeyboardEvent) {
+		if (e.key === 'Escape') { skip(); }
+	}
+
 	onMount(() => {
 		const done = localStorage.getItem(TUTORIAL_KEY);
 		if (!done) {
 			visible = true;
-			// Wait a tick for DOM to render
 			requestAnimationFrame(() => {
-				requestAnimationFrame(() => updateHighlight());
+				requestAnimationFrame(() => {
+					updateHighlight();
+					requestAnimationFrame(() => recalcPosition());
+				});
 			});
 		}
+		window.addEventListener('resize', recalcPosition);
+		window.addEventListener('keydown', onKey);
 	});
 
-	// Re-calc highlights on resize
-	function onResize() { updateHighlight(); }
-	onMount(() => { window.addEventListener('resize', onResize); });
-	onDestroy(() => { window.removeEventListener('resize', onResize); });
+	onDestroy(() => {
+		window.removeEventListener('resize', recalcPosition);
+		window.removeEventListener('keydown', onKey);
+	});
 
 	const currentStep = $derived(steps[step]);
 	const isLast = $derived(step === steps.length - 1);
@@ -126,10 +173,8 @@
 
 {#if visible}
 	<div class="tutorial-overlay" role="dialog" aria-modal="true" aria-label="Tutorial">
-		<!-- Full-screen dim backdrop -->
-		<div class="tutorial-backdrop" onclick={skip}></div>
+		<div class="tutorial-backdrop" role="button" tabindex="-1" onclick={skip} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') skip(); }}></div>
 
-		<!-- Highlight ring around target element -->
 		{#if highlightRect && currentStep?.target}
 			<div
 				class="tutorial-highlight"
@@ -137,14 +182,12 @@
 			></div>
 		{/if}
 
-		<!-- Tooltip card -->
 		<div
+			bind:this={tooltipEl}
 			class="tutorial-tooltip"
 			class:placement-center={!highlightRect || !currentStep?.target}
-			class:placement-bottom={currentStep?.placement === 'bottom'}
-			class:placement-left={currentStep?.placement === 'left'}
-			class:placement-right={currentStep?.placement === 'right'}
-			style={highlightRect && currentStep?.target ? getTooltipStyle(currentStep.placement, highlightRect) : ''}
+			class:mobile-sheet={isMobile && highlightRect && currentStep?.target}
+			style={isMobile && highlightRect && currentStep?.target ? '' : tooltipStyle}
 		>
 			<div class="tt-progress">
 				{#each steps as _, i}
@@ -163,22 +206,6 @@
 		</div>
 	</div>
 {/if}
-
-<script lang="ts" context="module">
-	function getTooltipStyle(placement: string, rect: DOMRect): string {
-		const gap = 12;
-		switch (placement) {
-			case 'bottom':
-				return `position:fixed; left:${rect.left + rect.width / 2}px; top:${rect.bottom + gap}px; transform:translateX(-50%);`;
-			case 'left':
-				return `position:fixed; right:${window.innerWidth - rect.left + gap}px; top:${rect.top + rect.height / 2}px; transform:translateY(-50%);`;
-			case 'right':
-				return `position:fixed; left:${rect.right + gap}px; top:${rect.top + rect.height / 2}px; transform:translateY(-50%);`;
-			default:
-				return '';
-		}
-	}
-</script>
 
 <style>
 	.tutorial-overlay {
@@ -228,6 +255,18 @@
 		width: max-content;
 		box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
 		animation: fadeIn 0.2s ease;
+	}
+
+	.mobile-sheet {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		max-width: 100%;
+		width: auto;
+		margin: 0 8px 8px;
+		border-radius: var(--radius-xl);
+		animation: slideUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
 
 	.placement-center {
@@ -328,5 +367,10 @@
 	@keyframes fadeIn {
 		from { opacity: 0; transform: scale(0.95); }
 		to { opacity: 1; transform: scale(1); }
+	}
+
+	@keyframes slideUp {
+		from { opacity: 0; transform: translateY(100%); }
+		to { opacity: 1; transform: translateY(0); }
 	}
 </style>
