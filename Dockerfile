@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run check 2>/dev/null; exit 0
+RUN npm run check
 RUN npm test
 RUN npm run build
 
