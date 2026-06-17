@@ -49,7 +49,7 @@ export const MILESTONES: MilestoneDef[] = [
 		claimed: false,
 	},
 	{
-		id: 'wave250' as MilestoneId,
+		id: MilestoneId.Wave250,
 		tierId: TierId.Tier1,
 		wave: 250,
 		name: 'Quarter Millennium',
@@ -57,7 +57,7 @@ export const MILESTONES: MilestoneDef[] = [
 		claimed: false,
 	},
 	{
-		id: 'wave500' as MilestoneId,
+		id: MilestoneId.Wave500,
 		tierId: TierId.Tier1,
 		wave: 500,
 		name: 'Geo Warrior',
@@ -67,7 +67,7 @@ export const MILESTONES: MilestoneDef[] = [
 
 	// ── Tier 1: Late game ──
 	{
-		id: 'wave1000' as MilestoneId,
+		id: MilestoneId.Wave1000,
 		tierId: TierId.Tier1,
 		wave: 1000,
 		name: 'The Thousand',
@@ -75,7 +75,7 @@ export const MILESTONES: MilestoneDef[] = [
 		claimed: false,
 	},
 	{
-		id: 'wave2500' as MilestoneId,
+		id: MilestoneId.Wave2500,
 		tierId: TierId.Tier1,
 		wave: 2500,
 		name: 'The Long Haul',
@@ -83,7 +83,7 @@ export const MILESTONES: MilestoneDef[] = [
 		claimed: false,
 	},
 	{
-		id: 'wave4500' as MilestoneId,
+		id: MilestoneId.Wave4500,
 		tierId: TierId.Tier1,
 		wave: 4500,
 		name: 'The Apex',

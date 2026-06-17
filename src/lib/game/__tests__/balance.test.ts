@@ -413,9 +413,9 @@ describe('Balance Simulator', () => {
 	it('workshop + labs should reach further than workshop alone', () => {
 		const allBPs = Object.values(BlueprintId);
 		const ws = {
-			[WorkshopUpgradeId.BaseDamage]: 50,
-			[WorkshopUpgradeId.StartingHp]: 30,
-			[WorkshopUpgradeId.BaseFireRate]: 20,
+			[WorkshopUpgradeId.BaseDamage]: 60,
+			[WorkshopUpgradeId.StartingHp]: 40,
+			[WorkshopUpgradeId.BaseFireRate]: 25,
 		};
 		const wsOnly = simulateRun(ws, {}, 5000, 1, 'optimal', allBPs);
 		const wsAndLab = simulateRun(ws, { damageResearch: 10, attackSpeedResearch: 5, healthResearch: 5 }, 5000, 1, 'optimal', allBPs);

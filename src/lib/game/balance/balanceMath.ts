@@ -51,20 +51,20 @@ export function getTierMultiplier(tier: number): TierMultiplier {
 // These formulas grow sub-exponentially so player upgrades remain relevant
 // for hundreds of waves. Shape: linear + polynomial ~ wave^1.2
 //
-// hp:   1 + wave*0.02 + wave^1.2 * 0.001
-// atk:  1 + wave*0.012 + wave^1.1 * 0.0005
+// hp:   1 + wave*0.07 + wave^1.2 * 0.0012
+// atk:  1 + wave*0.04 + wave^1.15 * 0.0008
 // spd:  1 + min(0.5, wave*0.001)
 //
 // Key values (Tier 1):
-//   Wave   10: HP×1.22  ATK×1.13  SPD×1.01
-//   Wave   25: HP×1.55  ATK×1.32  SPD×1.025
-//   Wave   50: HP×2.11  ATK×1.64  SPD×1.05
-//   Wave  100: HP×3.25  ATK×2.28  SPD×1.10
-//   Wave  250: HP×6.72  ATK×4.23  SPD×1.25
-//   Wave  500: HP×12.6  ATK×7.51  SPD×1.50
-//   Wave 1000: HP×24.5  ATK×14.1  SPD×1.50 (capped)
-//   Wave 2500: HP×61.9  ATK×34.0  SPD×1.50 (capped)
-//   Wave 4500: HP×113   ATK×60.5  SPD×1.50 (capped)
+//   Wave   10: HP×1.84  ATK×1.43  SPD×1.01
+//   Wave   25: HP×3.03  ATK×2.37  SPD×1.025
+//   Wave   50: HP×5.11  ATK×3.72  SPD×1.05
+//   Wave  100: HP×9.40  ATK×6.78  SPD×1.10
+//   Wave  250: HP×21.6  ATK×15.9  SPD×1.25
+//   Wave  500: HP×41.9  ATK×30.7  SPD×1.50
+//   Wave 1000: HP×82.7  ATK×60.0  SPD×1.50 (capped)
+//   Wave 2500: HP×205   ATK×147   SPD×1.50 (capped)
+//   Wave 4500: HP×370   ATK×265   SPD×1.50 (capped)
 
 export function waveHpMultiplier(wave: number): number {
 	return 1 + wave * 0.07 + Math.pow(wave, 1.2) * 0.0012;

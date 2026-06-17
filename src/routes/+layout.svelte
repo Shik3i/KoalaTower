@@ -62,6 +62,8 @@
 
 			if (changed) {
 				coinsStore.set(save.totalCoins);
+				highestWaveStore.set(save.highestWave);
+				totalRunsStore.set(save.totalRuns);
 				persistSave(save);
 			}
 		}, 2000);

@@ -192,7 +192,8 @@ export class GameEngine {
 	private checkMilestones(): void {
 		const wave = this.state.wave.currentWave;
 		if (this.firedMilestones.has(wave)) return;
-		if (wave === 10 || wave === 25 || wave === 50 || wave === 100 || wave === 250 || wave === 500) {
+		const milestoneWaves = [10, 25, 50, 100, 250, 500, 1000, 2500, 4500];
+		if (milestoneWaves.includes(wave)) {
 			this.firedMilestones.add(wave);
 			if (this.onMilestone) {
 				this.onMilestone(`Wave ${wave} reached!`);
@@ -286,7 +287,7 @@ export class GameEngine {
 	}
 
 	public setSpeed(multiplier: number): void {
-		this.speedMultiplier = Math.max(0.1, Math.min(10, multiplier));
+		this.speedMultiplier = multiplier === 0 ? 0 : Math.max(0.1, Math.min(10, multiplier));
 		this.state.paused = multiplier === 0;
 		this.emitImmediateSnapshot();
 		this.onStateChange?.();
@@ -373,5 +374,9 @@ export class GameEngine {
 		this.onGameOver = null;
 		this.onMilestone = null;
 		this.onStateChange = null;
+		this.particles = [];
+		this.damageNumbers = [];
+		this.firedMilestones = new Set();
+		this.speedMultiplier = 1;
 	}
 }

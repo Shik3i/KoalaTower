@@ -99,6 +99,10 @@ export {
 /**
  * Enemy armor including wave scaling — kept here for backward compat.
  */
+/**
+ * @deprecated Use waveArmorBonus from balanceMath.ts instead.
+ * This legacy function uses a different formula and is not used by the game engine.
+ */
 export function getWaveArmor(wave: number): number {
 	if (wave <= 10) return 0;
 	const raw = 1 - 1 / (1 + (wave - 10) * 0.0015);

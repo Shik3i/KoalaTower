@@ -65,7 +65,7 @@ function computeBaseline(ws: Record<string, number>, lab: Record<string, number>
 		damage: (8 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, g(WorkshopUpgradeId.BaseDamage))) * lDmg,
 		fireRate: (1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, g(WorkshopUpgradeId.BaseFireRate))) * lFR,
 		range: 180 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, g(WorkshopUpgradeId.BaseRange)),
-		hp: (60 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, g(WorkshopUpgradeId.StartingHp))) * lHP,
+		hp: Math.floor((60 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, g(WorkshopUpgradeId.StartingHp))) * lHP),
 		critChance: Math.min(0.30, 0.05 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, g(WorkshopUpgradeId.CritBonus))),
 		cashMult: (1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.EnergyBonus, g(WorkshopUpgradeId.EnergyBonus))) * lCash,
 		coinMult: (1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, g(WorkshopUpgradeId.CoinBonus))) * lCoin,
@@ -122,7 +122,7 @@ function recompute(state: SimState, ws: ReturnType<typeof computeBaseline>): voi
 	state.lifesteal = Math.min(0.15, ws.wsLifesteal + getBattleUpgradeEffect(UpgradeId.Lifesteal, bl(UpgradeId.Lifesteal)));
 	state.thorns = ws.wsThorns + getBattleUpgradeEffect(UpgradeId.Thorns, bl(UpgradeId.Thorns));
 	const hpBonus = getBattleUpgradeEffect(UpgradeId.MaxHp, bl(UpgradeId.MaxHp));
-	state.maxHp = ws.hp + hpBonus;
+	state.maxHp = Math.floor(ws.hp + hpBonus);
 	state.hp = Math.min(state.hp, state.maxHp);
 }
 
@@ -162,7 +162,17 @@ export function simulateRun(
 	tier: number = 1,
 	strategy: Strategy = 'optimal',
 	unlockedBlueprints: BlueprintId[] = [],
+	randomSeed?: number,
 ): SimResult {
+	// Seeded PRNG for deterministic simulations (uses mulberry32)
+	let rngState = randomSeed ?? Math.floor(Math.random() * 2147483647);
+	function rng(): number {
+		rngState |= 0;
+		rngState = rngState + 0x6D2B79F5 | 0;
+		let t = Math.imul(rngState ^ rngState >>> 15, 1 | rngState);
+		t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+		return ((t ^ t >>> 14) >>> 0) / 4294967296;
+	}
 	const ws = computeBaseline(workshopLevels, labLevels);
 
 	const state: SimState = {
@@ -220,11 +230,11 @@ export function simulateRun(
 		for (let e = 0; e < count; e++) {
 			let type: EnemyType;
 			if (isBossWave && e < count - 1) {
-				type = availableEnemyTypes(wave)[Math.floor(Math.random() * availableEnemyTypes(wave).length)]!;
+				type = availableEnemyTypes(wave)[Math.floor(rng() * availableEnemyTypes(wave).length)]!;
 			} else if (isBossWave && e === count - 1) {
 				type = EnemyType.Boss;
 			} else {
-				type = availableEnemyTypes(wave)[Math.floor(Math.random() * availableEnemyTypes(wave).length)]!;
+				type = availableEnemyTypes(wave)[Math.floor(rng() * availableEnemyTypes(wave).length)]!;
 			}
 			const isBoss = type === EnemyType.Boss;
 			const config = computeEnemyConfig(type, wave, tier);

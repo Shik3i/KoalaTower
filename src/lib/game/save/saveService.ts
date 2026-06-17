@@ -88,6 +88,11 @@ export async function exportSaveFromData(save: SaveData): Promise<string> {
  * 4. If SaveData schema is newer than supported, reject.
  */
 export async function importSave(input: string): Promise<{ success: boolean; error?: string; isLegacy?: boolean }> {
+	// Size limit: 1MB to prevent browser freeze from large imports
+	if (input.length > 1_000_000) {
+		return { success: false, error: 'Import failed: file too large. Orbital Command archives have a 1 MB limit.' };
+	}
+
 	try {
 		// Step 1: Decode the container (handles both new and legacy)
 		const decoded = await decodeSaveContainer(input);
