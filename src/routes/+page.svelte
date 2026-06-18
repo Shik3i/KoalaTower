@@ -64,18 +64,17 @@
 </svelte:head>
 
 <main class="home">
-	<!-- Animated Background -->
-	<div class="bg-grid"></div>
+	<div class="bg-grid" aria-hidden="true"></div>
 	{#each stars as star}
 		<div
 			class="star"
+			aria-hidden="true"
 			style="left: {star.x}%; top: {star.y}%; width: {star.size}px; height: {star.size}px; animation-delay: {star.delay}s;"
 		></div>
 	{/each}
 
 	<div class="hero">
-		<div class="hero-glow"></div>
-		<div class="hero-glow-secondary"></div>
+		<div class="hero-signal" aria-hidden="true"></div>
 		<div class="hero-content">
 			<a href={GITHUB_URL} target="_blank" rel="noopener" class="version-badge" aria-label="View on GitHub">
 				<svg class="github-icon" viewBox="0 0 16 16" width="14" height="14"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" fill="currentColor"/></svg>
@@ -85,12 +84,17 @@
 				<img class="hero-logo" src="/branding/flatland-logo-large.svg" alt="Flatland TD logo" />
 			</h1>
 			<p class="subtitle">{subtitles[subtitleIdx]}</p>
-				<p class="description">
+			<p class="description">
 				Flatland is at war. Deploy towers from orbit onto hostile geometric fronts,
 				harvest energy from destroyed shapes to overclock your tower,
 				and refine alloy for permanent upgrades aboard Orbital Command.
-				Each front is a new battlefield — the tower is lost with every drop.
+				Each front is a new battlefield. The tower is lost with every drop.
 			</p>
+			<div class="signal-strip" aria-label="Project values">
+				<span><strong>Free</strong> open source</span>
+				<span><strong>Zero</strong> tracking</span>
+				<span><strong>Local</strong> saves</span>
+			</div>
 			<div class="cta-buttons">
 				<a href="/play" class="btn-primary" class:btn-disabled={!saveLoaded} aria-disabled={!saveLoaded}>
 					<span class="btn-icon">{saveLoaded ? '▶' : ''}</span>
@@ -163,7 +167,11 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		background: var(--bg-primary);
+		background:
+			linear-gradient(180deg, rgba(7, 8, 18, 0.72) 0%, var(--bg-primary) 34rem),
+			linear-gradient(115deg, rgba(68, 255, 136, 0.08), transparent 32rem),
+			linear-gradient(245deg, rgba(255, 136, 68, 0.07), transparent 28rem),
+			var(--bg-primary);
 		overflow-y: auto;
 		position: relative;
 	}
@@ -189,7 +197,7 @@
 	.hero {
 		position: relative;
 		width: 100%;
-		padding: clamp(3.5rem, 8vh, 6rem) 1.5rem clamp(2rem, 4vh, 3.5rem);
+		padding: clamp(3rem, 7vh, 5.75rem) clamp(1rem, 3vw, 2rem) clamp(2rem, 5vh, 3.5rem);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -198,33 +206,21 @@
 		z-index: 1;
 	}
 
-	.hero-glow {
+	.hero-signal {
 		position: absolute;
-		top: 40%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 600px;
-		height: 600px;
-		background: radial-gradient(circle, rgba(0, 255, 255, 0.08) 0%, rgba(68, 136, 255, 0.04) 40%, transparent 70%);
-		pointer-events: none;
-		animation: pulseGlow 4s ease-in-out infinite;
-	}
-
-	.hero-glow-secondary {
-		position: absolute;
-		top: 60%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 400px;
-		height: 400px;
-		background: radial-gradient(circle, rgba(136, 68, 255, 0.06) 0%, transparent 60%);
+		inset: 0;
+		background:
+			linear-gradient(100deg, transparent 0 22%, rgba(0, 255, 255, 0.08) 22.2% 22.6%, transparent 22.8% 100%),
+			linear-gradient(258deg, transparent 0 63%, rgba(255, 221, 68, 0.08) 63.1% 63.45%, transparent 63.7% 100%),
+			repeating-linear-gradient(90deg, transparent 0 5.8rem, rgba(68, 255, 136, 0.03) 5.8rem 5.86rem, transparent 5.86rem 9.4rem);
+		mask-image: linear-gradient(180deg, black 0%, transparent 85%);
 		pointer-events: none;
 	}
 
 	.hero-content {
 		position: relative;
 		z-index: 1;
-		max-width: min(800px, 90vw);
+		width: min(var(--content-max), 100%);
 		animation: fadeInUp 0.6s ease;
 	}
 
@@ -234,7 +230,8 @@
 		gap: 0.4rem;
 		padding: 0.3rem 0.8rem;
 		font-size: var(--fs-caption-sm);
-		font-family: var(--font-mono);
+		font-family: var(--font-tech);
+		font-weight: 700;
 		color: var(--text-dim);
 		border: 1px solid var(--border-neon);
 		border-radius: 100px;
@@ -254,7 +251,7 @@
 	}
 
 	.version-text {
-		letter-spacing: 0.05em;
+		letter-spacing: 0;
 	}
 
 	.title {
@@ -266,7 +263,7 @@
 
 	.hero-logo {
 		width: 100%;
-		max-width: clamp(380px, 55vw, 640px);
+		max-width: clamp(18rem, 45vw, 40rem);
 		height: auto;
 		filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.15));
 	}
@@ -274,9 +271,11 @@
 	.subtitle {
 		font-size: var(--fs-heading);
 		color: var(--text-secondary);
-		font-family: var(--font-mono);
-		margin-bottom: 1.75rem;
-		letter-spacing: 0.04em;
+		font-family: var(--font-display);
+		font-weight: 600;
+		margin: 0 auto 1.35rem;
+		max-width: 48rem;
+		letter-spacing: 0;
 		animation: fadeInUp 0.4s ease;
 		transition: opacity 0.3s ease;
 	}
@@ -284,16 +283,46 @@
 	.description {
 		color: var(--text-secondary);
 		font-size: var(--fs-body);
-		line-height: 1.8;
-		margin-bottom: 2.25rem;
-		max-width: 580px;
+		line-height: 1.72;
+		margin-bottom: 1.15rem;
+		max-width: var(--measure);
 		margin-left: auto;
 		margin-right: auto;
 	}
 
+	.signal-strip {
+		display: inline-grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 1px;
+		margin: 0 auto 1.6rem;
+		border: 1px solid rgba(0, 255, 255, 0.18);
+		background: rgba(0, 255, 255, 0.12);
+		border-radius: 8px;
+		overflow: hidden;
+	}
+
+	.signal-strip span {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		min-width: clamp(7.5rem, 16vw, 11rem);
+		padding: 0.55rem 0.75rem;
+		background: rgba(7, 8, 18, 0.76);
+		color: var(--text-secondary);
+		font-size: var(--fs-caption);
+		line-height: 1.2;
+	}
+
+	.signal-strip strong {
+		color: var(--green);
+		font-family: var(--font-display);
+		font-size: var(--fs-body);
+		line-height: 1;
+	}
+
 	.cta-buttons {
 		display: flex;
-		gap: 1rem;
+		gap: 0.75rem;
 		justify-content: center;
 		flex-wrap: wrap;
 		margin-bottom: 1.5rem;
@@ -303,10 +332,12 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.6rem;
-		padding: clamp(0.8rem, 1.4vw, 1.1rem) clamp(1.8rem, 3vw, 2.8rem);
-		border-radius: var(--radius-md);
+		min-height: 2.9rem;
+		padding: 0.78rem clamp(1.15rem, 2vw, 1.7rem);
+		border-radius: 8px;
 		font-weight: 700;
 		font-size: var(--fs-btn);
+		font-family: var(--font-display);
 		transition: all var(--transition-normal);
 		text-decoration: none;
 		cursor: pointer;
@@ -359,10 +390,12 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.6rem;
-		padding: clamp(0.8rem, 1.4vw, 1.1rem) clamp(1.8rem, 3vw, 2.8rem);
-		border-radius: var(--radius-md);
+		min-height: 2.9rem;
+		padding: 0.78rem clamp(1.15rem, 2vw, 1.7rem);
+		border-radius: 8px;
 		font-weight: 600;
 		font-size: var(--fs-btn);
+		font-family: var(--font-display);
 		transition: all var(--transition-normal);
 		text-decoration: none;
 		cursor: pointer;
@@ -414,10 +447,10 @@
 
 	.features {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-		gap: 1.25rem;
-		padding: 1.5rem 1.5rem 3rem;
-		max-width: 900px;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 1rem;
+		padding: 1rem clamp(1rem, 3vw, 2rem) 3rem;
+		max-width: var(--content-max);
 		width: 100%;
 		z-index: 1;
 	}
@@ -425,9 +458,9 @@
 	.feature-card {
 		background: var(--bg-glass);
 		border: 1px solid var(--border-neon);
-		border-radius: var(--radius-lg);
-		padding: 1.75rem 1.5rem;
-		text-align: center;
+		border-radius: 8px;
+		padding: 1.35rem;
+		text-align: left;
 		backdrop-filter: blur(8px);
 		-webkit-backdrop-filter: blur(8px);
 		transition: all var(--transition-normal);
@@ -456,7 +489,7 @@
 		position: relative;
 		width: 56px;
 		height: 56px;
-		margin: 0 auto 1rem;
+		margin: 0 0 1rem;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -465,7 +498,7 @@
 	.feature-icon-bg {
 		position: absolute;
 		inset: 0;
-		border-radius: 16px;
+		border-radius: 8px;
 	}
 
 	.feature-icon {
@@ -478,12 +511,13 @@
 		font-size: var(--fs-subheading);
 		margin-bottom: 0.5rem;
 		color: var(--cyan);
+		font-family: var(--font-display);
 	}
 
 	.feature-card p {
 		font-size: var(--fs-body-sm);
 		color: var(--text-secondary);
-		line-height: 1.6;
+		line-height: 1.62;
 	}
 
 	.footer {
@@ -519,14 +553,59 @@
 
 	@media (max-width: 767px) {
 		.hero {
-			padding: 2.5rem 1rem 1.5rem;
+			padding: 1.5rem 1rem 1rem;
+		}
+		.version-badge {
+			margin-bottom: 0.8rem;
+		}
+		.title {
+			margin-bottom: 0.5rem;
 		}
 		.hero-logo {
-			max-width: 320px;
+			max-width: min(15.5rem, 82vw);
+		}
+		.subtitle {
+			margin-bottom: 0.8rem;
+		}
+		.description {
+			line-height: 1.58;
+			margin-bottom: 0.85rem;
+		}
+		.signal-strip {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			width: min(100%, 22rem);
+			margin-bottom: 1rem;
+		}
+		.signal-strip span {
+			min-width: 0;
+			padding: 0.45rem 0.35rem;
+		}
+		.cta-buttons {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 0.55rem;
+			margin-bottom: 1rem;
+		}
+		.btn-primary,
+		.btn-secondary {
+			justify-content: center;
+			min-height: 2.65rem;
+			padding: 0.65rem 0.75rem;
+		}
+		.btn-accent {
+			grid-column: 1 / -1;
 		}
 		.features {
 			padding: 1rem 1rem 1.5rem;
 			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (min-width: 768px) and (max-width: 1023px) {
+		.features {
+			grid-template-columns: 1fr;
+			max-width: 42rem;
 		}
 	}
 </style>

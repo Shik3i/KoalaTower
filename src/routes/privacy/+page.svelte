@@ -85,7 +85,7 @@
 				<li>No tracking pixels or beacons</li>
 				<li>No advertising or affiliate links</li>
 				<li>No social media embeds or widgets</li>
-				<li>No external fonts (all fonts are system fonts)</li>
+				<li>No external font requests (fonts are bundled with the app)</li>
 				<li>No external CDN resources</li>
 				<li>No external images or assets</li>
 			</ul>

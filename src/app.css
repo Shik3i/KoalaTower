@@ -31,9 +31,10 @@
 	--text-primary: #F0F7FF;
 	--text-secondary: rgba(240, 247, 255, 0.82);
 	--text-dim: rgba(240, 247, 255, 0.50);
-	--font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-	--font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
-	--font-display: 'Orbitron', -apple-system, BlinkMacSystemFont, sans-serif;
+	--font-mono: 'SF Mono', 'Cascadia Mono', 'Consolas', monospace;
+	--font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Roboto', 'Helvetica Neue', sans-serif;
+	--font-display: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--font-tech: 'Orbitron', 'Rajdhani', -apple-system, BlinkMacSystemFont, sans-serif;
 	--radius-sm: 6px;
 	--radius-md: 10px;
 	--radius-lg: 16px;
@@ -44,27 +45,27 @@
 	--transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
 	--transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 	--transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
-	/* ── Typographic scale ─────────────────────────────────── */
-	--fs-hero:       clamp(1.6rem, 2.8vw, 2.0rem);   /* page titles */
-	--fs-heading:    clamp(1.35rem, 2.2vw, 1.7rem);  /* section headings */
-	--fs-subheading: clamp(1.15rem, 1.5vw, 1.35rem); /* card titles */
-	--fs-body:       clamp(1.05rem, 1.35vw, 1.2rem); /* normal text, info rows */
-	--fs-body-sm:    clamp(0.95rem, 1.15vw, 1.05rem);/* secondary text */
-	--fs-caption:    clamp(0.85rem, 1.05vw, 0.95rem);/* labels, sub-text */
-	--fs-caption-sm: clamp(0.75rem, 0.9vw, 0.82rem); /* tiny labels */
-	/* Monospace — tuned larger for readability in stats panels */
-	--fs-mono-lg:    clamp(1.05rem, 1.35vw, 1.25rem); /* upgrade names, values */
-	--fs-mono:       clamp(0.95rem, 1.25vw, 1.15rem); /* stat rows, pill values */
-	--fs-mono-sm:    clamp(0.85rem, 1.05vw, 0.95rem); /* smaller mono text */
-	/* Interactive */
-	--fs-btn:        clamp(1.1rem, 1.5vw, 1.35rem);  /* primary buttons */
-	--fs-btn-sm:     clamp(0.95rem, 1.2vw, 1.05rem); /* small buttons */
+	--content-max: 72rem;
+	--measure: 42rem;
+	/* Stable type scale with capped fluid growth for 4K and ultrawide displays. */
+	--fs-hero:       clamp(1.9rem, 1.68rem + 0.95vw, 2.75rem);
+	--fs-heading:    clamp(1.45rem, 1.32rem + 0.5vw, 1.9rem);
+	--fs-subheading: clamp(1.18rem, 1.1rem + 0.24vw, 1.38rem);
+	--fs-body:       clamp(1rem, 0.97rem + 0.14vw, 1.1rem);
+	--fs-body-sm:    clamp(0.94rem, 0.92rem + 0.08vw, 1rem);
+	--fs-caption:    clamp(0.84rem, 0.82rem + 0.06vw, 0.9rem);
+	--fs-caption-sm: clamp(0.74rem, 0.73rem + 0.04vw, 0.8rem);
+	--fs-mono-lg:    clamp(1rem, 0.97rem + 0.14vw, 1.1rem);
+	--fs-mono:       clamp(0.92rem, 0.9rem + 0.08vw, 1rem);
+	--fs-mono-sm:    clamp(0.82rem, 0.8rem + 0.06vw, 0.9rem);
+	--fs-btn:        clamp(1rem, 0.95rem + 0.2vw, 1.16rem);
+	--fs-btn-sm:     clamp(0.92rem, 0.9rem + 0.08vw, 1rem);
 	--fs-icon-sm:    0.7rem;
 	--fs-icon-md:    1rem;
 	--fs-icon-lg:    1.3rem;
 	--fs-icon-xl:    1.6rem;
 	--fs-icon-2xl:   2.6rem;
-	font-size: 20px;
+	font-size: 16px;
 }
 
 html {
@@ -81,14 +82,15 @@ body {
 	height: 100%;
 	overflow-y: auto;
 	overflow-x: hidden;
-	line-height: 1.6;
+	line-height: 1.65;
+	text-rendering: optimizeLegibility;
 }
 
 h1, h2, h3, h4, h5, h6 {
 	font-family: var(--font-display);
 	font-weight: 700;
-	letter-spacing: 0.02em;
-	line-height: 1.3;
+	letter-spacing: 0;
+	line-height: 1.18;
 }
 
 a {
@@ -111,9 +113,10 @@ button {
 	font-size: inherit;
 }
 
-button:focus-visible {
+button:focus-visible,
+a:focus-visible {
 	outline: 2px solid var(--cyan);
-	outline-offset: 2px;
+	outline-offset: 3px;
 }
 
 input, textarea, select {
