@@ -9,6 +9,7 @@ import {
 	canClaimWeeklyShipment,
 	convertSchematics,
 	getMaxUnlockedSpeed,
+	isSupportUrlConfigured,
 	normalizeBlackMarketUnlocks,
 	normalizeStrangeMatter,
 	weeklyShipmentRemainingMs,
@@ -47,6 +48,7 @@ describe('Black Market economy', () => {
 		expect(canBuyBlackMarketUnlock(50, { gameSpeed3: true }, 'gameSpeed3').reason).toBe('owned');
 		expect(canBuyBlackMarketUnlock(50, {}, 'gameSpeed5').reason).toBe('missingRequirement');
 		expect(canBuyBlackMarketUnlock(50, { gameSpeed3: true }, 'gameSpeed5').ok).toBe(true);
+		expect(canBuyBlackMarketUnlock(100, {}, 'outsourcedResearchLab').reason).toBe('scaffold');
 		expect(normalizeBlackMarketUnlocks({ gameSpeed3: true, bogus: true })).toEqual({ gameSpeed3: true });
 	});
 
@@ -54,6 +56,11 @@ describe('Black Market economy', () => {
 		expect(getMaxUnlockedSpeed({})).toBe(2);
 		expect(getMaxUnlockedSpeed({ gameSpeed3: true })).toBe(3);
 		expect(getMaxUnlockedSpeed({ gameSpeed3: true, gameSpeed5: true })).toBe(5);
+	});
+
+	it('treats placeholder support URLs as unavailable', () => {
+		expect(isSupportUrlConfigured('#')).toBe(false);
+		expect(isSupportUrlConfigured('https://support.example.test')).toBe(true);
 	});
 
 	it('converts Schematics after unlock logic without charging Strange Matter per conversion', () => {

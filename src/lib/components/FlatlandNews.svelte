@@ -131,13 +131,13 @@
 	.news-grid {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 0.75rem;
+		gap: 0.85rem;
 	}
 
 	.news-card {
 		display: flex;
-		gap: 0.7rem;
-		padding: 0.75rem;
+		gap: 0.8rem;
+		padding: 0.85rem;
 		background:
 			linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent),
 			var(--bg-glass);
@@ -169,8 +169,8 @@
 
 	.nc-thumb {
 		flex-shrink: 0;
-		width: 3.2rem;
-		height: 3.2rem;
+		width: 3rem;
+		height: 3rem;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -181,15 +181,15 @@
 	}
 
 	.nc-svg {
-		width: 2.55rem;
-		height: 2.55rem;
+		width: 2.35rem;
+		height: 2.35rem;
 	}
 
 	.nc-body {
 		flex: 1;
 		display: flex;
 		flex-direction: column;
-		gap: 0.22rem;
+		gap: 0.34rem;
 		min-width: 0;
 	}
 
@@ -206,14 +206,16 @@
 		font-family: var(--font-tech);
 		font-weight: 700;
 		letter-spacing: 0;
+		text-transform: uppercase;
 	}
 
 	.nc-class {
 		font-size: var(--fs-caption-sm);
 		font-weight: 600;
-		padding: 0.06rem 0.35rem;
+		padding: 0.08rem 0.38rem;
 		border-radius: 100px;
 		letter-spacing: 0;
+		line-height: 1.15;
 	}
 
 	.nc-class.approved {
@@ -237,22 +239,26 @@
 	}
 
 	.nc-headline {
-		font-family: var(--font-sans);
-		font-size: var(--fs-body-sm);
+		font-family: var(--font-display);
+		font-size: clamp(0.94rem, 0.9rem + 0.15vw, 1.02rem);
 		color: var(--text-primary);
-		font-weight: 700;
-		line-height: 1.28;
+		font-weight: 600;
+		line-height: 1.22;
 		padding: 0;
 		margin: 0;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
 	}
 
 	.nc-snippet {
-		font-size: var(--fs-caption);
+		font-size: var(--fs-caption-sm);
 		color: var(--text-secondary);
-		line-height: 1.5;
+		line-height: 1.48;
 		margin: 0;
 		display: -webkit-box;
-		-webkit-line-clamp: 4;
+		-webkit-line-clamp: 3;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
@@ -263,6 +269,7 @@
 		gap: 0.3rem;
 		flex-wrap: wrap;
 		margin-top: auto;
+		padding-top: 0.2rem;
 	}
 
 	.nc-cycle {
@@ -309,6 +316,7 @@
 
 		.news-grid {
 			grid-template-columns: 1fr;
+			gap: 0.65rem;
 		}
 
 		.news-header {
@@ -317,6 +325,14 @@
 
 		.news-orbital {
 			display: none;
+		}
+
+		.news-card {
+			padding: 0.78rem;
+		}
+
+		.nc-headline {
+			-webkit-line-clamp: 3;
 		}
 	}
 

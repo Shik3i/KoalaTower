@@ -2,8 +2,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import FrontIcon from '$lib/components/FrontIcon.svelte';
-	import { TierId, ChallengeId, FrontBand } from '$lib/game/engine/gameTypes';
-	import { FRONT_META, FRONT_BANDS, getFrontName, describeFrontUnlock } from '$lib/game/balance/tiers';
+	import { TierId, ChallengeId } from '$lib/game/engine/gameTypes';
+	import { FRONT_META, getFrontName, describeFrontUnlock } from '$lib/game/balance/tiers';
+	import { getFrontBandPanels, getSelectedFrontBandIndex, getFrontSelectorStatus } from '$lib/game/balance/frontSelector';
 	import { getFrontAlloyMultiplier } from '$lib/game/balance/balanceMath';
 	import { getSchematics } from '$lib/game/balance/schematics';
 	import { CHALLENGES, CHALLENGE_UNLOCK_REQS, isChallengeUnlocked } from '$lib/game/balance/challenges';
@@ -32,16 +33,29 @@
 		onDeploy: () => void;
 	} = $props();
 
-	// Group the 16 Fronts by band for the selector.
-	const bandOrder: FrontBand[] = [FrontBand.Perimeter, FrontBand.Redline, FrontBand.Blacksite, FrontBand.Anomaly];
-	const frontsByBand = $derived(bandOrder.map(band => ({
-		band,
-		def: FRONT_BANDS[band],
-		fronts: FRONT_META.filter(m => m.band === band),
-	})));
+	const frontBandPanels = getFrontBandPanels();
+	let bandRail = $state<HTMLDivElement | null>(null);
+	let activeBandIndex = $state(getSelectedFrontBandIndex(selectedFront));
 
 	function isUnlocked(id: TierId): boolean {
 		return unlockedFronts.includes(id);
+	}
+
+	function selectBand(index: number) {
+		activeBandIndex = Math.max(0, Math.min(frontBandPanels.length - 1, index));
+		bandRail?.children[activeBandIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+	}
+
+	function selectFront(id: TierId) {
+		selectedFront = id;
+		selectedChallenge = null;
+		activeBandIndex = getSelectedFrontBandIndex(id);
+	}
+
+	function handleBandScroll() {
+		if (!bandRail) return;
+		const width = Math.max(1, bandRail.clientWidth);
+		activeBandIndex = Math.max(0, Math.min(frontBandPanels.length - 1, Math.round(bandRail.scrollLeft / width)));
 	}
 
 	function toggleChallenge(id: ChallengeId) {
@@ -50,7 +64,6 @@
 
 	function handleGlobalKey(e: KeyboardEvent) {
 		if (e.key !== 'Enter') return;
-		// Don't intercept Enter on interactive elements that handle it themselves.
 		const t = e.target;
 		if (t instanceof HTMLButtonElement || t instanceof HTMLAnchorElement
 			|| t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement
@@ -58,12 +71,15 @@
 		onDeploy();
 	}
 
-	onMount(() => window.addEventListener('keydown', handleGlobalKey));
+	onMount(() => {
+		window.addEventListener('keydown', handleGlobalKey);
+		requestAnimationFrame(() => selectBand(getSelectedFrontBandIndex(selectedFront)));
+	});
 	onDestroy(() => window.removeEventListener('keydown', handleGlobalKey));
 
 	const deployLabel = $derived(
 		selectedChallenge
-			? `Deploy — ${CHALLENGES.find(c => c.id === selectedChallenge)?.name ?? ''}`
+			? `Deploy - ${CHALLENGES.find(c => c.id === selectedChallenge)?.name ?? ''}`
 			: `Deploy to ${getFrontName(selectedFront)}`
 	);
 </script>
@@ -73,7 +89,7 @@
 		<div class="sc-accent"></div>
 		<div class="sc-icon"><img class="sc-logo" src="/branding/flatland-logo-medium.svg" alt="Flatland TD" /></div>
 		<h2 class="sc-title">Flatland TD</h2>
-		<p class="sc-sub">Deploy from orbit. Defend the plane. Field upgrades are lost with the tower — Orbital research endures.</p>
+		<p class="sc-sub">Deploy from orbit. Defend the plane. Field upgrades are lost with the tower; Orbital research endures.</p>
 		{#if highestWave > 0}
 			<div class="sc-rec">
 				<div class="sc-r"><Icon name="crit" size={15} /> Best: Wave {highestWave}</div>
@@ -82,49 +98,82 @@
 			</div>
 		{/if}
 
-		<!-- Front selector — 16 Fronts across 4 bands -->
 		<div class="front-sel">
-			<div class="front-sel-h"><Icon name="hub" size={13} /> Select Front</div>
-			{#each frontsByBand as group}
-				{@const anyUnlocked = group.fronts.some(m => isUnlocked(m.id))}
-				<div class="band-grp" style="--band:{group.def.color};--accent:{group.def.accent}">
-					<div class="band-h">
-						<span class="band-dot"></span>{group.def.label}
-						{#if !anyUnlocked}<span class="band-lock">classified</span>{/if}
-					</div>
-					<div class="front-list">
-						{#each group.fronts as m}
-							{@const unlocked = isUnlocked(m.id)}
-							{@const best = frontBestWave[m.id] ?? 0}
-							{@const schem = getSchematics(schematicsByFront, m.front)}
-							<button
-								class="front-opt"
-								class:on={selectedFront === m.id && !selectedChallenge}
-								class:locked={!unlocked}
-								disabled={!unlocked}
-								onclick={() => { selectedFront = m.id; selectedChallenge = null; }}
-								title={unlocked ? m.displayName : 'Locked — ' + describeFrontUnlock(m.id)}
-							>
-								<FrontIcon front={m.id} size={30} locked={!unlocked} />
-								<div class="front-body">
-									<span class="front-n">{m.displayName}</span>
-									{#if unlocked}
-										<span class="front-meta">×{getFrontAlloyMultiplier(m.front).toFixed(1)} Alloy{#if best > 0} · Best W{best}{/if}{#if schem > 0} · 📐{schem}{/if}</span>
-									{:else}
-										<span class="front-meta front-lock">🔒 {describeFrontUnlock(m.id)}</span>
-									{/if}
-								</div>
-							</button>
-						{/each}
-					</div>
+			<div class="front-sel-h">
+				<span><Icon name="hub" size={13} /> Select Front</span>
+				<span class="front-band-count">{activeBandIndex + 1}/{frontBandPanels.length}</span>
+			</div>
+			<div class="band-nav" aria-label="Front band navigation">
+				<button class="band-arrow" disabled={activeBandIndex === 0} onclick={() => selectBand(activeBandIndex - 1)} aria-label="Previous Front band">‹</button>
+				<div class="band-tabs" role="tablist" aria-label="Front bands">
+					{#each frontBandPanels as group, index}
+						<button
+							class="band-tab"
+							class:on={activeBandIndex === index}
+							style="--band:{group.def.color};--accent:{group.def.accent}"
+							role="tab"
+							aria-selected={activeBandIndex === index}
+							onclick={() => selectBand(index)}
+						>
+							{group.def.label}
+						</button>
+					{/each}
 				</div>
-			{/each}
+				<button class="band-arrow" disabled={activeBandIndex === frontBandPanels.length - 1} onclick={() => selectBand(activeBandIndex + 1)} aria-label="Next Front band">›</button>
+			</div>
+
+			<div class="band-rail" bind:this={bandRail} onscroll={handleBandScroll} tabindex="0" aria-label="Scrollable Front band panels">
+				{#each frontBandPanels as group}
+					{@const unlockedCount = group.fronts.filter(m => isUnlocked(m.id)).length}
+					{@const bandBest = Math.max(0, ...group.fronts.map(m => frontBestWave[m.id] ?? 0))}
+					<section class="band-panel" style="--band:{group.def.color};--accent:{group.def.accent}" aria-label="{group.def.label} Front band">
+						<div class="band-hero">
+							<div class="band-emblem" aria-hidden="true">
+								<FrontIcon front={group.fronts[0]!.id} size={52} locked={unlockedCount === 0} />
+							</div>
+							<div class="band-copy">
+								<div class="band-kicker">Front Band</div>
+								<h3>{group.def.label}</h3>
+								<p>{group.description}</p>
+								<div class="band-status">
+									<span>{unlockedCount}/4 Fronts available</span>
+									{#if bandBest > 0}<span>Best Wave {bandBest}</span>{/if}
+								</div>
+							</div>
+						</div>
+						<div class="front-grid">
+							{#each group.fronts as m}
+								{@const unlocked = isUnlocked(m.id)}
+								{@const schem = getSchematics(schematicsByFront, m.front)}
+								<button
+									class="front-opt"
+									class:on={selectedFront === m.id && !selectedChallenge}
+									class:locked={!unlocked}
+									disabled={!unlocked}
+									aria-pressed={selectedFront === m.id && !selectedChallenge}
+									onclick={() => selectFront(m.id)}
+									title={unlocked ? m.displayName : 'Locked - ' + describeFrontUnlock(m.id)}
+								>
+									<FrontIcon front={m.id} size={28} locked={!unlocked} />
+									<div class="front-body">
+										<span class="front-n">{m.displayName}</span>
+										{#if unlocked}
+											<span class="front-meta">x{getFrontAlloyMultiplier(m.front).toFixed(1)} Alloy{#if schem > 0} · {schem} Schematics{/if}</span>
+										{:else}
+											<span class="front-meta front-lock">{getFrontSelectorStatus(m, unlockedFronts, frontBestWave)}</span>
+										{/if}
+									</div>
+								</button>
+							{/each}
+						</div>
+					</section>
+				{/each}
+			</div>
 		</div>
 
-		<!-- Special Ops -->
 		{#if CHALLENGES.some(c => isChallengeUnlocked(c.id, frontBestWave))}
 			<div class="ops-sel" style="--band:rgb(255,200,0);--accent:rgb(255,200,0)">
-				<div class="front-sel-h">⚡ Special Ops</div>
+				<div class="front-sel-h"><span>Special Ops</span></div>
 				<div class="front-list">
 					{#each CHALLENGES as c}
 						{@const unlocked = isChallengeUnlocked(c.id, frontBestWave)}
@@ -141,9 +190,9 @@
 							<span class="ops-icon">{c.icon}</span>
 							<span class="front-n">{c.name}</span>
 							{#if unlocked}
-								<span class="front-meta ops-hs" style="margin-left:auto">{hs > 0 ? 'Best: W' + hs : 'No record'}</span>
+								<span class="front-meta ops-hs">{hs > 0 ? 'Best: W' + hs : 'No record'}</span>
 							{:else}
-								<span class="front-meta front-lock" style="margin-left:auto">🔒 {req.label.replace('Reach Wave ', 'W').replace(' on Tier ', '·T')}</span>
+								<span class="front-meta front-lock">{req.label}</span>
 							{/if}
 						</button>
 					{/each}
@@ -160,62 +209,81 @@
 </div>
 
 <style>
-	.start-ol { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center,rgba(7,8,18,.5) 0%,var(--bg-primary) 100%); z-index:10; overflow-y:auto; padding:1rem 0; }
-	.start-card { position:relative; text-align:center; padding:2rem 1.5rem 1.5rem; background:var(--bg-glass-strong); border:1px solid var(--border-neon); border-radius:var(--radius-xl); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); max-width:420px; width:94%; animation:si .35s ease; box-shadow:0 0 60px rgba(0,255,255,.06); }
+	.start-ol { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center,rgba(7,8,18,.5) 0%,var(--bg-primary) 100%); z-index:10; overflow:hidden; padding:1rem; }
+	.start-card { position:relative; text-align:center; padding:1.25rem 1.2rem 1rem; background:var(--bg-glass-strong); border:1px solid var(--border-neon); border-radius:var(--radius-xl); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); max-width:min(880px,96vw); width:100%; max-height:min(94vh,780px); overflow-y:auto; animation:si .35s ease; box-shadow:0 0 60px rgba(0,255,255,.06); }
 	.sc-accent { position:absolute; top:-1px; left:20%; right:20%; height:1px; background:linear-gradient(90deg,transparent,var(--cyan),transparent); opacity:.6; }
-	.sc-icon { font-size:var(--fs-icon-2xl); display:block; margin-bottom:.5rem; filter:drop-shadow(0 0 20px rgba(0,255,255,.3)); }
-	.sc-logo { width:100%; max-width:260px; height:auto; }
+	.sc-icon { font-size:var(--fs-icon-2xl); display:block; margin-bottom:.3rem; filter:drop-shadow(0 0 20px rgba(0,255,255,.3)); }
+	.sc-logo { width:100%; max-width:220px; height:auto; }
 	.sc-title { font-size:var(--fs-icon-lg); margin-bottom:.2rem; }
-	.sc-sub { font-size:var(--fs-body-sm); color:var(--text-secondary); margin-bottom:1rem; }
-	.sc-rec { display:flex; flex-direction:column; gap:.2rem; margin-bottom:1rem; padding:.6rem; background:rgba(0,0,0,.2); border-radius:var(--radius-md); }
+	.sc-sub { font-size:var(--fs-body-sm); color:var(--text-secondary); margin:0 auto .85rem; max-width:42rem; }
+	.sc-rec { display:flex; flex-direction:row; flex-wrap:wrap; justify-content:center; gap:.35rem; margin-bottom:.85rem; padding:.5rem; background:rgba(0,0,0,.2); border-radius:var(--radius-md); }
 	.sc-r { font-size:var(--fs-body-sm); font-family:var(--font-mono); color:var(--text-secondary); display:flex; gap:.3rem; align-items:center; }
 
-	/* ── Shared list layout ─────────────────────────────────────── */
 	.front-sel, .ops-sel { margin-bottom:1rem; width:100%; }
-	.front-sel-h { display:flex; align-items:center; gap:.3rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); margin-bottom:.4rem; }
-	/* Vertical stack — each button is full-width and tall */
-	.front-list { display:flex; flex-direction:column; gap:.3rem; }
+	.front-sel-h { display:flex; align-items:center; justify-content:space-between; gap:.5rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); margin-bottom:.45rem; }
+	.front-sel-h span:first-child { display:inline-flex; align-items:center; gap:.3rem; }
+	.front-band-count { color:var(--cyan); }
+	.front-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(12rem,1fr)); gap:.35rem; }
 
-	/* ── Band grouping ─────────────────────────────────────────── */
-	.band-grp { margin-bottom:.55rem; }
-	.band-h { display:flex; align-items:center; gap:.35rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); letter-spacing:.05em; text-transform:uppercase; color:var(--band); margin:.25rem 0 .3rem; }
-	.band-dot { width:8px; height:8px; border-radius:2px; background:var(--band); box-shadow:0 0 8px var(--band); }
-	.band-lock { margin-left:auto; color:var(--text-dim); text-transform:none; letter-spacing:0; font-style:italic; }
+	.band-nav { display:grid; grid-template-columns:2.5rem minmax(0,1fr) 2.5rem; gap:.45rem; align-items:center; margin-bottom:.55rem; }
+	.band-arrow { min-width:40px; min-height:40px; border:1px solid var(--border-neon); border-radius:var(--radius-sm); color:var(--cyan); background:rgba(0,255,255,.05); font-size:1.4rem; line-height:1; cursor:pointer; transition:all var(--transition-fast); }
+	.band-arrow:hover:not(:disabled) { border-color:var(--cyan); background:rgba(0,255,255,.1); }
+	.band-arrow:disabled { opacity:.35; cursor:default; }
+	.band-tabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.25rem; min-width:0; }
+	.band-tab { min-height:40px; padding:.35rem .45rem; border-radius:var(--radius-sm); border:1px solid color-mix(in srgb, var(--band) 30%, transparent); color:var(--text-secondary); background:rgba(255,255,255,.02); font-family:var(--font-mono); font-size:var(--fs-caption-sm); cursor:pointer; transition:all var(--transition-fast); }
+	.band-tab.on { color:var(--band); background:color-mix(in srgb, var(--band) 11%, transparent); border-color:var(--band); box-shadow:0 0 12px color-mix(in srgb, var(--band) 22%, transparent); }
 
-	/* ── Front buttons (horizontal row layout) ─────────────────── */
-	.front-opt {
-		display:flex; flex-direction:row; align-items:center; gap:.55rem;
-		width:100%; padding:.45rem .6rem;
-		border-radius:var(--radius-sm); background:var(--bg-tertiary);
-		border:1px solid color-mix(in srgb, var(--band) 35%, transparent); transition:all var(--transition-fast);
-		cursor:pointer; text-align:left;
-	}
+	.band-rail { display:flex; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scroll-behavior:smooth; gap:.75rem; border-radius:var(--radius-md); scrollbar-width:thin; scrollbar-color:rgba(0,255,255,.35) transparent; }
+	.band-rail:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; }
+	.band-panel { scroll-snap-align:center; flex:0 0 100%; min-width:0; padding:.85rem; border:1px solid color-mix(in srgb, var(--band) 32%, transparent); border-radius:var(--radius-md); background:linear-gradient(135deg,color-mix(in srgb,var(--band) 9%, transparent),rgba(255,255,255,.015)); text-align:left; }
+	.band-hero { display:grid; grid-template-columns:auto minmax(0,1fr); gap:.75rem; align-items:center; margin-bottom:.75rem; }
+	.band-emblem { width:72px; height:72px; display:grid; place-items:center; border-radius:8px; border:1px solid color-mix(in srgb,var(--band) 30%, transparent); background:radial-gradient(circle,color-mix(in srgb,var(--band) 16%, transparent),rgba(0,0,0,.14)); box-shadow:inset 0 0 20px rgba(0,0,0,.22); }
+	.band-copy { min-width:0; }
+	.band-kicker { color:var(--band); font-family:var(--font-mono); font-size:var(--fs-caption-sm); letter-spacing:.08em; text-transform:uppercase; margin-bottom:.1rem; }
+	.band-copy h3 { color:var(--text-primary); font-size:var(--fs-subheading); margin:0 .35rem .15rem 0; font-family:var(--font-display); }
+	.band-copy p { color:var(--text-secondary); font-size:var(--fs-body-sm); line-height:1.42; margin:0; }
+	.band-status { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.45rem; }
+	.band-status span { color:var(--text-secondary); font-family:var(--font-mono); font-size:var(--fs-caption-sm); padding:.12rem .4rem; border-radius:3px; background:rgba(0,0,0,.18); }
+	.front-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.45rem; }
+
+	.front-opt { display:flex; flex-direction:column; align-items:center; gap:.35rem; width:100%; min-height:7rem; padding:.55rem .45rem; border-radius:var(--radius-sm); background:var(--bg-tertiary); border:1px solid color-mix(in srgb, var(--band) 35%, transparent); transition:all var(--transition-fast); cursor:pointer; text-align:center; }
 	.front-opt:hover:not(:disabled) { border-color:var(--band); background:color-mix(in srgb, var(--band) 8%, transparent); }
 	.front-opt.on { border-color:var(--band); background:color-mix(in srgb, var(--band) 16%, transparent); box-shadow:0 0 12px color-mix(in srgb, var(--band) 30%, transparent); }
-	.front-opt.locked { opacity:.5; cursor:not-allowed; border-color:var(--border-neon); }
-	.front-body { display:flex; flex-direction:column; gap:.1rem; min-width:0; }
-	.front-n { font-family:var(--font-display); font-weight:700; font-size:var(--fs-body-sm); color:var(--text-primary); white-space:nowrap; }
-	.front-meta { font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+	.front-opt.locked { opacity:.55; cursor:not-allowed; border-color:var(--border-neon); }
+	.front-opt:focus-visible, .band-arrow:focus-visible, .band-tab:focus-visible, .sc-btn:focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
+	.front-body { display:flex; flex-direction:column; gap:.15rem; min-width:0; width:100%; }
+	.front-n { font-family:var(--font-display); font-weight:700; font-size:var(--fs-body-sm); color:var(--text-primary); line-height:1.15; }
+	.front-meta { font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 	.front-lock { color:var(--text-secondary); }
 	.front-opt.on .front-n { color:var(--band); }
 
-	/* ── Ops-specific additions ─────────────────────────────────── */
-	.ops-opt { border-color:rgba(255,200,0,.25); }
+	.ops-opt { border-color:rgba(255,200,0,.25); min-height:5.5rem; }
 	.ops-opt:hover:not(:disabled) { border-color:rgba(255,200,0,.6); background:rgba(255,200,0,.06); }
 	.ops-opt.on { border-color:rgba(255,200,0,.8); background:rgba(255,200,0,.1); box-shadow:0 0 12px rgba(255,200,0,.18); }
 	.ops-opt.on .front-n { color:rgb(255,220,60); }
 	.ops-icon { font-size:1.1em; flex-shrink:0; }
 	.ops-hs { color:var(--text-secondary); }
 
-	/* ── Deploy button ──────────────────────────────────────────── */
 	.sc-btn { position:relative; display:inline-flex; align-items:center; gap:.4rem; padding:.7rem 2rem; border-radius:var(--radius-md); background:linear-gradient(135deg,var(--cyan),var(--blue)); color:var(--bg-primary); font-weight:700; font-size:var(--fs-btn); cursor:pointer; overflow:hidden; transition:all var(--transition-normal); box-shadow:0 0 30px rgba(0,255,255,.2); width:100%; justify-content:center; }
 	.sc-btn:hover { transform:translateY(-2px); box-shadow:0 0 50px rgba(0,255,255,.35); }
 	.sc-btn-ops { background:linear-gradient(135deg,rgb(220,170,0),rgb(200,120,0)); box-shadow:0 0 30px rgba(255,200,0,.2); }
 	.sc-btn-ops:hover { box-shadow:0 0 50px rgba(255,200,0,.35); }
 	.sc-bi { position:absolute; inset:0; background:linear-gradient(135deg,transparent,rgba(255,255,255,.12),transparent); transition:opacity var(--transition-normal); opacity:0; }
 	.sc-btn:hover .sc-bi { opacity:1; }
-	.sc-bt { position:relative; z-index:1; }
+	.sc-bt { position:relative; z-index:1; display:inline-flex; align-items:center; gap:.35rem; }
 	.sc-hint { margin-top:.5rem; font-size:var(--fs-caption-sm); color:var(--text-secondary); }
 	.sc-hint kbd { padding:.08rem .3rem; background:var(--bg-tertiary); border-radius:3px; font-family:var(--font-mono); font-size:var(--fs-caption-sm); border:1px solid var(--border-neon); }
+	@media (max-width:720px) {
+		.start-ol { padding:.5rem; align-items:flex-start; }
+		.start-card { max-height:calc(100vh - 1rem); padding:1rem .75rem .85rem; }
+		.sc-logo { max-width:170px; }
+		.band-tabs { display:none; }
+		.band-panel { padding:.65rem; }
+		.band-hero { grid-template-columns:1fr; text-align:center; justify-items:center; gap:.45rem; }
+		.band-emblem { width:58px; height:58px; }
+		.front-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+		.front-opt { min-height:6.4rem; }
+		.front-list { grid-template-columns:1fr; }
+	}
 	@keyframes si { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
 </style>

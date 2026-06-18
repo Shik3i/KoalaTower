@@ -3,6 +3,7 @@
 	import { coinsStore, loadedStore } from '$lib/stores/gameUiStore';
 	import { SITE_URL } from '$lib/version';
 	import FlatlandNews from '$lib/components/FlatlandNews.svelte';
+	import { HOME_SUBTITLES, HOME_SUBTITLE_ROTATION_MS, HOME_SUBTITLE_RESERVED_LINES } from '$lib/home/subtitles';
 
 	const jsonLd = {
 		'@context': 'https://schema.org',
@@ -32,25 +33,13 @@
 		delay: Math.random() * 5,
 	}));
 
-	const subtitles = [
-		'Open source neon cyber idle tower defense',
-		'Your tax dollars, geometrically allocated',
-		'The war against shapes continues. Barely.',
-		'Deploy towers. Question nothing. Refine Alloy.',
-		'Flatland is flat. The war is not.',
-		'Orbital Command has reviewed the situation. It is not great.',
-		'The shapes have formed a committee. It is not going well.',
-		'Every tower loss is a learning opportunity. Command has learned nothing.',
-		'Statistics indicate the situation is statistically inconvenient.',
-		'Orbital Command regrets to inform you that everything is fine. It is not.',
-	];
-
 	let subtitleIdx = $state(0);
 
 	onMount(() => {
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 		const interval = setInterval(() => {
-			subtitleIdx = (subtitleIdx + 1) % subtitles.length;
-		}, 5000);
+			subtitleIdx = (subtitleIdx + 1) % HOME_SUBTITLES.length;
+		}, HOME_SUBTITLE_ROTATION_MS);
 		return () => clearInterval(interval);
 	});
 </script>
@@ -78,7 +67,7 @@
 			<h1 class="title">
 				<img class="hero-logo" src="/branding/flatland-logo-large.svg" alt="Flatland TD logo" />
 			</h1>
-			<p class="subtitle">{subtitles[subtitleIdx]}</p>
+			<p class="subtitle" style="--subtitle-lines:{HOME_SUBTITLE_RESERVED_LINES}">{HOME_SUBTITLES[subtitleIdx]}</p>
 			<p class="description">
 				Flatland is at war. Deploy towers from orbit onto hostile geometric fronts,
 				harvest energy from destroyed shapes to overclock your tower,
@@ -219,7 +208,12 @@
 		font-weight: 600;
 		margin: 0 auto 1.35rem;
 		max-width: 48rem;
+		min-height: calc(var(--subtitle-lines, 2) * 1.25em);
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		letter-spacing: 0;
+		line-height: 1.25;
 		animation: fadeInUp 0.4s ease;
 		transition: opacity 0.3s ease;
 	}
@@ -476,6 +470,8 @@
 		}
 		.subtitle {
 			margin-bottom: 0.8rem;
+			min-height: calc(var(--subtitle-lines, 2) * 1.3em);
+			line-height: 1.3;
 		}
 		.description {
 			line-height: 1.58;
@@ -507,6 +503,13 @@
 		.features {
 			padding: 1rem 1rem 1.5rem;
 			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.subtitle {
+			animation: none;
+			transition: none;
 		}
 	}
 

@@ -26,6 +26,10 @@ export const WEEKLY_SHIPMENT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 export const SCHEMATIC_CONVERSION_RATE = 25;
 export const SUPPORT_URL = '#'; // TODO: replace with the configured project support URL.
 
+export function isSupportUrlConfigured(url = SUPPORT_URL): boolean {
+	return url !== '#';
+}
+
 export const BLACK_MARKET_UNLOCKS: BlackMarketUnlockDef[] = [
 	{
 		id: 'combatTelemetryPlus',
@@ -62,7 +66,7 @@ export const BLACK_MARKET_UNLOCKS: BlackMarketUnlockDef[] = [
 		id: 'outsourcedResearchLab',
 		name: 'Outsourced Research Lab',
 		cost: 40,
-		description: 'Procures an unofficial second lab channel. Slot logic is pending certification.',
+		description: 'Coming later: an unofficial second lab channel. Slot logic is pending certification.',
 		status: 'scaffold',
 	},
 ];
@@ -123,10 +127,11 @@ export function canBuyBlackMarketUnlock(
 	strangeMatter: number,
 	unlocks: BlackMarketUnlocks,
 	id: BlackMarketUnlockId,
-): { ok: boolean; reason?: 'owned' | 'missingRequirement' | 'insufficient' | 'unknown'; def?: BlackMarketUnlockDef } {
+): { ok: boolean; reason?: 'owned' | 'missingRequirement' | 'insufficient' | 'scaffold' | 'unknown'; def?: BlackMarketUnlockDef } {
 	const def = BLACK_MARKET_UNLOCKS.find((u) => u.id === id);
 	if (!def) return { ok: false, reason: 'unknown' };
 	if (hasBlackMarketUnlock(unlocks, id)) return { ok: false, reason: 'owned', def };
+	if (def.status === 'scaffold') return { ok: false, reason: 'scaffold', def };
 	if (def.requirement && !hasBlackMarketUnlock(unlocks, def.requirement)) return { ok: false, reason: 'missingRequirement', def };
 	if (normalizeStrangeMatter(strangeMatter) < def.cost) return { ok: false, reason: 'insufficient', def };
 	return { ok: true, def };

@@ -22,6 +22,7 @@
 		canClaimWeeklyShipment,
 		convertSchematics,
 		hasBlackMarketUnlock,
+		isSupportUrlConfigured,
 		localDayKey,
 		weeklyShipmentRemainingMs,
 		type BlackMarketUnlockId,
@@ -160,6 +161,7 @@
 		if (!result.ok || !result.def) {
 			if (result.reason === 'owned') toast('Already procured. The receipt has vanished.', 'info');
 			else if (result.reason === 'missingRequirement') toast('Prerequisite missing from the manifest.', 'warning');
+			else if (result.reason === 'scaffold') toast('Outsourced Lab procurement is not available yet.', 'info');
 			else toast('Not enough Strange Matter.', 'error');
 			return;
 		}
@@ -478,9 +480,10 @@
 				{@const completedDeploymentToday = localDayKey(lastDailyContractDeploymentAt) === localDayKey(nowTick)}
 				{@const sourceBalance = getSchematics(schematicsByFront, converterSourceFront)}
 				{@const maxConversions = Math.floor(sourceBalance / SCHEMATIC_CONVERSION_RATE)}
+				{@const supportReady = isSupportUrlConfigured(SUPPORT_URL)}
 				<div class="hs">
 					<h2 class="hst">BLACK MARKET</h2>
-					<p class="hsd">Unauthorized Procurement Channel. Orbital Command does not authorize the possession, trade, study, inhalation, resale, or emotional attachment to Strange Matter. Fortunately, this terminal is not connected to Orbital Command.</p>
+					<p class="hsd bm-copy">Unauthorized Procurement Channel. Signal origin unknown. Ledger entries self-delete after being read. Orbital Command does not authorize the possession, trade, study, inhalation, resale, or emotional attachment to Strange Matter. Fortunately, this terminal insists it has never met Orbital Command.</p>
 					<div class="bm-ledger">
 						<div class="ir"><span class="il">Strange Matter</span><span class="iv">◈ {strangeMatter.toLocaleString()}</span></div>
 						<div class="ir"><span class="il">Lifetime Recovered</span><span class="iv">◈ {lifetimeStrangeMatterEarned.toLocaleString()}</span></div>
@@ -493,7 +496,11 @@
 								<p class="hsd">A sealed container has arrived without paperwork, markings, or legal explanation.</p>
 								<p class="hsd">Flatland TD is free, local-first, and open source. Support is appreciated, never required. Payment is never checked. The shipment is yours either way.</p>
 								<div class="bm-actions">
-									<a class="hub-action" class:disabled={SUPPORT_URL === '#'} href={SUPPORT_URL} target="_blank" rel="noopener" aria-disabled={SUPPORT_URL === '#'} title={SUPPORT_URL === '#' ? 'Support URL not configured yet' : 'Support development'}>Fund the next shipment</a>
+									{#if supportReady}
+										<a class="hub-action" href={SUPPORT_URL} target="_blank" rel="noopener" title="Support development">Fund the next shipment</a>
+									{:else}
+										<button class="hub-action" disabled title="Support relay not configured yet">Funding relay unavailable</button>
+									{/if}
 									<button class="hub-action bm-primary" onclick={claimWeeklyShipment}>Accept Shipment (+{STRANGE_MATTER_WEEKLY_SHIPMENT})</button>
 								</div>
 							{:else}
@@ -522,6 +529,8 @@
 									<span class="ucc">◈ {item.cost}</span>
 									{#if owned}
 										<span class="ucnx">OWNED{item.status === 'scaffold' ? ' · UI/logic pending' : ''}</span>
+									{:else if item.status === 'scaffold'}
+										<span class="ucnx">COMING LATER</span>
 									{:else if item.requirement && !reqOk}
 										<span class="ucnx">Requires {BLACK_MARKET_UNLOCKS.find(u => u.id === item.requirement)?.name}</span>
 									{:else}
@@ -768,7 +777,8 @@
 	.hub-danger:hover { border-color:var(--red); color:var(--red); }
 	.bm-ledger { display:grid; gap:3px; max-width:420px; margin-bottom:1rem; }
 	.bm-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; margin-bottom:1rem; }
-	.bm-panel { padding:.85rem 1rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
+	.bm-copy { max-width:760px; color:rgba(210,190,255,.78); text-shadow:0 0 14px rgba(136,68,255,.08); }
+	.bm-panel { padding:.85rem 1rem; background:linear-gradient(135deg,rgba(136,68,255,.055),rgba(0,0,0,.08)),var(--bg-tertiary); border:1px solid rgba(136,68,255,.22); border-radius:var(--radius-sm); box-shadow:inset 0 0 18px rgba(0,0,0,.18); }
 	.bm-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.65rem; }
 	.bm-primary { border-color:rgba(0,255,255,.35); color:var(--cyan); }
 	.converter { margin-top:1rem; max-width:760px; }

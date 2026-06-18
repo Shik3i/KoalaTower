@@ -15,6 +15,7 @@
 	import { APP_VERSION, SUPPORT_URL, GITHUB_URL } from '$lib/version';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
+	import { registerFlatlandServiceWorker } from '$lib/pwa/serviceWorker';
 
 	let { children } = $props();
 
@@ -37,6 +38,7 @@
 		}
 		loaded = true;
 		loadedStore.set(true);
+		registerFlatlandServiceWorker().catch((e) => console.warn('Service worker registration failed:', e));
 
 		document.addEventListener('visibilitychange', visibilityHandler = async () => {
 			if (document.visibilityState === 'hidden') {
