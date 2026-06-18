@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { GITHUB_ISSUES_URL } from '$lib/version';
 	let activeFaq = $state<string | null>(null);
 	let replayMsg = $state('');
 
@@ -445,7 +446,7 @@
 	</section>
 
 	<footer class="help-footer">
-		<p>Still have questions? Open an issue on <a href="https://github.com/Shik3i/KoalaTower/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+		<p>Still have questions? Open an issue on <a href={GITHUB_ISSUES_URL} target="_blank" rel="noopener">GitHub</a>.</p>
 	</footer>
 </div>
 

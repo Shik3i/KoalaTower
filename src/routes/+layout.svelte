@@ -12,7 +12,7 @@
 	import { loadSave, persistSave, getCachedSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore, loadedStore } from '$lib/stores/gameUiStore';
 	import { LAB_DEFS } from '$lib/game/balance/labs';
-	import { APP_VERSION } from '$lib/version';
+	import { APP_VERSION, SUPPORT_URL } from '$lib/version';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
 
@@ -118,7 +118,7 @@
 	</nav>
 	<div class="lf-bottom">
 		<span class="lf-version">{APP_VERSION}</span>
-		<a href="https://support.koalastuff.net" target="_blank" rel="noopener" class="lf-coffee" aria-label="Buy me a coffee">
+		<a href={SUPPORT_URL} target="_blank" rel="noopener" class="lf-coffee" aria-label="Buy me a coffee">
 			☕ Support
 		</a>
 	</div>

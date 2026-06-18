@@ -1,5 +1,7 @@
 export const prerender = true;
 
+import { SITE_URL } from '$lib/version';
+
 export function GET() {
 	const urls = [
 		{ loc: '/', priority: '1.0', changefreq: 'weekly' },
@@ -16,7 +18,7 @@ export function GET() {
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
         http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 ${urls.map(u => `  <url>
-    <loc>https://tower.koalastuff.net${u.loc}</loc>
+    <loc>${SITE_URL}${u.loc}</loc>
     <changefreq>${u.changefreq}</changefreq>
     <priority>${u.priority}</priority>
   </url>`).join('\n')}

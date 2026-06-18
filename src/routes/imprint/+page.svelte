@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { GITHUB_ISSUES_URL } from '$lib/version';
 </script>
 
 <svelte:head>
@@ -29,7 +30,7 @@
 			<h2>📬 Contact</h2>
 			<p>
 				Mastodon: <a href="https://hachyderm.io/@koalastuff" target="_blank" rel="noopener">@koalastuff</a><br>
-				GitHub Issues: <a href="https://github.com/Shik3i/KoalaTower/issues" target="_blank" rel="noopener">Shik3i/KoalaTower</a><br>
+				GitHub Issues: <a href={GITHUB_ISSUES_URL} target="_blank" rel="noopener">Shik3i/KoalaTower</a><br>
 				Email: <a href="mailto:admin@koalastuff.net">admin@koalastuff.net</a>
 			</p>
 		</section>

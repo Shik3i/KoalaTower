@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { coinsStore, loadedStore } from '$lib/stores/gameUiStore';
+	import { SITE_URL } from '$lib/version';
 	import FlatlandNews from '$lib/components/FlatlandNews.svelte';
 
 	const jsonLd = {
@@ -10,7 +11,7 @@
 		applicationCategory: 'GameApplication',
 		operatingSystem: 'Any',
 		description: 'A neon cyber idle tower defense game. Defend your tower against endless waves of digital enemies.',
-		url: 'https://tower.koalastuff.net',
+		url: SITE_URL,
 		author: { '@type': 'Person', name: 'Timo' },
 		offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 	};

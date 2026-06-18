@@ -6,4 +6,7 @@
  */
 export const APP_VERSION: string = import.meta.env.VITE_APP_VERSION || 'DEV';
 
+export const SITE_URL = 'https://tower.koalastuff.net';
 export const GITHUB_URL = 'https://github.com/Shik3i/KoalaTower';
+export const GITHUB_ISSUES_URL = 'https://github.com/Shik3i/KoalaTower/issues';
+export const SUPPORT_URL = 'https://support.koalastuff.net';
