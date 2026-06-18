@@ -14,6 +14,7 @@
 	import { LAB_DEFS } from '$lib/game/balance/labs';
 	import { APP_VERSION, SUPPORT_URL, GITHUB_URL, SITE_URL } from '$lib/version';
 	import { isSupportUrlConfigured } from '$lib/game/balance/blackMarket';
+	import { applyCounterDeltas, rolloverDailyTasks, dailyTasksDateKey } from '$lib/game/balance/dailyTasks';
 	import { writeSeenVersion } from '$lib/stores/whatsNew';
 	import { page } from '$app/state';
 	import Toasts from '$lib/components/Toasts.svelte';
@@ -61,6 +62,7 @@
 			const now = Date.now();
 			let changed = false;
 			let completedLabName = '';
+			let researchCompletions = 0;
 
 			if (save.activeLab && save.activeLab.finishesAt <= now) {
 				const labId = save.activeLab.labId;
@@ -72,6 +74,7 @@
 				completedLabName = (labDef?.name ?? labId) + ' Lv.' + save.activeLab.targetLevel;
 				save.activeLab = null;
 				changed = true;
+				researchCompletions++;
 			}
 
 			// Legacy: also check old-style labResearch
@@ -83,7 +86,14 @@
 					(save.labLevels as Record<string, number>)[item.id] = (rs.level ?? 0) + 1;
 					completedLabName = completedLabName || (item.name + ' Lv.' + ((rs.level ?? 0) + 1));
 					changed = true;
+					researchCompletions++;
 				}
+			}
+
+			if (researchCompletions > 0) {
+				// Count finished Research toward the daily Orbital Command tasks.
+				save.dailyTasks = rolloverDailyTasks(save.dailyTasks, dailyTasksDateKey());
+				save.dailyTasks.counters = applyCounterDeltas(save.dailyTasks.counters, { researchClaims: researchCompletions });
 			}
 
 			if (changed) {

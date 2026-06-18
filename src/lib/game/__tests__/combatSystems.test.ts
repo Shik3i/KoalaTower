@@ -148,6 +148,8 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
 			enemiesSpawnedInSubWave: 5,
 			subWavePauseTimer: 0,
 			subWaveActive: false,
+			killsByTypeThisWave: {},
+			lastWaveKillsByType: {},
 		},
 		enemies: [],
 		projectiles: [],
@@ -175,6 +177,8 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
 		shinyKillsByType: {},
 		masteryDmgBonus: {},
 		critsDealt: 0,
+		energySpentThisRun: 0,
+		firstTowerDamageWave: 0,
 		killstreak: { count: 0, timer: 0, best: 0, lastMilestone: 0 },
 		...overrides,
 	};

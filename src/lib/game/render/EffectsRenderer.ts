@@ -1,6 +1,8 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
-import { GAME_CONFIG } from '../engine/gameConfig';
+import { GAME_CONFIG, BETWEEN_WAVE_TIME } from '../engine/gameConfig';
+import { ENEMY_COLORS } from '../balance/balanceMath';
 import type { GameSettings, Particle, DamageNumber, DamageNumberKind, Shockwave, DeathEffect } from '../engine/gameTypes';
+import { EnemyType } from '../engine/gameTypes';
 
 // ─── Instance-level particle pool ───────────────────────────────────────────
 
@@ -39,6 +41,37 @@ export function resolveKindStyle(kind?: DamageNumberKind): KindStyle {
 	return KIND_STYLE[kind ?? 'damage'] ?? KIND_STYLE.damage!;
 }
 
+/**
+ * Per-kind neon fill colours. Mirrors FLOATING_TEXT_COLORS from enemySystem so
+ * the canvas popups and any HUD reference agree, but duplicated here so the
+ * renderer does not need to import the system module at module-load time.
+ * Distinct hues make damage / crits / energy / alloy / chain instantly
+ * distinguishable on a busy battlefield.
+ */
+const KIND_FILL: Record<DamageNumberKind, number> = {
+	damage:    0xF0F4FF, // near-white blue — basic hits stay quiet
+	crit:      0xFFDD44, // neon yellow — crits pop
+	energy:    0x44FFC8, // mint cyan — resource gain, clearly not damage
+	alloy:     0xFFD24A, // warm gold — premium currency
+	strange:   0xCC66FF, // violet — strange loot
+	schematic: 0x66E6FF, // sky blue — schematic unlock
+	chain:     0xFFAA44, // orange — killstreak milestone
+	error:     0xFF5577, // red — failure / denial
+};
+
+/**
+ * Per enemy-type display meta for the wave-announce chip rows. Glyphs match
+ * the shape vocabulary used on the battlefield (square / diamond / hexagon /
+ * triangle / pentagon) so players can learn the colour+shape code at a glance.
+ */
+const ENEMY_CHIP_META: Record<EnemyType, { glyph: string; color: number }> = {
+	[EnemyType.Normal]:  { glyph: '■',  color: ENEMY_COLORS[EnemyType.Normal]  },
+	[EnemyType.Fast]:    { glyph: '◆',  color: ENEMY_COLORS[EnemyType.Fast]    },
+	[EnemyType.Tank]:    { glyph: '⬢',  color: ENEMY_COLORS[EnemyType.Tank]    },
+	[EnemyType.Ranged]:  { glyph: '▲',  color: ENEMY_COLORS[EnemyType.Ranged]  },
+	[EnemyType.Boss]:    { glyph: '⬟',  color: ENEMY_COLORS[EnemyType.Boss]    },
+};
+
 export class EffectsRenderer {
 	public particleContainer = new Container();
 	public shockwaveContainer = new Container();
@@ -68,6 +101,16 @@ export class EffectsRenderer {
 	private waveAccentLine = new Graphics();
 	private waveVisible = false;
 
+	// "Last wave recap" + "Next wave preview" rows — appear under the wave
+	// number during the inter-wave gap. Each row is a label plus up to 4
+	// (icon + count) chips, one per enemy type. Icons are Unicode shapes
+	// coloured to match each enemy type so players learn the colour code.
+	private waveRecapLabel = new Text({ text: 'LAST WAVE', style: { fontFamily: '"SF Mono","Fira Code",monospace', fontSize: 10, fontWeight: '600', fill: 0x8AA0C8, letterSpacing: 2 } });
+	private waveNextLabel = new Text({ text: 'NEXT WAVE', style: { fontFamily: '"SF Mono","Fira Code",monospace', fontSize: 10, fontWeight: '600', fill: 0x8AA0C8, letterSpacing: 2 } });
+	private waveRecapChips: Text[] = [];
+	private waveNextChips: Text[] = [];
+	private static readonly MAX_CHIPS_PER_ROW = 5;
+
 	constructor() {
 		// Set up wave announce objects (hidden by default)
 		this.waveBg.visible = false;
@@ -87,6 +130,19 @@ export class EffectsRenderer {
 		this.waveNum.anchor.set(0.5); this.waveContainer.addChild(this.waveNum);
 		this.waveSub.anchor.set(0.5); this.waveContainer.addChild(this.waveSub);
 		this.waveContainer.addChild(this.waveAccentLine);
+
+		// Recap / preview chip rows — pre-allocate up to MAX_CHIPS_PER_ROW per side.
+		this.waveRecapLabel.anchor.set(0, 0.5); this.waveRecapLabel.visible = false; this.waveContainer.addChild(this.waveRecapLabel);
+		this.waveNextLabel.anchor.set(0, 0.5); this.waveNextLabel.visible = false; this.waveContainer.addChild(this.waveNextLabel);
+		const chipStyle = { fontFamily: '"SF Mono","Fira Code",monospace', fontSize: 13, fontWeight: 'bold' as const, fill: 0xFFFFFF };
+		for (let i = 0; i < EffectsRenderer.MAX_CHIPS_PER_ROW; i++) {
+			const rc = new Text({ text: '', style: chipStyle });
+			rc.anchor.set(0, 0.5); rc.visible = false; this.waveContainer.addChild(rc);
+			this.waveRecapChips.push(rc);
+			const nc = new Text({ text: '', style: chipStyle });
+			nc.anchor.set(0, 0.5); nc.visible = false; this.waveContainer.addChild(nc);
+			this.waveNextChips.push(nc);
+		}
 
 		// Blend modes for neon glow
 		this.particleContainer.blendMode = 'add';
@@ -141,9 +197,16 @@ export class EffectsRenderer {
 
 	// ─── Text helpers (instance methods) ─────────────────────────────────────
 	// Pool entries are keyed by `kind` — each kind has a fixed font size,
-	// weight, and stroke width (see KIND_STYLE). Color travels per-message
-	// via tint so the cache stays small without flattening crit / energy /
-	// alloy / etc. into the same visual.
+	// weight, stroke width, AND its own neon fill colour baked into the
+	// TextStyle. We deliberately do NOT rely on `tint` to colour the glyphs:
+	// Pixi v8 Text applies tint as a multiply over the style fill, which is
+	// fragile across canvas/WebGL paths and previously left numbers reading
+	// as a flat colour instead of distinct cyan / yellow / pink popups.
+	// Per-kind fill keeps crits, energy, alloy, etc. visually unmistakable.
+	//
+	// Exception: the `chain` kind escalates colour per milestone tier
+	// (cyan → yellow → pink → violet → fire). It is rare (max 8 fires per
+	// run) so we eat the re-rasterize cost and rewrite style.fill per message.
 
 	private getText(kind: DamageNumberKind, color: number): PooledText {
 		const f = this.textPool.find(e => !e.active && e.kind === kind);
@@ -151,20 +214,27 @@ export class EffectsRenderer {
 			f.active = true;
 			f.t.visible = true;
 			f.t.alpha = 1;
-			f.t.tint = color;
+			if (kind === 'chain') f.t.style.fill = color;
 			return f;
 		}
 		const style = resolveKindStyle(kind);
+		const fill = kind === 'chain' ? color : (KIND_FILL[kind] ?? 0xF0F4FF);
 		const ts = new TextStyle({
 			fontFamily: '"SF Mono","Fira Code",monospace',
 			fontSize: style.fontSize,
 			fontWeight: style.fontWeight,
-			fill: 0xFFFFFF,
+			fill,
 			stroke: { color: 0x000000, width: style.strokeWidth },
+			dropShadow: {
+				color: 0x000000,
+				alpha: Math.round(style.strokeWidth * 0.6) / 10,
+				blur: 2,
+				distance: 2,
+				angle: Math.PI / 4,
+			},
 		});
-		const t = new Text({ text: '', style });
+		const t = new Text({ text: '', style: ts });
 		t.anchor.set(0.5);
-		t.tint = color;
 		this.textContainer.addChild(t);
 		const entry: PooledText = { t, active: true, kind };
 		this.textPool.push(entry);
@@ -364,15 +434,29 @@ export class EffectsRenderer {
 		inner.moveTo(-hw, hw).lineTo(hw, -hw).stroke({ width: 0.8, color: p.color, alpha: 0.5 });
 	}
 
-	syncWaveAnnounce(currentWave: number, enemiesInWave: number, betweenWaveTimer: number, waveActive: boolean, vw: number, vh: number): void {
+	syncWaveAnnounce(
+		currentWave: number,
+		enemiesInWave: number,
+		betweenWaveTimer: number,
+		waveActive: boolean,
+		vw: number,
+		vh: number,
+		recapKills: Partial<Record<EnemyType, number>> = {},
+		nextWaveTypes: EnemyType[] = [],
+		nextWaveIsBoss: boolean = false,
+	): void {
 		if (waveActive || currentWave <= 0) {
 			if (this.waveVisible) { this.hideAllWaveObjects(); this.waveVisible = false; }
 			return;
 		}
 
-		const progress = Math.min(1, betweenWaveTimer / 3.0);
-		const fadeIn = Math.min(1, progress * 2);
-		const fadeOut = Math.max(0, Math.min(1, (1 - progress) * 4));
+		// Fit the fade to the actual gap so the announce reaches full opacity
+		// well before the next wave starts and only fades out at the very end.
+		// Fade-in occupies the first ~33%, full-opacity dwell covers the middle,
+		// fade-out occupies the last ~15%.
+		const progress = Math.min(1, betweenWaveTimer / BETWEEN_WAVE_TIME);
+		const fadeIn = Math.min(1, progress * 3);
+		const fadeOut = progress > 0.85 ? Math.max(0, (1 - progress) / 0.15) : 1;
 		const alpha = Math.min(fadeIn, fadeOut);
 
 		if (alpha < 0.01) {
@@ -385,18 +469,29 @@ export class EffectsRenderer {
 		// Place overlay in the upper third, well above the tower centre
 		const cx = w / 2, cy = h * 0.28;
 		const upcoming = currentWave + 1;
-		const isBoss = upcoming % 10 === 0;
+		const isBoss = nextWaveIsBoss || upcoming % 10 === 0;
 		const total = enemiesInWave || 0;
 
 		this.waveContainer.alpha = alpha;
 
-		// Dark translucent backdrop behind all wave announcements
+		// Dark translucent backdrop behind all wave announcements. Extra headroom
+		// when recap/preview rows are present so they never kiss the border.
+		const hasRecap = Object.values(recapKills).some(v => (v ?? 0) > 0);
 		const bgW = Math.max(320, w * 0.65);
-		const bgH = isBoss ? 210 : 150;
+		const bgH = isBoss ? 230 : (hasRecap ? 210 : 150);
 		this.waveBg.clear();
-		this.waveBg.roundRect(cx - bgW / 2, cy - bgH / 2 - 10, bgW, bgH + 20, 12).fill({ color: 0x000000, alpha: 0.55 });
-		this.waveBg.roundRect(cx - bgW / 2, cy - bgH / 2 - 10, bgW, bgH + 20, 12).stroke({ width: 1, color: isBoss ? GAME_CONFIG.NEON_PINK : GAME_CONFIG.NEON_CYAN, alpha: 0.12 });
+		this.waveBg.roundRect(cx - bgW / 2, cy - bgH / 2 - 10, bgW, bgH + 20, 14).fill({ color: 0x000000, alpha: 0.68 });
+		this.waveBg.roundRect(cx - bgW / 2, cy - bgH / 2 - 10, bgW, bgH + 20, 14).stroke({ width: 1.5, color: isBoss ? GAME_CONFIG.NEON_PINK : GAME_CONFIG.NEON_CYAN, alpha: 0.28 });
 		this.waveBg.visible = true;
+
+		// Compute recap / preview chip layouts (shared by both branches).
+		this.layoutWaveChipRow(this.waveRecapLabel, this.waveRecapChips, cx, cy + 78, recapKills, false);
+		// Preview row sits 22px below the recap row when recap is present,
+		// otherwise directly under the wave sub-text.
+		const nextY = hasRecap ? cy + 100 : cy + 78;
+		const previewCounts: Partial<Record<EnemyType, number>> = {};
+		for (const t of nextWaveTypes) previewCounts[t] = (previewCounts[t] ?? 0) + 1;
+		this.layoutWaveChipRow(this.waveNextLabel, this.waveNextChips, cx, nextY, previewCounts, true, isBoss);
 
 		if (isBoss) {
 			this.waveBossBg.clear(); this.waveBossBg.rect(0, cy - 110, w, 220).fill({ color: GAME_CONFIG.NEON_PINK, alpha: 0.06 });
@@ -423,12 +518,76 @@ export class EffectsRenderer {
 		}
 	}
 
+	/**
+	 * Lay out a single chip row (label + up to MAX_CHIPS_PER_ROW coloured
+	 * icon/count chips). Hides any unused chips. `qualifying` filters types
+	 * with a count > 0; preview rows pass `previewCounts` whose values are
+	 * presence markers (so all eligible upcoming types show up).
+	 */
+	private layoutWaveChipRow(
+		label: Text,
+		chips: Text[],
+		cx: number,
+		y: number,
+		counts: Partial<Record<EnemyType, number>>,
+		isPreview: boolean,
+		isBossWave: boolean = false,
+	): void {
+		// Build the chip list (type + count), filtering zero entries.
+		const typesInOrder: EnemyType[] = [EnemyType.Boss, EnemyType.Normal, EnemyType.Fast, EnemyType.Tank, EnemyType.Ranged];
+		const items: { type: EnemyType; count: number }[] = [];
+		for (const t of typesInOrder) {
+			const c = counts[t] ?? 0;
+			if (c > 0) items.push({ type: t, count: isPreview ? 0 : c });
+		}
+		// Boss icon forced onto the preview row for boss waves even if the
+		// caller didn't pass a Boss type (it spawns at the end of the wave).
+		if (isPreview && isBossWave && !items.some(i => i.type === EnemyType.Boss)) {
+			items.unshift({ type: EnemyType.Boss, count: 0 });
+		}
+
+		// No items → hide the entire row.
+		if (items.length === 0) {
+			label.visible = false;
+			for (const c of chips) c.visible = false;
+			return;
+		}
+
+		// Update text contents + colours first so width() is correct.
+		label.visible = true;
+		const used = Math.min(items.length, EffectsRenderer.MAX_CHIPS_PER_ROW);
+		let totalWidth = label.width + 16; // label + gap before first chip
+		for (let i = 0; i < chips.length; i++) {
+			const chip = chips[i]!;
+			if (i >= used) { chip.visible = false; continue; }
+			const it = items[i]!;
+			const meta = ENEMY_CHIP_META[it.type];
+			chip.text = isPreview ? meta.glyph : `${meta.glyph} ${it.count}`;
+			chip.style.fill = meta.color;
+			chip.visible = true;
+			totalWidth += chip.width + 14;
+		}
+		// Centre the whole row horizontally under cx.
+		let x = cx - totalWidth / 2;
+		label.x = x; label.y = y;
+		x += label.width + 16;
+		for (let i = 0; i < used; i++) {
+			const chip = chips[i]!;
+			chip.x = x; chip.y = y;
+			x += chip.width + 14;
+		}
+	}
+
 	private hideAllWaveObjects(): void {
 		this.waveBg.visible = false;
 		this.waveBossBg.visible = false; this.waveBossLine1.visible = false; this.waveBossLine2.visible = false;
 		this.waveBossLabel.visible = false; this.waveBossNum.visible = false; this.waveBossSub.visible = false;
 		this.waveLabel.visible = false; this.waveNum.visible = false; this.waveSub.visible = false;
 		this.waveAccentLine.visible = false;
+		this.waveRecapLabel.visible = false;
+		this.waveNextLabel.visible = false;
+		for (const c of this.waveRecapChips) c.visible = false;
+		for (const c of this.waveNextChips) c.visible = false;
 	}
 
 	resetPools(): void {
@@ -436,6 +595,7 @@ export class EffectsRenderer {
 		for (const p of this.particlePool) { p.active = false; p.g.clear(); p.g.rotation = 0; this.particleFree.push(p); }
 		for (const t of this.textPool) { t.active = false; t.lastText = undefined; t.t.visible = false; }
 		for (const d of this.deathPool) { d.active = false; d.gfx.visible = false; d.inner.visible = false; }
+		this.hideAllWaveObjects();
 	}
 
 	destroy(): void {

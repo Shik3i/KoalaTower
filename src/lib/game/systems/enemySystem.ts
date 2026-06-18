@@ -20,10 +20,10 @@ let _addDeathEffect: ((enemy: Enemy) => void) | null = null;
 let _onKillstreakMilestone: ((count: number) => void) | null = null;
 
 export const FLOATING_TEXT_COLORS: Record<DamageNumberKind, number> = {
-	damage: 0xF0F4FF,
+	damage: 0xF0F4FF,    // near-white — basic hits stay quiet
 	crit: GAME_CONFIG.NEON_YELLOW,
-	energy: GAME_CONFIG.NEON_CYAN,
-	alloy: GAME_CONFIG.NEON_YELLOW,
+	energy: 0x44FFC8,    // mint cyan — distinct from cyan Normal enemies
+	alloy: 0xFFD24A,     // warm gold — premium currency
 	strange: 0xCC66FF,
 	schematic: 0x66E6FF,
 	chain: 0xFFAA44,
@@ -89,6 +89,9 @@ export function processEnemyDeath(state: GameState, target: Enemy, isCrit = fals
 	state.wave.enemiesKilled++;
 	state.killsByType = state.killsByType ?? {};
 	state.killsByType[target.type] = (state.killsByType[target.type] ?? 0) + 1;
+	// Per-wave breakdown — drives the "Last wave recap" row of the announce.
+	state.wave.killsByTypeThisWave = state.wave.killsByTypeThisWave ?? {};
+	state.wave.killsByTypeThisWave[target.type] = (state.wave.killsByTypeThisWave[target.type] ?? 0) + 1;
 	if (target.isShiny) {
 		state.shinyKillsByType = state.shinyKillsByType ?? {};
 		state.shinyKillsByType[target.type] = (state.shinyKillsByType[target.type] ?? 0) + 1;

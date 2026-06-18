@@ -9,6 +9,8 @@ import { EnemyRenderer } from './EnemyRenderer';
 import { ProjectileRenderer } from './ProjectileRenderer';
 import { EffectsRenderer } from './EffectsRenderer';
 import { generateStars } from './renderUtils';
+import { availableEnemyTypes } from '../balance/balanceMath';
+import { ChallengeId, EnemyType, type GameState } from '../engine/gameTypes';
 
 export type MuzzleFlashCallback = () => void;
 
@@ -238,6 +240,7 @@ export class PixiGameView {
 		this.effects.syncShockwaves(this.engine.shockwaves, settings);
 		this.effects.syncDamageNumbers(this.engine.damageNumbers, settings);
 		this.effects.syncDeathEffects(this.engine.deathEffects, settings, effTime);
+		const nextIsBoss = isNextWaveBoss(state);
 		this.effects.syncWaveAnnounce(
 			state.wave.currentWave,
 			state.wave.enemiesInWave,
@@ -245,6 +248,9 @@ export class PixiGameView {
 			state.wave.waveActive,
 			this.app.screen.width,
 			this.app.screen.height,
+			state.wave.killsByTypeThisWave ?? {},
+			previewNextWaveTypes(state, nextIsBoss),
+			nextIsBoss,
 		);
 
 		this.app.render();
@@ -294,4 +300,28 @@ export class PixiGameView {
 		}
 		this.initialized = false;
 	}
+}
+
+/**
+ * Mirror of the waveSystem boss-wave predicate — true on every 10th wave AND
+ * for every wave during the BossRush challenge. Kept here (not imported) so
+ * the renderer does not pull in the system module at module-load time.
+ */
+function isNextWaveBoss(state: GameState): boolean {
+	const upcoming = state.wave.currentWave + 1;
+	return upcoming % 10 === 0 || state.activeChallenge === ChallengeId.BossRush;
+}
+
+/**
+ * Compute the enemy types eligible for the upcoming wave so the inter-wave
+ * announce can preview them. De-duplicates the weighted `availableEnemyTypes`
+ * list (which acts as spawn-weight duplicates). Boss is appended for boss
+ * waves so the preview row shows the boss glyph.
+ */
+function previewNextWaveTypes(state: GameState, isBossWave: boolean): EnemyType[] {
+	const upcoming = state.wave.currentWave + 1;
+	const front = state.tier ?? 1;
+	const eligible = Array.from(new Set(availableEnemyTypes(upcoming, front)));
+	if (isBossWave && !eligible.includes(EnemyType.Boss)) eligible.push(EnemyType.Boss);
+	return eligible;
 }

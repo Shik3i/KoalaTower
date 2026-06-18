@@ -23,6 +23,12 @@ import { getWaveCompletionBonus, getWaveCoinReward } from './economySystem';
 import { SUB_WAVES, SUB_WAVE_PAUSE, BETWEEN_WAVE_TIME } from '../engine/gameConfig';
 
 export function startNewWave(state: GameState): void {
+	// Snapshot the wave we are leaving before the counters reset, so the
+	// inter-wave announce can show a "Last wave recap" row. The first call
+	// (currentWave 0 → 1) snapshots an empty object — no recap shown.
+	state.wave.lastWaveKillsByType = state.wave.killsByTypeThisWave ?? {};
+	state.wave.killsByTypeThisWave = {};
+
 	state.wave.currentWave++;
 	resetBossEscortCounter();
 

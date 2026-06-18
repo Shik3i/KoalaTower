@@ -53,6 +53,10 @@ const SIGNAL_STATUS: string[] = [
 // ═══════════════════════════════════════════════════════════════════════════
 
 const SHIPMENT_FLAVOUR: string[] = [
+	'An unmarked freighter arrives with a humming container.',
+	'A freighter with no transponder docks just long enough to offload one crate.',
+	'A heavy container is rolled off the ramp. It is, faintly, vibrating.',
+	'The shipment freighter idles in the dark. Its manifest is one blank page.',
 	'New shipment arrived. Source claims it "fell off a geometry transport."',
 	'Weekly delivery logged. Contents inspected by no one official.',
 	'Shipment confirmed. The vendor describes these as "reclaimed Alloy byproducts." Sure.',
@@ -103,7 +107,23 @@ const SHIPMENT_ACCEPTED: string[] = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Daily contract flavour — shown alongside the contract panel
+// Daily Strange Matter pickup flavour — a quiet once-a-day handoff at the
+// counter. No deployment required; the vendor simply slips you a little.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const DAILY_PICKUP_FLAVOUR: string[] = [
+	'A gloved hand slides a warm vial across the counter.',
+	'No invoice. No signature. No questions.',
+	'The vendor nudges a small vial forward and looks away.',
+	'A warm vial appears on the counter. Nobody saw who left it.',
+	'"On the house," the vendor says, sliding it over. It is not on any house\'s books.',
+	'A discreet handoff. The vial is warm. The transaction never happened.',
+	'The vendor pockets nothing and hands you a vial anyway.',
+	'A small allocation, quietly transferred. Standard courtesy. Off the record.',
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Daily contract flavour — legacy pool, retained for back-compat tests
 // ═══════════════════════════════════════════════════════════════════════════
 
 const CONTRACT_FLAVOUR: string[] = [
@@ -165,12 +185,14 @@ export const blackMarketCopy = {
 	signalStatus: () => pick(SIGNAL_STATUS),
 	shipmentFlavour: () => pick(SHIPMENT_FLAVOUR),
 	shipmentAccepted: () => pick(SHIPMENT_ACCEPTED),
+	dailyPickup: () => pick(DAILY_PICKUP_FLAVOUR),
 	contractFlavour: () => pick(CONTRACT_FLAVOUR),
 	outsourcedLabTeaser: () => pick(OUTSOURCED_LAB_TEASER),
 	channelIntro: () => CHANNEL_INTRO,
 	signalStatusAll: SIGNAL_STATUS,
 	shipmentFlavourAll: SHIPMENT_FLAVOUR,
 	shipmentAcceptedAll: SHIPMENT_ACCEPTED,
+	dailyPickupAll: DAILY_PICKUP_FLAVOUR,
 	contractFlavourAll: CONTRACT_FLAVOUR,
 	outsourcedLabTeaserAll: OUTSOURCED_LAB_TEASER,
 };

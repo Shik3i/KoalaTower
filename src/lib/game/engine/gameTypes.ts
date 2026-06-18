@@ -441,6 +441,12 @@ export interface WaveState {
 	enemiesSpawnedInSubWave: number;
 	subWavePauseTimer: number;
 	subWaveActive: boolean;
+	/** Per-type kill counts for the wave currently in progress. Reset on
+	 *  startNewWave after snapshotting into lastWaveKillsByType. */
+	killsByTypeThisWave: Partial<Record<EnemyType, number>>;
+	/** Per-type kill counts from the most recently completed wave — drives
+	 *  the "Last wave recap" row of the inter-wave announcement. */
+	lastWaveKillsByType: Partial<Record<EnemyType, number>>;
 }
 
 export interface GameState {
@@ -482,6 +488,10 @@ export interface GameState {
 	masteryDmgBonus: Partial<Record<EnemyType, number>>;
 	/** Crits dealt this run. */
 	critsDealt: number;
+	/** Energy spent on Field upgrades this run (for daily-task tracking). */
+	energySpentThisRun: number;
+	/** Wave at which the tower first took damage this run (0 = never damaged). */
+	firstTowerDamageWave: number;
 	/**
 	 * Cosmetic-only consecutive-kill counter. Rendering concern — never
 	 * feeds into economy, damage, or progression. Reset by startRun.

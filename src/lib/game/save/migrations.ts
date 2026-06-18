@@ -1,6 +1,10 @@
 import { CURRENT_SCHEMA_VERSION, type SaveData } from './saveTypes';
-import { BlueprintId, AchievementId, TierId, DEFAULT_SETTINGS, type GameSettings } from '../engine/gameTypes';
+import { BlueprintId, AchievementId, TierId, WorkshopUpgradeId, DEFAULT_SETTINGS, type GameSettings } from '../engine/gameTypes';
 import { computeGrandfatheredBlueprints } from '../balance/blueprints';
+import { FORGE_ECONOMY_WORKSHOP_IDS } from '../balance/workshopUpgrades';
+import { getForgeUpgradeDef } from '../balance/forgeUpgrades';
+import { createDefaultDailyTasksState, type DailyTasksState } from '../balance/dailyTasks';
+import type { UpgradeId } from '../engine/gameTypes';
 import { emptySchematics, normalizeSchematics } from '../balance/schematics';
 import { normalizeBlackMarketUnlocks, normalizeStrangeMatter, normalizeTimestamp } from '../balance/blackMarket';
 
@@ -82,6 +86,9 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		if (version < 14) {
 			save = migrateV13toV14(save);
 		}
+		if (version < 15) {
+			save = migrateV14toV15(save);
+		}
 
 		save = ensureMetadata(save);
 
@@ -106,6 +113,8 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 		highestWave: (data.highestWave as number) || 0,
 		totalCoins: (data.totalCoins as number) || 0,
 		workshopUpgrades: (data.workshopUpgrades as Record<string, number>) || {},
+		forgeUpgrades: {},
+		dailyTasks: createDefaultDailyTasksState(),
 		labResearch: {},
 		labLevels: (data.labLevels as Record<string, number>) || {},
 		blueprints: [],
@@ -362,6 +371,30 @@ function migrateV13toV14(save: SaveData): SaveData {
 	};
 }
 
+function migrateV14toV15(save: SaveData): SaveData {
+	// v15: Forge/Field unification. Combat Forge stats now live in `forgeUpgrades`
+	// keyed by the shared Field UpgradeId. Per the model correction, existing
+	// combat Forge investment is WIPED (no refund) — forgeUpgrades starts empty —
+	// and the legacy combat WorkshopUpgradeId entries are stripped from
+	// workshopUpgrades, leaving only the three economy upgrades. Already-owned
+	// blueprints (grandfathered in earlier migrations) are untouched.
+	const economy = new Set<string>(FORGE_ECONOMY_WORKSHOP_IDS as string[]);
+	const oldWs = (save as any).workshopUpgrades;
+	const trimmedWs: Partial<Record<WorkshopUpgradeId, number>> = {};
+	if (oldWs && typeof oldWs === 'object' && !Array.isArray(oldWs)) {
+		for (const [k, v] of Object.entries(oldWs as Record<string, unknown>)) {
+			if (economy.has(k)) trimmedWs[k as WorkshopUpgradeId] = normalizeNonNegativeInteger(v);
+		}
+	}
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		workshopUpgrades: trimmedWs,
+		forgeUpgrades: {},
+		dailyTasks: createDefaultDailyTasksState(),
+	};
+}
+
 function migrateV8toV9(save: SaveData): SaveData {
 	// v9 adds per-front best waves for sequential front unlocking.
 	// All prior play happened on Front 1, so grandfather global best there.
@@ -452,6 +485,8 @@ function ensureMetadata(save: SaveData): SaveData {
 		claimedSchematicMilestones: Array.isArray((save as any).claimedSchematicMilestones)
 			? (save as any).claimedSchematicMilestones
 			: [],
+		forgeUpgrades: normalizeForgeUpgrades((save as any).forgeUpgrades),
+		dailyTasks: normalizeDailyTasks((save as any).dailyTasks),
 		strangeMatter: normalizeStrangeMatter((save as any).strangeMatter),
 		lifetimeStrangeMatterEarned: normalizeStrangeMatter((save as any).lifetimeStrangeMatterEarned),
 		lastWeeklyBlackMarketShipmentClaimedAt: normalizeTimestamp((save as any).lastWeeklyBlackMarketShipmentClaimedAt),
@@ -473,6 +508,45 @@ function normalizeFrontBestWave(raw: unknown, highestWave = 0): Partial<Record<T
 		if (allowed.has(key as TierId)) out[key as TierId] = normalizeNonNegativeInteger(value);
 	}
 	return Object.keys(out).length > 0 ? out : fallback;
+}
+
+/** Validate/repair the daily-tasks block, falling back to a fresh default. */
+function normalizeDailyTasks(raw: unknown): DailyTasksState {
+	const def = createDefaultDailyTasksState();
+	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return def;
+	const r = raw as Record<string, unknown>;
+	const slots = Array.isArray(r.claimedTaskSlots)
+		? (r.claimedTaskSlots as unknown[]).map((n) => normalizeNonNegativeInteger(n)).filter((n) => n < 25)
+		: [];
+	const milestones = Array.isArray(r.claimedMilestones)
+		? (r.claimedMilestones as unknown[]).map((n) => normalizeNonNegativeInteger(n)).filter((n) => [5, 10, 15, 20, 25].includes(n))
+		: [];
+	const counters: Record<string, number> = {};
+	if (r.counters && typeof r.counters === 'object' && !Array.isArray(r.counters)) {
+		for (const [k, v] of Object.entries(r.counters as Record<string, unknown>)) {
+			counters[k] = normalizeNonNegativeInteger(v);
+		}
+	}
+	return {
+		date: typeof r.date === 'string' ? r.date : '',
+		completedCount: Math.min(25, normalizeNonNegativeInteger(r.completedCount)),
+		claimedTaskSlots: Array.from(new Set(slots)),
+		claimedMilestones: Array.from(new Set(milestones)),
+		counters: counters as DailyTasksState['counters'],
+	};
+}
+
+/** Keep only valid Forge UpgradeId keys, clamped to each path's permanent cap. */
+function normalizeForgeUpgrades(raw: unknown): Partial<Record<UpgradeId, number>> {
+	const out: Partial<Record<UpgradeId, number>> = {};
+	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+	for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+		const def = getForgeUpgradeDef(key as UpgradeId);
+		if (!def) continue;
+		const lv = Math.min(normalizeNonNegativeInteger(value), def.maxLevel);
+		if (lv > 0) out[key as UpgradeId] = lv;
+	}
+	return out;
 }
 
 function normalizeCounterMap<T extends string>(raw: unknown): Partial<Record<T, number>> {

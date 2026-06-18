@@ -23,7 +23,7 @@
 		{
 			id: 'black-market',
 			q: 'What is the Black Market?',
-			a: 'The Black Market is an unofficial Orbital Command terminal for Strange Matter quality-of-life systems. Weekly shipments and Daily Contracts are local-first pacing tools, not secure enforcement. Support is appreciated and never required; the shipment reward is not gated by payment. Black Market unlocks are infrastructure and convenience, not raw combat power.',
+			a: 'The Black Market is an unofficial Orbital Command terminal for Strange Matter (◈) quality-of-life systems. Once unlocked, you can quietly pick up +1 Strange Matter once per local day — no deployment needed, just stop by — and a separate Weekly Shipment delivers +3 on its own cooldown. Both are local-first pacing tools with no streaks and no punishment for missing days. This is entirely separate from the official Orbital Command Tasks (which pay Alloy). Support is appreciated and never required; nothing is gated by payment. Black Market unlocks are infrastructure and convenience, not raw combat power.',
 		},
 		{
 			id: 'enemies',
@@ -38,7 +38,7 @@
 		{
 			id: 'battle-upgrades',
 			q: 'How do Field Upgrades work?',
-			a: 'During a deployment, the right panel shows Field Upgrades in three categories: Offense (Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier), Defense (Defense, Max HP), Utility (Energy Amp). Spend Energy (⚡) to overclock your tower. All Field Upgrades are lost when the tower is destroyed. Orbital Command describes this as "performance-based incentive architecture."',
+			a: 'During a deployment, the right panel shows Field Upgrades in three categories: Offense (Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier), Defense (Defense, Max HP), Utility (Energy Amp). Spend Energy (⚡) to overclock your tower. Each deployment STARTS at your permanent Forge level for that stat and continues the same curve from there — the card shows the current effective value, and the cost picks up where the Forge left off. All Field levels bought with Energy are lost when the tower is destroyed (the Forge starting levels are permanent). Orbital Command describes this as "performance-based incentive architecture."',
 		},
 		{
 			id: 'upgrade-caps',
@@ -48,7 +48,7 @@
 		{
 			id: 'workshop',
 			q: 'What is the Forge?',
-			a: 'The Forge (⚙) contains permanent pre-installed tower upgrades bought with Alloy (🔩): Base Damage, Base Fire Rate, Base Range, Starting HP, Alloy Bonus, Energy Bonus, Crit Bonus, Starting Energy. These improve the tower blueprint and apply to every deployment. Reconstructed Schematics do not make you stronger by themselves. They authorize new ways to make questionable decisions.',
+			a: 'The Forge (⚙) sets the permanent starting level of your Field Upgrades, bought with Alloy (🔩). Combat stats (Damage, Max HP, Attack Speed, Range, Crit Chance, Crit Multiplier, Defense, etc.) share ONE curve with the in-deployment Field Upgrades: a Forge level equals that many Field levels — same value — and the next in-run purchase continues from where the Forge left off (cost included). For example, Forge Max HP Lv.1 starts you at 200 HP, exactly like buying one Max HP in deployment. Research multiplies on top of that. A few economy upgrades (Alloy Bonus, Energy Bonus, Starting Energy) have no Field equivalent and stay permanent-only.',
 		},
 		{
 			id: 'lab',
@@ -215,7 +215,7 @@
 				<div class="info-icon">◈</div>
 				<h3>Strange Matter</h3>
 				<span class="info-badge">Contraband QoL</span>
-				<p>Rare local-first currency from weekly shipments and Daily Contracts. It is not sold and not checked against support payments. Spent on Black Market quality-of-life systems like speed options, Auto Deployment, and the Schematic Converter.</p>
+				<p>Rare local-first currency from the Black Market: a +1 daily pickup and a +3 weekly shipment. It is not sold and not checked against support payments. Spent on Black Market quality-of-life systems like speed options, Auto Deployment, and the Schematic Converter. (Official daily work pays Alloy, not Strange Matter — see Orbital Command Tasks.)</p>
 			</div>
 		</div>
 	</section>
@@ -224,9 +224,9 @@
 		<h2>BLACK MARKET</h2>
 		<p class="section-desc">Unauthorized Procurement Channel. Black Market upgrades are unofficial quality-of-life systems. Orbital Command denies using them. Orbital Command is lying.</p>
 		<div class="lore-box">
-			<p><strong>Strange Matter</strong> is unstable contraband recovered from anomalies, suspicious field contracts, and containers nobody signed for. It is not sold.</p>
-			<p>Weekly shipments grant Strange Matter whether or not you support the project. Daily Contracts are simple local objectives with no streaks and no punishment for missing days.</p>
-			<p>Timers are local pacing tools, not secure enforcement. The Black Market improves convenience and infrastructure; it does not buy raw damage, Alloy piles, or Front clears.</p>
+			<p><strong>Strange Matter</strong> is unstable contraband recovered from anomalies, off-grid handoffs, and containers nobody signed for. It is not sold.</p>
+			<p>The <strong>Daily Pickup</strong> slips you +1 Strange Matter once per local day — no deployment required, just visit the channel. The separate <strong>Weekly Shipment</strong> delivers +3 on its own cooldown. Both grant Strange Matter whether or not you support the project, with no streaks and no punishment for missing days.</p>
+			<p>Timers are local pacing tools, not secure enforcement. The Black Market improves convenience and infrastructure; it does not buy raw damage, Alloy piles, or Front clears. For official Alloy assignments, see Orbital Command Tasks.</p>
 		</div>
 	</section>
 
@@ -265,32 +265,36 @@
 	<!-- Foundry Upgrades -->
 	<section class="help-section">
 		<h2>⚙ Forge</h2>
-		<p class="section-desc">Permanent pre-installed tower upgrades bought with Alloy (🔩). Each level is built into the tower blueprint before deployment.</p>
+		<p class="section-desc">The Forge sets the <strong>permanent starting level</strong> of your Field Upgrades, bought with Alloy (🔩). Combat upgrades share one curve with the in-deployment Field Upgrades: a Forge level is exactly the same as buying that many Field levels — same value, and the next in-run purchase continues from where the Forge left off. Research multiplies on top. Economy upgrades have no Field equivalent and stay permanent-only.</p>
+		<h3 class="section-desc" style="margin-top:.5rem">Combat — starting Field levels (shared curve)</h3>
 		<div class="card-grid">
 			<div class="help-card ws">
 				<div class="help-card-icon">⚡</div>
-				<h3>Base Damage</h3>
-				<p>+5 damage per level. Core scaling stat — invest heavily.</p>
-				<span class="card-tag">Long-tail</span>
-			</div>
-			<div class="help-card ws">
-				<div class="help-card-icon">🔥</div>
-				<h3>Base Fire Rate</h3>
-				<p>+0.1 attacks/sec per level. Base fire rate caps at 10/s before Research.</p>
-				<span class="card-tag">Max 90</span>
-			</div>
-			<div class="help-card ws">
-				<div class="help-card-icon">🎯</div>
-				<h3>Base Range</h3>
-				<p>+0.5 range per level. Useful, but no longer required just to hit early Ranged enemies.</p>
-				<span class="card-tag">Max 79</span>
+				<h3>Damage</h3>
+				<p>+25 damage per level — the same as one in-run Damage Field Upgrade. Forge Lv.1 starts deployment at 75 DMG.</p>
+				<span class="card-tag">Shared curve</span>
 			</div>
 			<div class="help-card ws">
 				<div class="help-card-icon">❤️</div>
-				<h3>Starting HP</h3>
-				<p>+10 max HP per level. Survive longer each run.</p>
-				<span class="card-tag">Max 6000</span>
+				<h3>Max HP</h3>
+				<p>+100 max HP per level. Forge Lv.1 starts at 200 HP — exactly one in-run Max HP level.</p>
+				<span class="card-tag">Shared curve</span>
 			</div>
+			<div class="help-card ws">
+				<div class="help-card-icon">🔥</div>
+				<h3>Attack Speed</h3>
+				<p>+0.1 attacks/sec per level. Continues from the Forge level when you buy more in deployment.</p>
+				<span class="card-tag">Shared curve</span>
+			</div>
+			<div class="help-card ws">
+				<div class="help-card-icon">🎯</div>
+				<h3>Range / Crit / Defense / …</h3>
+				<p>Every shared combat stat (Range, Crit Chance, Crit Multiplier ×1.30 base, Defense, Regen, Lifesteal, Thorns) works the same way. Schematic-gated paths must be reconstructed first.</p>
+				<span class="card-tag">Shared curve</span>
+			</div>
+		</div>
+		<h3 class="section-desc" style="margin-top:.75rem">Economy — permanent income (Forge-only)</h3>
+		<div class="card-grid">
 			<div class="help-card ws">
 				<div class="help-card-icon">🔩</div>
 				<h3>Alloy Bonus</h3>
@@ -304,17 +308,22 @@
 				<span class="card-tag">Max 1000</span>
 			</div>
 			<div class="help-card ws">
-				<div class="help-card-icon">⭐</div>
-				<h3>Crit Bonus</h3>
-				<p>+0.5% base crit chance per level. Combined crit chance caps at 75%.</p>
-				<span class="card-tag">Max 49</span>
-			</div>
-			<div class="help-card ws">
 				<div class="help-card-icon">⚡</div>
 				<h3>Starting Energy</h3>
 				<p>+4 starting Energy per level. Apply early overclocks faster.</p>
 				<span class="card-tag">Max 99</span>
 			</div>
+		</div>
+	</section>
+
+	<!-- Daily Orbital Command Tasks -->
+	<section class="help-section">
+		<h2>🛰 Orbital Command Tasks</h2>
+		<p class="section-desc">Official daily assignments that reward Alloy (🔩) — separate from the Black Market. Find them under <strong>Command Tasks</strong> in Orbital Command.</p>
+		<div class="lore-box">
+			<p>Each local day, Command issues a fresh set of assignments. <strong>5 are visible at a time</strong>; claim a completed one and the next is revealed. You can complete up to <strong>25 per day</strong>, and they progress through normal play (kills, waves, purchases, …).</p>
+			<p>Every <strong>5 completed orders</strong> unlocks a <strong>Command Gift Box</strong> (more Alloy) — at 5, 10, 15, 20, and 25. Rewards are Alloy only; no Strange Matter, no premium currency.</p>
+			<p>No streaks, no login, no punishment for missing a day. It simply resets daily.</p>
 		</div>
 	</section>
 

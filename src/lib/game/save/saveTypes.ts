@@ -1,7 +1,8 @@
-import type { GameSettings, WorkshopUpgradeId, LabId, MilestoneId, ChallengeId, BlueprintId, AchievementId, EnemyType } from '../engine/gameTypes';
+import type { GameSettings, WorkshopUpgradeId, UpgradeId, LabId, MilestoneId, ChallengeId, BlueprintId, AchievementId, EnemyType } from '../engine/gameTypes';
 import { TierId, DEFAULT_SETTINGS } from '../engine/gameTypes';
 import { emptySchematics } from '../balance/schematics';
 import type { BlackMarketUnlocks } from '../balance/blackMarket';
+import { type DailyTasksState, createDefaultDailyTasksState } from '../balance/dailyTasks';
 
 export interface LabResearch {
 	level: number;
@@ -28,7 +29,17 @@ export interface SaveData {
 	totalRuns: number;
 	highestWave: number;
 	totalCoins: number;
+	/**
+	 * Economy-only permanent Forge upgrades (Alloy Bonus, Energy Bonus, Starting
+	 * Energy). Combat Forge stats moved to `forgeUpgrades` in v15.
+	 */
 	workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>;
+	/**
+	 * v15: Permanent Forge starting levels for the SHARED Field upgrade curve.
+	 * Keyed by the same UpgradeId used in-run; a run seeds battleUpgrades from
+	 * this and Field purchases continue from these levels.
+	 */
+	forgeUpgrades: Partial<Record<UpgradeId, number>>;
 	labResearch: Partial<Record<LabId, LabResearch>>;
 	labLevels: Partial<Record<LabId, number>>;
 	blueprints: string[];
@@ -81,9 +92,14 @@ export interface SaveData {
 	blackMarketIntroSeen: boolean;
 	/** v14: Best cosmetic killstreak ever reached (highest consecutive-kill chain). */
 	bestKillstreak: number;
+	/**
+	 * v15: Daily Orbital Command tasks — official assignments rewarding Alloy.
+	 * Separate from the Black Market. Local-day tracked, no streaks.
+	 */
+	dailyTasks: DailyTasksState;
 }
 
-export const CURRENT_SCHEMA_VERSION = 14;
+export const CURRENT_SCHEMA_VERSION = 15;
 
 function generateSaveId(prefix = 'fltd'): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -104,6 +120,7 @@ export function createDefaultSave(): SaveData {
 		highestWave: 0,
 		totalCoins: 0,
 		workshopUpgrades: {},
+		forgeUpgrades: {},
 		labResearch: {},
 		labLevels: {},
 		blueprints: [],
@@ -140,5 +157,6 @@ export function createDefaultSave(): SaveData {
 		autoDeploymentEnabled: false,
 		blackMarketIntroSeen: false,
 		bestKillstreak: 0,
+		dailyTasks: createDefaultDailyTasksState(),
 	};
 }

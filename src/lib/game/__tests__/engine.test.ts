@@ -11,7 +11,7 @@ afterEach(() => {
 describe('GameEngine — run lifecycle', () => {
 	it('startRun activates a fresh run with baseline energy and a living tower', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		expect(engine.state.runActive).toBe(true);
 		expect(engine.state.gameOver).toBe(false);
 		expect(engine.state.cash).toBe(100); // getStartingEnergy baseline
@@ -49,7 +49,7 @@ describe('GameEngine — setCallbacks replace/clear semantics', () => {
 describe('GameEngine — battle upgrade purchases', () => {
 	it('buys an affordable upgrade, charging energy and raising the level', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.state.cash = 1_000_000;
 		const cost = getBattleUpgradeCost(UpgradeId.Damage, 0);
 		const before = engine.state.cash;
@@ -60,7 +60,7 @@ describe('GameEngine — battle upgrade purchases', () => {
 
 	it('refuses an unaffordable upgrade and leaves state untouched', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.state.cash = 0;
 		expect(engine.buyBattleUpgrade(UpgradeId.Damage)).toBe(false);
 		expect(engine.state.battleUpgrades[UpgradeId.Damage] ?? 0).toBe(0);
@@ -68,7 +68,7 @@ describe('GameEngine — battle upgrade purchases', () => {
 
 	it('refuses a blueprint-locked upgrade unless its blueprint is unlocked', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1); // no blueprints
+		engine.startRun({}, {}, {}, 0, [], 1); // no blueprints
 		engine.state.cash = 1_000_000;
 		// Multishot requires the SplitBeamGeometry blueprint.
 		expect(engine.buyBattleUpgrade(UpgradeId.Multishot)).toBe(false);
@@ -107,7 +107,7 @@ describe('GameEngine — enemy spawn placement uses the live viewport', () => {
 		// waveSystem read state.viewWidth — so spawns always fell back to 800.
 		vi.spyOn(Math, 'random').mockReturnValue(0.3); // side=1 → right edge, non-shiny
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.state.viewWidth = 2000;
 		engine.state.viewHeight = 2000;
 
@@ -130,7 +130,7 @@ describe('GameEngine — enemy spawn placement uses the live viewport', () => {
 		engine.state.tower.position.x = 600;
 		engine.state.tower.position.y = 450;
 
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 
 		expect(engine.state.viewWidth).toBe(1200);
 		expect(engine.state.viewHeight).toBe(900);
@@ -143,7 +143,7 @@ describe('GameEngine — enemy spawn placement uses the live viewport', () => {
 		engine.state.tower.position.x = 600;
 		engine.state.tower.position.y = 450;
 
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 
 		expect(engine.state.tower.position.x).toBe(600);
 		expect(engine.state.tower.position.y).toBe(450);
@@ -152,7 +152,7 @@ describe('GameEngine — enemy spawn placement uses the live viewport', () => {
 	it('falls back to GAME_CONFIG defaults when no prior viewport dimensions exist', () => {
 		const engine = new GameEngine();
 		// No viewWidth/viewHeight set — simulate first-ever launch
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 
 		expect(engine.state.viewWidth).toBeUndefined();
 		expect(engine.state.viewHeight).toBeUndefined();

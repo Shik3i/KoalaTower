@@ -6,6 +6,7 @@ import {
 	WEEKLY_SHIPMENT_COOLDOWN_MS,
 	canBuyBlackMarketUnlock,
 	canClaimDailyContract,
+	canClaimDailyStrangeMatter,
 	canClaimWeeklyShipment,
 	computeBlackMarketSignal,
 	convertSchematics,
@@ -140,5 +141,44 @@ describe('Black Market signal state', () => {
 
 	it('returns glow when both weekly and daily are available', () => {
 		expect(computeBlackMarketSignal({ unlocked: true, introSeen: true, weeklyReady: true, dailyReady: true })).toBe('glow');
+	});
+});
+
+describe('daily Strange Matter pickup (Black Market)', () => {
+	const day1 = new Date(2024, 0, 1, 12, 0, 0).getTime();
+	const day1Late = new Date(2024, 0, 1, 23, 30, 0).getTime();
+	const day2 = new Date(2024, 0, 2, 9, 0, 0).getTime();
+
+	it('is unavailable before the Black Market is unlocked', () => {
+		expect(canClaimDailyStrangeMatter(false, 0, day1)).toBe(false);
+	});
+
+	it('is available once the Black Market is unlocked and never claimed', () => {
+		expect(canClaimDailyStrangeMatter(true, 0, day1)).toBe(true);
+	});
+
+	it('cannot be claimed twice on the same local day', () => {
+		// Claimed at noon → still the same calendar day at 23:30 → blocked.
+		expect(canClaimDailyStrangeMatter(true, day1, day1Late)).toBe(false);
+	});
+
+	it('can be claimed again the next local day', () => {
+		expect(canClaimDailyStrangeMatter(true, day1, day2)).toBe(true);
+	});
+
+	it('grants the +1 Strange Matter daily amount', () => {
+		expect(STRANGE_MATTER_DAILY_CONTRACT).toBe(1);
+	});
+
+	it('weekly shipment remains a separate +3 claim on its own cooldown', () => {
+		expect(STRANGE_MATTER_WEEKLY_SHIPMENT).toBe(3);
+		// A daily claim today does not consume the weekly cooldown.
+		expect(canClaimWeeklyShipment(0, day1)).toBe(true);
+		expect(canClaimWeeklyShipment(day1, day1 + WEEKLY_SHIPMENT_COOLDOWN_MS)).toBe(true);
+	});
+
+	it('does not depend on support-URL configuration', () => {
+		// The claim takes no support argument — support state can never block it.
+		expect(canClaimDailyStrangeMatter(true, 0, day1)).toBe(true);
 	});
 });

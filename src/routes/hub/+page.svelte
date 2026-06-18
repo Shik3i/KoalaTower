@@ -3,8 +3,15 @@
 	import Tutorial, { type TutorialStep } from '$lib/components/Tutorial.svelte';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
-	import { buildWorkshopUpgradeList, getWorkshopUpgradeCost, getWorkshopUpgradeEffect } from '$lib/game/balance/workshopUpgrades';
-	const WORKSHOP_UPGRADES = buildWorkshopUpgradeList();
+	import { buildWorkshopUpgradeList, getWorkshopUpgradeCost, getWorkshopUpgradeEffect, FORGE_ECONOMY_WORKSHOP_IDS } from '$lib/game/balance/workshopUpgrades';
+	// Combat Forge stats use the SHARED Field curve (forgeUpgrades.ts). The
+	// Foundry's economy upgrades (Alloy/Energy bonus, Starting Energy) stay as
+	// permanent-only WorkshopUpgrades — filtered out of the combat list here.
+	const FORGE_ECONOMY_SET = new Set(FORGE_ECONOMY_WORKSHOP_IDS);
+	const WORKSHOP_UPGRADES = buildWorkshopUpgradeList().filter(u => FORGE_ECONOMY_SET.has(u.id));
+	import { buildForgeUpgradeList, getForgeUpgradeCost, getForgeUpgradeEffect } from '$lib/game/balance/forgeUpgrades';
+	import { formatBattleEffect } from '$lib/game/balance/upgradeScaling';
+	const FORGE_UPGRADES = buildForgeUpgradeList();
 	import { LAB_DEFS, getLabCost, getLabEffect, isLabUnlocked, getLabDuration, formatLabDuration } from '$lib/game/balance/labs';
 	import { TIERS, FRONT_META, getUnlockedFronts, getFrontName, describeFrontUnlock, getFrontBandDef } from '$lib/game/balance/tiers';
 	import FrontIcon from '$lib/components/FrontIcon.svelte';
@@ -19,13 +26,13 @@
 		SUPPORT_URL,
 		canBuyBlackMarketUnlock,
 		canClaimDailyContract,
+		canClaimDailyStrangeMatter,
 		canClaimWeeklyShipment,
 		computeBlackMarketSignal,
 		convertSchematics,
 		hasBlackMarketUnlock,
 		isBlackMarketUnlocked,
 		isSupportUrlConfigured,
-		localDayKey,
 		weeklyShipmentRemainingMs,
 		type BlackMarketUnlockId,
 		type BlackMarketUnlocks,
@@ -33,9 +40,24 @@
 	import { EnemyType, DEFAULT_SETTINGS, type TierId } from '$lib/game/engine/gameTypes';
 	import { ENEMY_TYPE_MODIFIERS, computeEnemyConfig, ENEMY_SHAPES } from '$lib/game/balance/balanceMath';
 	import { ENEMY_TYPE_LABELS, getMasteryProgress, MASTERY_REWARDS } from '$lib/game/balance/mastery';
-	import { BLUEPRINT_DEFS, isFoundryUpgradeUnlocked, getBlueprintForFoundryUpgrade, getFieldUpgradesUnlockedBy, getFoundryUpgradesUnlockedBy, describeBlueprintDiscovery } from '$lib/game/balance/blueprints';
+	import { BLUEPRINT_DEFS, isFoundryUpgradeUnlocked, isFieldUpgradeUnlocked, getBlueprintForFoundryUpgrade, getBlueprintForFieldUpgrade, getFieldUpgradesUnlockedBy, getFoundryUpgradesUnlockedBy, describeBlueprintDiscovery } from '$lib/game/balance/blueprints';
 	import { getBlueprintStatus } from '$lib/game/progression/blueprintDiscovery';
-	import type { GameSettings, WorkshopUpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
+	import {
+		generateDailyTasks,
+		rolloverDailyTasks,
+		getVisibleTasks,
+		isTaskComplete,
+		claimTask,
+		claimableMilestones,
+		claimMilestone,
+		nextMilestone,
+		dailyTasksDateKey,
+		DAILY_TASKS_MAX_PER_DAY,
+		GIFT_BOX_REWARDS,
+		type DailyTaskInstance,
+		type DailyTasksState,
+	} from '$lib/game/balance/dailyTasks';
+	import type { GameSettings, WorkshopUpgradeId, UpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
 	import { blackMarketCopy } from '$lib/game/balance/blackMarketCopy';
 	import { audio } from '$lib/game/audio/AudioManager';
@@ -60,9 +82,12 @@
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
-	let activeSection = $state<'workshop' | 'lab' | 'blueprints' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings'>('workshop');
+	let activeSection = $state<'workshop' | 'orders' | 'lab' | 'blueprints' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings'>('workshop');
 	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
 	let workshopLevels = $state<Partial<Record<WorkshopUpgradeId, number>>>({});
+	let forgeLevels = $state<Partial<Record<UpgradeId, number>>>({});
+	let dailyTasksState = $state<DailyTasksState>({ date: '', completedCount: 0, claimedTaskSlots: [], claimedMilestones: [], counters: {} });
+	let dailyTaskList = $state<DailyTaskInstance[]>([]);
 	let labLevels = $state<Record<string, number>>({});
 	let hubStats = $state({ bestKillstreak: 0, totalKills: 0, totalBossesDefeated: 0, totalShiniesKilled: 0, totalAlloyEarned: 0 });
 
@@ -88,7 +113,6 @@
 	let blackMarketUnlocks = $state<BlackMarketUnlocks>({});
 	let lastWeeklyBlackMarketShipmentClaimedAt = $state(0);
 	let lastDailyContractCompletedAt = $state(0);
-	let lastDailyContractDeploymentAt = $state(0);
 	let autoDeploymentEnabled = $state(false);
 	let converterSourceFront = $state(1);
 	let nowTick = $state(Date.now());
@@ -104,7 +128,7 @@
 		unlocked: bmUnlocked,
 		introSeen: blackMarketIntroSeen,
 		weeklyReady: canClaimWeeklyShipment(lastWeeklyBlackMarketShipmentClaimedAt, nowTick),
-		dailyReady: canClaimDailyContract(lastDailyContractCompletedAt, nowTick) && localDayKey(lastDailyContractDeploymentAt) === localDayKey(nowTick),
+		dailyReady: canClaimDailyStrangeMatter(bmUnlocked, lastDailyContractCompletedAt, nowTick),
 	}));
 	let supportReady = $derived(isSupportUrlConfigured(SUPPORT_URL));
 	let blackMarketIntroSeen = $state(false);
@@ -112,7 +136,7 @@
 	let showShipmentModal = $state(false);
 	let bmSignalText = $state(blackMarketCopy.signalStatus());
 	let bmShipmentFlavour = $state(blackMarketCopy.shipmentFlavour());
-	let bmContractFlavour = $state(blackMarketCopy.contractFlavour());
+	let bmDailyFlavour = $state(blackMarketCopy.dailyPickup());
 	let bmChannelIntro = $state(blackMarketCopy.channelIntro());
 	let activeLabId = $state<string | null>(null);
 	let activeLabFinish = $state<number>(0);
@@ -128,7 +152,6 @@
 		blackMarketUnlocks = { ...(save.blackMarketUnlocks ?? {}) };
 		lastWeeklyBlackMarketShipmentClaimedAt = save.lastWeeklyBlackMarketShipmentClaimedAt ?? 0;
 		lastDailyContractCompletedAt = save.lastDailyContractCompletedAt ?? 0;
-		lastDailyContractDeploymentAt = save.lastDailyContractDeploymentAt ?? 0;
 		autoDeploymentEnabled = save.autoDeploymentEnabled === true;
 		blackMarketIntroSeen = save.blackMarketIntroSeen === true;
 	}
@@ -136,7 +159,7 @@
 	function refreshBmCopy() {
 		bmSignalText = blackMarketCopy.signalStatus();
 		bmShipmentFlavour = blackMarketCopy.shipmentFlavour();
-		bmContractFlavour = blackMarketCopy.contractFlavour();
+		bmDailyFlavour = blackMarketCopy.dailyPickup();
 		bmChannelIntro = blackMarketCopy.channelIntro();
 	}
 
@@ -202,12 +225,12 @@
 	function claimDailyContract() {
 		const save = getCachedSave(); if (!save) return;
 		const now = Date.now();
-		if (!canClaimDailyContract(save.lastDailyContractCompletedAt ?? 0, now)) {
-			toast('Daily Contract already filed today.', 'info');
+		if (!isBlackMarketUnlocked(save.frontBestWave ?? {})) {
+			toast('No carrier detected. Field exposure insufficient.', 'info');
 			return;
 		}
-		if (localDayKey(save.lastDailyContractDeploymentAt ?? 0) !== localDayKey(now)) {
-			toast('Complete one Deployment first. Any result counts.', 'warning');
+		if (!canClaimDailyContract(save.lastDailyContractCompletedAt ?? 0, now)) {
+			toast('Already picked up today. The vendor only slips you so much.', 'info');
 			return;
 		}
 		grantStrangeMatter(save, STRANGE_MATTER_DAILY_CONTRACT);
@@ -216,9 +239,9 @@
 		refreshBlackMarketState();
 		refreshBmCopy();
 		uiSound('upgrade');
-		toast('Daily Contract complete. +' + STRANGE_MATTER_DAILY_CONTRACT + ' Strange Matter', 'success');
+		toast(blackMarketCopy.dailyPickup() + ' +' + STRANGE_MATTER_DAILY_CONTRACT + ' Strange Matter', 'success');
 		toast(getOpLogMessage('blackMarketContractClaimed'), 'info');
-		notifications.notify({ kind: 'contract', title: 'Daily Contract claimed', detail: `+${STRANGE_MATTER_DAILY_CONTRACT} Strange Matter` });
+		notifications.notify({ kind: 'contract', title: 'Strange Matter received', detail: `+${STRANGE_MATTER_DAILY_CONTRACT} Strange Matter` });
 	}
 
 	function buyBlackMarketUnlock(id: BlackMarketUnlockId) {
@@ -421,6 +444,7 @@
 		if (save?.discoveredBlueprints) discoveredBlueprints = [...save.discoveredBlueprints];
 		if (save?.schematicsByFront) schematicsByFront = { ...save.schematicsByFront };
 		workshopLevels = { ...(save?.workshopUpgrades ?? {}) } as Record<WorkshopUpgradeId, number>;
+		forgeLevels = { ...(save?.forgeUpgrades ?? {}) } as Record<UpgradeId, number>;
 		labLevels = { ...(save?.labLevels ?? {}) } as Record<string, number>;
 		hubStats = {
 			bestKillstreak: save?.bestKillstreak ?? 0,
@@ -430,6 +454,7 @@
 			totalAlloyEarned: save?.totalAlloyEarned ?? 0,
 		};
 		refreshBlackMarketState();
+		refreshDailyTasks();
 		if (save?.frontBestWave) frontBestWave = { ...save.frontBestWave };
 		if (save?.killsByType) killsByType = { ...save.killsByType };
 		if (save?.shinyKillsByType) shinyKillsByType = { ...save.shinyKillsByType };
@@ -484,6 +509,89 @@
 		} else {
 			toast(getOpLogMessage('workshopNotEnough'), 'error');
 		}
+	}
+
+	// ─── Combat Forge (shared Field-upgrade curve) ───────────────────────────
+	function fLv(id: UpgradeId): number { return forgeLevels[id] ?? 0; }
+	/** Permanent value at a Forge level, formatted like the in-run Field card. */
+	function forgeValueLabel(id: UpgradeId, level: number): string {
+		return formatBattleEffect(id, getForgeUpgradeEffect(id, level));
+	}
+	function buyForgeUpgrade(id: UpgradeId) {
+		const save = getCachedSave(); if (!save) return;
+		const upgrade = FORGE_UPGRADES.find(u => u.id === id);
+		if (!upgrade) return;
+		const maxLv = upgrade.maxLevel;
+		if (upgrade.requiredBlueprint && !isFieldUpgradeUnlocked(id, ownedBlueprints)) { return; }
+		const initialLv = save.forgeUpgrades[id] ?? 0;
+		if (initialLv >= maxLv) { toast(getOpLogMessage('workshopMaxLevel'), 'warning'); return; }
+
+		let bought = 0;
+		const isMax = buyMultiplier === 'max';
+		for (let i = 0; i < (isMax ? 999999 : buyMultiplier); i++) {
+			const lv = save.forgeUpgrades[id] ?? 0;
+			if (lv >= maxLv) break;
+			const cost = getForgeUpgradeCost(id, lv);
+			if (save.totalCoins < cost) break;
+			save.totalCoins -= cost;
+			save.forgeUpgrades[id] = lv + 1;
+			bought++;
+		}
+
+		if (bought > 0) {
+			coinsStore.set(save.totalCoins);
+			persistSave(save);
+			forgeLevels = { ...save.forgeUpgrades } as Record<UpgradeId, number>;
+			uiSound('upgrade');
+			const newLv = initialLv + bought;
+			toast('🔧 ' + upgrade.name + ' → Lv.' + newLv + (bought > 1 ? ' (+' + bought + ')' : ''), 'success');
+		} else {
+			toast(getOpLogMessage('workshopNotEnough'), 'error');
+		}
+	}
+
+	// ─── Daily Orbital Command tasks ─────────────────────────────────────────
+	function refreshDailyTasks() {
+		const save = getCachedSave(); if (!save) return;
+		const today = dailyTasksDateKey();
+		const rolled = rolloverDailyTasks(save.dailyTasks, today);
+		if (rolled !== save.dailyTasks) { save.dailyTasks = rolled; persistSave(save); }
+		dailyTaskList = generateDailyTasks(today, { highestWave, unlockedFrontCount: unlockedFronts.length });
+		dailyTasksState = {
+			date: save.dailyTasks.date,
+			completedCount: save.dailyTasks.completedCount,
+			claimedTaskSlots: [...save.dailyTasks.claimedTaskSlots],
+			claimedMilestones: [...save.dailyTasks.claimedMilestones],
+			counters: { ...save.dailyTasks.counters },
+		};
+	}
+
+	function claimDailyTask(slot: number) {
+		const save = getCachedSave(); if (!save) return;
+		const res = claimTask(dailyTaskList, save.dailyTasks, slot);
+		if (!res) { toast('Assignment not complete yet.', 'info'); return; }
+		save.dailyTasks = res.state;
+		save.totalCoins += res.reward;
+		coinsStore.set(save.totalCoins);
+		persistSave(save);
+		refreshDailyTasks();
+		uiSound('upgrade');
+		toast('🛰 Order complete. +' + res.reward + ' Alloy requisition', 'success');
+		notifications.notify({ kind: 'achievement', title: 'Order complete', detail: `+${res.reward} Alloy`, icon: '🛰' });
+	}
+
+	function claimGiftBox(milestone: number) {
+		const save = getCachedSave(); if (!save) return;
+		const res = claimMilestone(save.dailyTasks, milestone);
+		if (!res) { toast('Command Gift Box not ready.', 'info'); return; }
+		save.dailyTasks = res.state;
+		save.totalCoins += res.reward;
+		coinsStore.set(save.totalCoins);
+		persistSave(save);
+		refreshDailyTasks();
+		uiSound('upgrade');
+		toast('🎁 Command Gift Box — +' + res.reward + ' Alloy', 'milestone');
+		notifications.notify({ kind: 'achievement', title: 'Command Gift Box', detail: `+${res.reward} Alloy`, icon: '🎁' });
 	}
 
 	// Time-based lab research
@@ -541,6 +649,7 @@
 
 	const allSections = [
 		{ id: 'workshop' as const, label: 'Forge', icon: '⚙' },
+		{ id: 'orders' as const, label: 'Command Tasks', icon: '🛰' },
 		{ id: 'lab' as const, label: 'Research Deck', icon: '🔬' },
 		{ id: 'blueprints' as const, label: 'Schematics', icon: '📐' },
 		{ id: 'blackMarket' as const, label: 'Black Market', icon: '◈', requiresUnlock: true },
@@ -560,6 +669,7 @@
 	function switchSection(id: typeof activeSection) {
 		if (id !== activeSection) uiSound('click');
 		activeSection = id;
+		if (id === 'orders') refreshDailyTasks();
 	}
 
 	$effect(() => {
@@ -626,7 +736,7 @@
 
 		<div class="hub-content">
 			{#if activeSection === 'workshop'}
-				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed tower upgrades. Each level improves the tower blueprint before every deployment. Locked paths require Schematic reconstruction. The Forge never stops. Neither does the paperwork.</p>
+				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed tower upgrades. Each Forge level sets the <strong>starting level</strong> of the matching Field Upgrade — the same curve continues in deployment, where you buy the next levels with Energy. Locked paths require Schematic reconstruction. The Forge never stops. Neither does the paperwork.</p>
 					<div class="buy-mult">
 						<span class="mult-label">Buy</span>
 						{#each [1, 5, 10, 50, 'max'] as m}
@@ -634,6 +744,34 @@
 							<button class="mult-btn" class:on={buyMultiplier === val} onclick={() => buyMultiplier = val} use:tooltip={val === 'max' ? 'Buy as many levels as you can afford.\nShortcut: hold Ctrl while buying.' : val === 50 ? 'Buy up to 50 levels at once.\nShortcut: Shift + Ctrl.' : val === 10 ? 'Buy up to 10 levels at once.' : val === 5 ? 'Buy up to 5 levels at once.\nShortcut: hold Shift.' : 'Buy a single level.'}>{val === 'max' ? 'Max' : '×' + val}</button>
 						{/each}
 					</div>
+					<h3 class="forge-sub">Combat — starting Field levels</h3>
+					<div class="ug">
+						{#each FORGE_UPGRADES as u}
+							{@const lv = fLv(u.id)}
+							{@const nl = Math.min(lv + 1, u.maxLevel)}
+							{@const cost = u.cost(lv)}
+							{@const aff = coins >= cost}
+							{@const mx = lv >= u.maxLevel}
+							{@const locked = !!u.requiredBlueprint && !isFieldUpgradeUnlocked(u.id, ownedBlueprints)}
+							{@const bpName = u.requiredBlueprint ? (getBlueprintForFieldUpgrade(u.id)?.name ?? '') : ''}
+							<button class="uc" class:aff={aff && !mx && !locked} class:mx={mx} class:locked={locked} disabled={!aff || mx || locked} onclick={() => buyForgeUpgrade(u.id)}
+								use:tooltip={locked
+									? `🔒 ${u.name}\nRequires the ${bpName} Schematic.\nReconstruct it in the Schematics tab to unlock this path.`
+									: mx
+										? `${u.name} — MAXED at Lv.${lv}\nStarts deployment at: ${forgeValueLabel(u.id, lv)}\nNo further Forge levels available.`
+										: `${u.name} — Forge Lv.${lv}\nStarts deployment at: ${forgeValueLabel(u.id, lv)}\nNext (Lv.${nl}): ${forgeValueLabel(u.id, nl)}\nCost: ${cost.toLocaleString()} Alloy${aff ? '' : ' — not enough Alloy yet'}`}>
+								<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
+								{#if !locked}
+									<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
+									<div class="uc-val">{forgeValueLabel(u.id, lv)}</div>
+									<div class="uc-b"><span class="ucc">🔩{cost.toLocaleString()}</span><span class="ucnx">{mx ? 'MAXED' : '→ ' + forgeValueLabel(u.id, nl)}</span></div>
+								{:else}
+									<div class="uc-val" style="color:var(--text-dim)">🔒 Requires {bpName}</div>
+								{/if}
+							</button>
+						{/each}
+					</div>
+					<h3 class="forge-sub">Economy — permanent income</h3>
 					<div class="ug">
 						{#each WORKSHOP_UPGRADES as u}
 							{@const lv = wLv(u.id)}
@@ -659,6 +797,55 @@
 							</button>
 						{/each}
 					</div>
+				</div>
+			{:else if activeSection === 'orders'}
+				{@const visibleTasks = getVisibleTasks(dailyTaskList, dailyTasksState)}
+				{@const ordersDone = dailyTasksState.completedCount}
+				{@const nextGift = nextMilestone(dailyTasksState)}
+				{@const giftsReady = claimableMilestones(dailyTasksState)}
+				<div class="hs">
+					<h2 class="hst">🛰 Orbital Command Tasks</h2>
+					<p class="hsd">Orbital Command has issued today's assignments. Complete orders to receive Alloy requisitions. Every five completed orders improves today's standing with Command. Resets daily — nothing is lost by missing a day.</p>
+					<div class="bm-ledger">
+						<div class="ir"><span class="il">Orders completed today</span><span class="iv">{ordersDone} / {DAILY_TASKS_MAX_PER_DAY}</span></div>
+						<div class="ir"><span class="il">{nextGift ? 'Next Command Gift Box' : 'All gift boxes claimed'}</span><span class="iv">{nextGift ? `${ordersDone} / ${nextGift}` : '✓'}</span></div>
+					</div>
+
+					{#if giftsReady.length > 0}
+						<div class="gift-row">
+							{#each giftsReady as m}
+								<button class="hub-action bm-primary gift-btn" onclick={() => claimGiftBox(m)} use:tooltip={'Command Gift Box ready.'}>🎁 Command Gift Box ({m}) — +{GIFT_BOX_REWARDS[m]} Alloy</button>
+							{/each}
+						</div>
+					{/if}
+
+					{#if ordersDone >= DAILY_TASKS_MAX_PER_DAY}
+						<p class="empty-flavor">Daily Orders complete. Command is briefly impressed.</p>
+					{/if}
+
+					<div class="ug">
+						{#each visibleTasks as task}
+							{@const prog = dailyTasksState.counters[task.key] ?? 0}
+							{@const complete = isTaskComplete(task, dailyTasksState.counters)}
+							{@const pct = Math.min(100, (prog / task.target) * 100)}
+							<div class="uc task-card" class:aff={complete}>
+								<div class="uc-t"><span class="uci">🛰</span><span class="ucn">{task.label}</span><span class="ucl">+{task.reward} Alloy</span></div>
+								<div class="uc-btr"><div class="uc-btf" style="width:{pct}%"></div></div>
+								<div class="uc-b">
+									<span class="ucc" style="color:var(--text-secondary)">{Math.min(prog, task.target).toLocaleString()} / {task.target.toLocaleString()}</span>
+									{#if complete}
+										<button class="hub-action task-claim" onclick={() => claimDailyTask(task.slot)}>Claim +{task.reward}</button>
+									{:else}
+										<span class="ucnx">In progress</span>
+									{/if}
+								</div>
+							</div>
+						{/each}
+						{#if visibleTasks.length === 0 && ordersDone < DAILY_TASKS_MAX_PER_DAY}
+							<p class="empty-flavor">No active assignments right now. Check back after a deployment.</p>
+						{/if}
+					</div>
+					<p class="orders-footer">Your obedience has been noticed. Briefly.</p>
 				</div>
 			{:else if activeSection === 'lab'}
 				<div class="hs"><h2 class="hst">🔬 Research Deck</h2><p class="hsd">Time-based orbital research projects. Each level grants a permanent multiplicative bonus. Research continues offline. Only one project can be active at a time. Research continues offline because the scientists have been locked in. For their own safety.</p>
@@ -718,8 +905,7 @@
 				</div>
 			{:else if activeSection === 'blackMarket'}
 				{@const weeklyReady = canClaimWeeklyShipment(lastWeeklyBlackMarketShipmentClaimedAt, nowTick)}
-				{@const dailyReady = canClaimDailyContract(lastDailyContractCompletedAt, nowTick)}
-				{@const completedDeploymentToday = localDayKey(lastDailyContractDeploymentAt) === localDayKey(nowTick)}
+				{@const dailyReady = canClaimDailyStrangeMatter(bmUnlocked, lastDailyContractCompletedAt, nowTick)}
 				{@const sourceBalance = getSchematics(schematicsByFront, converterSourceFront)}
 				{@const maxConversions = Math.floor(sourceBalance / SCHEMATIC_CONVERSION_RATE)}
 				<div class="hs bm-layout">
@@ -748,10 +934,10 @@
 						</section>
 
 						<section class="bm-panel">
-							<h3 class="stats-sub">Daily Contract</h3>
-							<p class="hsd bm-contract-copy">{bmContractFlavour}</p>
-							<button class="hub-action bm-primary" disabled={!dailyReady || !completedDeploymentToday} onclick={claimDailyContract}>Claim Contract (+{STRANGE_MATTER_DAILY_CONTRACT})</button>
-							{#if !completedDeploymentToday}<div class="ccl">Launch any Deployment today first.</div>{:else if !dailyReady}<div class="ccl">Filed for today. Return tomorrow.</div>{/if}
+							<h3 class="stats-sub">Daily Pickup</h3>
+							<p class="hsd bm-contract-copy">{bmDailyFlavour}</p>
+							<button class="hub-action bm-primary" disabled={!dailyReady} onclick={claimDailyContract}>Take the Vial (+{STRANGE_MATTER_DAILY_CONTRACT})</button>
+							{#if !dailyReady}<div class="ccl">Picked up today. Back tomorrow.</div>{:else}<div class="ccl">No deployment needed — just stop by.</div>{/if}
 						</section>
 					</div>
 
@@ -1169,6 +1355,17 @@
 	.ucc { font-family:var(--font-mono); color:var(--yellow); }
 	.ucnx { margin-left:auto; color:var(--text-secondary); font-family:var(--font-mono); }
 	.uc.aff .ucnx { color:var(--green); }
+	/* Forge combat card — prominent current starting value, like the Field card */
+	.uc-val { font-size:var(--fs-mono-lg); color:var(--text-primary); font-family:var(--font-mono); font-weight:600; padding:.02rem 0; }
+	.uc.aff .uc-val { color:var(--green); }
+	.forge-sub { font-size:var(--fs-mono-sm); font-family:var(--font-mono); color:var(--text-secondary); text-transform:uppercase; letter-spacing:.05em; margin:.6rem 0 .3rem; }
+	.forge-sub:first-of-type { margin-top:.2rem; }
+	/* Daily Orbital Command tasks */
+	.gift-row { display:flex; flex-wrap:wrap; gap:.4rem; margin:.5rem 0; }
+	.gift-btn { background:linear-gradient(135deg,var(--yellow),var(--orange)); color:var(--bg-primary); font-weight:600; }
+	.task-card.aff { border-color:rgba(68,255,136,.4); background:rgba(68,255,136,.04); }
+	.task-claim { padding:.2rem .6rem; margin-left:auto; background:linear-gradient(135deg,var(--green),var(--cyan)); color:var(--bg-primary); font-weight:600; font-size:var(--fs-mono-sm); border-radius:var(--radius-sm); }
+	.orders-footer { margin-top:.6rem; font-size:var(--fs-caption-sm); color:var(--text-dim); font-style:italic; }
 	.lc { gap:.25rem; }
 	.uc.researching { border-color:rgba(255,221,68,.3); background:rgba(255,221,68,.03); }
 	.rs-bar-track { height:5px; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
@@ -1216,7 +1413,7 @@
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	.save-note { margin-top:1.25rem; padding:.75rem 1rem; background:rgba(255,221,68,.04); border:1px solid rgba(255,221,68,.12); border-radius:var(--radius-sm); max-width:800px; }
 	.save-note-flavor { font-size:var(--fs-caption-sm); color:rgba(255,221,68,.45); font-style:italic; line-height:1.4; margin:0; }
-	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:flex;flex-direction:row;overflow-x:auto;gap:.4rem;width:auto;padding-bottom:.25rem;scrollbar-width:thin;scrollbar-color:rgba(0,255,255,.35) transparent} .hub-nav-btn{flex-shrink:0;white-space:nowrap;text-align:center;padding:.55rem .75rem;font-size:var(--fs-body-sm)} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.bm-grid{grid-template-columns:1fr}.hub-coins{font-size:var(--fs-mono)} }
+	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:flex;flex-direction:row;align-items:center;overflow-x:auto;gap:.4rem;width:auto;padding-bottom:.25rem;scrollbar-width:thin;scrollbar-color:rgba(0,255,255,.35) transparent} .hub-nav-btn{flex-shrink:0;width:auto;white-space:nowrap;text-align:center;padding:.55rem .75rem;font-size:var(--fs-body-sm)} .hub-nav .bm-locked-teaser{flex-shrink:0;white-space:nowrap} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.bm-grid{grid-template-columns:1fr}.hub-coins{font-size:var(--fs-mono)} }
 	@media(max-width:380px){ .hub-nav-btn{font-size:var(--fs-caption);padding:.5rem .6rem} }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:var(--fs-caption); display:flex; flex-direction:column; gap:.4rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
 	.hub-footer-flavor { font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:0.35; margin:0; }

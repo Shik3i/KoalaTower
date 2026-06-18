@@ -52,8 +52,11 @@ export const GAME_CONFIG = {
 	MAX_DEATH_FX: 60,
 
 	// ─── Cosmetic killstreak tuning ────────────────────────────────────────
-	/** Seconds without a kill before the chain resets. */
-	KILLSTREAK_WINDOW: 2.5,
+	/** Seconds without a kill before the chain resets. The timeout is suspended
+	 *  entirely while no wave/sub-wave is active OR while the field has no live
+	 *  enemies, so the chain survives every inter-wave / sub-wave pause and any
+	 *  natural spawn lull — it only decays while you are actually fighting. */
+	KILLSTREAK_WINDOW: 4.0,
 	/** Counts at which the chain text colour / pulse escalates. The high tiers
 	 *  (500+) drive the "cooler the longer" HUD effects, with fire from 1000. */
 	KILLSTREAK_TIERS: [5, 10, 25, 50, 100, 500, 1000, 5000, 10000] as const,
@@ -100,8 +103,10 @@ export const SUB_WAVE_PAUSE = 2.5;
 /** Delay before the first wave starts. */
 export const INITIAL_WAVE_DELAY = 1.0;
 
-/** Time between wave completions and next wave start. */
-export const BETWEEN_WAVE_TIME = 1.5;
+/** Time between wave completions and next wave start. Slightly extended so
+ *  the inter-wave announce (with its last-wave recap + next-wave preview rows)
+ *  has enough full-opacity dwell time to actually read. */
+export const BETWEEN_WAVE_TIME = 2.25;
 
 /** Interval in waves for boss spawns. */
 export const BOSS_INTERVAL = 10;

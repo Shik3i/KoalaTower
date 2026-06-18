@@ -16,7 +16,7 @@ describe('Prompt C integration audit', () => {
 			},
 		});
 
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		expect(engine.state.cash).toBe(100);
 		expect(engine.buyBattleUpgrade(UpgradeId.Damage)).toBe(true);
 		expect(engine.state.battleUpgrades[UpgradeId.Damage]).toBe(1);

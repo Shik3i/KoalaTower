@@ -1266,14 +1266,19 @@ describe('Dead-level regression (capped upgrades fixed in this pass)', () => {
 });
 
 describe('Help page balance copy', () => {
-	it('does not advertise stale Base Range +1.5 or old crit cap values', () => {
+	it('does not advertise stale balance copy and reflects the shared Forge/Field model', () => {
 		const help = readFileSync('src/routes/help/+page.svelte', 'utf8');
 		expect(help).not.toContain('+1.5 range per level');
 		expect(help).not.toContain('Crit Chance at 45%');
 		expect(help).not.toContain('Appears from wave 3');
-		expect(help).toContain('+0.5 range per level');
+		// v15 Forge/Field unification: the old divergent-Forge copy is now stale.
+		// Forge Range follows the Field curve (+2/level), and fire rate no longer
+		// hard-caps at 10/s — neither old phrasing should remain.
+		expect(help).not.toContain('+0.5 range per level');
+		expect(help).not.toContain('Base fire rate caps at 10/s');
+		// Current truths.
 		expect(help).toContain('combined Crit Chance at 75%');
-		expect(help).toContain('Base fire rate caps at 10/s');
+		expect(help).toContain('starting level');
 	});
 });
 
@@ -1381,14 +1386,14 @@ describe('Crit Multiplier base value correction (v0.5.3)', () => {
 
 	it('applyBattleUpgrades starts from 1.30 + battle effect', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		// Fresh run, no battle upgrades bought
 		expect(engine.state.tower.stats.critMultiplier).toBeCloseTo(1.30, 4);
 	});
 
 	it('battle CritMultiplier level 1 adds +0.10 to base 1.30 = 1.40', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.state.cash = 1_000_000;
 		engine.buyBattleUpgrade(UpgradeId.CritMultiplier);
 		expect(engine.state.tower.stats.critMultiplier).toBeCloseTo(1.40, 4);

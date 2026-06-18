@@ -70,7 +70,7 @@ describe('getKillstreakTier — cosmetic tier resolver', () => {
 describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 	function freshEngine(): GameEngine {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		// wireMuzzleFlash installs the feedback hooks so the milestone callback
 		// can actually fire. Pass a no-op muzzle flash.
 		engine.wireMuzzleFlash(() => {});
@@ -148,7 +148,7 @@ describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 		expect(engine.damageNumbers.some((n) => n.kind === 'chain')).toBe(true);
 	});
 
-	it('resets the chain to 0 when update() lets the timer expire during an active wave', () => {
+	it('resets the chain to 0 when update() lets the timer expire during an active wave with live enemies', () => {
 		const engine = freshEngine();
 		// Force wave 1 to be active so the killstreak timeout actually ticks.
 		// Set high spawn counts/interval so subWaveActive stays true during the test window.
@@ -158,9 +158,12 @@ describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 		engine.state.wave.enemiesInWave = 99999;
 		engine.state.wave.enemiesInSubWave = 99999;
 		engine.state.wave.spawnInterval = 999;
+		// Timeout only ticks while there are live enemies on the field —
+		// park a healthy dummy enemy so the chain can actually bleed out.
+		engine.state.enemies.push(makeEnemy({ id: 999, hp: 1_000_000, maxHp: 1_000_000, alive: true }));
 		for (let i = 1; i <= 8; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
 		expect(engine.state.killstreak.count).toBe(8);
-		// Drain the window (2.5s) plus margin. Update dt is clamped to CLAMP_DELTA,
+		// Drain the window (4.0s) plus margin. Update dt is clamped to CLAMP_DELTA,
 		// so fastForward drives it in small steps.
 		fastForward(engine, GAME_CONFIG.KILLSTREAK_WINDOW + 0.05);
 		expect(engine.state.killstreak.count).toBe(0);
@@ -179,6 +182,23 @@ describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 		expect(engine.state.killstreak.timer).toBeGreaterThan(0);
 	});
 
+	it('does NOT reset killstreak while the field is empty mid-wave (spawn lull)', () => {
+		const engine = freshEngine();
+		// Active wave + sub-wave, but no live enemies on the field — the chain
+		// must survive a slow spawn gap or post-clear lull without bleeding out.
+		engine.state.wave.currentWave = 1;
+		engine.state.wave.waveActive = true;
+		engine.state.wave.subWaveActive = true;
+		engine.state.wave.enemiesInWave = 99999;
+		engine.state.wave.enemiesInSubWave = 99999;
+		engine.state.wave.spawnInterval = 999;
+		for (let i = 1; i <= 6; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
+		expect(engine.state.killstreak.count).toBe(6);
+		fastForward(engine, GAME_CONFIG.KILLSTREAK_WINDOW + 1);
+		expect(engine.state.killstreak.count).toBe(6);
+		expect(engine.state.killstreak.timer).toBeCloseTo(GAME_CONFIG.KILLSTREAK_WINDOW, 5);
+	});
+
 	it('keeps best-count intact after the chain times out (vanity metric persists)', () => {
 		const engine = freshEngine();
 		// Force wave active so timeout ticks during fast-forward.
@@ -188,6 +208,8 @@ describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 		engine.state.wave.enemiesInWave = 99999;
 		engine.state.wave.enemiesInSubWave = 99999;
 		engine.state.wave.spawnInterval = 999;
+		// Timeout only ticks with a live enemy on the field.
+		engine.state.enemies.push(makeEnemy({ id: 999, hp: 1_000_000, maxHp: 1_000_000, alive: true }));
 		for (let i = 1; i <= 12; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
 		fastForward(engine, GAME_CONFIG.KILLSTREAK_WINDOW + 0.05);
 		expect(engine.state.killstreak.count).toBe(0);
@@ -199,7 +221,7 @@ describe('GameEngine — killstreak reset on tower damage', () => {
 	it('clears the chain when the tower takes a damaging hit', () => {
 		// damageTower() is the production path; it resets state.killstreak when dmg > 0.
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.state.killstreak.count = 15;
 		engine.state.killstreak.timer = GAME_CONFIG.KILLSTREAK_WINDOW;
 		engine.state.killstreak.lastMilestone = 10;
@@ -217,13 +239,13 @@ describe('GameEngine — killstreak reset on tower damage', () => {
 describe('GameEngine — killstreak fresh per run', () => {
 	it('startRun resets count / best / timer / lastMilestone', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.wireMuzzleFlash(() => {});
 		for (let i = 1; i <= 20; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
 		expect(engine.state.killstreak.best).toBeGreaterThan(0);
 
 		// Start a brand new run — chain must reset, even on the same engine instance.
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		expect(engine.state.killstreak.count).toBe(0);
 		expect(engine.state.killstreak.best).toBe(0);
 		expect(engine.state.killstreak.timer).toBe(0);
@@ -234,7 +256,7 @@ describe('GameEngine — killstreak fresh per run', () => {
 describe('GameEngine death-effect buffer (separate from wave completion)', () => {
 	it('lives in engine.deathEffects, never in state.enemies', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.wireMuzzleFlash(() => {});
 		processEnemyDeath(engine.state, makeEnemy({ id: 1 }));
 		expect(engine.deathEffects.length).toBe(1);
@@ -243,7 +265,7 @@ describe('GameEngine death-effect buffer (separate from wave completion)', () =>
 
 	it('caps the proxy count at MAX_DEATH_FX so AoE bursts cannot flood the layer', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.wireMuzzleFlash(() => {});
 		for (let i = 0; i < GAME_CONFIG.MAX_DEATH_FX + 30; i++) {
 			processEnemyDeath(engine.state, makeEnemy({ id: i + 1 }));
@@ -253,7 +275,7 @@ describe('GameEngine death-effect buffer (separate from wave completion)', () =>
 
 	it('ticks each proxy out within its lifetime', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.wireMuzzleFlash(() => {});
 		processEnemyDeath(engine.state, makeEnemy({ id: 1 }));
 		expect(engine.deathEffects.length).toBe(1);
@@ -265,7 +287,7 @@ describe('GameEngine death-effect buffer (separate from wave completion)', () =>
 
 	it('respects damageNumbers=false: chain milestones emit no floating text', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, 0, [], 1);
+		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.wireMuzzleFlash(() => {});
 		engine.state.settings.damageNumbers = false;
 		engine.setKillstreakMilestoneHandler((c) => {

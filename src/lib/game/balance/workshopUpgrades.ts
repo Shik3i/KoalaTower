@@ -226,6 +226,18 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 	},
 ];
 
+/**
+ * Economy-only Forge upgrades that have NO Field equivalent — they stay
+ * permanent-only in the Foundry. Combat Forge stats moved to forgeUpgrades.ts
+ * (the shared Field curve) in v15; their old WorkshopUpgradeId entries are
+ * stripped on migration. Everything not in this set is a legacy combat entry.
+ */
+export const FORGE_ECONOMY_WORKSHOP_IDS: WorkshopUpgradeId[] = [
+	WorkshopUpgradeId.CoinBonus,
+	WorkshopUpgradeId.EnergyBonus,
+	WorkshopUpgradeId.StartingEnergy,
+];
+
 const defMap = new Map<WorkshopUpgradeId, WorkshopUpgradeDef>();
 for (const def of WORKSHOP_UPGRADE_DEFS) {
 	defMap.set(def.id, def);

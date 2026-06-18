@@ -23,6 +23,7 @@ import { getStartingEnergy } from '../systems/economySystem';
 import { resetEnemyIdCounter } from '../balance/enemies';
 import { getMasteryBonus } from '../balance/balanceMath';
 import { getBattleUpgradeCost, buildBattleUpgradeList } from '../balance/battleUpgrades';
+import { seedBattleUpgradesFromForge } from '../balance/forgeUpgrades';
 import { isFieldUpgradeUnlocked } from '../balance/blueprints';
 import { setFeedbackHooks } from '../systems/enemySystem';
 import { buildEnemyFrameIndex } from '../systems/spatialIndex';
@@ -110,21 +111,23 @@ export class GameEngine {
 				fireTimer: 0,
 				alive: true,
 			},
-			wave: {
-				currentWave: 0,
-				enemiesInWave: 0,
-				enemiesSpawned: 0,
-				enemiesKilled: 0,
-				spawnTimer: 0,
-				spawnInterval: 1.0,
-				waveActive: false,
-				betweenWaveTimer: 0,
-				currentSubWave: 0,
-				enemiesInSubWave: 0,
-				enemiesSpawnedInSubWave: 0,
-				subWavePauseTimer: 0,
-				subWaveActive: false,
-			},
+		wave: {
+			currentWave: 0,
+			enemiesInWave: 0,
+			enemiesSpawned: 0,
+			enemiesKilled: 0,
+			spawnTimer: 0,
+			spawnInterval: 1.0,
+			waveActive: false,
+			betweenWaveTimer: 0,
+			currentSubWave: 0,
+			enemiesInSubWave: 0,
+			enemiesSpawnedInSubWave: 0,
+			subWavePauseTimer: 0,
+			subWaveActive: false,
+			killsByTypeThisWave: {},
+			lastWaveKillsByType: {},
+		},
 			enemies: [],
 			projectiles: [],
 			cash: 0,
@@ -151,6 +154,8 @@ export class GameEngine {
 			shinyKillsByType: {},
 			masteryDmgBonus: {},
 			critsDealt: 0,
+			energySpentThisRun: 0,
+			firstTowerDamageWave: 0,
 			killstreak: { count: 0, timer: 0, best: 0, lastMilestone: 0 },
 		};
 	}
@@ -172,7 +177,7 @@ export class GameEngine {
 		this.onStateChange = opts.onStateChange ?? null;
 	}
 
-	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, labLevels: Partial<Record<LabId, number>>, startingCoins: number, unlockedBlueprints: BlueprintId[] = [], tier: number = 1, challenge: ChallengeId | null = null, killsByType: Partial<Record<EnemyType, number>> = {}): void {
+	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, forgeUpgrades: Partial<Record<UpgradeId, number>>, labLevels: Partial<Record<LabId, number>>, startingCoins: number, unlockedBlueprints: BlueprintId[] = [], tier: number = 1, challenge: ChallengeId | null = null, killsByType: Partial<Record<EnemyType, number>> = {}): void {
 		resetEnemyIdCounter();
 		resetProjectileIdCounter();
 		this.particles = [];
@@ -193,6 +198,9 @@ export class GameEngine {
 
 		this.state = this.createInitialState();
 		this.state.workshopUpgrades = { ...workshopUpgrades } as Record<WorkshopUpgradeId, number>;
+		// Seed the run's Field upgrade levels from the permanent Forge levels.
+		// In-run Field purchases continue (value AND cost) from these levels.
+		this.state.battleUpgrades = seedBattleUpgradesFromForge(forgeUpgrades) as Record<UpgradeId, number>;
 		this.state.labLevels = { ...labLevels } as Record<LabId, number>;
 		this.state.coins = startingCoins;
 		this.state.tier = tier;
@@ -385,6 +393,7 @@ export class GameEngine {
 		const cost = getBattleUpgradeCost(id, currentLevel);
 		if (this.state.cash >= cost && currentLevel < maxLv) {
 			this.state.cash -= cost;
+			this.state.energySpentThisRun += cost;
 			this.state.battleUpgrades[id] = currentLevel + 1;
 			this.statsDirty = true;
 			applyBattleUpgrades(this.state);
@@ -540,14 +549,22 @@ export class GameEngine {
 	 * Tick the cosmetic killstreak timeout. Resets the chain when no kill
 	 * occurs within the window. Purely visual — no economy / combat effect.
 	 *
-	 * Timeout is suspended while no wave is active (inter-wave / sub-wave pause)
-	 * so the chain never resets just because spawns paused.
+	 * The timeout is suspended whenever the player isn't actively fighting:
+	 *   • inter-wave downtime (waveActive/subWaveActive false) — chain survives
+	 *     the full between-wave gap and any sub-wave pause.
+	 *   • no live enemies on the field — chain survives natural spawn lulls
+	 *     so a slow spawn rate or a long escort break can't break the combo.
+	 * The chain ONLY decays while there are enemies to fight and you stop
+	 * killing them. Tower damage always resets it immediately (see towerSystem).
 	 */
 	private updateKillstreak(dt: number): void {
 		const ks = this.state.killstreak;
 		if (!ks || ks.count === 0 || ks.timer <= 0) return;
-		// Suspend timeout during inter-wave / sub-wave pauses
+		// Suspend timeout during inter-wave / sub-wave pauses.
 		if (!this.state.wave.waveActive || !this.state.wave.subWaveActive) return;
+		// Suspend timeout when there is nothing on the field to kill — the
+		// chain must not bleed out during a spawn lull or escort gap.
+		if (this.state.enemies.length === 0) return;
 		ks.timer -= dt;
 		if (ks.timer <= 0) {
 			ks.count = 0;

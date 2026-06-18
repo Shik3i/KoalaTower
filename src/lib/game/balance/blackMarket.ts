@@ -121,6 +121,16 @@ export function canClaimDailyContract(lastCompletedAt: number, now = Date.now())
 	return localDayKey(lastCompletedAt) !== localDayKey(now);
 }
 
+/**
+ * The daily Strange Matter pickup: a once-per-local-day Black Market handoff.
+ * Requires the Black Market to be unlocked. No deployment, streak, or support
+ * requirement — purely local-day gated. `lastClaimedAt` reuses the legacy
+ * `lastDailyContractCompletedAt` save field (not renamed).
+ */
+export function canClaimDailyStrangeMatter(unlocked: boolean, lastClaimedAt: number, now = Date.now()): boolean {
+	return unlocked && canClaimDailyContract(lastClaimedAt, now);
+}
+
 export function getMaxUnlockedSpeed(unlocks: BlackMarketUnlocks | undefined): number {
 	if (hasBlackMarketUnlock(unlocks, 'gameSpeed5')) return 5;
 	if (hasBlackMarketUnlock(unlocks, 'gameSpeed3')) return 3;

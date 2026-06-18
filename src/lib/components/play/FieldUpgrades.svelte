@@ -60,6 +60,25 @@
 	function getLockBlueprintName(id: UpgradeId): string {
 		return getBlueprintForFieldUpgrade(id)?.name ?? 'Unknown';
 	}
+
+	/**
+	 * The cheapest affordable, unlocked, non-maxed upgrade in the current
+	 * category — highlighted as the suggested "next buy" so players always have
+	 * an obvious affordable move.
+	 */
+	const nextBuyId = $derived.by<UpgradeId | null>(() => {
+		const cash = snap?.cash ?? 0;
+		let best: UpgradeId | null = null;
+		let bestCost = Infinity;
+		for (const u of BATTLE_UPGRADES) {
+			if (u.category !== upgradeCategory) continue;
+			const lv = lvOf(u.id);
+			if (lv >= u.maxLevel || isUpgradeLocked(u.id)) continue;
+			const cost = u.cost(lv);
+			if (cash >= cost && cost < bestCost) { bestCost = cost; best = u.id; }
+		}
+		return best;
+	});
 </script>
 
 <div class="cat-tabs">
@@ -85,6 +104,7 @@
 		<button
 			class="uc"
 			class:aff={aff && !mx && !locked}
+			class:next-buy={nextBuyId === u.id}
 			class:mx={mx}
 			class:locked={locked}
 			class:purchased={purchasedId === u.id}
@@ -123,6 +143,8 @@
 	.uc { display:flex; flex-direction:column; gap:.15rem; padding:.52rem .55rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition-fast); text-align:left; width:100%; }
 	.uc.aff { border-color:rgba(68,255,136,.25); }
 	.uc.aff:hover { border-color:var(--cyan); background:rgba(0,255,255,.05); box-shadow:0 0 8px rgba(0,255,255,.06); }
+	/* Suggested next buy: cheapest affordable upgrade in this category */
+	.uc.next-buy { border-color:var(--cyan); box-shadow:0 0 0 1px rgba(0,255,255,.25), 0 0 10px rgba(0,255,255,.12); }
 	.uc.purchased { animation:purchaseGlow .5s ease-out; }
 	@keyframes purchaseGlow { 0%{box-shadow:0 0 0 rgba(0,255,255,0);transform:scale(1)} 25%{box-shadow:0 0 25px rgba(0,255,255,.8),0 0 50px rgba(0,255,255,.3);transform:scale(1.03)} 100%{box-shadow:0 0 0 rgba(0,255,255,0);transform:scale(1)} }
 	.uc.mx { opacity:.45; cursor:default; }
