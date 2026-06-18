@@ -14,8 +14,8 @@ describe('Save Migration', () => {
 		expect(save.strangeMatter).toBe(0);
 		expect(save.lifetimeStrangeMatterEarned).toBe(0);
 		expect(save.lastWeeklyBlackMarketShipmentClaimedAt).toBe(0);
-		expect(save.lastDailyContractCompletedAt).toBe(0);
-		expect(save.lastDailyContractDeploymentAt).toBe(0);
+		expect(save.lastDailyStrangeMatterPickedUpAt).toBe(0);
+		expect(save.lastDailyStrangeMatterDeploymentAt).toBe(0);
 		expect(save.blackMarketUnlocks).toEqual({});
 		expect(save.createdAt).toBeTruthy();
 		expect(save.saveId).toBeTruthy();
@@ -100,8 +100,8 @@ describe('Save Migration', () => {
 			strangeMatter: -99,
 			lifetimeStrangeMatterEarned: '14.8',
 			lastWeeklyBlackMarketShipmentClaimedAt: -5,
-			lastDailyContractCompletedAt: '123',
-			lastDailyContractDeploymentAt: '456',
+			lastDailyStrangeMatterPickedUpAt: '123',
+			lastDailyStrangeMatterDeploymentAt: '456',
 			blackMarketUnlocks: { gameSpeed3: true, bogus: true },
 		};
 		const migrated = migrateSave(sparse as unknown as Record<string, unknown>);
@@ -109,9 +109,25 @@ describe('Save Migration', () => {
 		expect(migrated!.strangeMatter).toBe(0);
 		expect(migrated!.lifetimeStrangeMatterEarned).toBe(14);
 		expect(migrated!.lastWeeklyBlackMarketShipmentClaimedAt).toBe(0);
-		expect(migrated!.lastDailyContractCompletedAt).toBe(123);
-		expect(migrated!.lastDailyContractDeploymentAt).toBe(456);
+		expect(migrated!.lastDailyStrangeMatterPickedUpAt).toBe(123);
+		expect(migrated!.lastDailyStrangeMatterDeploymentAt).toBe(456);
 		expect(migrated!.blackMarketUnlocks).toEqual({ gameSpeed3: true });
+	});
+
+	it('should migrate legacy daily contract timestamps into daily pickup fields', () => {
+		const sparse = {
+			schemaVersion: 11,
+			lastUpdated: 1,
+			totalRuns: 1,
+			highestWave: 1,
+			totalCoins: 1,
+			lastDailyContractCompletedAt: '123',
+			lastDailyContractDeploymentAt: '456',
+		};
+		const migrated = migrateSave(sparse as unknown as Record<string, unknown>);
+		expect(migrated).not.toBeNull();
+		expect(migrated!.lastDailyStrangeMatterPickedUpAt).toBe(123);
+		expect(migrated!.lastDailyStrangeMatterDeploymentAt).toBe(456);
 	});
 
 	it('should add blackMarketIntroSeen default false for v12→v13 migration', () => {

@@ -123,7 +123,7 @@
 	.nc-bestWave { border-left-color:var(--green); }
 	.nc-frontUnlock { border-left-color:var(--cyan); }
 	.nc-blackMarket { border-left-color:var(--pink); }
-	.nc-shipment, .nc-contract { border-left-color:var(--pink); }
+	.nc-shipment, .nc-pickup { border-left-color:var(--pink); }
 	.nc-research { border-left-color:var(--cyan); }
 	.nc-boss { border-left-color:var(--red); }
 	.nc-warning { border-left-color:var(--red); }

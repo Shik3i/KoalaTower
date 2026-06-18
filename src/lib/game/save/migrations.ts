@@ -3,7 +3,7 @@ import { BlueprintId, AchievementId, TierId, WorkshopUpgradeId, DEFAULT_SETTINGS
 import { computeGrandfatheredBlueprints } from '../balance/blueprints';
 import { FORGE_ECONOMY_WORKSHOP_IDS } from '../balance/workshopUpgrades';
 import { getForgeUpgradeDef } from '../balance/forgeUpgrades';
-import { createDefaultDailyTasksState, createDefaultCommandOrdersState, type CommandOrdersState } from '../balance/dailyTasks';
+import { createDefaultCommandOrdersState, type CommandOrdersState } from '../balance/commandOrders';
 import type { UpgradeId } from '../engine/gameTypes';
 import { emptySchematics, normalizeSchematics } from '../balance/schematics';
 import { normalizeBlackMarketUnlocks, normalizeStrangeMatter, normalizeTimestamp } from '../balance/blackMarket';
@@ -120,8 +120,8 @@ function migrateV0toV1(data: Record<string, unknown>): any {
 		totalCoins: (data.totalCoins as number) || 0,
 		workshopUpgrades: (data.workshopUpgrades as Record<string, number>) || {},
 		forgeUpgrades: {},
-		dailyTasks: createDefaultDailyTasksState(), // legacy — cleaned by v16→v17
-		commandOrders: createDefaultDailyTasksState(),
+		dailyTasks: createDefaultCommandOrdersState(), // legacy — cleaned by v16→v17
+		commandOrders: createDefaultCommandOrdersState(),
 		labResearch: {},
 		labLevels: (data.labLevels as Record<string, number>) || {},
 		blueprints: [],
@@ -158,8 +158,8 @@ function migrateV0toV1(data: Record<string, unknown>): any {
 		strangeMatter: 0,
 		lifetimeStrangeMatterEarned: 0,
 		lastWeeklyBlackMarketShipmentClaimedAt: 0,
-		lastDailyContractCompletedAt: 0,
-		lastDailyContractDeploymentAt: 0,
+		lastDailyStrangeMatterPickedUpAt: 0,
+		lastDailyStrangeMatterDeploymentAt: 0,
 		blackMarketUnlocks: {},
 		autoDeploymentEnabled: false,
 		blackMarketIntroSeen: false,
@@ -354,8 +354,8 @@ function migrateV11toV12(save: SaveData): SaveData {
 		strangeMatter: normalizeStrangeMatter((save as any).strangeMatter),
 		lifetimeStrangeMatterEarned: normalizeStrangeMatter((save as any).lifetimeStrangeMatterEarned),
 		lastWeeklyBlackMarketShipmentClaimedAt: normalizeTimestamp((save as any).lastWeeklyBlackMarketShipmentClaimedAt),
-		lastDailyContractCompletedAt: normalizeTimestamp((save as any).lastDailyContractCompletedAt),
-		lastDailyContractDeploymentAt: normalizeTimestamp((save as any).lastDailyContractDeploymentAt),
+		lastDailyStrangeMatterPickedUpAt: normalizeTimestamp((save as any).lastDailyStrangeMatterPickedUpAt ?? (save as any).lastDailyContractCompletedAt),
+		lastDailyStrangeMatterDeploymentAt: normalizeTimestamp((save as any).lastDailyStrangeMatterDeploymentAt ?? (save as any).lastDailyContractDeploymentAt),
 		blackMarketUnlocks: normalizeBlackMarketUnlocks((save as any).blackMarketUnlocks),
 		autoDeploymentEnabled: (save as any).autoDeploymentEnabled === true,
 	};
@@ -425,8 +425,8 @@ function migrateV14toV15(save: SaveData): any {
 		schemaVersion: CURRENT_SCHEMA_VERSION,
 		workshopUpgrades: trimmedWs,
 		forgeUpgrades: {},
-		dailyTasks: createDefaultDailyTasksState(), // legacy — cleaned by v16→v17
-		commandOrders: createDefaultDailyTasksState(),
+		dailyTasks: createDefaultCommandOrdersState(), // legacy — cleaned by v16→v17
+		commandOrders: createDefaultCommandOrdersState(),
 	};
 }
 
@@ -525,8 +525,8 @@ function ensureMetadata(save: SaveData): SaveData {
 		strangeMatter: normalizeStrangeMatter((save as any).strangeMatter),
 		lifetimeStrangeMatterEarned: normalizeStrangeMatter((save as any).lifetimeStrangeMatterEarned),
 		lastWeeklyBlackMarketShipmentClaimedAt: normalizeTimestamp((save as any).lastWeeklyBlackMarketShipmentClaimedAt),
-		lastDailyContractCompletedAt: normalizeTimestamp((save as any).lastDailyContractCompletedAt),
-		lastDailyContractDeploymentAt: normalizeTimestamp((save as any).lastDailyContractDeploymentAt),
+		lastDailyStrangeMatterPickedUpAt: normalizeTimestamp((save as any).lastDailyStrangeMatterPickedUpAt ?? (save as any).lastDailyContractCompletedAt),
+		lastDailyStrangeMatterDeploymentAt: normalizeTimestamp((save as any).lastDailyStrangeMatterDeploymentAt ?? (save as any).lastDailyContractDeploymentAt),
 		blackMarketUnlocks: normalizeBlackMarketUnlocks((save as any).blackMarketUnlocks),
 		autoDeploymentEnabled: (save as any).autoDeploymentEnabled === true,
 		blackMarketIntroSeen: (save as any).blackMarketIntroSeen === true,

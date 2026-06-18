@@ -123,33 +123,6 @@ const DAILY_PICKUP_FLAVOUR: string[] = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Daily contract flavour — legacy pool, retained for back-compat tests
-// ═══════════════════════════════════════════════════════════════════════════
-
-const CONTRACT_FLAVOUR: string[] = [
-	'Today\'s job is straightforward. The shapes are not.',
-	'Contract parameters set. Expected difficulty: elevated.',
-	'Daily brief ready. Shape threat level: standard plus complications.',
-	'Today\'s parameters issued by an unspecified party. Best guess: the usual vendor.',
-	'Contract active. Completion unlocks a Strange Matter allocation.',
-	'Daily assignment loaded. Threat geometry: confirmed hostile.',
-	'Job parameters received. Unusual conditions apply.',
-	'Today\'s contract: survive what the shapes throw at you. Simple.',
-	'Assignment issued. The shapes weren\'t briefed, but they\'ll figure it out.',
-	'Contract active. Completion criteria: complete. Shapes: unaware of criteria.',
-	'Daily operation parameters set. Command does not endorse this contract.',
-	'Assignment received from off-grid. Proceed at standard operational risk.',
-	'Today\'s job logged. Shape activity expected to match.',
-	'Contract parameters: unusual. Strange Matter reward: confirmed.',
-	'Daily operation active. Source: classified. Reward: Strange Matter.',
-	'Assignment loaded. Approximate threat match. Proceed.',
-	'Today\'s objective defined by sources outside official Orbital Command channels.',
-	'Contract ready. Performance tracked off the record. Reward on completion.',
-	'Daily parameters active. This contract does not appear in official Archives.',
-	'Assignment issued. The shapes don\'t know it\'s a contract. That\'s the advantage.',
-];
-
-// ═══════════════════════════════════════════════════════════════════════════
 // Outsourced Research Lab teasers — shown under the "coming later" item
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -186,13 +159,11 @@ export const blackMarketCopy = {
 	shipmentFlavour: () => pick(SHIPMENT_FLAVOUR),
 	shipmentAccepted: () => pick(SHIPMENT_ACCEPTED),
 	dailyPickup: () => pick(DAILY_PICKUP_FLAVOUR),
-	contractFlavour: () => pick(CONTRACT_FLAVOUR),
 	outsourcedLabTeaser: () => pick(OUTSOURCED_LAB_TEASER),
 	channelIntro: () => CHANNEL_INTRO,
 	signalStatusAll: SIGNAL_STATUS,
 	shipmentFlavourAll: SHIPMENT_FLAVOUR,
 	shipmentAcceptedAll: SHIPMENT_ACCEPTED,
 	dailyPickupAll: DAILY_PICKUP_FLAVOUR,
-	contractFlavourAll: CONTRACT_FLAVOUR,
 	outsourcedLabTeaserAll: OUTSOURCED_LAB_TEASER,
 };

@@ -32,7 +32,7 @@ export interface OpLogCategory {
 	speedChange: string[];
 	upgradeMaxLevel: string[];
 	upgradeNotEnough: string[];
-	// Blueprint
+	// Schematics
 	blueprintDiscovered: string[];
 	blueprintAlreadyOwned: string[];
 	blueprintNotYetFound: string[];
@@ -44,7 +44,7 @@ export interface OpLogCategory {
 	labMaxLevel: string[];
 	// Black Market
 	blackMarketShipmentClaimed: string[];
-	blackMarketContractClaimed: string[];
+	blackMarketDailyPickupClaimed: string[];
 	blackMarketUnlockPurchased: string[];
 	blackMarketConverterUsed: string[];
 }
@@ -171,18 +171,18 @@ const POOLS: OpLogCategory = {
 	],
 
 	blueprintUnlocked: [
-		'Blueprint recovered. Procurement denies ever losing it.',
+		'Schematic recovered. Procurement denies ever losing it.',
 		'Schematic unlocked: {name}. Somebody in R&D is taking credit.',
-		'Blueprint {name} added to archives. It was definitely not stolen.',
+		'Schematic {name} added to archives. It was definitely not stolen.',
 		'{name} unlocked. Command insists this was always in the budget.',
-		'Blueprint recovered. Procurement has stopped sweating. Temporarily.',
+		'Schematic recovered. Procurement has stopped sweating. Temporarily.',
 		'New schematic: {name}. It was found behind a filing cabinet. Allegedly.',
-		'{name} blueprint secured. R&D has already filed three competing patents for it.',
+		'{name} schematic secured. R&D has already filed three competing patents for it.',
 		'{name} schematic secured. Someone is already taking credit and nobody is surprised.',
-		'Blueprint added to archives: {name}. No further questions are being accepted.',
+		'Schematic added to archives: {name}. No further questions are being accepted.',
 		'{name} committed to design archives. Procurement claims this was planned from the start.',
 		'Schematic approved: {name}. The review process took three working days and one heated argument.',
-		'{name} unlocked. The previous version of this blueprint has been quietly retired from history.',
+		'{name} unlocked. The previous schematic has been quietly retired from history.',
 	],
 
 	researchStarted: [
@@ -337,27 +337,27 @@ const POOLS: OpLogCategory = {
 	blueprintDiscovered: [
 		'Schematic recovered: {name}. Procurement insists they knew where it was.',
 		'Field recovery confirmed: {name}. R&D is already arguing over who gets credit.',
-		'{name} blueprint found. Its chain of custody is unclear. Gloriously.',
+		'{name} schematic found. Its chain of custody is unclear. Gloriously.',
 		'New schematic: {name}. Orbital Command has pre-filed the success report.',
 		'Schematic secured in the field: {name}. Research it at Orbital Command.',
 		'{name} recovered. The shapes had it. They no longer do.',
-		'Blueprint fragment retrieved: {name}. Origins classified. Even from us.',
+		'Schematic fragment retrieved: {name}. Origins classified. Even from us.',
 	],
 
 	blueprintAlreadyOwned: [
 		'Already researched. The archives are not a recycle bin.',
 		'Schematic already committed to the Tower design. Permanently.',
 		'Research complete. Repeating it would change nothing. Probably.',
-		'This blueprint is in active deployment. The bureaucracy notes: redundant.',
+		'This schematic is in active deployment. The bureaucracy notes: redundant.',
 		'Already in service. Procurement has this filed under Done.',
 	],
 
 	blueprintNotYetFound: [
 		'Schematic not yet recovered. Deploy and search the field first.',
-		'Blueprint classified: field discovery required before research.',
+		'Schematic classified: field discovery required before research.',
 		'R&D needs the physical schematic before research can begin. Deploy to find it.',
-		'No blueprint recovered yet. The field does not yield schematics willingly.',
-		'Discovery required first. Check the blueprint\'s conditions and deploy accordingly.',
+		'No schematic recovered yet. The field does not yield schematics willingly.',
+		'Discovery required first. Check the schematic\'s conditions and deploy accordingly.',
 	],
 
 	workshopMaxLevel: [
@@ -402,11 +402,11 @@ const POOLS: OpLogCategory = {
 		'Shipment secured. No manifest. No customs. No record. No problem.',
 		'Weekly delivery claimed. The vendor has been notified. Command has not.',
 	],
-	blackMarketContractClaimed: [
-		'Daily contract filed. The shapes never knew they were part of a transaction.',
-		'Contract complete. Strange Matter allocated. Paper trail: none.',
-		'Daily assignment fulfilled. The off-grid ledger has been updated. The official one has not.',
-		'Contract claimed. The vendor acknowledges your contribution to the unofficial economy.',
+	blackMarketDailyPickupClaimed: [
+		'Daily pickup logged. The vial was warm. The paperwork was absent.',
+		'Strange Matter allocated. Paper trail: none.',
+		'Daily handoff complete. The off-grid ledger has been updated. The official one has not.',
+		'Pickup claimed. The vendor acknowledges nothing and slides the vial over anyway.',
 	],
 	blackMarketUnlockPurchased: [
 		'Contraband procured: {name}. The receipt has already been shredded.',
@@ -416,7 +416,7 @@ const POOLS: OpLogCategory = {
 	],
 	blackMarketConverterUsed: [
 		'Schematics converted. {converted} designs returned to the void. One emerged.',
-		'Converter cycle complete. {converted} obsolete blueprints. One restricted one. Fair trade.',
+		'Converter cycle complete. {converted} obsolete schematics. One restricted one. Fair trade.',
 		'{converted} Schematics fed to the converter. It hummed. It delivered.',
 		'Conversion finished. The converter thanks you for your geometric sacrifice.',
 	],

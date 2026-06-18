@@ -21,11 +21,10 @@
 	import {
 		BLACK_MARKET_UNLOCKS,
 		SCHEMATIC_CONVERSION_RATE,
-		STRANGE_MATTER_DAILY_CONTRACT,
+		STRANGE_MATTER_DAILY_PICKUP,
 		STRANGE_MATTER_WEEKLY_SHIPMENT,
 		SUPPORT_URL,
 		canBuyBlackMarketUnlock,
-		canClaimDailyContract,
 		canClaimDailyStrangeMatter,
 		canClaimWeeklyShipment,
 		computeBlackMarketSignal,
@@ -62,7 +61,7 @@
 		GIFT_BOX_REWARDS,
 		type CommandOrderInstance,
 		type CommandOrdersState,
-	} from '$lib/game/balance/dailyTasks';
+	} from '$lib/game/balance/commandOrders';
 	import type { GameSettings, WorkshopUpgradeId, UpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
 	import { blackMarketCopy } from '$lib/game/balance/blackMarketCopy';
@@ -98,7 +97,7 @@
 	let labLevels = $state<Record<string, number>>({});
 	let hubStats = $state({ bestKillstreak: 0, totalKills: 0, totalBossesDefeated: 0, totalShiniesKilled: 0, totalAlloyEarned: 0 });
 
-	const HUB_TUTORIAL_KEY = 'geocore-td-hub-tutorial-done';
+	const HUB_TUTORIAL_KEY = 'flatland-td-hub-tutorial-done';
 	const hubTutorialSteps: TutorialStep[] = [
 		{ title: 'Orbital Command', desc: 'This is your permanent base. Alloy earned in deployments can be spent here, and those upgrades survive every tower fall.', target: '', placement: 'center' },
 		{ title: 'Forge', desc: 'Buy permanent tower stats first. Damage, Fire Rate, and Max HP are simple early upgrades that make the next deployment stronger.', target: '[data-section="workshop"]', placement: 'right' },
@@ -119,7 +118,7 @@
 	let lifetimeStrangeMatterEarned = $state(0);
 	let blackMarketUnlocks = $state<BlackMarketUnlocks>({});
 	let lastWeeklyBlackMarketShipmentClaimedAt = $state(0);
-	let lastDailyContractCompletedAt = $state(0);
+	let lastDailyStrangeMatterPickedUpAt = $state(0);
 	let autoDeploymentEnabled = $state(false);
 	let converterSourceFront = $state(1);
 	let nowTick = $state(Date.now());
@@ -135,7 +134,7 @@
 		unlocked: bmUnlocked,
 		introSeen: blackMarketIntroSeen,
 		weeklyReady: canClaimWeeklyShipment(lastWeeklyBlackMarketShipmentClaimedAt, nowTick),
-		dailyReady: canClaimDailyStrangeMatter(bmUnlocked, lastDailyContractCompletedAt, nowTick),
+		dailyReady: canClaimDailyStrangeMatter(bmUnlocked, lastDailyStrangeMatterPickedUpAt, nowTick),
 	}));
 	let supportReady = $derived(isSupportUrlConfigured(SUPPORT_URL));
 	let blackMarketIntroSeen = $state(false);
@@ -158,7 +157,7 @@
 		lifetimeStrangeMatterEarned = save.lifetimeStrangeMatterEarned ?? 0;
 		blackMarketUnlocks = { ...(save.blackMarketUnlocks ?? {}) };
 		lastWeeklyBlackMarketShipmentClaimedAt = save.lastWeeklyBlackMarketShipmentClaimedAt ?? 0;
-		lastDailyContractCompletedAt = save.lastDailyContractCompletedAt ?? 0;
+		lastDailyStrangeMatterPickedUpAt = save.lastDailyStrangeMatterPickedUpAt ?? 0;
 		autoDeploymentEnabled = save.autoDeploymentEnabled === true;
 		blackMarketIntroSeen = save.blackMarketIntroSeen === true;
 	}
@@ -229,26 +228,26 @@
 		playForNotification('shipment');
 	}
 
-	function claimDailyContract() {
+	function claimDailyPickup() {
 		const save = getCachedSave(); if (!save) return;
 		const now = Date.now();
 		if (!isBlackMarketUnlocked(save.frontBestWave ?? {})) {
 			toast('No carrier detected. Field exposure insufficient.', 'info');
 			return;
 		}
-		if (!canClaimDailyContract(save.lastDailyContractCompletedAt ?? 0, now)) {
+		if (!canClaimDailyStrangeMatter(true, save.lastDailyStrangeMatterPickedUpAt ?? 0, now)) {
 			toast('Already picked up today. The vendor only slips you so much.', 'info');
 			return;
 		}
-		grantStrangeMatter(save, STRANGE_MATTER_DAILY_CONTRACT);
-		save.lastDailyContractCompletedAt = now;
+		grantStrangeMatter(save, STRANGE_MATTER_DAILY_PICKUP);
+		save.lastDailyStrangeMatterPickedUpAt = now;
 		persistSave(save);
 		refreshBlackMarketState();
 		refreshBmCopy();
 		uiSound('upgrade');
-		toast(blackMarketCopy.dailyPickup() + ' +' + STRANGE_MATTER_DAILY_CONTRACT + ' Strange Matter', 'success');
-		toast(getOpLogMessage('blackMarketContractClaimed'), 'info');
-		notifications.notify({ kind: 'contract', title: 'Strange Matter received', detail: `+${STRANGE_MATTER_DAILY_CONTRACT} Strange Matter` });
+		toast(blackMarketCopy.dailyPickup() + ' +' + STRANGE_MATTER_DAILY_PICKUP + ' Strange Matter', 'success');
+		toast(getOpLogMessage('blackMarketDailyPickupClaimed'), 'info');
+		notifications.notify({ kind: 'pickup', title: 'Strange Matter received', detail: `+${STRANGE_MATTER_DAILY_PICKUP} Strange Matter` });
 	}
 
 	function buyBlackMarketUnlock(id: BlackMarketUnlockId) {
@@ -715,7 +714,7 @@
 
 <svelte:head>
 	<title>Orbital Command — Flatland TD · FLTD</title>
-	<meta name="description" content="Flatland TD Orbital Command — Foundry upgrades, Research Deck projects, Fronts, Special Operations, Simulation, Archives, and Systems." />
+	<meta name="description" content="Flatland TD Orbital Command — Forge upgrades, Research Deck projects, Fronts, Special Operations, Simulation, Archives, and Systems." />
 </svelte:head>
 
 <main class="hub-page">
@@ -889,15 +888,21 @@
 
 					<!-- Completed Orders -->
 					{#if completedOrders.length > 0}
-						{@const showCompleted = showCompletedOrders ?? true}
-						<h3 class="stats-sub" style="margin-top:1rem;cursor:pointer;display:flex;align-items:center;gap:.35rem" onclick={() => showCompletedOrders = !showCompletedOrders} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showCompletedOrders = !showCompletedOrders; } }} role="button" tabindex="0" aria-expanded={showCompletedOrders}>
+						<button
+							type="button"
+							class="stats-sub completed-toggle"
+							onclick={() => showCompletedOrders = !showCompletedOrders}
+							aria-expanded={showCompletedOrders}
+							aria-controls="completed-orders-section"
+							aria-label={`${showCompletedOrders ? 'Collapse' : 'Expand'} completed Command Orders`}
+						>
 							<span>{showCompletedOrders ? '▾' : '▸'}</span> Completed ({completedOrders.length})
-						</h3>
+						</button>
 						{#if showCompletedOrders}
 							{#if canClaimAll}
 								<button class="hub-action bm-primary" style="margin-bottom:.4rem" onclick={claimAllCompleted}>Claim All (+{completedOrders.reduce((s, o) => s + o.reward, 0)} Alloy)</button>
 							{/if}
-							<div class="ug">
+							<div class="ug" id="completed-orders-section">
 								{#each completedOrders as order}
 									<div class="uc task-card aff">
 										<div class="uc-t"><span class="uci">✅</span><span class="ucn">{order.label}</span><span class="ucl">+{order.reward} Alloy</span></div>
@@ -963,7 +968,7 @@
 			{:else if activeSection === 'blueprints'}
 				<div class="hs"><h2 class="hst">📐 Schematics</h2><p class="hsd">{SCHEMATICS_FLAVOR}</p>
 					{#if FRONT_META.reduce((sum, m) => sum + getSchematics(schematicsByFront, m.front), 0) === 0}
-						<p class="empty-flavor">📐 No Schematics recovered yet. Complete waves on a Front to salvage obsolete blueprints, then reconstruct them here.</p>
+						<p class="empty-flavor">📐 No Schematics recovered yet. Complete waves on a Front to salvage obsolete designs, then reconstruct them here.</p>
 					{:else}
 						<div class="schem-bal">{#each FRONT_META as m}{@const n = getSchematics(schematicsByFront, m.front)}{#if n > 0 || unlockedFronts.includes(m.id)}<span class="schem-chip" use:tooltip={`${getFrontName(m.id)} Schematics: ${n}\nRecovered by completing waves on this Front.\nSpend them in the Schematics tab to reconstruct new upgrade paths.`}><FrontIcon front={m.id} size={16} /> {n}</span>{/if}{/each}</div>
 					{/if}
@@ -971,7 +976,7 @@
 				</div>
 			{:else if activeSection === 'blackMarket'}
 				{@const weeklyReady = canClaimWeeklyShipment(lastWeeklyBlackMarketShipmentClaimedAt, nowTick)}
-				{@const dailyReady = canClaimDailyStrangeMatter(bmUnlocked, lastDailyContractCompletedAt, nowTick)}
+				{@const dailyReady = canClaimDailyStrangeMatter(bmUnlocked, lastDailyStrangeMatterPickedUpAt, nowTick)}
 				{@const sourceBalance = getSchematics(schematicsByFront, converterSourceFront)}
 				{@const maxConversions = Math.floor(sourceBalance / SCHEMATIC_CONVERSION_RATE)}
 				<div class="hs bm-layout">
@@ -1001,8 +1006,8 @@
 
 						<section class="bm-panel">
 							<h3 class="stats-sub">Daily Pickup</h3>
-							<p class="hsd bm-contract-copy">{bmDailyFlavour}</p>
-							<button class="hub-action bm-primary" disabled={!dailyReady} onclick={claimDailyContract}>Take the Vial (+{STRANGE_MATTER_DAILY_CONTRACT})</button>
+							<p class="hsd bm-pickup-copy">{bmDailyFlavour}</p>
+							<button class="hub-action bm-primary" disabled={!dailyReady} onclick={claimDailyPickup}>Take the Vial (+{STRANGE_MATTER_DAILY_PICKUP})</button>
 							{#if !dailyReady}<div class="ccl">Picked up today. Back tomorrow.</div>{:else}<div class="ccl">No deployment needed — just stop by.</div>{/if}
 						</section>
 					</div>
@@ -1365,7 +1370,7 @@
 	.bm-header-bar { display:flex; align-items:baseline; gap:.65rem; flex-wrap:wrap; margin-bottom:.5rem; }
 	.bm-header-title { color:rgba(210,190,255,.85); text-shadow:0 0 18px rgba(136,68,255,.18); }
 	.bm-header-sub { font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:.65; text-transform:uppercase; letter-spacing:.04em; }
-	.bm-contract-copy { color:var(--text-secondary); font-style:italic; }
+	.bm-pickup-copy { color:var(--text-secondary); font-style:italic; }
 
 	/* Signal icon in header */
 	.bm-signal { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; margin-left:.35rem; padding:0; border:1px solid var(--border-neon); border-radius:50%; background:transparent; color:var(--text-dim); font-size:1.1rem; cursor:pointer; transition:all var(--transition-fast); flex-shrink:0; }
@@ -1426,6 +1431,8 @@
 	.uc.aff .uc-val { color:var(--green); }
 	.forge-sub { font-size:var(--fs-mono-sm); font-family:var(--font-mono); color:var(--text-secondary); text-transform:uppercase; letter-spacing:.05em; margin:.6rem 0 .3rem; }
 	.forge-sub:first-of-type { margin-top:.2rem; }
+	.completed-toggle { margin-top:1rem; display:flex; align-items:center; gap:.35rem; width:100%; padding:0; background:transparent; border:0; text-align:left; cursor:pointer; }
+	.completed-toggle:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; border-radius:var(--radius-sm); }
 	/* Daily Orbital Command tasks */
 	.gift-row { display:flex; flex-wrap:wrap; gap:.4rem; margin:.5rem 0; }
 	.gift-btn { background:linear-gradient(135deg,var(--yellow),var(--orange)); color:var(--bg-primary); font-weight:600; }

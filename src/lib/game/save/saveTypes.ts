@@ -2,7 +2,7 @@ import type { GameSettings, WorkshopUpgradeId, UpgradeId, LabId, MilestoneId, Ch
 import { TierId, DEFAULT_SETTINGS } from '../engine/gameTypes';
 import { emptySchematics } from '../balance/schematics';
 import type { BlackMarketUnlocks } from '../balance/blackMarket';
-import { type CommandOrdersState, createDefaultCommandOrdersState, createDefaultDailyTasksState } from '../balance/dailyTasks';
+import { type CommandOrdersState, createDefaultCommandOrdersState } from '../balance/commandOrders';
 
 export interface LabResearch {
 	level: number;
@@ -84,8 +84,8 @@ export interface SaveData {
 	strangeMatter: number;
 	lifetimeStrangeMatterEarned: number;
 	lastWeeklyBlackMarketShipmentClaimedAt: number;
-	lastDailyContractCompletedAt: number;
-	lastDailyContractDeploymentAt: number;
+	lastDailyStrangeMatterPickedUpAt: number;
+	lastDailyStrangeMatterDeploymentAt: number;
 	blackMarketUnlocks: BlackMarketUnlocks;
 	autoDeploymentEnabled: boolean;
 	/** v13: Whether the Black Market discovery intro has been seen. */
@@ -152,8 +152,8 @@ export function createDefaultSave(): SaveData {
 		strangeMatter: 0,
 		lifetimeStrangeMatterEarned: 0,
 		lastWeeklyBlackMarketShipmentClaimedAt: 0,
-		lastDailyContractCompletedAt: 0,
-		lastDailyContractDeploymentAt: 0,
+		lastDailyStrangeMatterPickedUpAt: 0,
+		lastDailyStrangeMatterDeploymentAt: 0,
 		blackMarketUnlocks: {},
 		autoDeploymentEnabled: false,
 		blackMarketIntroSeen: false,

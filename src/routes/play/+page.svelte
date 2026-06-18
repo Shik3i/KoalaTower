@@ -15,7 +15,7 @@
 	import { checkMasteryAchievements } from '$lib/game/balance/mastery';
 	import { buildBattleUpgradeList } from '$lib/game/balance/battleUpgrades';
 	import { seedBattleUpgradesFromForge } from '$lib/game/balance/forgeUpgrades';
-	import { applyCounterDeltas, rolloverCommandOrders, commandOrdersWeekKey } from '$lib/game/balance/dailyTasks';
+	import { applyCounterDeltas, rolloverCommandOrders, commandOrdersWeekKey } from '$lib/game/balance/commandOrders';
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
 	import { getBlueprintDef } from '$lib/game/balance/blueprints';
 	import { getUnlockedFronts, getTierNumber, getFrontName } from '$lib/game/balance/tiers';
@@ -66,7 +66,7 @@
 	let ctrlHeld = $state(false);
 	let showMobileSpeed = $state(false);
 
-	const PLAY_TUTORIAL_KEY = 'geocore-td-tutorial-done';
+	const PLAY_TUTORIAL_KEY = 'flatland-td-tutorial-done';
 	const playTutorialSteps = [
 		{ title: 'Start a Deployment', desc: 'Pick Front 1 and launch. Your tower fires automatically; your job is choosing upgrades before the shapes overwhelm it.', target: '.sc-btn, .start-btn, .btn-start', placement: 'center' as const },
 		{ title: 'Energy Now, Alloy Later', desc: 'Kills earn Energy for this deployment and Alloy for permanent upgrades. Energy is spent in the fight. Alloy survives the tower.', target: '.tb-stats', placement: 'bottom' as const },
@@ -785,7 +785,7 @@
 				{/if}
 			</div>
 			<NotificationCenter />
-			<a href="/hub" class="hub-link" aria-label="Orbital Command" use:tooltip={'Orbital Command — Forge, Research Deck, Blueprints, Fronts, Archives.'}><Icon name="hub" size={18} /></a>
+			<a href="/hub" class="hub-link" aria-label="Orbital Command" use:tooltip={'Orbital Command — Forge, Research Deck, Schematics, Fronts, Archives.'}><Icon name="hub" size={18} /></a>
 		</div>
 	</header>
 

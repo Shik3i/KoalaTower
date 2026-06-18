@@ -16,7 +16,7 @@ export type NotificationKind =
 	| 'frontUnlock'
 	| 'blackMarket'
 	| 'shipment'
-	| 'contract'
+	| 'pickup'
 	| 'research'
 	| 'boss'
 	| 'warning'
@@ -42,7 +42,7 @@ const KIND_ICON: Record<NotificationKind, string> = {
 	frontUnlock: '🌍',
 	blackMarket: '◈',
 	shipment: '📦',
-	contract: '📝',
+	pickup: '◈',
 	research: '🔬',
 	boss: '☠',
 	warning: '⚠',

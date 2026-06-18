@@ -3,7 +3,8 @@ import { createDefaultSave, CURRENT_SCHEMA_VERSION, type SaveData } from './save
 import { migrateSave, validateSaveData } from './migrations';
 import { encodeSaveContainer, decodeSaveContainer } from './saveEncoding';
 
-const SAVE_KEY = 'geocore-td-save';
+const SAVE_KEY = 'flatland-td-save';
+const LEGACY_SAVE_KEY = 'geocore-td-save';
 
 let cachedSave: SaveData | null = null;
 let cachedSaveId: string | null = null;
@@ -25,13 +26,14 @@ export async function loadSave(): Promise<SaveData> {
 	}
 
 	try {
-		const raw = await get(SAVE_KEY);
+		const raw = await get(SAVE_KEY) ?? await get(LEGACY_SAVE_KEY);
 		if (raw) {
 			const migrated = migrateSave(raw as Record<string, unknown>);
 			if (migrated && validateSaveData(migrated)) {
 				cachedSave = migrated;
 				cachedSaveId = migrated.saveId;
 				lastLoadCreatedDefault = false;
+				await persistSave(migrated);
 				return migrated;
 			}
 		}
@@ -158,6 +160,7 @@ export async function importSave(input: string): Promise<{ success: boolean; err
 export async function resetSave(): Promise<void> {
 	try {
 		await del(SAVE_KEY);
+		await del(LEGACY_SAVE_KEY);
 	} catch {
 		// ignore
 	}

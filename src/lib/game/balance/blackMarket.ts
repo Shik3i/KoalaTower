@@ -24,7 +24,7 @@ export interface BlackMarketUnlockDef {
 }
 
 export const STRANGE_MATTER_WEEKLY_SHIPMENT = 3;
-export const STRANGE_MATTER_DAILY_CONTRACT = 1;
+export const STRANGE_MATTER_DAILY_PICKUP = 1;
 export const WEEKLY_SHIPMENT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 export const SCHEMATIC_CONVERSION_RATE = 25;
 
@@ -116,19 +116,18 @@ export function localDayKey(timestamp = Date.now()): string {
 	return `${y}-${m}-${day}`;
 }
 
-export function canClaimDailyContract(lastCompletedAt: number, now = Date.now()): boolean {
-	if (lastCompletedAt <= 0) return true;
-	return localDayKey(lastCompletedAt) !== localDayKey(now);
+function isNewLocalDaySince(lastClaimedAt: number, now = Date.now()): boolean {
+	if (lastClaimedAt <= 0) return true;
+	return localDayKey(lastClaimedAt) !== localDayKey(now);
 }
 
 /**
  * The daily Strange Matter pickup: a once-per-local-day Black Market handoff.
  * Requires the Black Market to be unlocked. No deployment, streak, or support
- * requirement — purely local-day gated. `lastClaimedAt` reuses the legacy
- * `lastDailyContractCompletedAt` save field (not renamed).
+ * requirement — purely local-day gated.
  */
 export function canClaimDailyStrangeMatter(unlocked: boolean, lastClaimedAt: number, now = Date.now()): boolean {
-	return unlocked && canClaimDailyContract(lastClaimedAt, now);
+	return unlocked && isNewLocalDaySince(lastClaimedAt, now);
 }
 
 export function getMaxUnlockedSpeed(unlocks: BlackMarketUnlocks | undefined): number {

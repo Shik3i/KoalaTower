@@ -50,7 +50,7 @@ describe('saveService import/load parity', () => {
 			workshopUpgrades: { cashBonus: 4 },
 		};
 
-		store.set('geocore-td-save', oldSave);
+		store.set('flatland-td-save', oldSave);
 		let service = await import('../save/saveService');
 		const loaded = await service.loadSave();
 
@@ -67,6 +67,22 @@ describe('saveService import/load parity', () => {
 		expect(imported?.totalCoins).toBe(loaded.totalCoins);
 		expect(imported?.workshopUpgrades.energyBonus).toBe(loaded.workshopUpgrades.energyBonus);
 		expect(imported?.labLevels.alloyEfficiency).toBe(loaded.labLevels.alloyEfficiency);
+	});
+
+	it('copies a legacy browser save key into the new Flatland TD key once', async () => {
+		const oldSave = {
+			totalRuns: 2,
+			highestWave: 12,
+			totalCoins: 400,
+		};
+
+		store.set('geocore-td-save', oldSave);
+		const service = await import('../save/saveService');
+		const loaded = await service.loadSave();
+
+		expect(loaded.totalRuns).toBe(2);
+		expect(store.has('flatland-td-save')).toBe(true);
+		expect((store.get('flatland-td-save') as { totalRuns?: number }).totalRuns).toBe(2);
 	});
 
 	it('rejects unrecoverable malformed and future schema imports clearly', async () => {

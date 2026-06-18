@@ -14,7 +14,7 @@
 	import { LAB_DEFS } from '$lib/game/balance/labs';
 	import { APP_VERSION, SUPPORT_URL, GITHUB_URL, SITE_URL, REDDIT_URL } from '$lib/version';
 	import { isSupportUrlConfigured } from '$lib/game/balance/blackMarket';
-	import { applyCounterDeltas, rolloverCommandOrders, commandOrdersWeekKey } from '$lib/game/balance/dailyTasks';
+	import { applyCounterDeltas, rolloverCommandOrders, commandOrdersWeekKey } from '$lib/game/balance/commandOrders';
 	import { writeSeenVersion } from '$lib/stores/whatsNew';
 	import { page } from '$app/state';
 	import Toasts from '$lib/components/Toasts.svelte';

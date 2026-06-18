@@ -1,5 +1,5 @@
 /**
- * dailyTasks.test.ts — Weekly Orbital Command Orders (Alloy assignments).
+ * commandOrders.test.ts — Weekly Orbital Command Orders (Alloy assignments).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -29,7 +29,7 @@ import {
 	ORDER_BOARD_REFRESH_MS,
 	type CommandOrdersState,
 	type CommandOrderInstance,
-} from '../balance/dailyTasks';
+} from '../balance/commandOrders';
 
 const FRESH = { highestWave: 0, unlockedFrontCount: 1 };
 const VETERAN = { highestWave: 200, unlockedFrontCount: 5 };

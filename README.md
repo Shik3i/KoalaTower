@@ -21,7 +21,6 @@ Flatland is at war with **hostile geometric shapes**. Deploy towers from orbit, 
 - 🏗️ **13 Forge upgrades** — permanent pre-installed improvements (Damage, Fire Rate, Range, HP, Crit, Lifesteal, Thorns...)
 - 🔬 **5 Research Deck projects** — real-time orbital research with offline progress
 - ⚡ **14 Field upgrades** — temporary overclocks per deployment (Offense, Defense, Utility)
-- 📐 **Schematics** — recover per-Front design fragments and reconstruct upgrade paths
 - 🌍 **16 Fronts (4 bands × 4 Fronts)** — escalating difficulty with better Alloy rewards and per-Front Schematics
 - 📑 **Schematics** — per-Front currency dropped by bosses, used to reconstruct upgrade paths
 - 🛰️ **Command Orders** — weekly official Alloy assignments with gift box milestones and board refresh cooldowns
@@ -78,13 +77,13 @@ src/
 ├── app.html                 # HTML shell + SEO meta/OG/Twitter tags
 ├── lib/
 │   ├── components/          # Tutorial, BossHealthBar, Stats panels, News, Icon
-│   ├── stores/              # Reactive Svelte stores (coins, settings, engine)
+│   ├── stores/              # Reactive Svelte stores (Alloy, settings, engine)
 │   ├── content/             # Flatland News (18 humorous items)
 │   └── game/
 │       ├── engine/          # GameEngine + GameConfig + GameTypes
 │       ├── systems/         # Wave, Enemy, Tower, Projectile, Economy (pure functions)
-│       ├── balance/         # Enemies, Upgrades, Labs, Tiers, Blueprints, Achievements
-│       ├── progression/     # Unlock requirements + blueprint discovery RNG
+│       ├── balance/         # Enemies, upgrades, Research Deck, Fronts, Schematics, achievements
+│       ├── progression/     # Unlock requirements + Schematic discovery RNG
 │       ├── render/          # PixiJS WebGL rendering (layered renderers, death FX, effects)
 │       ├── audio/           # Procedural Web Audio SFX + music
 │       ├── save/            # IndexedDB persistence + schema migrations
@@ -95,7 +94,7 @@ src/
     ├── +error.svelte        # Themed 404/500 error page
     ├── +page.svelte         # Landing page with animated stars + news
     ├── play/+page.svelte    # Game canvas + HUD + vignette + boss intro + killstreak chip
-    ├── hub/+page.svelte     # Forge · Lab · Blueprints · Fronts · Black Market · Simulation · Archives
+    ├── hub/+page.svelte     # Forge · Research Deck · Schematics · Fronts · Black Market · Simulation · Archives
     ├── help/+page.svelte    # FAQ (12 questions) · Lore · Controls · Tutorial replay
     ├── imprint/+page.svelte # Legal notice
     ├── privacy/+page.svelte # Privacy policy (100% local data)
@@ -145,15 +144,15 @@ npm run check       # TypeScript strict typecheck
 npm run build       # Production build verification
 ```
 
-Test coverage includes: enemy scaling formulas, upgrade cost curves, save migration/import integrity, progression requirements, wave system, viewport placement math, killstreak/cosmetic-contract tests, floating-text classification, and enemy damage-state helpers.
+Test coverage includes: enemy scaling formulas, upgrade cost curves, save migration/import integrity, progression requirements, wave system, viewport placement math, killstreak/cosmetic-chain tests, floating-text classification, and enemy damage-state helpers.
 
 ---
 
 ## 🚧 Alpha Notes
 
-Flatland TD v0.5.5 — **Alpha Release Candidate** — is alpha software. It is local-first, offline-friendly, and playable without login, analytics, backend APIs, cloud saves, or payment checks.
+Flatland TD v0.5.7 — **Alpha Release Candidate** — is alpha software. It is local-first, offline-friendly, and playable without login, analytics, backend APIs, cloud saves, or payment checks.
 
-Known limits: Fronts 9–16 are available in the progression structure, but some unique Blacksite/Anomaly combat modifiers remain scaffolded. The Outsourced Research Lab is visible as Coming Later and is not active. Black Market support links are optional; Weekly Shipment rewards are never gated by payment or online checks.
+Known limits: all 16 Fronts are structurally active, but high-end Blacksite/Anomaly mechanics are still scaffolded and not final balance. The Outsourced Research Lab is visible as Coming Later and is not active. Black Market support links are optional; Daily Pickup and Weekly Shipment rewards are never gated by payment or online checks.
 
 ---
 

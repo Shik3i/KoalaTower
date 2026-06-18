@@ -32,8 +32,8 @@
 				Flatland TD uses your browser's <strong>IndexedDB</strong> to store:
 			</p>
 			<ul>
-				<li>Your game save data (coins, upgrade levels, progress, settings)</li>
-				<li>Lab research progress (timestamps, levels)</li>
+				<li>Your game save data (Alloy, upgrade levels, progress, settings)</li>
+				<li>Research Deck progress (timestamps, levels)</li>
 				<li>Game settings (reduced motion, effects preferences)</li>
 				<li>High scores and statistics</li>
 			</ul>

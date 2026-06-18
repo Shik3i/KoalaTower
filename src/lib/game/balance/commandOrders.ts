@@ -1,5 +1,5 @@
 /**
- * dailyTasks.ts — Weekly Orbital Command Orders (Alloy rewards).
+ * commandOrders.ts — Weekly Orbital Command Orders (Alloy rewards).
  *
  * Official Command assignments — distinct from the Black Market (which deals in
  * illegal Strange Matter). Each local week, Command issues a deterministic pool
@@ -10,8 +10,6 @@
  * started or completed orders. Weekly Command Favor increments on claim, not
  * on completion. No streaks, no FOMO, no punishment for missing a day.
  */
-
-import { localDayKey } from './blackMarket';
 
 // ─── Week key ───────────────────────────────────────────────────────────────
 
@@ -191,14 +189,9 @@ export interface CommandOrdersState {
 	boardRefreshedAt: number;
 }
 
-/** Legacy alias — kept so old imports still compile. */
-export type DailyTasksState = CommandOrdersState;
-
 export function createDefaultCommandOrdersState(): CommandOrdersState {
 	return { week: '', completedCount: 0, claimedOrderSlots: [], claimedMilestones: [], counters: {}, boardRefreshedAt: 0 };
 }
-
-export const createDefaultDailyTasksState = createDefaultCommandOrdersState;
 
 // ─── RNG ────────────────────────────────────────────────────────────────────
 
@@ -250,16 +243,12 @@ export function generateCommandOrders(weekKey: string, ctx: CommandOrderContext)
 	return list;
 }
 
-export const generateDailyTasks = generateCommandOrders;
-
 // ─── Week rollover ──────────────────────────────────────────────────────────
 
 export function rolloverCommandOrders(state: CommandOrdersState, weekKey: string): CommandOrdersState {
 	if (state.week === weekKey) return state;
 	return { week: weekKey, completedCount: 0, claimedOrderSlots: [], claimedMilestones: [], counters: {}, boardRefreshedAt: 0 };
 }
-
-export const rolloverDailyTasks = rolloverCommandOrders;
 
 // ─── Board refresh ──────────────────────────────────────────────────────────
 
@@ -484,10 +473,6 @@ export function applyCounterDeltas(
 }
 
 // ─── Convenience ────────────────────────────────────────────────────────────
-
-export function dailyTasksDateKey(now = Date.now()): string {
-	return localDayKey(now);
-}
 
 export function commandOrdersWeekKey(now = Date.now()): string {
 	return localWeekKey(now);

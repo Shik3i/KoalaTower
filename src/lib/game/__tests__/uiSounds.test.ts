@@ -15,7 +15,7 @@ describe('soundForNotification mapping', () => {
 	it('covers every notification kind without throwing', () => {
 		const kinds: NotificationKind[] = [
 			'achievement', 'bestWave', 'frontUnlock', 'blackMarket',
-			'shipment', 'contract', 'research', 'boss', 'warning', 'info',
+			'shipment', 'pickup', 'research', 'boss', 'warning', 'info',
 		];
 		for (const k of kinds) {
 			expect(() => soundForNotification(k)).not.toThrow();

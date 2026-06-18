@@ -182,7 +182,7 @@
 					<span class="lore-mi">🌍</span>
 					<div>
 						<strong>Fronts = Difficulty</strong>
-						<span>Each Front has different swarm density. From peaceful frontier zones (Front 01) to deep-swarm territory. Fronts 04, 07, and 09 exist but have been omitted from public charts for morale reasons. Deeper fronts offer greater rewards — and more geometry.</span>
+						<span>Each Front has different swarm density. Sixteen Fronts are charted across Perimeter, Redline, Blacksite, and Anomaly bands. Deeper Fronts offer greater rewards — and more geometry. High-end Blacksite and Anomaly mechanics are still under active calibration.</span>
 					</div>
 				</div>
 			</div>
@@ -197,7 +197,7 @@
 				<div class="info-icon">⚡</div>
 				<h3>Energy</h3>
 				<span class="info-badge">Temporary</span>
-				<p>Harvested from destroyed shapes during a deployment. Spent on <strong>Field Overclocks</strong> to supercharge the tower. Lost when the tower is destroyed. Boosted by <strong>Energy Amp</strong> and <strong>Energy Bonus</strong> Forge upgrades.</p>
+				<p>Harvested from destroyed shapes during a deployment. Spent on <strong>Field Upgrades</strong> to supercharge the tower. Lost when the tower is destroyed. Boosted by <strong>Energy Amp</strong> and <strong>Energy Bonus</strong> Forge upgrades.</p>
 			</div>
 			<div class="info-card coin">
 				<div class="info-icon">🔩</div>
@@ -444,8 +444,8 @@
 			<div class="control-item"><kbd>3</kbd><span>🚀 Speed 3×</span></div>
 			<div class="control-item"><kbd>4</kbd><span>⚡ Speed 5×</span></div>
 		</div>
-		<button class="replay-tutorial-btn" onclick={() => replayTutorial('geocore-td-tutorial-done', 'Deployment')}>🔄 Replay Deployment Tutorial</button>
-		<button class="replay-tutorial-btn" onclick={() => replayTutorial('geocore-td-hub-tutorial-done', 'Orbital Command')}>🛰️ Replay Hub Tutorial</button>
+		<button class="replay-tutorial-btn" onclick={() => replayTutorial('flatland-td-tutorial-done', 'Deployment')}>🔄 Replay Deployment Tutorial</button>
+		<button class="replay-tutorial-btn" onclick={() => replayTutorial('flatland-td-hub-tutorial-done', 'Orbital Command')}>🛰️ Replay Hub Tutorial</button>
 		{#if replayMsg}<p class="replay-msg">{replayMsg}</p>{/if}
 	</section>
 

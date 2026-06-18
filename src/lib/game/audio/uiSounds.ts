@@ -30,7 +30,7 @@ export function soundForNotification(kind: NotificationKind): SoundName | null {
 		case 'blackMarket':
 			return 'signal';
 		case 'shipment':
-		case 'contract':
+		case 'pickup':
 			return 'upgrade';
 		case 'research':
 			return 'upgrade';

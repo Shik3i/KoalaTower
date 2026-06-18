@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
 	SCHEMATIC_CONVERSION_RATE,
-	STRANGE_MATTER_DAILY_CONTRACT,
+	STRANGE_MATTER_DAILY_PICKUP,
 	STRANGE_MATTER_WEEKLY_SHIPMENT,
 	WEEKLY_SHIPMENT_COOLDOWN_MS,
 	canBuyBlackMarketUnlock,
-	canClaimDailyContract,
 	canClaimDailyStrangeMatter,
 	canClaimWeeklyShipment,
 	computeBlackMarketSignal,
@@ -36,14 +35,14 @@ describe('Black Market economy', () => {
 		expect(STRANGE_MATTER_WEEKLY_SHIPMENT).toBe(3);
 	});
 
-	it('daily contract resets on the next local day without streaks', () => {
+	it('daily pickup resets on the next local day without streaks', () => {
 		const dayOne = new Date(2026, 5, 18, 10).getTime();
 		const sameDay = new Date(2026, 5, 18, 23).getTime();
 		const nextDay = new Date(2026, 5, 19, 1).getTime();
-		expect(canClaimDailyContract(0, dayOne)).toBe(true);
-		expect(canClaimDailyContract(dayOne, sameDay)).toBe(false);
-		expect(canClaimDailyContract(dayOne, nextDay)).toBe(true);
-		expect(STRANGE_MATTER_DAILY_CONTRACT).toBe(1);
+		expect(canClaimDailyStrangeMatter(true, 0, dayOne)).toBe(true);
+		expect(canClaimDailyStrangeMatter(true, dayOne, sameDay)).toBe(false);
+		expect(canClaimDailyStrangeMatter(true, dayOne, nextDay)).toBe(true);
+		expect(STRANGE_MATTER_DAILY_PICKUP).toBe(1);
 	});
 
 	it('purchases enforce cost, persistence shape, duplicate guard, and x5 prerequisite', () => {
@@ -131,7 +130,7 @@ describe('Black Market signal state', () => {
 		expect(computeBlackMarketSignal({ unlocked: true, introSeen: true, weeklyReady: true, dailyReady: false })).toBe('glow');
 	});
 
-	it('returns glow when daily contract is claimable', () => {
+	it('returns glow when daily pickup is claimable', () => {
 		expect(computeBlackMarketSignal({ unlocked: true, introSeen: true, weeklyReady: false, dailyReady: true })).toBe('glow');
 	});
 
@@ -167,7 +166,7 @@ describe('daily Strange Matter pickup (Black Market)', () => {
 	});
 
 	it('grants the +1 Strange Matter daily amount', () => {
-		expect(STRANGE_MATTER_DAILY_CONTRACT).toBe(1);
+		expect(STRANGE_MATTER_DAILY_PICKUP).toBe(1);
 	});
 
 	it('weekly shipment remains a separate +3 claim on its own cooldown', () => {

@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.5.6
+## v0.5.7
 
 - Renamed the legacy `dailyTasks` save field to `commandOrders` with a safe v16→v17 migration. Existing saves with the old field are preserved.
 - Fixed Command Orders board-refresh behavior: started orders with partial progress remain visible until claimed. Board refresh now only fills empty slots — it never removes progress or completed-but-unclaimed orders.
@@ -8,7 +8,7 @@
 - Added **Claim All**: claims every completed-but-unclaimed order at once, respecting the weekly max of 25 and correctly unlocking gift milestones across thresholds.
 - Weekly Command Favor now increments on **claim** (not on completion), avoiding confusion with unclaimed completed orders.
 - Clarified the order board: active orders show "Available" for untouched orders and "In progress" for started ones. Completed orders show "Complete — awaiting acknowledgement."
-- Removed all remaining `dailyTasks` references from runtime code (kept legacy aliases for migration compatibility only).
+- Removed all remaining `dailyTasks` references from runtime code while preserving legacy save migration compatibility.
 - Added Reddit link (r/FlatlandTD) to the global footer.
 - Bumped mobile touch targets: settings, SFX, music, drawer toggles, Black Market signal, and Notification Center bell are now ≥44px.
 - Added **Best Chain** display to the Game Over panel (cosmetic only, no rewards).
