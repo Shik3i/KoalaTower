@@ -8,6 +8,7 @@ import {
 import { calculateEnemyDamage, createProjectileDamageContext } from '../systems/damageSystem';
 import { buildEnemyFrameIndex } from '../systems/spatialIndex';
 import { applyThorns } from '../systems/towerSystem';
+import { damageTower, computeDamageToTower } from '../systems/towerSystem';
 import { processEnemyDeath, updateProjectileSystem } from '../systems/enemySystem';
 
 function enemy(id: number, x: number, y: number, armor = 0): Enemy {
@@ -317,5 +318,69 @@ describe('Projectile dead-target regression', () => {
 
 		expect(e.hp).toBe(100); // untouched
 		expect(state.killCount).toBe(0);
+	});
+});
+
+// ─── Tower HP overkill safety (v0.5.3) ────────────────────────────────────
+
+describe('Tower HP overkill / negative HP safety', () => {
+	it('overkill damage clamps HP to 0, not negative', () => {
+		const state = makeState();
+		state.tower.hp = 10;
+		state.tower.alive = true;
+		// Raw damage 50 → after defense (0%) → 50 dmg, tower has only 10 HP
+		damageTower(state, 50, false);
+		expect(state.tower.hp).toBe(0);
+		expect(state.tower.hp).toBeGreaterThanOrEqual(0);
+		expect(state.tower.alive).toBe(false);
+		expect(state.gameOver).toBe(true);
+	});
+
+	it('game over triggers exactly once after death', () => {
+		const state = makeState();
+		state.tower.hp = 1;
+		state.tower.alive = true;
+		state.gameOver = false;
+		state.runActive = true;
+
+		damageTower(state, 100, false);
+		expect(state.gameOver).toBe(true);
+		expect(state.runActive).toBe(false);
+		expect(state.tower.alive).toBe(false);
+		expect(state.tower.hp).toBe(0);
+
+		// Subsequent damage calls must be ignored (guard at top of damageTower)
+		const gameOverCount = state.gameOver ? 1 : 0;
+		damageTower(state, 100, false);
+		damageTower(state, 50, true);
+		expect(state.gameOver).toBe(true); // still true, no crash
+		expect(state.tower.hp).toBe(0); // still clamped
+		expect(state.tower.alive).toBe(false); // still dead
+	});
+
+	it('damageTower ignores hits after tower is already dead', () => {
+		const state = makeState();
+		state.tower.hp = 0;
+		state.tower.alive = false;
+		state.gameOver = true;
+		state.runActive = false;
+
+		// Should be a no-op — no HP change, no crash
+		damageTower(state, 999, true);
+		expect(state.tower.hp).toBe(0);
+		expect(state.tower.alive).toBe(false);
+	});
+
+	it('killstreak resets on tower damage', () => {
+		const state = makeState();
+		state.tower.hp = 200;
+		state.tower.alive = true;
+		state.killstreak = { count: 25, timer: 2, best: 50, lastMilestone: 25 };
+
+		damageTower(state, 10, false);
+		expect(state.killstreak.count).toBe(0);
+		expect(state.killstreak.timer).toBe(0);
+		expect(state.killstreak.lastMilestone).toBe(0);
+		expect(state.tower.hp).toBe(190); // damage applied but tower alive
 	});
 });

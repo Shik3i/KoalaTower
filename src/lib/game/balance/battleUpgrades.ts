@@ -33,14 +33,14 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 	{
 		id: UpgradeId.FireRate,
 		name: 'Attack Speed',
-		description: '+0.05 attacks per second per level.',
+		description: '+0.1 attacks per second per level.',
 		icon: '🔥',
 		category: 'offense',
 		maxLevel: 399,
 		baseCost: 20,
 		costGrowth: 1.20,
 		costExponent: 0,
-		effectPerLevel: 0.05,
+		effectPerLevel: 0.1,
 	},
 	{
 		id: UpgradeId.Range,

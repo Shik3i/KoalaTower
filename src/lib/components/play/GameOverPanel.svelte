@@ -75,7 +75,6 @@
 		<button class="go-btn" bind:this={primaryBtn} onclick={onRedeploy}><Icon name="play" size={16} /> Launch Deployment</button>
 		<a href="/hub" class="go-hub-btn"><Icon name="hub" size={16} /> Return to Orbital Command</a>
 		<div class="go-row2">
-			<button class="go-btn2" onclick={onRedeploy}><Icon name="play" size={14} /> Quick Redeploy</button>
 			<button class="go-btn2" onclick={onExport}><Icon name="export" size={14} /> Export</button>
 		</div>
 	</div>

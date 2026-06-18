@@ -148,8 +148,16 @@ describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 		expect(engine.damageNumbers.some((n) => n.kind === 'chain')).toBe(true);
 	});
 
-	it('resets the chain to 0 when update() lets the timer expire', () => {
+	it('resets the chain to 0 when update() lets the timer expire during an active wave', () => {
 		const engine = freshEngine();
+		// Force wave 1 to be active so the killstreak timeout actually ticks.
+		// Set high spawn counts/interval so subWaveActive stays true during the test window.
+		engine.state.wave.currentWave = 1;
+		engine.state.wave.waveActive = true;
+		engine.state.wave.subWaveActive = true;
+		engine.state.wave.enemiesInWave = 99999;
+		engine.state.wave.enemiesInSubWave = 99999;
+		engine.state.wave.spawnInterval = 999;
 		for (let i = 1; i <= 8; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
 		expect(engine.state.killstreak.count).toBe(8);
 		// Drain the window (2.5s) plus margin. Update dt is clamped to CLAMP_DELTA,
@@ -159,8 +167,27 @@ describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 		expect(engine.state.killstreak.timer).toBe(0);
 	});
 
+	it('does NOT reset killstreak during inter-wave downtime', () => {
+		const engine = freshEngine();
+		for (let i = 1; i <= 8; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
+		expect(engine.state.killstreak.count).toBe(8);
+		// Fast-forward through the full between-wave period (1.5s).
+		// The killstreak timeout must NOT tick while no wave is active.
+		fastForward(engine, 1.6);
+		// Chain must survive the wave transition.
+		expect(engine.state.killstreak.count).toBe(8);
+		expect(engine.state.killstreak.timer).toBeGreaterThan(0);
+	});
+
 	it('keeps best-count intact after the chain times out (vanity metric persists)', () => {
 		const engine = freshEngine();
+		// Force wave active so timeout ticks during fast-forward.
+		engine.state.wave.currentWave = 1;
+		engine.state.wave.waveActive = true;
+		engine.state.wave.subWaveActive = true;
+		engine.state.wave.enemiesInWave = 99999;
+		engine.state.wave.enemiesInSubWave = 99999;
+		engine.state.wave.spawnInterval = 999;
 		for (let i = 1; i <= 12; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
 		fastForward(engine, GAME_CONFIG.KILLSTREAK_WINDOW + 0.05);
 		expect(engine.state.killstreak.count).toBe(0);

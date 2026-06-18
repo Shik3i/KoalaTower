@@ -3,7 +3,7 @@
 	import { tooltip } from '$lib/components/tooltip';
 	import { UpgradeId, type GameSnapshot, type BlueprintId } from '$lib/game/engine/gameTypes';
 	import { buildBattleUpgradeList, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
-	import { formatBattleEffect } from '$lib/game/balance/upgradeScaling';
+	import { formatBattleEffect, formatBattleEffectNext } from '$lib/game/balance/upgradeScaling';
 	import { isFieldUpgradeUnlocked, getBlueprintForFieldUpgrade } from '$lib/game/balance/blueprints';
 	import { getCachedSave } from '$lib/game/save/saveService';
 
@@ -30,15 +30,20 @@
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
 	const MULTIPLIERS: BuyMultiplier[] = [1, 5, 10, 50, 'max'];
 
-	/** Readable current effect of an upgrade at the given level. */
+	/** Readable current effective value of an upgrade at the given level. */
 	function upgradeCurrentValue(id: UpgradeId, lv: number): string {
-		if (lv === 0) return '—';
+		if (lv === 0) {
+			// Show base stat even at level 0 (no upgrades purchased yet)
+			return formatBattleEffect(id, 0);
+		}
 		return formatBattleEffect(id, getBattleUpgradeEffect(id, lv));
 	}
 
-	/** Readable effect at the next level. */
-	function upgradeNextValue(id: UpgradeId, lv: number): string {
-		return upgradeCurrentValue(id, Math.min(lv + 1, 999));
+	/** Readable per-level delta for the next purchase (secondary info only). */
+	function upgradeNextDelta(id: UpgradeId): string {
+		const def = BATTLE_UPGRADES.find(u => u.id === id);
+		if (!def) return '';
+		return formatBattleEffectNext(id, getBattleUpgradeEffect(id, 1));
 	}
 
 	function lvOf(id: UpgradeId): number {
@@ -89,13 +94,13 @@
 				? `🔒 ${u.name}\nLocked — reconstruct the ${getLockBlueprintName(u.id)} Schematic in Orbital Command.`
 				: mx
 					? `${u.name} — MAXED\nCurrent: ${upgradeCurrentValue(u.id, lv)}`
-					: `${u.name}\nCurrent: ${upgradeCurrentValue(u.id, lv)}\nNext: ${upgradeNextValue(u.id, lv)}\nCost: ${cost} Energy${aff ? '' : ' — not enough Energy'}`}
+					: `${u.name}\nCurrent: ${upgradeCurrentValue(u.id, lv)}\nNext: ${upgradeNextDelta(u.id)}\nCost: ${cost} Energy${aff ? '' : ' — not enough Energy'}`}
 		>
 			<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
 			{#if !locked}
 				<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
 				<div class="uc-val">{upgradeCurrentValue(u.id, lv)}</div>
-				<div class="uc-b"><span class="ucc">⚡{cost.toLocaleString()}</span><span class="ucnx">{mx ? 'MAXED' : '+ ' + upgradeNextValue(u.id, lv)}</span></div>
+				<div class="uc-b"><span class="ucc">⚡{cost.toLocaleString()}</span><span class="ucnx">{mx ? 'MAXED' : upgradeNextDelta(u.id)}</span></div>
 			{:else}
 				<div class="uc-val" style="color:var(--text-dim)">🔒 Requires {getLockBlueprintName(u.id)}</div>
 			{/if}

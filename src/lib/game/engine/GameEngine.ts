@@ -539,10 +539,15 @@ export class GameEngine {
 	/**
 	 * Tick the cosmetic killstreak timeout. Resets the chain when no kill
 	 * occurs within the window. Purely visual — no economy / combat effect.
+	 *
+	 * Timeout is suspended while no wave is active (inter-wave / sub-wave pause)
+	 * so the chain never resets just because spawns paused.
 	 */
 	private updateKillstreak(dt: number): void {
 		const ks = this.state.killstreak;
 		if (!ks || ks.count === 0 || ks.timer <= 0) return;
+		// Suspend timeout during inter-wave / sub-wave pauses
+		if (!this.state.wave.waveActive || !this.state.wave.subWaveActive) return;
 		ks.timer -= dt;
 		if (ks.timer <= 0) {
 			ks.count = 0;

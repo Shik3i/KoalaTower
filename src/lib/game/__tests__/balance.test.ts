@@ -53,6 +53,7 @@ import {
 import { getDefaultTowerStats, TOWER_HP_BASE, STARTING_CASH_BASE } from '../engine/gameConfig';
 import { createDefaultSave } from '../save/saveTypes';
 import { GameEngine } from '../engine/GameEngine';
+import { formatBattleEffect, formatBattleEffectNext } from '../balance/upgradeScaling';
 
 // ─── Battle Upgrade Tests ─────────────────────────────────────────────────
 
@@ -1309,6 +1310,93 @@ describe('Lab duration/effect overflow regression', () => {
 
 	it('getLabEffect at NaN is 0', () => {
 		expect(getLabEffect(LabId.DamageResearch, NaN)).toBe(0);
+	});
+});
+
+// ─── v0.5.3 Display Format Tests ──────────────────────────────────────────
+
+describe('Field Upgrade card display values (current, not next delta)', () => {
+	it('Damage at level 0 shows "50.0 DMG", not "+25 DMG"', () => {
+		expect(formatBattleEffect(UpgradeId.Damage, 0)).toBe('50.0 DMG');
+	});
+
+	it('Damage at level 1 shows "75.0 DMG"', () => {
+		expect(formatBattleEffect(UpgradeId.Damage, 25)).toBe('75.0 DMG');
+	});
+
+	it('Attack Speed at level 0 shows "1.000 /s", not "+0.050 /s"', () => {
+		expect(formatBattleEffect(UpgradeId.FireRate, 0)).toBe('1.000 /s');
+	});
+
+	it('Attack Speed at level 1 shows "1.100 /s"', () => {
+		expect(formatBattleEffect(UpgradeId.FireRate, 0.1)).toBe('1.100 /s');
+	});
+
+	it('Range at level 0 shows "Range 180"', () => {
+		expect(formatBattleEffect(UpgradeId.Range, 0)).toBe('Range 180');
+	});
+
+	it('Crit Chance at level 0 shows "1.0%"', () => {
+		expect(formatBattleEffect(UpgradeId.CritChance, 0)).toBe('1.0%');
+	});
+
+	it('Crit Multiplier at level 0 shows "×1.30", not "×2.10"', () => {
+		expect(formatBattleEffect(UpgradeId.CritMultiplier, 0)).toBe('×1.30');
+	});
+
+	it('Crit Multiplier at level 1 shows "×1.40"', () => {
+		expect(formatBattleEffect(UpgradeId.CritMultiplier, 0.10)).toBe('×1.40');
+	});
+
+	it('Max HP at level 0 shows "100 HP"', () => {
+		expect(formatBattleEffect(UpgradeId.MaxHp, 0)).toBe('100 HP');
+	});
+
+	it('next-delta format shows + prefix (secondary info only)', () => {
+		expect(formatBattleEffectNext(UpgradeId.Damage, 25)).toBe('+25.0 DMG');
+		expect(formatBattleEffectNext(UpgradeId.FireRate, 0.1)).toBe('+0.100 /s');
+		expect(formatBattleEffectNext(UpgradeId.CritMultiplier, 0.10)).toBe('+0.10×');
+	});
+});
+
+describe('Attack Speed Field Upgrade correction (v0.5.3)', () => {
+	it('per-level effect is +0.1, not +0.05', () => {
+		expect(getBattleUpgradeEffect(UpgradeId.FireRate, 1)).toBeCloseTo(0.1, 4);
+	});
+
+	it('definition has effectPerLevel = 0.1', () => {
+		const def = BATTLE_UPGRADE_DEFS.find(d => d.id === UpgradeId.FireRate)!;
+		expect(def.effectPerLevel).toBe(0.1);
+	});
+
+	it('two levels give +0.2 attacks/sec', () => {
+		expect(getBattleUpgradeEffect(UpgradeId.FireRate, 2)).toBeCloseTo(0.2, 4);
+	});
+});
+
+describe('Crit Multiplier base value correction (v0.5.3)', () => {
+	it('base crit multiplier in getDefaultTowerStats is 1.30', () => {
+		expect(getDefaultTowerStats().critMultiplier).toBe(1.30);
+	});
+
+	it('applyBattleUpgrades starts from 1.30 + battle effect', () => {
+		const engine = new GameEngine();
+		engine.startRun({}, {}, 0, [], 1);
+		// Fresh run, no battle upgrades bought
+		expect(engine.state.tower.stats.critMultiplier).toBeCloseTo(1.30, 4);
+	});
+
+	it('battle CritMultiplier level 1 adds +0.10 to base 1.30 = 1.40', () => {
+		const engine = new GameEngine();
+		engine.startRun({}, {}, 0, [], 1);
+		engine.state.cash = 1_000_000;
+		engine.buyBattleUpgrade(UpgradeId.CritMultiplier);
+		expect(engine.state.tower.stats.critMultiplier).toBeCloseTo(1.40, 4);
+	});
+
+	it('CritMultiplier effectPerLevel is 0.10', () => {
+		const def = BATTLE_UPGRADE_DEFS.find(d => d.id === UpgradeId.CritMultiplier)!;
+		expect(def.effectPerLevel).toBe(0.10);
 	});
 });
 

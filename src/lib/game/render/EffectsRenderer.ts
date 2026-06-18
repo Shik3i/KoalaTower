@@ -55,6 +55,7 @@ export class EffectsRenderer {
 	// ... (wave objects unchanged)
 
 	// Persistent wave announcement objects
+	private waveBg = new Graphics();
 	private waveBossBg = new Graphics();
 	private waveBossLine1 = new Graphics();
 	private waveBossLine2 = new Graphics();
@@ -69,11 +70,13 @@ export class EffectsRenderer {
 
 	constructor() {
 		// Set up wave announce objects (hidden by default)
+		this.waveBg.visible = false;
 		this.waveBossBg.visible = false; this.waveBossLine1.visible = false; this.waveBossLine2.visible = false;
 		this.waveBossLabel.visible = false; this.waveBossNum.visible = false; this.waveBossSub.visible = false;
 		this.waveLabel.visible = false; this.waveNum.visible = false; this.waveSub.visible = false;
 		this.waveAccentLine.visible = false;
 
+		this.waveContainer.addChild(this.waveBg);
 		this.waveContainer.addChild(this.waveBossBg);
 		this.waveContainer.addChild(this.waveBossLine1);
 		this.waveContainer.addChild(this.waveBossLine2);
@@ -379,15 +382,24 @@ export class EffectsRenderer {
 
 		this.waveVisible = true;
 		const w = vw, h = vh;
-		const cx = w / 2, cy = h / 2;
+		// Place overlay in the upper third, well above the tower centre
+		const cx = w / 2, cy = h * 0.28;
 		const upcoming = currentWave + 1;
 		const isBoss = upcoming % 10 === 0;
 		const total = enemiesInWave || 0;
 
 		this.waveContainer.alpha = alpha;
 
+		// Dark translucent backdrop behind all wave announcements
+		const bgW = Math.max(320, w * 0.65);
+		const bgH = isBoss ? 210 : 150;
+		this.waveBg.clear();
+		this.waveBg.roundRect(cx - bgW / 2, cy - bgH / 2 - 10, bgW, bgH + 20, 12).fill({ color: 0x000000, alpha: 0.55 });
+		this.waveBg.roundRect(cx - bgW / 2, cy - bgH / 2 - 10, bgW, bgH + 20, 12).stroke({ width: 1, color: isBoss ? GAME_CONFIG.NEON_PINK : GAME_CONFIG.NEON_CYAN, alpha: 0.12 });
+		this.waveBg.visible = true;
+
 		if (isBoss) {
-			this.waveBossBg.clear(); this.waveBossBg.rect(0, cy - 110, w, 220).fill({ color: GAME_CONFIG.NEON_PINK, alpha: 0.08 });
+			this.waveBossBg.clear(); this.waveBossBg.rect(0, cy - 110, w, 220).fill({ color: GAME_CONFIG.NEON_PINK, alpha: 0.06 });
 			this.waveBossBg.visible = true;
 			this.waveBossLine1.clear(); this.waveBossLine1.moveTo(w * 0.1, cy - 60).lineTo(w * 0.9, cy - 60).stroke({ width: 1, color: GAME_CONFIG.NEON_PINK, alpha: 0.25 });
 			this.waveBossLine1.visible = true;
@@ -412,6 +424,7 @@ export class EffectsRenderer {
 	}
 
 	private hideAllWaveObjects(): void {
+		this.waveBg.visible = false;
 		this.waveBossBg.visible = false; this.waveBossLine1.visible = false; this.waveBossLine2.visible = false;
 		this.waveBossLabel.visible = false; this.waveBossNum.visible = false; this.waveBossSub.visible = false;
 		this.waveLabel.visible = false; this.waveNum.visible = false; this.waveSub.visible = false;
