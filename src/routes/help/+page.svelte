@@ -322,7 +322,8 @@
 		<p class="section-desc">Official weekly assignments that reward Alloy (🔩) — separate from the Black Market. Find them under <strong>Command Orders</strong> in Orbital Command.</p>
 		<div class="lore-box">
 			<p>Each local week, Command issues a deterministic pool of assignments. <strong>5 are visible at a time</strong> on the order board; claim a completed one and the next is revealed. You can complete up to <strong>25 per week</strong>, and they progress through normal play (kills, waves, purchases, …).</p>
-			<p>The order board refreshes every <strong>4 hours</strong>, replacing unclaimed visible orders with fresh ones from the pool. This means you do not need to complete all 25 in one sitting — spread them across the week at your own pace.</p>
+			<p>The order board refreshes every <strong>4 hours</strong>, but only fills empty slots — started orders (with partial progress) and completed-but-unclaimed orders are never removed. This means you do not need to complete all 25 in one sitting — spread them across the week at your own pace.</p>
+			<p>Completed orders move to a separate <strong>Completed</strong> section where they can be claimed individually or all at once via <strong>Claim All</strong>. Claiming an order increases your weekly Command Favor and may unlock a Gift Box.</p>
 			<p>Every <strong>5 completed orders</strong> unlocks a <strong>Command Gift Box</strong> (more Alloy) — at 5, 10, 15, 20, and 25. Rewards are Alloy only; no Strange Matter, no premium currency.</p>
 			<p>Command favor resets weekly. Missed days are not prosecuted. Usually. No streaks, no FOMO, no punishment for skipping a day.</p>
 		</div>
