@@ -461,14 +461,13 @@
 					{s.icon} {s.label}
 				</button>
 			{/each}
+			{#if !bmUnlocked}
+				<div class="bm-locked-teaser" aria-label="Unauthorized signal: Black Market channel unavailable">
+					<span class="bm-locked-icon">◈</span>
+					<span class="bm-locked-text">Unauthorized signal: no carrier detected. Field exposure insufficient.</span>
+				</div>
+			{/if}
 		</nav>
-
-		{#if !bmUnlocked}
-			<div class="bm-locked-teaser" aria-label="Unauthorized signal: Black Market channel unavailable">
-				<span class="bm-locked-icon">◈</span>
-				<span class="bm-locked-text">Unauthorized signal: no carrier detected. Field exposure insufficient.</span>
-			</div>
-		{/if}
 
 		<div class="hub-content">
 			{#if activeSection === 'workshop'}
