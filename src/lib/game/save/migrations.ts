@@ -3,7 +3,7 @@ import { BlueprintId, AchievementId, TierId, WorkshopUpgradeId, DEFAULT_SETTINGS
 import { computeGrandfatheredBlueprints } from '../balance/blueprints';
 import { FORGE_ECONOMY_WORKSHOP_IDS } from '../balance/workshopUpgrades';
 import { getForgeUpgradeDef } from '../balance/forgeUpgrades';
-import { createDefaultDailyTasksState, type DailyTasksState } from '../balance/dailyTasks';
+import { createDefaultDailyTasksState, createDefaultCommandOrdersState, type CommandOrdersState } from '../balance/dailyTasks';
 import type { UpgradeId } from '../engine/gameTypes';
 import { emptySchematics, normalizeSchematics } from '../balance/schematics';
 import { normalizeBlackMarketUnlocks, normalizeStrangeMatter, normalizeTimestamp } from '../balance/blackMarket';
@@ -89,6 +89,12 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		if (version < 15) {
 			save = migrateV14toV15(save);
 		}
+		if (version < 16) {
+			save = migrateV15toV16(save);
+		}
+		if (version < 17) {
+			save = migrateV16toV17(save);
+		}
 
 		save = ensureMetadata(save);
 
@@ -102,7 +108,7 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 	}
 }
 
-function migrateV0toV1(data: Record<string, unknown>): SaveData {
+function migrateV0toV1(data: Record<string, unknown>): any {
 	const now = Date.now();
 	return {
 		schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -114,7 +120,8 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 		totalCoins: (data.totalCoins as number) || 0,
 		workshopUpgrades: (data.workshopUpgrades as Record<string, number>) || {},
 		forgeUpgrades: {},
-		dailyTasks: createDefaultDailyTasksState(),
+		dailyTasks: createDefaultDailyTasksState(), // legacy — cleaned by v16→v17
+		commandOrders: createDefaultDailyTasksState(),
 		labResearch: {},
 		labLevels: (data.labLevels as Record<string, number>) || {},
 		blueprints: [],
@@ -371,7 +378,34 @@ function migrateV13toV14(save: SaveData): SaveData {
 	};
 }
 
-function migrateV14toV15(save: SaveData): SaveData {
+function migrateV16toV17(save: SaveData): SaveData {
+	// v17: Rename `dailyTasks` field → `commandOrders`.
+	// If the old field exists, migrate it; otherwise initialize fresh.
+	const legacy = (save as any).dailyTasks;
+	const commandOrders = normalizeCommandOrders(legacy);
+	// Remove the legacy key from the save object.
+	const { dailyTasks: _, ...rest } = save as any;
+	return {
+		...rest,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		commandOrders,
+	};
+}
+
+function migrateV15toV16(save: SaveData): any {
+	// v16: Daily Orbital Command tasks → Weekly Command Orders.
+	// The legacy daily state is discarded (fresh weekly start) because the
+	// model changed from 25/day to 25/week with board refresh cooldowns.
+	// No player data is lost — only the transient daily task progress resets.
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		dailyTasks: createDefaultCommandOrdersState(), // legacy — cleaned by v16→v17
+		commandOrders: createDefaultCommandOrdersState(),
+	};
+}
+
+function migrateV14toV15(save: SaveData): any {
 	// v15: Forge/Field unification. Combat Forge stats now live in `forgeUpgrades`
 	// keyed by the shared Field UpgradeId. Per the model correction, existing
 	// combat Forge investment is WIPED (no refund) — forgeUpgrades starts empty —
@@ -391,7 +425,8 @@ function migrateV14toV15(save: SaveData): SaveData {
 		schemaVersion: CURRENT_SCHEMA_VERSION,
 		workshopUpgrades: trimmedWs,
 		forgeUpgrades: {},
-		dailyTasks: createDefaultDailyTasksState(),
+		dailyTasks: createDefaultDailyTasksState(), // legacy — cleaned by v16→v17
+		commandOrders: createDefaultDailyTasksState(),
 	};
 }
 
@@ -486,7 +521,7 @@ function ensureMetadata(save: SaveData): SaveData {
 			? (save as any).claimedSchematicMilestones
 			: [],
 		forgeUpgrades: normalizeForgeUpgrades((save as any).forgeUpgrades),
-		dailyTasks: normalizeDailyTasks((save as any).dailyTasks),
+		commandOrders: normalizeCommandOrders((save as any).commandOrders ?? (save as any).dailyTasks),
 		strangeMatter: normalizeStrangeMatter((save as any).strangeMatter),
 		lifetimeStrangeMatterEarned: normalizeStrangeMatter((save as any).lifetimeStrangeMatterEarned),
 		lastWeeklyBlackMarketShipmentClaimedAt: normalizeTimestamp((save as any).lastWeeklyBlackMarketShipmentClaimedAt),
@@ -510,29 +545,45 @@ function normalizeFrontBestWave(raw: unknown, highestWave = 0): Partial<Record<T
 	return Object.keys(out).length > 0 ? out : fallback;
 }
 
-/** Validate/repair the daily-tasks block, falling back to a fresh default. */
-function normalizeDailyTasks(raw: unknown): DailyTasksState {
-	const def = createDefaultDailyTasksState();
+/** Validate/repair the command-orders block, falling back to a fresh default. Accepts legacy `dailyTasks` format. */
+function normalizeCommandOrders(raw: unknown): CommandOrdersState {
+	const def = createDefaultCommandOrdersState();
 	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return def;
 	const r = raw as Record<string, unknown>;
-	const slots = Array.isArray(r.claimedTaskSlots)
-		? (r.claimedTaskSlots as unknown[]).map((n) => normalizeNonNegativeInteger(n)).filter((n) => n < 25)
-		: [];
+
+	// Accept both legacy `date` field and new `week` field.
+	const week = typeof r.week === 'string' && r.week.length > 0
+		? r.week
+		: typeof r.date === 'string' && r.date.length > 0
+			? r.date // Legacy day key — will be rolled over on next visit.
+			: '';
+
+	// Accept both legacy `claimedTaskSlots` and new `claimedOrderSlots`.
+	const rawSlots = Array.isArray(r.claimedOrderSlots)
+		? r.claimedOrderSlots
+		: Array.isArray(r.claimedTaskSlots)
+			? r.claimedTaskSlots
+			: [];
+	const slots = (rawSlots as unknown[]).map((n) => normalizeNonNegativeInteger(n)).filter((n) => n < 25);
+
 	const milestones = Array.isArray(r.claimedMilestones)
 		? (r.claimedMilestones as unknown[]).map((n) => normalizeNonNegativeInteger(n)).filter((n) => [5, 10, 15, 20, 25].includes(n))
 		: [];
+
 	const counters: Record<string, number> = {};
 	if (r.counters && typeof r.counters === 'object' && !Array.isArray(r.counters)) {
 		for (const [k, v] of Object.entries(r.counters as Record<string, unknown>)) {
 			counters[k] = normalizeNonNegativeInteger(v);
 		}
 	}
+
 	return {
-		date: typeof r.date === 'string' ? r.date : '',
+		week,
 		completedCount: Math.min(25, normalizeNonNegativeInteger(r.completedCount)),
-		claimedTaskSlots: Array.from(new Set(slots)),
+		claimedOrderSlots: Array.from(new Set(slots)),
 		claimedMilestones: Array.from(new Set(milestones)),
-		counters: counters as DailyTasksState['counters'],
+		counters: counters as CommandOrdersState['counters'],
+		boardRefreshedAt: normalizeTimestamp(r.boardRefreshedAt),
 	};
 }
 

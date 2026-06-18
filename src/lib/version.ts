@@ -10,3 +10,4 @@ export const SITE_URL = 'https://tower.koalastuff.net';
 export const GITHUB_URL = 'https://github.com/Shik3i/KoalaTower';
 export const GITHUB_ISSUES_URL = 'https://github.com/Shik3i/KoalaTower/issues';
 export const SUPPORT_URL = 'https://support.koalastuff.net';
+export const REDDIT_URL = 'https://www.reddit.com/r/FlatlandTD/';

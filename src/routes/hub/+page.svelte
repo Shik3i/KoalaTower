@@ -43,19 +43,25 @@
 	import { BLUEPRINT_DEFS, isFoundryUpgradeUnlocked, isFieldUpgradeUnlocked, getBlueprintForFoundryUpgrade, getBlueprintForFieldUpgrade, getFieldUpgradesUnlockedBy, getFoundryUpgradesUnlockedBy, describeBlueprintDiscovery } from '$lib/game/balance/blueprints';
 	import { getBlueprintStatus } from '$lib/game/progression/blueprintDiscovery';
 	import {
-		generateDailyTasks,
-		rolloverDailyTasks,
-		getVisibleTasks,
-		isTaskComplete,
-		claimTask,
+		generateCommandOrders,
+		rolloverCommandOrders,
+		getActiveOrders,
+		getCompletedOrders,
+		isOrderComplete,
+		claimOrder,
+		claimAllCompletedOrders,
 		claimableMilestones,
 		claimMilestone,
 		nextMilestone,
-		dailyTasksDateKey,
-		DAILY_TASKS_MAX_PER_DAY,
+		commandOrdersWeekKey,
+		shouldRefreshBoard,
+		refreshBoard,
+		boardRefreshRemainingMs,
+		formatRefreshCountdown,
+		COMMAND_ORDERS_MAX_PER_WEEK,
 		GIFT_BOX_REWARDS,
-		type DailyTaskInstance,
-		type DailyTasksState,
+		type CommandOrderInstance,
+		type CommandOrdersState,
 	} from '$lib/game/balance/dailyTasks';
 	import type { GameSettings, WorkshopUpgradeId, UpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
@@ -86,8 +92,9 @@
 	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
 	let workshopLevels = $state<Partial<Record<WorkshopUpgradeId, number>>>({});
 	let forgeLevels = $state<Partial<Record<UpgradeId, number>>>({});
-	let dailyTasksState = $state<DailyTasksState>({ date: '', completedCount: 0, claimedTaskSlots: [], claimedMilestones: [], counters: {} });
-	let dailyTaskList = $state<DailyTaskInstance[]>([]);
+	let commandOrdersState = $state<CommandOrdersState>({ week: '', completedCount: 0, claimedOrderSlots: [], claimedMilestones: [], counters: {}, boardRefreshedAt: 0 });
+	let commandOrderPool = $state<CommandOrderInstance[]>([]);
+	let showCompletedOrders = $state(true);
 	let labLevels = $state<Record<string, number>>({});
 	let hubStats = $state({ bestKillstreak: 0, totalKills: 0, totalBossesDefeated: 0, totalShiniesKilled: 0, totalAlloyEarned: 0 });
 
@@ -454,7 +461,7 @@
 			totalAlloyEarned: save?.totalAlloyEarned ?? 0,
 		};
 		refreshBlackMarketState();
-		refreshDailyTasks();
+		refreshCommandOrders();
 		if (save?.frontBestWave) frontBestWave = { ...save.frontBestWave };
 		if (save?.killsByType) killsByType = { ...save.killsByType };
 		if (save?.shinyKillsByType) shinyKillsByType = { ...save.shinyKillsByType };
@@ -550,48 +557,72 @@
 		}
 	}
 
-	// ─── Daily Orbital Command tasks ─────────────────────────────────────────
-	function refreshDailyTasks() {
+	// ─── Weekly Orbital Command Orders ───────────────────────────────────────
+	function refreshCommandOrders() {
 		const save = getCachedSave(); if (!save) return;
-		const today = dailyTasksDateKey();
-		const rolled = rolloverDailyTasks(save.dailyTasks, today);
-		if (rolled !== save.dailyTasks) { save.dailyTasks = rolled; persistSave(save); }
-		dailyTaskList = generateDailyTasks(today, { highestWave, unlockedFrontCount: unlockedFronts.length });
-		dailyTasksState = {
-			date: save.dailyTasks.date,
-			completedCount: save.dailyTasks.completedCount,
-			claimedTaskSlots: [...save.dailyTasks.claimedTaskSlots],
-			claimedMilestones: [...save.dailyTasks.claimedMilestones],
-			counters: { ...save.dailyTasks.counters },
+		const weekKey = commandOrdersWeekKey();
+		const rolled = rolloverCommandOrders(save.commandOrders, weekKey);
+		if (rolled !== save.commandOrders) { save.commandOrders = rolled; persistSave(save); }
+		// Refresh the board if cooldown expired
+		if (shouldRefreshBoard(save.commandOrders)) {
+			save.commandOrders = refreshBoard(save.commandOrders);
+			persistSave(save);
+		}
+		commandOrderPool = generateCommandOrders(weekKey, { highestWave, unlockedFrontCount: unlockedFronts.length });
+		commandOrdersState = {
+			week: save.commandOrders.week,
+			completedCount: save.commandOrders.completedCount,
+			claimedOrderSlots: [...save.commandOrders.claimedOrderSlots],
+			claimedMilestones: [...save.commandOrders.claimedMilestones],
+			counters: { ...save.commandOrders.counters },
+			boardRefreshedAt: save.commandOrders.boardRefreshedAt,
 		};
 	}
 
-	function claimDailyTask(slot: number) {
+	function claimCommandOrder(slot: number) {
 		const save = getCachedSave(); if (!save) return;
-		const res = claimTask(dailyTaskList, save.dailyTasks, slot);
-		if (!res) { toast('Assignment not complete yet.', 'info'); return; }
-		save.dailyTasks = res.state;
+		const res = claimOrder(commandOrderPool, save.commandOrders, slot);
+		if (!res) { toast('Order not complete yet.', 'info'); return; }
+		save.commandOrders = res.state;
 		save.totalCoins += res.reward;
 		coinsStore.set(save.totalCoins);
 		persistSave(save);
-		refreshDailyTasks();
+		refreshCommandOrders();
 		uiSound('upgrade');
-		toast('🛰 Order complete. +' + res.reward + ' Alloy requisition', 'success');
+		toast('🛰 Order complete. +' + res.reward + ' Alloy', 'success');
 		notifications.notify({ kind: 'achievement', title: 'Order complete', detail: `+${res.reward} Alloy`, icon: '🛰' });
 	}
 
 	function claimGiftBox(milestone: number) {
 		const save = getCachedSave(); if (!save) return;
-		const res = claimMilestone(save.dailyTasks, milestone);
+		const res = claimMilestone(save.commandOrders, milestone);
 		if (!res) { toast('Command Gift Box not ready.', 'info'); return; }
-		save.dailyTasks = res.state;
+		save.commandOrders = res.state;
 		save.totalCoins += res.reward;
 		coinsStore.set(save.totalCoins);
 		persistSave(save);
-		refreshDailyTasks();
+		refreshCommandOrders();
 		uiSound('upgrade');
 		toast('🎁 Command Gift Box — +' + res.reward + ' Alloy', 'milestone');
 		notifications.notify({ kind: 'achievement', title: 'Command Gift Box', detail: `+${res.reward} Alloy`, icon: '🎁' });
+	}
+
+	function claimAllCompleted() {
+		const save = getCachedSave(); if (!save) return;
+		const result = claimAllCompletedOrders(commandOrderPool, save.commandOrders);
+		if (!result) { toast('No completed orders to claim.', 'info'); return; }
+		save.commandOrders = result.state;
+		save.totalCoins += result.totalReward;
+		coinsStore.set(save.totalCoins);
+		persistSave(save);
+		refreshCommandOrders();
+		uiSound('upgrade');
+		toast('🛰 ' + result.claimedCount + ' orders claimed — +' + result.totalReward + ' Alloy', 'success');
+		notifications.notify({ kind: 'achievement', title: 'Orders claimed', detail: `+${result.totalReward} Alloy`, icon: '🛰' });
+		// Notify about newly unlocked gift milestones
+		for (const m of result.newlyUnlockedMilestones) {
+			toast('🎁 Command Gift Box (' + m + ') unlocked!', 'milestone');
+		}
 	}
 
 	// Time-based lab research
@@ -649,7 +680,7 @@
 
 	const allSections = [
 		{ id: 'workshop' as const, label: 'Forge', icon: '⚙' },
-		{ id: 'orders' as const, label: 'Command Tasks', icon: '🛰' },
+		{ id: 'orders' as const, label: 'Command Orders', icon: '🛰' },
 		{ id: 'lab' as const, label: 'Research Deck', icon: '🔬' },
 		{ id: 'blueprints' as const, label: 'Schematics', icon: '📐' },
 		{ id: 'blackMarket' as const, label: 'Black Market', icon: '◈', requiresUnlock: true },
@@ -669,7 +700,7 @@
 	function switchSection(id: typeof activeSection) {
 		if (id !== activeSection) uiSound('click');
 		activeSection = id;
-		if (id === 'orders') refreshDailyTasks();
+		if (id === 'orders') refreshCommandOrders();
 	}
 
 	$effect(() => {
@@ -799,16 +830,23 @@
 					</div>
 				</div>
 			{:else if activeSection === 'orders'}
-				{@const visibleTasks = getVisibleTasks(dailyTaskList, dailyTasksState)}
-				{@const ordersDone = dailyTasksState.completedCount}
-				{@const nextGift = nextMilestone(dailyTasksState)}
-				{@const giftsReady = claimableMilestones(dailyTasksState)}
+				{@const activeOrders = getActiveOrders(commandOrderPool, commandOrdersState)}
+				{@const completedOrders = getCompletedOrders(commandOrderPool, commandOrdersState)}
+				{@const ordersDone = commandOrdersState.completedCount}
+				{@const nextGift = nextMilestone(commandOrdersState)}
+				{@const giftsReady = claimableMilestones(commandOrdersState)}
+				{@const refreshRemaining = boardRefreshRemainingMs(commandOrdersState)}
+				{@const refreshLabel = formatRefreshCountdown(refreshRemaining)}
+				{@const canClaimAll = completedOrders.length > 1}
 				<div class="hs">
-					<h2 class="hst">🛰 Orbital Command Tasks</h2>
-					<p class="hsd">Orbital Command has issued today's assignments. Complete orders to receive Alloy requisitions. Every five completed orders improves today's standing with Command. Resets daily — nothing is lost by missing a day.</p>
+					<h2 class="hst">🛰 Command Orders</h2>
+					<p class="hsd">Orbital Command has issued this week's assignments. Complete orders to improve your standing with Command. Command favor resets weekly. Missed days are not prosecuted. Usually.</p>
 					<div class="bm-ledger">
-						<div class="ir"><span class="il">Orders completed today</span><span class="iv">{ordersDone} / {DAILY_TASKS_MAX_PER_DAY}</span></div>
+						<div class="ir"><span class="il">Orbital Favor this week</span><span class="iv">{ordersDone} / {COMMAND_ORDERS_MAX_PER_WEEK}</span></div>
 						<div class="ir"><span class="il">{nextGift ? 'Next Command Gift Box' : 'All gift boxes claimed'}</span><span class="iv">{nextGift ? `${ordersDone} / ${nextGift}` : '✓'}</span></div>
+						{#if refreshLabel}
+							<div class="ir"><span class="il">Next order refresh in</span><span class="iv" style="color:var(--cyan);">{refreshLabel}</span></div>
+						{/if}
 					</div>
 
 					{#if giftsReady.length > 0}
@@ -819,33 +857,61 @@
 						</div>
 					{/if}
 
-					{#if ordersDone >= DAILY_TASKS_MAX_PER_DAY}
-						<p class="empty-flavor">Daily Orders complete. Command is briefly impressed.</p>
+					{#if ordersDone >= COMMAND_ORDERS_MAX_PER_WEEK}
+						<p class="empty-flavor">Weekly Command Orders complete. Your obedience has been noticed. Briefly. Command favor resets next week.</p>
 					{/if}
 
+					<!-- Active Orders -->
+					<h3 class="stats-sub" style="margin-top:.5rem">Active Orders</h3>
 					<div class="ug">
-						{#each visibleTasks as task}
-							{@const prog = dailyTasksState.counters[task.key] ?? 0}
-							{@const complete = isTaskComplete(task, dailyTasksState.counters)}
-							{@const pct = Math.min(100, (prog / task.target) * 100)}
-							<div class="uc task-card" class:aff={complete}>
-								<div class="uc-t"><span class="uci">🛰</span><span class="ucn">{task.label}</span><span class="ucl">+{task.reward} Alloy</span></div>
+						{#each activeOrders as order}
+							{@const prog = commandOrdersState.counters[order.key] ?? 0}
+							{@const complete = isOrderComplete(order, commandOrdersState.counters)}
+							{@const started = prog > 0 && !complete}
+							{@const pct = Math.min(100, (prog / order.target) * 100)}
+							<div class="uc task-card" class:aff={complete} class:started={started}>
+								<div class="uc-t"><span class="uci">🛰</span><span class="ucn">{order.label}</span><span class="ucl">+{order.reward} Alloy</span></div>
 								<div class="uc-btr"><div class="uc-btf" style="width:{pct}%"></div></div>
 								<div class="uc-b">
-									<span class="ucc" style="color:var(--text-secondary)">{Math.min(prog, task.target).toLocaleString()} / {task.target.toLocaleString()}</span>
+									<span class="ucc" style="color:var(--text-secondary)">{Math.min(prog, order.target).toLocaleString()} / {order.target.toLocaleString()}</span>
 									{#if complete}
-										<button class="hub-action task-claim" onclick={() => claimDailyTask(task.slot)}>Claim +{task.reward}</button>
+										<button class="hub-action task-claim" onclick={() => claimCommandOrder(order.slot)}>Claim Alloy</button>
 									{:else}
-										<span class="ucnx">In progress</span>
+										<span class="ucnx">{started ? 'In progress' : 'Available'}</span>
 									{/if}
 								</div>
 							</div>
 						{/each}
-						{#if visibleTasks.length === 0 && ordersDone < DAILY_TASKS_MAX_PER_DAY}
-							<p class="empty-flavor">No active assignments right now. Check back after a deployment.</p>
+						{#if activeOrders.length === 0 && ordersDone < COMMAND_ORDERS_MAX_PER_WEEK}
+							<p class="empty-flavor">No active orders right now. Check back after the board refreshes or complete a deployment.</p>
 						{/if}
 					</div>
-					<p class="orders-footer">Your obedience has been noticed. Briefly.</p>
+
+					<!-- Completed Orders -->
+					{#if completedOrders.length > 0}
+						{@const showCompleted = showCompletedOrders ?? true}
+						<h3 class="stats-sub" style="margin-top:1rem;cursor:pointer;display:flex;align-items:center;gap:.35rem" onclick={() => showCompletedOrders = !showCompletedOrders} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showCompletedOrders = !showCompletedOrders; } }} role="button" tabindex="0" aria-expanded={showCompletedOrders}>
+							<span>{showCompletedOrders ? '▾' : '▸'}</span> Completed ({completedOrders.length})
+						</h3>
+						{#if showCompletedOrders}
+							{#if canClaimAll}
+								<button class="hub-action bm-primary" style="margin-bottom:.4rem" onclick={claimAllCompleted}>Claim All (+{completedOrders.reduce((s, o) => s + o.reward, 0)} Alloy)</button>
+							{/if}
+							<div class="ug">
+								{#each completedOrders as order}
+									<div class="uc task-card aff">
+										<div class="uc-t"><span class="uci">✅</span><span class="ucn">{order.label}</span><span class="ucl">+{order.reward} Alloy</span></div>
+										<div class="uc-btr"><div class="uc-btf" style="width:100%"></div></div>
+										<div class="uc-b">
+											<span class="ucc" style="color:var(--green)">Complete — awaiting acknowledgement</span>
+											<button class="hub-action task-claim" onclick={() => claimCommandOrder(order.slot)}>Claim Alloy</button>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					{/if}
+					<p class="orders-footer">Every five completed orders unlocks a Command Gift Box. Orders you've started stay visible until claimed — board refresh only fills empty slots.</p>
 				</div>
 			{:else if activeSection === 'lab'}
 				<div class="hs"><h2 class="hst">🔬 Research Deck</h2><p class="hsd">Time-based orbital research projects. Each level grants a permanent multiplicative bonus. Research continues offline. Only one project can be active at a time. Research continues offline because the scientists have been locked in. For their own safety.</p>
@@ -1302,7 +1368,7 @@
 	.bm-contract-copy { color:var(--text-secondary); font-style:italic; }
 
 	/* Signal icon in header */
-	.bm-signal { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; margin-left:.35rem; padding:0; border:1px solid var(--border-neon); border-radius:50%; background:transparent; color:var(--text-dim); font-size:1.1rem; cursor:pointer; transition:all var(--transition-fast); flex-shrink:0; }
+	.bm-signal { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; margin-left:.35rem; padding:0; border:1px solid var(--border-neon); border-radius:50%; background:transparent; color:var(--text-dim); font-size:1.1rem; cursor:pointer; transition:all var(--transition-fast); flex-shrink:0; }
 	.bm-signal:hover { border-color:var(--cyan); color:var(--cyan); }
 	.bm-signal:focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
 	.bm-signal-subtle { color:var(--text-dim); border-color:rgba(255,255,255,.08); }

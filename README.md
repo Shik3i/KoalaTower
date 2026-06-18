@@ -24,7 +24,7 @@ Flatland is at war with **hostile geometric shapes**. Deploy towers from orbit, 
 - 📐 **Schematics** — recover per-Front design fragments and reconstruct upgrade paths
 - 🌍 **16 Fronts (4 bands × 4 Fronts)** — escalating difficulty with better Alloy rewards and per-Front Schematics
 - 📑 **Schematics** — per-Front currency dropped by bosses, used to reconstruct upgrade paths
-- 🛰️ **Black Market** — optional local-first Strange Matter systems with weekly shipments, daily contracts, and quality-of-life unlocks
+- 🛰️ **Command Orders** — weekly official Alloy assignments with gift box milestones and board refresh cooldowns
 - 🏆 **42 Achievements** — deploy towers, destroy shapes, earn Alloy rewards
 - 👾 **5 Enemy types** — Normal ■, Fast ◆, Tank ⬡, Ranged ▶, Boss ⬠ — each visually distinct
 - ⚡ **3 Special Operations** — challenge modes with modified rules
@@ -151,7 +151,7 @@ Test coverage includes: enemy scaling formulas, upgrade cost curves, save migrat
 
 ## 🚧 Alpha Notes
 
-Flatland TD v0.5.0 — **Alpha Release Candidate** — is alpha software. It is local-first, offline-friendly, and playable without login, analytics, backend APIs, cloud saves, or payment checks.
+Flatland TD v0.5.5 — **Alpha Release Candidate** — is alpha software. It is local-first, offline-friendly, and playable without login, analytics, backend APIs, cloud saves, or payment checks.
 
 Known limits: Fronts 9–16 are available in the progression structure, but some unique Blacksite/Anomaly combat modifiers remain scaffolded. The Outsourced Research Lab is visible as Coming Later and is not active. Black Market support links are optional; Weekly Shipment rewards are never gated by payment or online checks.
 

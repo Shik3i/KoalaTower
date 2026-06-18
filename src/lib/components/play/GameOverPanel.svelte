@@ -11,6 +11,7 @@
 		cash,
 		schematics = 0,
 		frontName = '',
+		killstreak = 0,
 		autoDeploymentArmed = false,
 		autoDeploymentCountdown = 0,
 		onCancelAutoDeployment,
@@ -25,6 +26,7 @@
 		cash: number;
 		schematics?: number;
 		frontName?: string;
+		killstreak?: number;
 		autoDeploymentArmed?: boolean;
 		autoDeploymentCountdown?: number;
 		onCancelAutoDeployment?: () => void;
@@ -59,6 +61,9 @@
 			<div class="go-sd"></div>
 			<div class="go-s"><span class="go-si"><Icon name="boss" size={20} /></span><span class="go-sv">{bosses}</span><span class="go-sl">Bosses</span></div>
 		</div>
+		{#if killstreak > 0}
+			<div class="go-chain">⛓ Best Chain: ×{killstreak.toLocaleString()}</div>
+		{/if}
 		{#if schematics > 0}
 			<div class="go-schem">📐 +{schematics.toLocaleString()} {frontName} Schematics recovered</div>
 		{/if}
@@ -107,6 +112,7 @@
 	.go-sv { font-size:var(--fs-icon-md); font-weight:700; font-family:var(--font-mono); color:var(--text-primary); }
 	.go-sl { font-size:var(--fs-caption-sm); color:var(--text-secondary); margin-top:.05rem; text-transform:uppercase; letter-spacing:.05em; }
 	.go-sd { width:1px; height:28px; background:var(--border-neon); }
+	.go-chain { font-size:var(--fs-body); color:var(--orange); font-family:var(--font-mono); font-weight:600; margin-bottom:.35rem; text-shadow:0 0 6px rgba(255,170,68,.2); }
 	.go-btn { display:block; width:100%; padding:.75rem; background:linear-gradient(135deg,var(--cyan),var(--blue)); color:var(--bg-primary); font-weight:700; font-size:var(--fs-btn); border-radius:var(--radius-md); cursor:pointer; transition:all var(--transition-normal); box-shadow:0 0 20px rgba(0,255,255,.1); }
 	.go-btn:hover { box-shadow:0 0 30px rgba(0,255,255,.2); transform:translateY(-1px); }
 	.go-row2 { display:flex; gap:.4rem; margin-top:.45rem; }

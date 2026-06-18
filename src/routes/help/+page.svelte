@@ -23,7 +23,7 @@
 		{
 			id: 'black-market',
 			q: 'What is the Black Market?',
-			a: 'The Black Market is an unofficial Orbital Command terminal for Strange Matter (◈) quality-of-life systems. Once unlocked, you can quietly pick up +1 Strange Matter once per local day — no deployment needed, just stop by — and a separate Weekly Shipment delivers +3 on its own cooldown. Both are local-first pacing tools with no streaks and no punishment for missing days. This is entirely separate from the official Orbital Command Tasks (which pay Alloy). Support is appreciated and never required; nothing is gated by payment. Black Market unlocks are infrastructure and convenience, not raw combat power.',
+			a: 'The Black Market is an unofficial Orbital Command terminal for Strange Matter (◈) quality-of-life systems. Once unlocked, you can quietly pick up +1 Strange Matter once per local day — no deployment needed, just stop by — and a separate Weekly Shipment delivers +3 on its own cooldown. Both are local-first pacing tools with no streaks and no punishment for missing days. This is entirely separate from the official Command Orders (which pay Alloy). Support is appreciated and never required; nothing is gated by payment. Black Market unlocks are infrastructure and convenience, not raw combat power.',
 		},
 		{
 			id: 'enemies',
@@ -215,7 +215,7 @@
 				<div class="info-icon">◈</div>
 				<h3>Strange Matter</h3>
 				<span class="info-badge">Contraband QoL</span>
-				<p>Rare local-first currency from the Black Market: a +1 daily pickup and a +3 weekly shipment. It is not sold and not checked against support payments. Spent on Black Market quality-of-life systems like speed options, Auto Deployment, and the Schematic Converter. (Official daily work pays Alloy, not Strange Matter — see Orbital Command Tasks.)</p>
+				<p>Rare local-first currency from the Black Market: a +1 daily pickup and a +3 weekly shipment. It is not sold and not checked against support payments. Spent on Black Market quality-of-life systems like speed options, Auto Deployment, and the Schematic Converter. (Official weekly Command Orders pay Alloy, not Strange Matter — see Command Orders.)</p>
 			</div>
 		</div>
 	</section>
@@ -226,7 +226,7 @@
 		<div class="lore-box">
 			<p><strong>Strange Matter</strong> is unstable contraband recovered from anomalies, off-grid handoffs, and containers nobody signed for. It is not sold.</p>
 			<p>The <strong>Daily Pickup</strong> slips you +1 Strange Matter once per local day — no deployment required, just visit the channel. The separate <strong>Weekly Shipment</strong> delivers +3 on its own cooldown. Both grant Strange Matter whether or not you support the project, with no streaks and no punishment for missing days.</p>
-			<p>Timers are local pacing tools, not secure enforcement. The Black Market improves convenience and infrastructure; it does not buy raw damage, Alloy piles, or Front clears. For official Alloy assignments, see Orbital Command Tasks.</p>
+			<p>Timers are local pacing tools, not secure enforcement. The Black Market improves convenience and infrastructure; it does not buy raw damage, Alloy piles, or Front clears. For official Alloy assignments, see Command Orders.</p>
 		</div>
 	</section>
 
@@ -316,14 +316,15 @@
 		</div>
 	</section>
 
-	<!-- Daily Orbital Command Tasks -->
+	<!-- Weekly Orbital Command Orders -->
 	<section class="help-section">
-		<h2>🛰 Orbital Command Tasks</h2>
-		<p class="section-desc">Official daily assignments that reward Alloy (🔩) — separate from the Black Market. Find them under <strong>Command Tasks</strong> in Orbital Command.</p>
+		<h2>🛰 Command Orders</h2>
+		<p class="section-desc">Official weekly assignments that reward Alloy (🔩) — separate from the Black Market. Find them under <strong>Command Orders</strong> in Orbital Command.</p>
 		<div class="lore-box">
-			<p>Each local day, Command issues a fresh set of assignments. <strong>5 are visible at a time</strong>; claim a completed one and the next is revealed. You can complete up to <strong>25 per day</strong>, and they progress through normal play (kills, waves, purchases, …).</p>
+			<p>Each local week, Command issues a deterministic pool of assignments. <strong>5 are visible at a time</strong> on the order board; claim a completed one and the next is revealed. You can complete up to <strong>25 per week</strong>, and they progress through normal play (kills, waves, purchases, …).</p>
+			<p>The order board refreshes every <strong>4 hours</strong>, replacing unclaimed visible orders with fresh ones from the pool. This means you do not need to complete all 25 in one sitting — spread them across the week at your own pace.</p>
 			<p>Every <strong>5 completed orders</strong> unlocks a <strong>Command Gift Box</strong> (more Alloy) — at 5, 10, 15, 20, and 25. Rewards are Alloy only; no Strange Matter, no premium currency.</p>
-			<p>No streaks, no login, no punishment for missing a day. It simply resets daily.</p>
+			<p>Command favor resets weekly. Missed days are not prosecuted. Usually. No streaks, no FOMO, no punishment for skipping a day.</p>
 		</div>
 	</section>
 

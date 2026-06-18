@@ -15,7 +15,7 @@
 	import { checkMasteryAchievements } from '$lib/game/balance/mastery';
 	import { buildBattleUpgradeList } from '$lib/game/balance/battleUpgrades';
 	import { seedBattleUpgradesFromForge } from '$lib/game/balance/forgeUpgrades';
-	import { applyCounterDeltas, rolloverDailyTasks, dailyTasksDateKey } from '$lib/game/balance/dailyTasks';
+	import { applyCounterDeltas, rolloverCommandOrders, commandOrdersWeekKey } from '$lib/game/balance/dailyTasks';
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
 	import { getBlueprintDef } from '$lib/game/balance/blueprints';
 	import { getUnlockedFronts, getTierNumber, getFrontName } from '$lib/game/balance/tiers';
@@ -53,6 +53,7 @@
 	let gameOverKills = $state(0);
 	let gameOverBosses = $state(0);
 	let gameOverCash = $state(0);
+	let gameOverKillstreak = $state(0);
 	let gameOverSchematics = $state(0);
 	let gameOverFrontName = $state('');
 	let prevWave = $state(0);
@@ -190,7 +191,16 @@
 		if (e.key === 'Shift') { shiftHeld = true; updateBuyMultiplier(); return; }
 		if (e.key === 'Control' || e.key === 'Meta') { ctrlHeld = true; updateBuyMultiplier(); return; }
 		if (!engine) return;
-		if (e.key === ' ') { e.preventDefault(); handleSpeed(0); }
+		// Ignore Space when focused on an input, textarea, or contenteditable element
+		// to avoid toggling pause while typing.
+		if (e.key === ' ') {
+			const tag = (document.activeElement?.tagName ?? '').toLowerCase();
+			const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
+			const isEditable = document.activeElement?.getAttribute('contenteditable') === 'true';
+			if (isInput || isEditable) return;
+			e.preventDefault();
+			handleSpeed(0);
+		}
 		if (e.key === '1') handleSpeed(1);
 		if (e.key === '2') handleSpeed(2);
 		if (e.key === '3') handleSpeed(3);
@@ -296,6 +306,7 @@
 				gameOverCash = engine?.state.cash ?? 0;
 				gameOverSchematics = 0;
 				gameOverFrontName = '';
+				gameOverKillstreak = engine?.state.killstreak?.best ?? 0;
 				showGameOver = true;
 				const save = getCachedSave();
 				if (save && engine) {
@@ -403,10 +414,10 @@
 					const runFieldUpgrades = Math.max(0, runTotal - seedTotal);
 					save.totalFieldUpgradesPurchased += runFieldUpgrades;
 
-					// ── Daily Orbital Command task counters (Alloy assignments) ──
-					// Roll over to today first (a run may have crossed local midnight),
-					// then fold this deployment's metrics into the day's counters.
-					save.dailyTasks = rolloverDailyTasks(save.dailyTasks, dailyTasksDateKey());
+					// ── Weekly Orbital Command Order counters (Alloy assignments) ──
+					// Roll over to this week first (a run may have crossed the week boundary),
+					// then fold this deployment's metrics into the week's counters.
+					save.commandOrders = rolloverCommandOrders(save.commandOrders, commandOrdersWeekKey());
 					let defenseUpgradesBought = 0;
 					for (const u of BATTLE_UPGRADES) {
 						if (u.category !== 'defense') continue;
@@ -414,7 +425,7 @@
 					}
 					const firstDmgWave = engine.state.firstTowerDamageWave;
 					const cleanWave = firstDmgWave > 0 ? firstDmgWave - 1 : reachedWave;
-					save.dailyTasks.counters = applyCounterDeltas(save.dailyTasks.counters, {
+					save.commandOrders.counters = applyCounterDeltas(save.commandOrders.counters, {
 						deployments: 1,
 						maxWave: reachedWave,
 						shapesKilled: engine.state.killCount,
@@ -809,6 +820,7 @@
 			cash={gameOverCash}
 			schematics={gameOverSchematics}
 			frontName={gameOverFrontName}
+			killstreak={gameOverKillstreak}
 			{autoDeploymentArmed}
 			{autoDeploymentCountdown}
 			onCancelAutoDeployment={cancelAutoDeployment}
@@ -1290,8 +1302,8 @@
 		.tb-max{display:none}
 		.spd-grp{display:none}
 		.save-indicator{display:none}
-		.ibtn{min-width:40px;min-height:40px;padding:.4rem}
-		.ptog{min-width:36px;min-height:36px}
+		.ibtn{min-width:44px;min-height:44px;padding:.4rem}
+		.ptog{min-width:44px;min-height:44px}
 		:root{--mob-nav-h:48px}
 	}
 </style>

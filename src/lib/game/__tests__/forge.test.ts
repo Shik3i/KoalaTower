@@ -141,7 +141,7 @@ describe('v14→v15 migration wipes combat Forge, keeps economy, no crash', () =
 		};
 		const migrated = migrateSave(legacy);
 		expect(migrated).not.toBeNull();
-		expect(migrated!.schemaVersion).toBe(15);
+		expect(migrated!.schemaVersion).toBe(17);
 		// Combat Forge investment wiped (no refund), forgeUpgrades empty.
 		expect(migrated!.forgeUpgrades).toEqual({});
 		// Economy Forge upgrades preserved.

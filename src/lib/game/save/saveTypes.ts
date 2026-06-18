@@ -2,7 +2,7 @@ import type { GameSettings, WorkshopUpgradeId, UpgradeId, LabId, MilestoneId, Ch
 import { TierId, DEFAULT_SETTINGS } from '../engine/gameTypes';
 import { emptySchematics } from '../balance/schematics';
 import type { BlackMarketUnlocks } from '../balance/blackMarket';
-import { type DailyTasksState, createDefaultDailyTasksState } from '../balance/dailyTasks';
+import { type CommandOrdersState, createDefaultCommandOrdersState, createDefaultDailyTasksState } from '../balance/dailyTasks';
 
 export interface LabResearch {
 	level: number;
@@ -93,13 +93,14 @@ export interface SaveData {
 	/** v14: Best cosmetic killstreak ever reached (highest consecutive-kill chain). */
 	bestKillstreak: number;
 	/**
-	 * v15: Daily Orbital Command tasks — official assignments rewarding Alloy.
-	 * Separate from the Black Market. Local-day tracked, no streaks.
+	 * v17: Weekly Orbital Command Orders — official assignments rewarding Alloy.
+	 * Separate from the Black Market. Local-week tracked, no streaks, no FOMO.
+	 * Migrates from legacy `dailyTasks` field if present.
 	 */
-	dailyTasks: DailyTasksState;
+	commandOrders: CommandOrdersState;
 }
 
-export const CURRENT_SCHEMA_VERSION = 15;
+export const CURRENT_SCHEMA_VERSION = 17;
 
 function generateSaveId(prefix = 'fltd'): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -157,6 +158,6 @@ export function createDefaultSave(): SaveData {
 		autoDeploymentEnabled: false,
 		blackMarketIntroSeen: false,
 		bestKillstreak: 0,
-		dailyTasks: createDefaultDailyTasksState(),
+		commandOrders: createDefaultCommandOrdersState(),
 	};
 }

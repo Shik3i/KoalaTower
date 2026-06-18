@@ -96,7 +96,7 @@
 
 <style>
 	.nc-wrap { position:relative; display:inline-flex; }
-	.nc-bell { position:relative; display:inline-flex; align-items:center; justify-content:center; min-width:40px; min-height:40px; padding:.3rem; color:var(--text-secondary); background:transparent; border:1px solid transparent; border-radius:var(--radius-sm); cursor:pointer; transition:color var(--transition-fast),border-color var(--transition-fast); }
+	.nc-bell { position:relative; display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; padding:.3rem; color:var(--text-secondary); background:transparent; border:1px solid transparent; border-radius:var(--radius-sm); cursor:pointer; transition:color var(--transition-fast),border-color var(--transition-fast); }
 	.nc-bell:hover { color:var(--cyan); }
 	.nc-bell:focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
 	.nc-badge { position:absolute; top:1px; right:1px; min-width:16px; height:16px; padding:0 3px; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:10px; font-weight:700; line-height:1; color:var(--bg-primary); background:var(--pink); border-radius:8px; box-shadow:0 0 6px rgba(255,68,170,.5); }

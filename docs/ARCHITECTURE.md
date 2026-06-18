@@ -115,7 +115,7 @@ koala-tower/
 | Energy         | ⚡       | Temporary  | Destroying shapes  | Field upgrades / overclocks (per deployment)          |
 | Alloy          | 🔩       | Permanent  | Destroying shapes  | Forge upgrades + Research Deck                        |
 | Schematics     | §        | Per-Front  | Boss kills         | Upgrade-path reconstruction (per-Front)               |
-| Strange Matter | ✦        | Permanent  | Local Black Market | QoL unlocks, weekly shipments, daily contracts        |
+| Strange Matter | ◈        | Permanent  | Local Black Market | QoL unlocks, weekly shipments, daily pickup           |
 
 ## Progression Systems
 
@@ -135,7 +135,10 @@ Per-Front design fragments. Boss kills grant repeatable Schematics, first-time w
 42 achievements across 6 categories (deployments, best wave, shapes destroyed, bosses defeated, field upgrades, alloy earned). Each awards Alloy.
 
 ### Black Market
-Hidden local-first Strange Matter system. Supports weekly shipments, daily contracts, optional support copy, contraband quality-of-life unlocks (auto-deployment, speed unlocks, schematic converter), and a discovery storyboard. No backend, payment, or online check is required for rewards.
+Hidden local-first Strange Matter system. Supports weekly shipments, daily pickup, optional support copy, contraband quality-of-life unlocks (auto-deployment, speed unlocks, schematic converter), and a discovery storyboard. No backend, payment, or online check is required for rewards.
+
+### Command Orders
+Weekly official Alloy assignments issued by Orbital Command. Up to 25 orders per local week with 5 visible at a time on a board that refreshes every 4 hours. Every 5 completed orders unlocks a Command Gift Box. Rewards are Alloy only — no Strange Matter, no premium currency. No streaks or login punishment.
 
 ## Render Feedback Systems
 

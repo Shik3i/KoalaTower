@@ -1,27 +1,42 @@
 /**
- * dailyTasks.ts — Daily Orbital Command assignments (Alloy rewards).
+ * dailyTasks.ts — Weekly Orbital Command Orders (Alloy rewards).
  *
- * Official Command work — distinct from the Black Market (which deals in illegal
- * Strange Matter). Each local day, Command issues a deterministic list of 25
- * assignments. Only 5 are visible at a time; claiming a completed one reveals
- * the next. Every 5 completed assignments unlocks a Command Gift Box (more
- * Alloy). No streaks, no login, no punishment for missing a day.
- *
- * Progress is tracked by daily "session counters" that accumulate from normal
- * play (kills, waves, purchases, …). Because counters are global for the day, a
- * task may already be partly or fully complete the moment it becomes visible.
- *
- * Determinism: the list for a day is a pure function of the local date key, so
- * it survives reloads and never depends on Date.now() at generation time.
+ * Official Command assignments — distinct from the Black Market (which deals in
+ * illegal Strange Matter). Each local week, Command issues a deterministic pool
+ * of 25 orders. Up to 5 active orders are shown; orders the player has started
+ * remain visible until claimed. Completed-but-unclaimed orders move to a
+ * separate "Completed" section with a Claim All button. The order board
+ * refreshes every 4 hours, but only fills empty slots — it never removes
+ * started or completed orders. Weekly Command Favor increments on claim, not
+ * on completion. No streaks, no FOMO, no punishment for missing a day.
  */
 
 import { localDayKey } from './blackMarket';
 
-export const DAILY_TASKS_VISIBLE = 5;
-export const DAILY_TASKS_MAX_PER_DAY = 25;
-export const DAILY_TASK_MILESTONES = [5, 10, 15, 20, 25] as const;
+// ─── Week key ───────────────────────────────────────────────────────────────
 
-/** Fixed Alloy contents of each Command Gift Box milestone. */
+export function localWeekKey(timestamp = Date.now()): string {
+	const d = new Date(timestamp);
+	const day = d.getDay();
+	const monday = new Date(d);
+	monday.setDate(d.getDate() - ((day + 6) % 7));
+	const y = monday.getFullYear();
+	const jan4 = new Date(y, 0, 4);
+	const jan4Day = jan4.getDay();
+	const firstMonday = new Date(jan4);
+	firstMonday.setDate(jan4.getDate() - ((jan4Day + 6) % 7));
+	const weekNum = Math.floor((monday.getTime() - firstMonday.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+	return `${y}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+export const COMMAND_ORDERS_VISIBLE = 5;
+export const COMMAND_ORDERS_MAX_PER_WEEK = 25;
+export const COMMAND_ORDER_MILESTONES = [5, 10, 15, 20, 25] as const;
+
+export const ORDER_BOARD_REFRESH_MS = 4 * 60 * 60 * 1000;
+
 export const GIFT_BOX_REWARDS: Record<number, number> = {
 	5: 40,
 	10: 75,
@@ -30,8 +45,7 @@ export const GIFT_BOX_REWARDS: Record<number, number> = {
 	25: 250,
 };
 
-/** Counter keys tracked per local day. */
-export type DailyMetric =
+export type CommandMetric =
 	| 'deployments'
 	| 'maxWave'
 	| 'shapesKilled'
@@ -48,8 +62,7 @@ export type DailyMetric =
 	| 'highestFrontDeploys'
 	| 'researchClaims';
 
-/** How a counter combines new values: sum (accumulate) or max (high-water mark). */
-export const METRIC_KIND: Record<DailyMetric, 'sum' | 'max'> = {
+export const METRIC_KIND: Record<CommandMetric, 'sum' | 'max'> = {
 	deployments: 'sum',
 	maxWave: 'max',
 	shapesKilled: 'sum',
@@ -67,29 +80,20 @@ export const METRIC_KIND: Record<DailyMetric, 'sum' | 'max'> = {
 	researchClaims: 'sum',
 };
 
-/** Player progress used to filter out tasks that aren't reachable yet. */
-export interface DailyTaskContext {
+export interface CommandOrderContext {
 	highestWave: number;
 	unlockedFrontCount: number;
 }
 
-interface TaskGenerator {
-	key: DailyMetric;
-	/** Per-tier targets (tier 0 = easy/teaching). */
+interface OrderGenerator {
+	key: CommandMetric;
 	targets: number[];
-	/** Per-tier Alloy rewards, aligned with `targets`. */
 	rewards: number[];
-	/** "reach" verb for max metrics, "do" verb for sums — drives the label. */
 	label: (target: number) => string;
-	/** True when this generator is reachable for the given progress. */
-	eligible: (ctx: DailyTaskContext) => boolean;
+	eligible: (ctx: CommandOrderContext) => boolean;
 }
 
-/**
- * The assignment pool. Tier 0 of every generator is fresh-player friendly; later
- * tiers raise the target (and Alloy) so the 25/day ladder stays meaningful.
- */
-const TASK_GENERATORS: TaskGenerator[] = [
+const ORDER_GENERATORS: OrderGenerator[] = [
 	{
 		key: 'deployments', targets: [1, 3, 6, 10], rewards: [8, 20, 45, 90],
 		label: (t) => `Complete ${t} Deployment${t === 1 ? '' : 's'}`,
@@ -167,30 +171,36 @@ const TASK_GENERATORS: TaskGenerator[] = [
 	},
 ];
 
-/** A concrete assignment in a day's list. */
-export interface DailyTaskInstance {
-	/** 0-based position in the day's 25-task list. */
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface CommandOrderInstance {
 	slot: number;
-	key: DailyMetric;
+	key: CommandMetric;
 	target: number;
 	reward: number;
 	label: string;
 }
 
-/** Persisted daily-tasks state (see saveTypes DailyTasksState). */
-export interface DailyTasksState {
-	date: string;
+/** Persisted Command Orders state. */
+export interface CommandOrdersState {
+	week: string;
 	completedCount: number;
-	claimedTaskSlots: number[];
+	claimedOrderSlots: number[];
 	claimedMilestones: number[];
-	counters: Partial<Record<DailyMetric, number>>;
+	counters: Partial<Record<CommandMetric, number>>;
+	boardRefreshedAt: number;
 }
 
-export function createDefaultDailyTasksState(): DailyTasksState {
-	return { date: '', completedCount: 0, claimedTaskSlots: [], claimedMilestones: [], counters: {} };
+/** Legacy alias — kept so old imports still compile. */
+export type DailyTasksState = CommandOrdersState;
+
+export function createDefaultCommandOrdersState(): CommandOrdersState {
+	return { week: '', completedCount: 0, claimedOrderSlots: [], claimedMilestones: [], counters: {}, boardRefreshedAt: 0 };
 }
 
-// ─── Deterministic RNG (mulberry32 seeded from the date key) ─────────────────
+export const createDefaultDailyTasksState = createDefaultCommandOrdersState;
+
+// ─── RNG ────────────────────────────────────────────────────────────────────
 
 function hashStringToSeed(s: string): number {
 	let h = 2166136261 >>> 0;
@@ -212,7 +222,6 @@ function mulberry32(seed: number): () => number {
 	};
 }
 
-/** Deterministic Fisher–Yates shuffle of a copy of `arr`. */
 function shuffle<T>(arr: T[], rnd: () => number): T[] {
 	const out = arr.slice();
 	for (let i = out.length - 1; i > 0; i--) {
@@ -224,23 +233,14 @@ function shuffle<T>(arr: T[], rnd: () => number): T[] {
 	return out;
 }
 
-/**
- * Generate the deterministic 25-assignment list for a local day.
- *
- * The eligible generators are shuffled by the date seed, then laid into 25
- * slots round-robin: each reuse of a generator advances its tier (harder target,
- * more Alloy). The first `poolLen` slots are therefore all tier 0 — guaranteeing
- * the first visible assignments are always the easy, teaching ones.
- */
-export function generateDailyTasks(dateKey: string, ctx: DailyTaskContext): DailyTaskInstance[] {
-	const eligible = TASK_GENERATORS.filter((g) => g.eligible(ctx));
-	// Defensive: there are always >5 always-eligible generators, but guard anyway.
-	const pool = eligible.length > 0 ? eligible : TASK_GENERATORS;
-	const rnd = mulberry32(hashStringToSeed(dateKey));
+export function generateCommandOrders(weekKey: string, ctx: CommandOrderContext): CommandOrderInstance[] {
+	const eligible = ORDER_GENERATORS.filter((g) => g.eligible(ctx));
+	const pool = eligible.length > 0 ? eligible : ORDER_GENERATORS;
+	const rnd = mulberry32(hashStringToSeed(weekKey));
 	const order = shuffle(pool, rnd);
 
-	const list: DailyTaskInstance[] = [];
-	for (let slot = 0; slot < DAILY_TASKS_MAX_PER_DAY; slot++) {
+	const list: CommandOrderInstance[] = [];
+	for (let slot = 0; slot < COMMAND_ORDERS_MAX_PER_WEEK; slot++) {
 		const gen = order[slot % order.length]!;
 		const tier = Math.min(Math.floor(slot / order.length), gen.targets.length - 1);
 		const target = gen.targets[tier]!;
@@ -250,69 +250,208 @@ export function generateDailyTasks(dateKey: string, ctx: DailyTaskContext): Dail
 	return list;
 }
 
-// ─── Pure state helpers ──────────────────────────────────────────────────────
+export const generateDailyTasks = generateCommandOrders;
 
-/** Return state reset to a fresh day if `dateKey` differs; otherwise unchanged. */
-export function rolloverDailyTasks(state: DailyTasksState, dateKey: string): DailyTasksState {
-	if (state.date === dateKey) return state;
-	return { date: dateKey, completedCount: 0, claimedTaskSlots: [], claimedMilestones: [], counters: {} };
+// ─── Week rollover ──────────────────────────────────────────────────────────
+
+export function rolloverCommandOrders(state: CommandOrdersState, weekKey: string): CommandOrdersState {
+	if (state.week === weekKey) return state;
+	return { week: weekKey, completedCount: 0, claimedOrderSlots: [], claimedMilestones: [], counters: {}, boardRefreshedAt: 0 };
 }
 
-export function isTaskComplete(task: DailyTaskInstance, counters: Partial<Record<DailyMetric, number>>): boolean {
-	return (counters[task.key] ?? 0) >= task.target;
+export const rolloverDailyTasks = rolloverCommandOrders;
+
+// ─── Board refresh ──────────────────────────────────────────────────────────
+
+export function shouldRefreshBoard(state: CommandOrdersState, now = Date.now()): boolean {
+	if (state.boardRefreshedAt <= 0) return true;
+	return now - state.boardRefreshedAt >= ORDER_BOARD_REFRESH_MS;
 }
 
-export function isTaskClaimed(state: DailyTasksState, slot: number): boolean {
-	return state.claimedTaskSlots.includes(slot);
+export function refreshBoard(state: CommandOrdersState, now = Date.now()): CommandOrdersState {
+	return { ...state, boardRefreshedAt: now };
 }
 
-/** The up-to-5 currently-visible assignments: the first unclaimed slots. */
-export function getVisibleTasks(list: DailyTaskInstance[], state: DailyTasksState): DailyTaskInstance[] {
-	const visible: DailyTaskInstance[] = [];
-	for (const task of list) {
-		if (visible.length >= DAILY_TASKS_VISIBLE) break;
-		if (!isTaskClaimed(state, task.slot)) visible.push(task);
-	}
-	return visible;
+export function boardRefreshRemainingMs(state: CommandOrdersState, now = Date.now()): number {
+	if (state.boardRefreshedAt <= 0) return 0;
+	return Math.max(0, ORDER_BOARD_REFRESH_MS - (now - state.boardRefreshedAt));
 }
 
-/** Whether a visible, completed, unclaimed task can be claimed right now. */
-export function canClaimTask(list: DailyTaskInstance[], state: DailyTasksState, slot: number): boolean {
-	if (state.completedCount >= DAILY_TASKS_MAX_PER_DAY) return false;
-	if (isTaskClaimed(state, slot)) return false;
-	const task = list.find((t) => t.slot === slot);
-	if (!task) return false;
-	if (!getVisibleTasks(list, state).some((t) => t.slot === slot)) return false;
-	return isTaskComplete(task, state.counters);
+export function formatRefreshCountdown(ms: number): string {
+	if (ms <= 0) return '';
+	const totalSec = Math.ceil(ms / 1000);
+	const h = Math.floor(totalSec / 3600);
+	const m = Math.floor((totalSec % 3600) / 60);
+	const s = totalSec % 60;
+	if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+	return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
+
+// ─── Order state helpers ────────────────────────────────────────────────────
+
+export function isOrderComplete(order: CommandOrderInstance, counters: Partial<Record<CommandMetric, number>>): boolean {
+	return (counters[order.key] ?? 0) >= order.target;
+}
+
+export const isTaskComplete = isOrderComplete;
+
+export function isOrderClaimed(state: CommandOrdersState, slot: number): boolean {
+	return state.claimedOrderSlots.includes(slot);
+}
+
+export const isTaskClaimed = isOrderClaimed;
+
+/** Whether the player has any progress on this order (>0 but not yet complete). */
+export function isOrderStarted(order: CommandOrderInstance, counters: Partial<Record<CommandMetric, number>>): boolean {
+	const prog = counters[order.key] ?? 0;
+	return prog > 0 && prog < order.target;
+}
+
+// ─── Active (visible) orders — board-refresh-safe ───────────────────────────
 
 /**
- * Claim a completed visible task. Returns the new state and the Alloy granted, or
- * null when the claim is not currently valid.
+ * Get the currently active (visible) orders — up to COMMAND_ORDERS_VISIBLE.
+ *
+ * Rules (board-refresh-safe):
+ * 1. All started-but-incomplete orders remain visible until claimed.
+ * 2. Completed-but-unclaimed orders move to the Completed section.
+ * 3. Remaining slots (up to 5) are filled from the next unclaimed, unstarted
+ *    orders in the pool.
+ * 4. Board refresh never removes started or completed orders — it only fills
+ *    empty slots.
  */
-export function claimTask(list: DailyTaskInstance[], state: DailyTasksState, slot: number): { state: DailyTasksState; reward: number } | null {
-	if (!canClaimTask(list, state, slot)) return null;
-	const task = list.find((t) => t.slot === slot)!;
-	const next: DailyTasksState = {
+export function getActiveOrders(pool: CommandOrderInstance[], state: CommandOrdersState): CommandOrderInstance[] {
+	if (state.completedCount >= COMMAND_ORDERS_MAX_PER_WEEK) return [];
+
+	// 1. Collect all started-but-incomplete orders.
+	const started: CommandOrderInstance[] = [];
+	for (const o of pool) {
+		if (isOrderClaimed(state, o.slot)) continue;
+		if (isOrderComplete(o, state.counters)) continue; // completed → separate section
+		if (isOrderStarted(o, state.counters)) started.push(o);
+	}
+
+	// 2. Fill remaining slots from the pool (unclaimed, unstarted, incomplete).
+	const fresh: CommandOrderInstance[] = [];
+	for (const o of pool) {
+		if (isOrderClaimed(state, o.slot)) continue;
+		if (isOrderComplete(o, state.counters)) continue;
+		if (isOrderStarted(o, state.counters)) continue;
+		fresh.push(o);
+	}
+
+	// 3. Combine: started first, then fill with fresh.
+	const result = [...started];
+	for (const o of fresh) {
+		if (result.length >= COMMAND_ORDERS_VISIBLE) break;
+		result.push(o);
+	}
+
+	return result.slice(0, COMMAND_ORDERS_VISIBLE);
+}
+
+/** Legacy alias — now returns the new active-orders logic. */
+export const getVisibleOrders = getActiveOrders;
+export const getVisibleTasks = getActiveOrders;
+
+// ─── Completed orders section ───────────────────────────────────────────────
+
+/**
+ * Get all completed-but-unclaimed orders (the Completed section).
+ * These orders are claimable and survive board refresh + reload.
+ */
+export function getCompletedOrders(pool: CommandOrderInstance[], state: CommandOrdersState): CommandOrderInstance[] {
+	const result: CommandOrderInstance[] = [];
+	for (const o of pool) {
+		if (isOrderClaimed(state, o.slot)) continue;
+		if (isOrderComplete(o, state.counters)) result.push(o);
+	}
+	return result;
+}
+
+// ─── Claiming ───────────────────────────────────────────────────────────────
+
+/**
+ * Whether an order can be claimed. Completed orders are always claimable
+ * regardless of whether they appear in the active visible list.
+ */
+export function canClaimOrder(pool: CommandOrderInstance[], state: CommandOrdersState, slot: number): boolean {
+	if (state.completedCount >= COMMAND_ORDERS_MAX_PER_WEEK) return false;
+	if (isOrderClaimed(state, slot)) return false;
+	const order = pool.find((t) => t.slot === slot);
+	if (!order) return false;
+	return isOrderComplete(order, state.counters);
+}
+
+export const canClaimTask = canClaimOrder;
+
+export function claimOrder(pool: CommandOrderInstance[], state: CommandOrdersState, slot: number): { state: CommandOrdersState; reward: number } | null {
+	if (!canClaimOrder(pool, state, slot)) return null;
+	const order = pool.find((t) => t.slot === slot)!;
+	const next: CommandOrdersState = {
 		...state,
-		claimedTaskSlots: [...state.claimedTaskSlots, slot],
-		completedCount: Math.min(DAILY_TASKS_MAX_PER_DAY, state.completedCount + 1),
+		claimedOrderSlots: [...state.claimedOrderSlots, slot],
+		completedCount: Math.min(COMMAND_ORDERS_MAX_PER_WEEK, state.completedCount + 1),
 	};
-	return { state: next, reward: task.reward };
+	return { state: next, reward: order.reward };
 }
 
-/** Milestones whose gift box is unlocked but not yet claimed. */
-export function claimableMilestones(state: DailyTasksState): number[] {
-	return DAILY_TASK_MILESTONES.filter((m) => state.completedCount >= m && !state.claimedMilestones.includes(m));
+export const claimTask = claimOrder;
+
+// ─── Claim All ──────────────────────────────────────────────────────────────
+
+/**
+ * Claim all currently completed-but-unclaimed orders at once.
+ * Returns the new state, total Alloy, and the count of orders claimed.
+ * Respects weekly max: only claims up to the remaining slots.
+ */
+export function claimAllCompletedOrders(
+	pool: CommandOrderInstance[],
+	state: CommandOrdersState,
+): { state: CommandOrdersState; totalReward: number; claimedCount: number; newlyUnlockedMilestones: number[] } | null {
+	const completed = getCompletedOrders(pool, state);
+	if (completed.length === 0) return null;
+
+	const remaining = COMMAND_ORDERS_MAX_PER_WEEK - state.completedCount;
+	const toClaim = completed.slice(0, Math.max(0, remaining));
+	if (toClaim.length === 0) return null;
+
+	let next = { ...state };
+	let totalReward = 0;
+	const prevCount = state.completedCount;
+
+	for (const order of toClaim) {
+		const res = claimOrder(pool, next, order.slot);
+		if (!res) break;
+		next = res.state;
+		totalReward += res.reward;
+	}
+
+	const claimedCount = next.completedCount - prevCount;
+
+	// Check for newly unlocked gift milestones.
+	const newlyUnlockedMilestones: number[] = [];
+	for (const m of COMMAND_ORDER_MILESTONES) {
+		if (prevCount < m && next.completedCount >= m && !next.claimedMilestones.includes(m)) {
+			newlyUnlockedMilestones.push(m);
+		}
+	}
+
+	return { state: next, totalReward, claimedCount, newlyUnlockedMilestones };
 }
 
-export function canClaimMilestone(state: DailyTasksState, milestone: number): boolean {
-	if (!DAILY_TASK_MILESTONES.includes(milestone as 5 | 10 | 15 | 20 | 25)) return false;
+// ─── Gift milestones ────────────────────────────────────────────────────────
+
+export function claimableMilestones(state: CommandOrdersState): number[] {
+	return COMMAND_ORDER_MILESTONES.filter((m) => state.completedCount >= m && !state.claimedMilestones.includes(m));
+}
+
+export function canClaimMilestone(state: CommandOrdersState, milestone: number): boolean {
+	if (!COMMAND_ORDER_MILESTONES.includes(milestone as 5 | 10 | 15 | 20 | 25)) return false;
 	return state.completedCount >= milestone && !state.claimedMilestones.includes(milestone);
 }
 
-/** Claim a Command Gift Box. Returns new state + Alloy, or null if not valid. */
-export function claimMilestone(state: DailyTasksState, milestone: number): { state: DailyTasksState; reward: number } | null {
+export function claimMilestone(state: CommandOrdersState, milestone: number): { state: CommandOrdersState; reward: number } | null {
 	if (!canClaimMilestone(state, milestone)) return null;
 	const reward = GIFT_BOX_REWARDS[milestone] ?? 0;
 	return {
@@ -321,24 +460,21 @@ export function claimMilestone(state: DailyTasksState, milestone: number): { sta
 	};
 }
 
-/** Next gift-box milestone not yet reached (for the "3/5 until box" hint). */
-export function nextMilestone(state: DailyTasksState): number | null {
-	for (const m of DAILY_TASK_MILESTONES) {
+export function nextMilestone(state: CommandOrdersState): number | null {
+	for (const m of COMMAND_ORDER_MILESTONES) {
 		if (state.completedCount < m) return m;
 	}
 	return null;
 }
 
-/**
- * Fold a batch of metric deltas into the day's counters using each metric's
- * combine rule (sum vs max). Mutates and returns a NEW counters object.
- */
+// ─── Counters ───────────────────────────────────────────────────────────────
+
 export function applyCounterDeltas(
-	counters: Partial<Record<DailyMetric, number>>,
-	deltas: Partial<Record<DailyMetric, number>>,
-): Partial<Record<DailyMetric, number>> {
-	const out: Partial<Record<DailyMetric, number>> = { ...counters };
-	for (const [k, v] of Object.entries(deltas) as [DailyMetric, number][]) {
+	counters: Partial<Record<CommandMetric, number>>,
+	deltas: Partial<Record<CommandMetric, number>>,
+): Partial<Record<CommandMetric, number>> {
+	const out: Partial<Record<CommandMetric, number>> = { ...counters };
+	for (const [k, v] of Object.entries(deltas) as [CommandMetric, number][]) {
 		if (v == null || !Number.isFinite(v)) continue;
 		const kind = METRIC_KIND[k];
 		const cur = out[k] ?? 0;
@@ -347,7 +483,12 @@ export function applyCounterDeltas(
 	return out;
 }
 
-/** Convenience: today's date key (delegates to the shared local-day helper). */
+// ─── Convenience ────────────────────────────────────────────────────────────
+
 export function dailyTasksDateKey(now = Date.now()): string {
 	return localDayKey(now);
+}
+
+export function commandOrdersWeekKey(now = Date.now()): string {
+	return localWeekKey(now);
 }
