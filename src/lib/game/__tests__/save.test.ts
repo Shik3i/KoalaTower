@@ -123,8 +123,32 @@ describe('Save Migration', () => {
 		};
 		const migrated = migrateSave(v12 as unknown as Record<string, unknown>);
 		expect(migrated).not.toBeNull();
-		expect(migrated!.schemaVersion).toBe(13);
+		expect(migrated!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
 		expect(migrated!.blackMarketIntroSeen).toBe(false);
+	});
+
+	it('should add bestKillstreak default 0 for v13→v14 migration', () => {
+		const v13 = {
+			schemaVersion: 13,
+			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalCoins: 1,
+			blackMarketUnlocks: {},
+			blackMarketIntroSeen: true,
+		};
+		const migrated = migrateSave(v13 as unknown as Record<string, unknown>);
+		expect(migrated).not.toBeNull();
+		expect(migrated!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+		expect(migrated!.bestKillstreak).toBe(0);
+	});
+
+	it('should preserve an existing bestKillstreak through migration', () => {
+		const v13 = {
+			schemaVersion: 13,
+			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalCoins: 1,
+			blackMarketUnlocks: {},
+			bestKillstreak: 1234,
+		};
+		const migrated = migrateSave(v13 as unknown as Record<string, unknown>);
+		expect(migrated!.bestKillstreak).toBe(1234);
 	});
 
 	it('should preserve blackMarketIntroSeen true from v13 saves', () => {
@@ -143,7 +167,12 @@ describe('Save Migration', () => {
 	it('should have blackMarketIntroSeen in createDefaultSave', () => {
 		const save = createDefaultSave();
 		expect(save.blackMarketIntroSeen).toBe(false);
-		expect(save.schemaVersion).toBe(13);
+		expect(save.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+	});
+
+	it('should have bestKillstreak default 0 in createDefaultSave', () => {
+		const save = createDefaultSave();
+		expect(save.bestKillstreak).toBe(0);
 	});
 });
 

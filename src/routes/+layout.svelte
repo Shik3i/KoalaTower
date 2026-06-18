@@ -15,6 +15,8 @@
 	import { APP_VERSION, SUPPORT_URL, GITHUB_URL } from '$lib/version';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
+	import { notifications } from '$lib/stores/notificationStore';
+	import WhatsNewModal from '$lib/components/WhatsNewModal.svelte';
 	import { registerFlatlandServiceWorker } from '$lib/pwa/serviceWorker';
 
 	let { children } = $props();
@@ -84,6 +86,7 @@
 				totalRunsStore.set(save.totalRuns);
 				persistSave(save);
 				toast('🔬 Research complete: ' + completedLabName, 'milestone');
+				notifications.notify({ kind: 'research', title: 'Research complete', detail: completedLabName });
 				// Browser notification if enabled
 				if (save.settings.browserNotifications && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
 					new Notification('Flatland TD — Research Complete', { body: completedLabName, icon: '/favicon.png' });
@@ -100,6 +103,8 @@
 </script>
 
 <Toasts controller={toasts} vertical="bottom" offsetRem={3} zIndex={500} />
+
+<WhatsNewModal />
 
 {@render children()}
 

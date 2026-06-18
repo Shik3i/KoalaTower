@@ -173,6 +173,27 @@ input:focus, textarea:focus, select:focus {
 	border-width: 0;
 }
 
+/* ===== Rich tooltip (use:tooltip action — see lib/components/tooltip.ts) ===== */
+.rich-tooltip {
+	max-width: min(18rem, 80vw);
+	padding: .45rem .6rem;
+	font-family: var(--font-mono);
+	font-size: var(--fs-mono-sm);
+	line-height: 1.45;
+	color: var(--text-primary);
+	white-space: pre-line;
+	background: var(--bg-glass-strong);
+	border: 1px solid var(--border-neon-strong);
+	border-radius: var(--radius-sm);
+	box-shadow: 0 0 18px rgba(0, 0, 0, .55), 0 0 10px var(--cyan-glow);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+	transition: opacity var(--transition-fast);
+}
+@media (prefers-reduced-motion: reduce) {
+	.rich-tooltip { transition: none; }
+}
+
 /* ===== Utility Animations ===== */
 @keyframes fadeIn {
 	from { opacity: 0; }

@@ -46,6 +46,13 @@ export const ACHIEVEMENT_DEFS: AchievementDef[] = [
 	{ id: AchievementId.AlloyEarned1000, name: 'Alloy Accumulation II', description: '1000 alloy. Procurement has stopped panicking.', category: 'alloyEarned', threshold: 1000, reward: 100, rewardLabel: '100 Alloy' },
 	{ id: AchievementId.AlloyEarned10000, name: 'Alloy Accumulation III', description: '10000 alloy. You could buy a small planet. Or upgrade the tower.', category: 'alloyEarned', threshold: 10000, reward: 1000, rewardLabel: '1000 Alloy' },
 	{ id: AchievementId.AlloyEarned100000, name: 'Alloy Accumulation IV', description: '100000 alloy. Orbital Command has authorized a parade.', category: 'alloyEarned', threshold: 100000, reward: 10000, rewardLabel: '10000 Alloy' },
+
+	// Best killstreak — longest consecutive-kill chain without taking tower damage.
+	{ id: AchievementId.Killstreak100, name: 'Chain Reaction I', description: 'A hundred kills without a scratch. The tower is in the zone.', category: 'killstreak', threshold: 100, reward: 250, rewardLabel: '250 Alloy' },
+	{ id: AchievementId.Killstreak500, name: 'Chain Reaction II', description: 'Five hundred unbroken. The shapes are starting to flinch.', category: 'killstreak', threshold: 500, reward: 1000, rewardLabel: '1000 Alloy' },
+	{ id: AchievementId.Killstreak1000, name: 'Inferno', description: 'A thousand-kill chain. The barrel is literally on fire now.', category: 'killstreak', threshold: 1000, reward: 5000, rewardLabel: '5000 Alloy' },
+	{ id: AchievementId.Killstreak5000, name: 'Unbroken', description: 'Five thousand consecutive. Physics has filed a complaint.', category: 'killstreak', threshold: 5000, reward: 25000, rewardLabel: '25000 Alloy' },
+	{ id: AchievementId.Killstreak10000, name: 'Annihilation Streak', description: 'Ten thousand kills, one chain. The geometry has stopped resisting.', category: 'killstreak', threshold: 10000, reward: 100000, rewardLabel: '100000 Alloy' },
 ];
 
 const defMap = new Map<AchievementId, AchievementDef>();
@@ -68,6 +75,7 @@ export interface AchievementStats {
 	bossesDefeated: number;
 	fieldUpgradesPurchased: number;
 	totalAlloyEarned: number;
+	bestKillstreak: number;
 }
 
 /**
@@ -82,6 +90,7 @@ const CATEGORY_METRIC: Record<AchievementDef['category'], keyof AchievementStats
 	bossesDefeated: 'bossesDefeated',
 	fieldUpgrades: 'fieldUpgradesPurchased',
 	alloyEarned: 'totalAlloyEarned',
+	killstreak: 'bestKillstreak',
 };
 
 export function checkAchievements(claimed: Set<AchievementId>, stats: AchievementStats): AchievementDef[] {

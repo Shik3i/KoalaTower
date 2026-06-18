@@ -260,13 +260,18 @@ export enum AchievementId {
 	AlloyEarned1000 = 'alloyEarned1000',
 	AlloyEarned10000 = 'alloyEarned10000',
 	AlloyEarned100000 = 'alloyEarned100000',
+	Killstreak100 = 'killstreak100',
+	Killstreak500 = 'killstreak500',
+	Killstreak1000 = 'killstreak1000',
+	Killstreak5000 = 'killstreak5000',
+	Killstreak10000 = 'killstreak10000',
 }
 
 export interface AchievementDef {
 	id: AchievementId;
 	name: string;
 	description: string;
-	category: 'deployments' | 'bestWave' | 'shapesDestroyed' | 'bossesDefeated' | 'fieldUpgrades' | 'alloyEarned';
+	category: 'deployments' | 'bestWave' | 'shapesDestroyed' | 'bossesDefeated' | 'fieldUpgrades' | 'alloyEarned' | 'killstreak';
 	threshold: number;
 	reward: number;
 	rewardLabel: string;

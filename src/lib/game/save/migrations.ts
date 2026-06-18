@@ -58,6 +58,9 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		if (version < 13) {
 			save = migrateV12toV13(save);
 		}
+		if (version < 14) {
+			save = migrateV13toV14(save);
+		}
 
 		save = ensureMetadata(save);
 
@@ -123,6 +126,7 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 		blackMarketUnlocks: {},
 		autoDeploymentEnabled: false,
 		blackMarketIntroSeen: false,
+		bestKillstreak: 0,
 	};
 }
 
@@ -328,6 +332,15 @@ function migrateV12toV13(save: SaveData): SaveData {
 	};
 }
 
+function migrateV13toV14(save: SaveData): SaveData {
+	// v14 adds the persisted best killstreak (cosmetic vanity metric).
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		bestKillstreak: Math.max(0, Math.floor(Number((save as any).bestKillstreak)) || 0),
+	};
+}
+
 function migrateV8toV9(save: SaveData): SaveData {
 	// v9 adds per-front best waves for sequential front unlocking.
 	// All prior play happened on Front 1, so grandfather global best there.
@@ -423,5 +436,6 @@ function ensureMetadata(save: SaveData): SaveData {
 		blackMarketUnlocks: normalizeBlackMarketUnlocks((save as any).blackMarketUnlocks),
 		autoDeploymentEnabled: (save as any).autoDeploymentEnabled === true,
 		blackMarketIntroSeen: (save as any).blackMarketIntroSeen === true,
+		bestKillstreak: Math.max(0, Math.floor(Number((save as any).bestKillstreak)) || 0),
 	};
 }

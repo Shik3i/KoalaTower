@@ -20,7 +20,7 @@
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<main class="err" role="main">
+<main class="err">
 	<div class="err-panel glass-panel">
 		<div class="err-status" aria-live="polite">{status}</div>
 		<div class="err-divider"></div>
@@ -39,6 +39,10 @@
 			<a class="err-btn" href="/hub">
 				<Icon name="hub" size={16} />
 				Orbital Command
+			</a>
+			<a class="err-btn" href="/help">
+				<Icon name="settings" size={16} />
+				Help
 			</a>
 		</nav>
 

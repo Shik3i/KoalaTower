@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import { tooltip } from '$lib/components/tooltip';
 	import { UpgradeId, type GameSnapshot, type BlueprintId } from '$lib/game/engine/gameTypes';
 	import { buildBattleUpgradeList, getBattleUpgradeEffect } from '$lib/game/balance/battleUpgrades';
 	import { formatBattleEffect } from '$lib/game/balance/upgradeScaling';
@@ -57,15 +58,15 @@
 </script>
 
 <div class="cat-tabs">
-	<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'} title="Damage, Attack Speed, Range, Multishot, Crit"><Icon name="offense" size={13} /> Offense</button>
-	<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} title="Defense (flat reduction), Max HP"><Icon name="defense" size={13} /> Defense</button>
-	<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} title="Energy Amp (+% energy per kill)"><Icon name="utility" size={13} /> Utility</button>
+	<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'} use:tooltip={'Offense — Damage, Attack Speed, Range, Multishot, Crit.'}><Icon name="offense" size={13} /> Offense</button>
+	<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} use:tooltip={'Defense — flat damage reduction and Max HP.'}><Icon name="defense" size={13} /> Defense</button>
+	<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} use:tooltip={'Utility — Energy Amp (+% energy per kill).'}><Icon name="utility" size={13} /> Utility</button>
 </div>
 {#if showBuyMultiplier}
 	<div class="buy-mult">
 		<span class="mult-label">Buy</span>
 		{#each MULTIPLIERS as val}
-			<button class="mult-btn" class:on={buyMultiplier === val} onclick={() => buyMultiplier = val} title={val === 'max' ? 'Buy max affordable (Ctrl)' : val === 50 ? 'Buy ×50 (Shift+Ctrl)' : val === 5 ? 'Buy ×5 (Shift)' : 'Buy ×1'}>{val === 'max' ? 'Max' : '×' + val}</button>
+			<button class="mult-btn" class:on={buyMultiplier === val} onclick={() => buyMultiplier = val} use:tooltip={val === 'max' ? 'Buy as many levels as you can afford.\nShortcut: hold Ctrl.' : val === 50 ? 'Buy up to 50 levels.\nShortcut: Shift + Ctrl.' : val === 10 ? 'Buy up to 10 levels at once.' : val === 5 ? 'Buy up to 5 levels.\nShortcut: hold Shift.' : 'Buy a single level.'}>{val === 'max' ? 'Max' : '×' + val}</button>
 		{/each}
 	</div>
 {/if}
@@ -84,7 +85,11 @@
 			class:purchased={purchasedId === u.id}
 			disabled={!aff || mx || locked || !snap?.runActive}
 			onclick={() => onBuy(u.id)}
-			title={locked ? 'Locked: reconstruct the ' + getLockBlueprintName(u.id) + ' Schematic' : 'Current: ' + upgradeCurrentValue(u.id, lv) + ' | Next: ' + upgradeNextValue(u.id, lv) + ' | Cost: ' + cost + ' Energy'}
+			use:tooltip={locked
+				? `🔒 ${u.name}\nLocked — reconstruct the ${getLockBlueprintName(u.id)} Schematic in Orbital Command.`
+				: mx
+					? `${u.name} — MAXED\nCurrent: ${upgradeCurrentValue(u.id, lv)}`
+					: `${u.name}\nCurrent: ${upgradeCurrentValue(u.id, lv)}\nNext: ${upgradeNextValue(u.id, lv)}\nCost: ${cost} Energy${aff ? '' : ' — not enough Energy'}`}
 		>
 			<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
 			{#if !locked}

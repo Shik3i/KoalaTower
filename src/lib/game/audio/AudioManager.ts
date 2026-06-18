@@ -21,7 +21,9 @@ export type SoundName =
 	| 'bossWarning'
 	| 'gameOver'
 	| 'milestone'
-	| 'uiClick';
+	| 'uiClick'
+	| 'error'
+	| 'signal';
 
 class AudioManagerImpl {
 	private ctx: AudioContext | null = null;
@@ -182,6 +184,16 @@ class AudioManagerImpl {
 				break;
 			case 'uiClick':
 				this.tone(660, 0.04, 'square', 0.06);
+				break;
+			case 'error':
+				// Short low double-buzz for disabled/failed actions.
+				this.tone(160, 0.08, 'square', 0.07, { sweepTo: 110 });
+				this.tone(120, 0.10, 'sawtooth', 0.05, { sweepTo: 80, delay: 0.06 });
+				break;
+			case 'signal':
+				// Two-note "ping" for the Black Market / unauthorized signal.
+				this.tone(990, 0.09, 'sine', 0.07, { sweepTo: 1320 });
+				this.tone(1480, 0.12, 'triangle', 0.06, { delay: 0.08 });
 				break;
 		}
 	}

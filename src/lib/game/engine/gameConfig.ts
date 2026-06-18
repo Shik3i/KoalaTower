@@ -53,10 +53,11 @@ export const GAME_CONFIG = {
 	// ─── Cosmetic killstreak tuning ────────────────────────────────────────
 	/** Seconds without a kill before the chain resets. */
 	KILLSTREAK_WINDOW: 2.5,
-	/** Counts at which the chain text colour / pulse escalates. */
-	KILLSTREAK_TIERS: [5, 10, 25, 50, 100] as const,
+	/** Counts at which the chain text colour / pulse escalates. The high tiers
+	 *  (500+) drive the "cooler the longer" HUD effects, with fire from 1000. */
+	KILLSTREAK_TIERS: [5, 10, 25, 50, 100, 500, 1000, 5000, 10000] as const,
 	/** Hard cap so a long idle run cannot overflow best-count display. */
-	KILLSTREAK_MAX: 9999,
+	KILLSTREAK_MAX: 99999,
 };
 
 /**

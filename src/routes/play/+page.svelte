@@ -11,6 +11,7 @@
 	import { UpgradeId, type GameSnapshot, type GameSettings, AchievementId, DEFAULT_SETTINGS, ChallengeId, EnemyType } from '$lib/game/engine/gameTypes';
 	import { getKillstreakTier } from '$lib/game/systems/enemySystem';
 	import { countUp } from '$lib/utils/countUp';
+	import { tooltip } from '$lib/components/tooltip';
 	import { checkMasteryAchievements } from '$lib/game/balance/mastery';
 	import { buildBattleUpgradeList } from '$lib/game/balance/battleUpgrades';
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
@@ -29,6 +30,9 @@
 	import { audio } from '$lib/game/audio/AudioManager';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
+	import { notifications } from '$lib/stores/notificationStore';
+	import { playForNotification } from '$lib/game/audio/uiSounds';
+	import NotificationCenter from '$lib/components/NotificationCenter.svelte';
 	import FieldUpgrades from '$lib/components/play/FieldUpgrades.svelte';
 	import GameOverPanel from '$lib/components/play/GameOverPanel.svelte';
 	import LaunchScreen from '$lib/components/play/LaunchScreen.svelte';
@@ -260,6 +264,7 @@
 					if (st.wave.currentWave > 0 && st.wave.currentWave % 10 === 0 && st.wave.currentWave !== prevWave && st.runActive) {
 						const flavor = getOpLogMessage('bossIncoming');
 						if (flavor) toast('👾 ' + flavor, 'info');
+						notifications.notify({ kind: 'boss', title: 'Boss sighted', detail: `Wave ${st.wave.currentWave}` });
 						audio.play('bossWarning');
 						// Brief one-shot boss intro flash overlay (CSS, ~700ms).
 						bossIntroWave = st.wave.currentWave;
@@ -269,6 +274,7 @@
 					if (st.bossesDefeated > prevBossCount && prevBossCount > 0) {
 						const flavor = getOpLogMessage('bossDefeated');
 						if (flavor) toast('💥 ' + flavor, 'success');
+						notifications.notify({ kind: 'boss', title: 'Boss defeated', detail: flavor ?? undefined, icon: '💥' });
 					}
 					prevWave = st.wave.currentWave;
 					prevBossCount = st.bossesDefeated;
@@ -301,6 +307,7 @@
 					save.totalBossesDefeated += engine.state.bossesDefeated;
 					save.totalShiniesKilled += engine.state.shiniesKilled;
 					save.totalAlloyEarned += runCoinsEarned;
+					save.bestKillstreak = Math.max(save.bestKillstreak ?? 0, engine.state.killstreak?.best ?? 0);
 
 					// Aggregate per-run kill counts into lifetime save stats
 					if (engine.state.killsByType) {
@@ -332,6 +339,7 @@
 							save.totalCoins += reward.alloy;
 							gameOverCoins += reward.alloy;
 							toast('🏅 ' + reward.name + ' — +' + reward.alloy.toLocaleString() + ' Alloy!', 'milestone');
+							notifications.notify({ kind: 'achievement', title: reward.name, detail: `+${reward.alloy.toLocaleString()} Alloy`, icon: '🏅' });
 						}
 						coinsStore.set(save.totalCoins);
 					}
@@ -345,7 +353,7 @@
 						const newHs = Math.max(prevHs, reachedWave);
 						save.challengeHighScores = { ...(save.challengeHighScores ?? {}), [runChallenge]: newHs };
 						challengeHighScores = { ...save.challengeHighScores };
-						if (newHs > prevHs && prevHs > 0) toast('🏆 New high score on ' + runChallenge + ': Wave ' + newHs, 'milestone');
+						if (newHs > prevHs && prevHs > 0) { toast('🏆 New high score on ' + runChallenge + ': Wave ' + newHs, 'milestone'); notifications.notify({ kind: 'bestWave', title: 'New high score', detail: `${runChallenge}: Wave ${newHs}` }); }
 					} else {
 						// Per-front best wave — gates sequential front unlocks.
 						const frontPrev = save.frontBestWave?.[save.selectedFront] ?? 0;
@@ -353,7 +361,8 @@
 						save.frontBestWave = { ...(save.frontBestWave ?? {}), [save.selectedFront]: newFrontBest };
 						const justUnlocked = getUnlockedFronts(save.frontBestWave).length > getUnlockedFronts(frontBestWave).length;
 						frontBestWave = { ...save.frontBestWave };
-						if (justUnlocked) toast('🌍 ' + getOpLogMessage('frontUnlocked', { name: getFrontName(save.selectedFront) }), 'milestone');
+						if (justUnlocked) { toast('🌍 ' + getOpLogMessage('frontUnlocked', { name: getFrontName(save.selectedFront) }), 'milestone'); notifications.notify({ kind: 'frontUnlock', title: 'New Front unlocked', detail: 'Check the Deploy screen' }); }
+						else if (newFrontBest > frontPrev && frontPrev > 0) notifications.notify({ kind: 'bestWave', title: 'New best wave', detail: `${getFrontName(save.selectedFront)}: Wave ${newFrontBest}` });
 
 						// ── Schematic rewards (Part 5) — non-challenge runs only ──
 						const frontNum = getTierNumber(save.selectedFront);
@@ -399,6 +408,7 @@
 							bossesDefeated: save.totalBossesDefeated,
 							fieldUpgradesPurchased: save.totalFieldUpgradesPurchased,
 							totalAlloyEarned: save.totalAlloyEarned,
+							bestKillstreak: save.bestKillstreak,
 						},
 					);
 					let totalReward = 0;
@@ -407,6 +417,8 @@
 						save.totalCoins += a.reward;
 						totalReward += a.reward;
 						toast('🏆 ' + a.name + ' — +' + a.reward.toLocaleString() + ' Alloy!', 'milestone');
+						notifications.notify({ kind: 'achievement', title: a.name, detail: `+${a.reward.toLocaleString()} Alloy` });
+						playForNotification('achievement');
 					}
 					if (totalReward > 0) {
 						gameOverCoins += totalReward;
@@ -632,10 +644,10 @@
 		{#if snap?.runActive}
 			<div class="tb-pill wave-pill" title="Current wave number"><Icon name="wave" size={15} /><span use:countUp={snap.wave}>{snap.wave}</span></div>
 		{/if}
-		<div class="tb-pill coin-pill" title="Alloy — permanent material, spent in Forge & Research"><Icon name="alloy" size={15} /><span use:countUp={coins}>{coins.toLocaleString()}</span></div>
+		<div class="tb-pill coin-pill" use:tooltip={'Alloy — permanent material.\nKept between runs, spent in the Forge & Research Deck.'}><Icon name="alloy" size={15} /><span use:countUp={coins}>{coins.toLocaleString()}</span></div>
 		{#if snap?.runActive}
-			<div class="tb-pill cash-pill" title="Energy — harvested from destroyed enemies, spent on Field Upgrades"><Icon name="energy" size={15} /><span use:countUp={Math.floor(snap.cash)}>{Math.floor(snap.cash).toLocaleString()}</span></div>
-			<div class="tb-pill hp-pill" class:low={snap.towerHp / snap.towerMaxHp < 0.3} title="Tower HP — run ends when this reaches 0"><Icon name="hp" size={15} /><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
+			<div class="tb-pill cash-pill" use:tooltip={'Energy — this run only.\nHarvested from destroyed enemies, spent on Field Upgrades.\nResets when the tower falls.'}><Icon name="energy" size={15} /><span use:countUp={Math.floor(snap.cash)}>{Math.floor(snap.cash).toLocaleString()}</span></div>
+			<div class="tb-pill hp-pill" class:low={snap.towerHp / snap.towerMaxHp < 0.3} use:tooltip={'Tower HP — the run ends when this reaches 0.'}><Icon name="hp" size={15} /><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
 			<div class="tb-pill kill-pill" title="Total enemies killed this run"><Icon name="kill" size={15} /><span use:countUp={snap.killCount}>{snap.killCount}</span></div>
 		{/if}
 	</div>
@@ -643,13 +655,13 @@
 			{#if snap?.runActive}
 				<div class="spd-grp" title="Game speed — also: keys 1-4, Space to pause">
 					<button class="spd-btn spd-icon" class:on={paused} onclick={() => handleSpeed(0)} title="Pause (Space)" aria-label="Pause"><Icon name={paused ? 'play' : 'pause'} size={13} /></button>
-					{#each [1,2,3] as s}<button class="spd-btn spd-n" class:on={!paused && speed === s} class:locked={isSpeedLocked(s)} onclick={() => handleSpeed(s)} title={isSpeedLocked(s) ? `${s}x requires Black Market unlock` : `${s}x speed (${s})`}>{isSpeedLocked(s) ? '🔒' : s + '×'}</button>{/each}
-					<button class="spd-btn spd-n" class:on={!paused && speed === 5} class:locked={isSpeedLocked(5)} onclick={() => handleSpeed(4)} title={isSpeedLocked(5) ? '5x requires Black Market unlock' : '5× speed (4)'}>{isSpeedLocked(5) ? '🔒' : '5×'}</button>
+					{#each [1,2,3] as s}<button class="spd-btn spd-n" class:on={!paused && speed === s} class:locked={isSpeedLocked(s)} onclick={() => handleSpeed(s)} use:tooltip={isSpeedLocked(s) ? `🔒 ${s}× speed\nUnlocked via a Black Market procurement.\nVisit Orbital Command → Black Market.` : `${s}× game speed\nShortcut: press ${s}`}>{isSpeedLocked(s) ? '🔒' : s + '×'}</button>{/each}
+					<button class="spd-btn spd-n" class:on={!paused && speed === 5} class:locked={isSpeedLocked(5)} onclick={() => handleSpeed(4)} use:tooltip={isSpeedLocked(5) ? '🔒 5× speed\nUnlocked via a Black Market procurement.\nVisit Orbital Command → Black Market.' : '5× game speed\nShortcut: press 4'}>{isSpeedLocked(5) ? '🔒' : '5×'}</button>
 					<div class="spd-status" class:paused={paused}>{paused ? '❚❚' : speed + '×'}</div>
 				</div>
 			{/if}
-			<button class="ibtn" class:off={!settings.sfx} onclick={toggleSfx} aria-label="Toggle sound effects" title="Sound effects {settings.sfx ? 'on' : 'off'}"><Icon name={settings.sfx ? 'soundOn' : 'soundOff'} size={17} /></button>
-			<button class="ibtn" class:off={!settings.music} onclick={toggleMusic} aria-label="Toggle music" title="Music {settings.music ? 'on' : 'off'}"><Icon name={settings.music ? 'musicOn' : 'musicOff'} size={17} /></button>
+			<button class="ibtn" class:off={!settings.sfx} onclick={toggleSfx} aria-label="Toggle sound effects" use:tooltip={`Sound effects: ${settings.sfx ? 'ON' : 'OFF'}\nCombat & UI sounds. Click to toggle.`}><Icon name={settings.sfx ? 'soundOn' : 'soundOff'} size={17} /></button>
+			<button class="ibtn" class:off={!settings.music} onclick={toggleMusic} aria-label="Toggle music" use:tooltip={`Music: ${settings.music ? 'ON' : 'OFF'}\nAmbient background loop. Click to toggle.`}><Icon name={settings.music ? 'musicOn' : 'musicOff'} size={17} /></button>
 			<div class="save-indicator" class:saving={showSaveIndicator} title="Auto-save indicator"></div>
 			<div class="sv-wrap">
 				<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu" title="Export / Import / Reset save data"><Icon name="save" size={17} /></button>
@@ -701,7 +713,8 @@
 					</div>
 				{/if}
 			</div>
-			<a href="/hub" class="hub-link" aria-label="Orbital Command" title="Orbital Command — Forge, Research Deck, Blueprints, Fronts, Archives"><Icon name="hub" size={18} /></a>
+			<NotificationCenter />
+			<a href="/hub" class="hub-link" aria-label="Orbital Command" use:tooltip={'Orbital Command — Forge, Research Deck, Blueprints, Fronts, Archives.'}><Icon name="hub" size={18} /></a>
 		</div>
 	</header>
 
@@ -832,16 +845,21 @@
 			</div>
 		{/if}
 
-		<!-- Cosmetic killstreak chip — appears at chain ≥ 5. Never grants anything. -->
+		<!-- Cosmetic killstreak chip — top-right, appears at chain ≥ 5. Effects
+		     escalate at 100/500/1000/5000/10000; it catches fire from 1000.
+		     Never grants anything; the best streak is saved for achievements. -->
 		{#if killstreakCount >= 5 && snap?.runActive}
+			{@const ksReduced = settings.reducedMotion || settings.lowEffectsMode}
+			{@const ksBurning = killstreakCount >= 1000}
 			<div
 				class="chain-chip tier-{killstreakTier}"
-				class:reduced={settings.reducedMotion || settings.lowEffectsMode}
-				title="Consecutive kills without taking tower damage. Cosmetic — no reward."
+				class:reduced={ksReduced}
+				class:burning={ksBurning && !ksReduced}
+				use:tooltip={`Killstreak: ${killstreakCount}\nConsecutive kills without taking tower damage.\nCosmetic — grants no reward. Your best streak is saved.`}
 				aria-label="Killstreak chain {killstreakCount}"
 			>
-				<span class="chain-glyph">⛓</span>
-				<span class="chain-count">x{killstreakCount}</span>
+				<span class="chain-glyph">{ksBurning ? '🔥' : '⛓'}</span>
+				<span class="chain-count">{#key killstreakCount}<span class="chain-num" class:no-pop={ksReduced}>x{killstreakCount}</span>{/key}</span>
 			</div>
 		{/if}
 
@@ -1044,24 +1062,47 @@
 	@keyframes hpWarnFlicker { 0%,100%{opacity:1} 50%{opacity:.55} }
 
 	/* ─── Cosmetic killstreak chip ──────────────────────────────────────── */
-	/* Appears bottom-center when chain ≥ 5. Colours escalate cyan → yellow → pink.
+	/* Top-right of the battlefield, appears when chain ≥ 5. Colours + glow
+	   escalate cyan → yellow → pink → violet → fire as the chain climbs the
+	   tiers (5/10/25/50/100/500/1000/5000/10000). Burns from 1000.
 	   Cosmetic only — never grants anything. */
-	.chain-chip { position:absolute; bottom:14%; left:50%; transform:translateX(-50%);
-		display:inline-flex; align-items:center; gap:.35rem; padding:.28rem .8rem;
+	.chain-chip { position:absolute; top:3.4rem; right:.8rem;
+		display:inline-flex; align-items:center; gap:.35rem; padding:.3rem .85rem;
 		font-family:var(--font-mono); font-weight:700;
 		background:rgba(7,8,18,.82); border:1px solid currentColor; border-radius:100px;
 		z-index:8; pointer-events:none; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
 		animation:chainIn .3s cubic-bezier(.34,1.56,.64,1); }
 	.chain-chip.reduced { animation:fi .2s ease; }
-	.chain-chip .chain-glyph { font-size:1rem; line-height:1; }
-	.chain-chip .chain-count { font-size:var(--fs-body-sm); letter-spacing:.04em; }
+	.chain-chip .chain-glyph { font-size:1.05rem; line-height:1; }
+	.chain-chip .chain-count { font-size:var(--fs-body-sm); letter-spacing:.04em; display:inline-flex; }
+	/* Each new count remounts .chain-num → a quick scale "pop" on every +1. */
+	.chain-num { display:inline-block; animation:chainPop .22s cubic-bezier(.34,1.8,.5,1); }
+	.chain-num.no-pop { animation:none; }
 	.chain-chip.tier-0 { color:var(--cyan);   box-shadow:0 0 10px rgba(0,255,255,.35); }
 	.chain-chip.tier-1 { color:var(--cyan);   box-shadow:0 0 14px rgba(0,255,255,.5); }
 	.chain-chip.tier-2 { color:var(--yellow); box-shadow:0 0 16px rgba(255,221,68,.55); }
 	.chain-chip.tier-3 { color:var(--pink);   box-shadow:0 0 18px rgba(255,68,170,.6); }
 	.chain-chip.tier-4 { color:var(--pink);   box-shadow:0 0 22px rgba(255,68,170,.8); animation:chainIn .3s cubic-bezier(.34,1.56,.64,1), chainGlitch 1.6s steps(2) infinite; }
-	@keyframes chainIn { from{opacity:0; transform:translate(-50%,8px) scale(.9)} to{opacity:1; transform:translate(-50%,0) scale(1)} }
+	.chain-chip.tier-5 { color:var(--violet); box-shadow:0 0 26px rgba(136,68,255,.85); animation:chainIn .3s cubic-bezier(.34,1.56,.64,1), chainGlitch 1s steps(2) infinite; }
+	/* tier-6 (1000+): on fire. tier-7 (5000+) and tier-8 (10000+) intensify. */
+	.chain-chip.tier-6 { color:#FF8A2B; border-color:#FF8A2B; }
+	.chain-chip.tier-7 { color:#FFB02B; border-color:#FFD24A; }
+	.chain-chip.tier-8 { color:#FFE7A0; border-color:#FFF1C2; }
+	.chain-chip.burning { animation:chainIn .3s cubic-bezier(.34,1.56,.64,1), chainFire .45s ease-in-out infinite; }
+	.chain-chip.burning .chain-glyph { animation:chainFlicker .3s steps(2) infinite; }
+	.chain-chip.tier-7.burning { box-shadow:0 0 30px rgba(255,140,0,.9), 0 0 60px rgba(255,80,0,.5); }
+	.chain-chip.tier-8.burning { box-shadow:0 0 38px rgba(255,180,40,1), 0 0 80px rgba(255,90,0,.7); }
+	.chain-chip.reduced.burning { animation:fi .2s ease; }
+	.chain-chip.reduced.burning .chain-glyph { animation:none; }
+	@keyframes chainIn { from{opacity:0; transform:translateY(-8px) scale(.9)} to{opacity:1; transform:translateY(0) scale(1)} }
+	@keyframes chainPop { 0%{transform:scale(1.45)} 60%{transform:scale(.92)} 100%{transform:scale(1)} }
 	@keyframes chainGlitch { 0%{text-shadow:none} 50%{text-shadow:1px 0 var(--pink), -1px 0 var(--cyan)} 100%{text-shadow:none} }
+	@keyframes chainFire {
+		0%   { box-shadow:0 0 22px rgba(255,120,0,.75), 0 0 44px rgba(255,60,0,.4);  text-shadow:0 0 6px rgba(255,140,0,.8); }
+		50%  { box-shadow:0 0 34px rgba(255,160,30,.95), 0 0 66px rgba(255,90,0,.6); text-shadow:0 0 12px rgba(255,180,40,1); }
+		100% { box-shadow:0 0 24px rgba(255,120,0,.8), 0 0 48px rgba(255,60,0,.45);  text-shadow:0 0 7px rgba(255,140,0,.85); }
+	}
+	@keyframes chainFlicker { 0%{transform:scale(1) rotate(-3deg)} 50%{transform:scale(1.12) rotate(3deg)} 100%{transform:scale(1) rotate(-2deg)} }
 
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	@keyframes si { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }

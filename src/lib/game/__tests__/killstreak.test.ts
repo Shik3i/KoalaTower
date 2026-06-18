@@ -50,12 +50,20 @@ describe('getKillstreakTier — cosmetic tier resolver', () => {
 		expect(getKillstreakTier(50)).toBe(3);
 		expect(getKillstreakTier(99)).toBe(3);
 		expect(getKillstreakTier(100)).toBe(4);
-		expect(getKillstreakTier(500)).toBe(4);
+		expect(getKillstreakTier(499)).toBe(4);
+		expect(getKillstreakTier(500)).toBe(5);
+		expect(getKillstreakTier(999)).toBe(5);
+		expect(getKillstreakTier(1000)).toBe(6);
+		expect(getKillstreakTier(4999)).toBe(6);
+		expect(getKillstreakTier(5000)).toBe(7);
+		expect(getKillstreakTier(9999)).toBe(7);
+		expect(getKillstreakTier(10000)).toBe(8);
+		expect(getKillstreakTier(50000)).toBe(8);
 	});
 
 	it('mirrors the published KILLSTREAK_TIERS so chip & HUD agree', () => {
 		const tiers = GAME_CONFIG.KILLSTREAK_TIERS;
-		expect(tiers).toEqual([5, 10, 25, 50, 100]);
+		expect(tiers).toEqual([5, 10, 25, 50, 100, 500, 1000, 5000, 10000]);
 	});
 });
 

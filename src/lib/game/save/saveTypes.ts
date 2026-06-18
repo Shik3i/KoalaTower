@@ -79,9 +79,11 @@ export interface SaveData {
 	autoDeploymentEnabled: boolean;
 	/** v13: Whether the Black Market discovery intro has been seen. */
 	blackMarketIntroSeen: boolean;
+	/** v14: Best cosmetic killstreak ever reached (highest consecutive-kill chain). */
+	bestKillstreak: number;
 }
 
-export const CURRENT_SCHEMA_VERSION = 13;
+export const CURRENT_SCHEMA_VERSION = 14;
 
 function generateSaveId(prefix = 'fltd'): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -137,5 +139,6 @@ export function createDefaultSave(): SaveData {
 		blackMarketUnlocks: {},
 		autoDeploymentEnabled: false,
 		blackMarketIntroSeen: false,
+		bestKillstreak: 0,
 	};
 }

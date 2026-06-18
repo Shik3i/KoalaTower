@@ -38,8 +38,12 @@
 	import type { GameSettings, WorkshopUpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
 	import { audio } from '$lib/game/audio/AudioManager';
+	import { playForNotification } from '$lib/game/audio/uiSounds';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
+	import { tooltip } from '$lib/components/tooltip';
+	import { notifications } from '$lib/stores/notificationStore';
+	import NotificationCenter from '$lib/components/NotificationCenter.svelte';
 
 	function formatPlayTime(totalSeconds: number): string {
 		if (totalSeconds <= 0) return '0s';
@@ -142,6 +146,8 @@
 		const save = getCachedSave(); if (!save) return;
 		save.blackMarketIntroSeen = true;
 		persistSave(save);
+		notifications.notify({ kind: 'blackMarket', title: 'Black Market channel open', detail: 'Unauthorized procurements available' });
+		playForNotification('blackMarket');
 		refreshBlackMarketState();
 		switchSection('blackMarket');
 	}
@@ -170,6 +176,8 @@
 		showShipmentModal = false;
 		uiSound('upgrade');
 		toast('Shipment accepted. Your discretion has been logged nowhere official. +' + STRANGE_MATTER_WEEKLY_SHIPMENT + ' Strange Matter', 'success');
+		notifications.notify({ kind: 'shipment', title: 'Shipment accepted', detail: `+${STRANGE_MATTER_WEEKLY_SHIPMENT} Strange Matter` });
+		playForNotification('shipment');
 	}
 
 	function claimDailyContract() {
@@ -189,6 +197,7 @@
 		refreshBlackMarketState();
 		uiSound('upgrade');
 		toast('Daily Contract complete. +' + STRANGE_MATTER_DAILY_CONTRACT + ' Strange Matter', 'success');
+		notifications.notify({ kind: 'contract', title: 'Daily Contract claimed', detail: `+${STRANGE_MATTER_DAILY_CONTRACT} Strange Matter` });
 	}
 
 	function buyBlackMarketUnlock(id: BlackMarketUnlockId) {
@@ -453,8 +462,8 @@
 		<a href="/play" class="hub-deploy">→ Deploy</a>
 		<h1 class="hub-title">🛰️ Orbital Command</h1>
 		<div class="hub-coins">
-			🔩 {coins.toLocaleString()}
-			<span class="hub-sm">◈ {strangeMatter.toLocaleString()}</span>
+			<span use:tooltip={'Alloy — your permanent currency.\nEarned every deployment, spent in the Forge and Research Deck.\nNever lost when a tower falls.'}>🔩 {coins.toLocaleString()}</span>
+			<span class="hub-sm" use:tooltip={'Strange Matter — recovered through the Black Market.\nSpent on contraband procurements. Orbital Command does not authorize it.'}>◈ {strangeMatter.toLocaleString()}</span>
 			{#if bmUnlocked}
 				<button
 					class="bm-signal"
@@ -462,11 +471,12 @@
 					class:bm-signal-subtle={bmSignal === 'subtle'}
 					onclick={() => { if (!blackMarketIntroSeen) { showBlackMarketIntro = true; } else { switchSection('blackMarket'); } }}
 					aria-label={bmSignal === 'glow' ? 'Black Market — unauthorized signal active' : 'Black Market — unauthorized channel'}
-					title={bmSignal === 'glow' ? 'Unauthorized signal active' : 'Black Market'}
+					use:tooltip={bmSignal === 'glow' ? 'Unauthorized signal active — something is waiting.' : 'Black Market — unauthorized channel.'}
 				>
 					◈
 				</button>
 			{/if}
+			<NotificationCenter />
 		</div>
 	</header>
 	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. The Forge pre-installs permanent tower upgrades, the Research Deck runs orbital projects, and Schematics reconstruct new capabilities. Archives track campaign telemetry.</p>
@@ -493,7 +503,7 @@
 						<span class="mult-label">Buy</span>
 						{#each [1, 5, 10, 50, 'max'] as m}
 							{@const val = m === 'max' ? 'max' as const : m as number}
-							<button class="mult-btn" class:on={buyMultiplier === val} onclick={() => buyMultiplier = val} title={val === 'max' ? 'Buy max affordable (Ctrl)' : val === 50 ? 'Buy ×50 (Shift+Ctrl)' : val === 5 ? 'Buy ×5 (Shift)' : 'Buy ×1'}>{val === 'max' ? 'Max' : '×' + val}</button>
+							<button class="mult-btn" class:on={buyMultiplier === val} onclick={() => buyMultiplier = val} use:tooltip={val === 'max' ? 'Buy as many levels as you can afford.\nShortcut: hold Ctrl while buying.' : val === 50 ? 'Buy up to 50 levels at once.\nShortcut: Shift + Ctrl.' : val === 10 ? 'Buy up to 10 levels at once.' : val === 5 ? 'Buy up to 5 levels at once.\nShortcut: hold Shift.' : 'Buy a single level.'}>{val === 'max' ? 'Max' : '×' + val}</button>
 						{/each}
 					</div>
 					<div class="ug">
@@ -505,7 +515,12 @@
 							{@const mx = lv >= u.maxLevel}
 							{@const locked = u.requiredBlueprint && !isFoundryUpgradeUnlocked(u.id, ownedBlueprints)}
 							{@const bpName = u.requiredBlueprint ? (getBlueprintForFoundryUpgrade(u.id)?.name ?? '') : ''}
-							<button class="uc" class:aff={aff && !mx && !locked} class:mx={mx} class:locked={locked} disabled={!aff || mx || locked} onclick={() => buyWorkshopUpgrade(u.id)}>
+							<button class="uc" class:aff={aff && !mx && !locked} class:mx={mx} class:locked={locked} disabled={!aff || mx || locked} onclick={() => buyWorkshopUpgrade(u.id)}
+								use:tooltip={locked
+									? `🔒 ${u.name}\nRequires the ${bpName} Schematic.\nReconstruct it in the Schematics tab to unlock this path.`
+									: mx
+										? `${u.name} — MAXED\nCurrent bonus: +${getWorkshopUpgradeEffect(u.id, lv)}\nNo further levels available.`
+										: `${u.name}\nCurrent: ${lv > 0 ? '+' + getWorkshopUpgradeEffect(u.id, lv) : 'not yet installed'}\nNext (Lv.${nl}): +${getWorkshopUpgradeEffect(u.id, nl)}\nCost: ${cost.toLocaleString()} Alloy${aff ? '' : ' — not enough Alloy yet'}`}>
 								<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
 								{#if !locked}
 									<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
@@ -519,6 +534,9 @@
 				</div>
 			{:else if activeSection === 'lab'}
 				<div class="hs"><h2 class="hst">🔬 Research Deck</h2><p class="hsd">Time-based orbital research projects. Each level grants a permanent multiplicative bonus. Research continues offline. Only one project can be active at a time. Research continues offline because the scientists have been locked in. For their own safety.</p>
+					{#if !activeLabId}
+						<p class="empty-flavor">🔬 Research deck idle. Suspiciously quiet. Start a project below — it keeps running even while you're offline.</p>
+					{/if}
 					<div class="ug">
 						{#each LAB_DEFS as lab}
 							{@const unlocked = isLabUnlocked(lab, highestWave)}
@@ -531,7 +549,14 @@
 							{@const currMult = 1 + getLabEffect(lab.id, lv)}
 							{@const hasActive = !!getCachedSave()?.activeLab}
 							{@const lockedDisplay = '🔒 Reach Wave ' + lab.unlockWave}
-							<div class="uc lc" class:locked={!unlocked} class:researching={isResearching} class:mx={mx && unlocked}>
+							<div class="uc lc" class:locked={!unlocked} class:researching={isResearching} class:mx={mx && unlocked}
+								use:tooltip={!unlocked
+									? `🔒 ${lab.name}\nUnlocks at Wave ${lab.unlockWave}.\nReach it on any Front to begin research.`
+									: mx
+										? `${lab.name} — MAXED\nCurrent: ×${currMult.toFixed(2)} multiplier`
+										: isResearching
+											? `${lab.name}\nResearching Lv.${activeLabTarget}…\nResearch continues even while you are offline.`
+											: `${lab.name}\nCurrent: ×${currMult.toFixed(2)} multiplier\nNext (Lv.${lv + 1}): ×${(1 + getLabEffect(lab.id, lv + 1)).toFixed(2)}\nCost: ${formatCompact(cost)} Alloy · takes ${formatLabDuration(duration)}${hasActive ? '\nAnother project is already running.' : ''}`}>
 								<div class="uc-t"><span class="uci">{unlocked ? lab.icon : '🔒'}</span><span class="ucn">{lab.name}</span><span class="ucl">{unlocked ? 'Lv.' + lv : lockedDisplay}</span></div>
 								{#if unlocked}
 									<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / lab.maxLevel) * 100)}%"></div></div>
@@ -556,7 +581,11 @@
 				</div>
 			{:else if activeSection === 'blueprints'}
 				<div class="hs"><h2 class="hst">📐 Schematics</h2><p class="hsd">{SCHEMATICS_FLAVOR}</p>
-					<div class="schem-bal">{#each FRONT_META as m}{@const n = getSchematics(schematicsByFront, m.front)}{#if n > 0 || unlockedFronts.includes(m.id)}<span class="schem-chip" title={getFrontName(m.id) + ' Schematics'}><FrontIcon front={m.id} size={16} /> {n}</span>{/if}{/each}</div>
+					{#if FRONT_META.reduce((sum, m) => sum + getSchematics(schematicsByFront, m.front), 0) === 0}
+						<p class="empty-flavor">📐 No Schematics recovered yet. Complete waves on a Front to salvage obsolete blueprints, then reconstruct them here.</p>
+					{:else}
+						<div class="schem-bal">{#each FRONT_META as m}{@const n = getSchematics(schematicsByFront, m.front)}{#if n > 0 || unlockedFronts.includes(m.id)}<span class="schem-chip" use:tooltip={`${getFrontName(m.id)} Schematics: ${n}\nRecovered by completing waves on this Front.\nSpend them in the Schematics tab to reconstruct new upgrade paths.`}><FrontIcon front={m.id} size={16} /> {n}</span>{/if}{/each}</div>
+					{/if}
 					<div class="cl">{#each BLUEPRINT_DEFS as bp}{@const status = getBlueprintStatus(bp.id, ownedBlueprints, discoveredBlueprints)}{@const cost = getPathSchematicCost(bp.id)}{@const costFrontId = cost ? FRONT_META[cost.front - 1]!.id : null}{@const have = cost ? getSchematics(schematicsByFront, cost.front) : 0}{@const aff = !!cost && have >= cost.cost}{@const fieldCount = getFieldUpgradesUnlockedBy(bp.id).length}{@const foundryCount = getFoundryUpgradesUnlockedBy(bp.id).length}<div class="cc" class:lck={status === 'undiscovered'}><div class="cc-h"><span class="cci">{status === 'owned' ? '✅' : status === 'discovered' ? bp.icon : '🔒'}</span><div><div class="ccn">{status === 'undiscovered' ? '??? Unknown Schematic' : bp.name}</div><div class="ccd">{status === 'undiscovered' ? 'Schematic not yet recovered.' : bp.description}</div></div></div>{#if status === 'owned'}<div class="ccs">✓ Reconstructed — unlocks {fieldCount} field + {foundryCount} foundry upgrade{fieldCount + foundryCount === 1 ? '' : 's'}</div>{:else if status === 'discovered'}<div class="ccl-found">🔍 Recovered — ready to reconstruct</div><div class="uc-b" style="margin-top:.3rem">{#if cost && costFrontId}<button class="hub-action" disabled={!aff} onclick={() => buyBlueprint(bp.id)} style={aff ? 'background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--bg-primary);font-weight:600' : ''}><span class="ucc">📐{cost.cost} {getFrontName(costFrontId)}</span> Reconstruct</button>{:else}<span class="ucc" style="color:var(--text-dim)">Reconstruction not yet available</span>{/if}</div>{:else}<div class="ccl">🔒 {describeBlueprintDiscovery(bp)}</div>{/if}</div>{/each}</div>
 				</div>
 			{:else if activeSection === 'blackMarket'}
@@ -604,7 +633,14 @@
 							{@const owned = hasBlackMarketUnlock(blackMarketUnlocks, item.id)}
 							{@const reqOk = !item.requirement || hasBlackMarketUnlock(blackMarketUnlocks, item.requirement)}
 							{@const aff = strangeMatter >= item.cost}
-							<div class="cc" class:lck={!owned && (!reqOk || !aff)}>
+							<div class="cc" class:lck={!owned && (!reqOk || !aff)}
+									use:tooltip={owned
+										? `${item.name}\nProcured.${item.status === 'scaffold' ? '\nFull effect arrives in a later update.' : ''}`
+										: item.status === 'scaffold'
+											? `${item.name}\nComing later — purchasable now, full effect arrives in a future update.\nCost: ◈ ${item.cost} Strange Matter`
+											: item.requirement && !reqOk
+												? `${item.name}\nLocked — first procure ${BLACK_MARKET_UNLOCKS.find(u => u.id === item.requirement)?.name ?? ''}.\nCost: ◈ ${item.cost} Strange Matter`
+												: `${item.name}\nCost: ◈ ${item.cost} Strange Matter${aff ? '' : ' — not enough recovered yet'}`}>
 								<div class="cc-h"><span class="cci">{owned ? '✓' : '◈'}</span><div><div class="ccn">{item.name}</div><div class="ccd">{item.description}</div></div></div>
 								<div class="uc-b" style="margin-top:.35rem">
 									<span class="ucc">◈ {item.cost}</span>
@@ -619,7 +655,7 @@
 									{/if}
 								</div>
 								{#if item.id === 'autoDeployment' && owned}
-									<button class="hub-action" style="margin-top:.35rem" onclick={toggleAutoDeployment}>{autoDeploymentEnabled ? 'Disable Auto Deployment' : 'Arm Auto Deployment'}</button>
+									<button class="hub-action" style="margin-top:.35rem" onclick={toggleAutoDeployment} use:tooltip={`Auto Deployment ${autoDeploymentEnabled ? 'is ARMED' : 'is idle'}.\nWhen armed, deployments relaunch automatically after a tower falls.\nLocal only — runs in this browser, even offline.`}>{autoDeploymentEnabled ? 'Disable Auto Deployment' : 'Arm Auto Deployment'}</button>
 								{/if}
 							</div>
 						{/each}
@@ -726,6 +762,7 @@
 					<div class="ig" style="max-width:600px">
 						<div class="ir"><span class="il">Total Deployments</span><span class="iv">{totalRuns}</span></div>
 						<div class="ir"><span class="il">Highest Wave</span><span class="iv">🏆 {highestWave}</span></div>
+						<div class="ir"><span class="il">Best Killstreak</span><span class="iv">⛓ {formatCompact(getCachedSave()?.bestKillstreak ?? 0)}</span></div>
 						<div class="ir"><span class="il">Total Kills</span><span class="iv">{formatCompact(getCachedSave()?.totalKills ?? 0)}</span></div>
 						<div class="ir"><span class="il">Bosses Defeated</span><span class="iv">{formatCompact(getCachedSave()?.totalBossesDefeated ?? 0)}</span></div>
 						<div class="ir"><span class="il">Shinies Collected</span><span class="iv">{formatCompact(getCachedSave()?.totalShiniesKilled ?? 0)}</span></div>
@@ -764,7 +801,7 @@
 										{@const key = `mastery_${et}_${l}`}
 										{@const claimed = !!masteryAchievements[key]}
 										{@const earned = prog.level >= l}
-										<div class="mastery-pip" class:earned={earned} class:claimed={claimed} title="Mastery {l} — {MASTERY_REWARDS[l-1]?.toLocaleString()} Alloy">
+										<div class="mastery-pip" class:earned={earned} class:claimed={claimed} use:tooltip={`Mastery ${l} — ${MASTERY_REWARDS[l-1]?.toLocaleString()} Alloy${claimed ? '\nClaimed.' : earned ? '\nEarned — claim it below.' : '\nKeep hunting this enemy type.'}`}>
 											{#if claimed}✓{:else if earned}!{:else}{l}{/if}
 										</div>
 									{/each}
@@ -846,7 +883,7 @@
 				<p class="bm-intro-body bm-intro-support">Support is appreciated, never required. Payment is never checked. The shipment is yours either way.</p>
 				<div class="dlg-a" style="gap:1rem;flex-wrap:wrap">
 					{#if supportReady}
-						<a class="hub-action" href={SUPPORT_URL} target="_blank" rel="noopener" title="Support development">Fund the next shipment</a>
+						<a class="hub-action" href={SUPPORT_URL} target="_blank" rel="noopener" use:tooltip={'Opens an external support page in a new tab.\nEntirely optional — the game stays free and offline.'}>Fund the next shipment</a>
 					{/if}
 					<button class="hub-action bm-primary" style="margin:0" onclick={acceptShipment}>Accept Shipment (+{STRANGE_MATTER_WEEKLY_SHIPMENT})</button>
 				</div>
@@ -895,6 +932,7 @@
 	.hs { animation:fi .2s ease; }
 	.hst { font-size:var(--fs-heading); color:var(--cyan); margin-bottom:.4rem; }
 	.hsd { color:var(--text-secondary); font-size:var(--fs-body); margin-bottom:1.25rem; line-height:1.6; }
+	.empty-flavor { color:var(--text-dim); font-family:var(--font-mono); font-size:var(--fs-mono-sm); line-height:1.5; margin:0 0 1rem; padding:.6rem .8rem; border:1px dashed var(--border-neon); border-radius:var(--radius-sm); background:rgba(0,255,255,.03); }
 	.hub-action { padding:.55rem 1.2rem; font-size:var(--fs-body-sm); border-radius:var(--radius-sm); background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); cursor:pointer; transition:all var(--transition-fast); margin-right:.5rem; }
 	.hub-action:hover { border-color:var(--cyan); color:var(--text-primary); }
 	.hub-action:disabled,.hub-action.disabled { opacity:.45; cursor:default; pointer-events:none; }
@@ -915,7 +953,7 @@
 	.bm-contract-copy { color:var(--text-secondary); font-style:italic; }
 
 	/* Signal icon in header */
-	.bm-signal { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; margin-left:.35rem; padding:0; border:1px solid var(--border-neon); border-radius:50%; background:transparent; color:var(--text-dim); font-size:1.1rem; cursor:pointer; transition:all var(--transition-fast); flex-shrink:0; }
+	.bm-signal { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; margin-left:.35rem; padding:0; border:1px solid var(--border-neon); border-radius:50%; background:transparent; color:var(--text-dim); font-size:1.1rem; cursor:pointer; transition:all var(--transition-fast); flex-shrink:0; }
 	.bm-signal:hover { border-color:var(--cyan); color:var(--cyan); }
 	.bm-signal:focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
 	.bm-signal-subtle { color:var(--text-dim); border-color:rgba(255,255,255,.08); }

@@ -4,7 +4,7 @@
 		| 'speed' | 'time' | 'damage' | 'range' | 'crit' | 'shiny'
 		| 'pause' | 'play' | 'settings' | 'save' | 'hub' | 'back' | 'close'
 		| 'soundOn' | 'soundOff' | 'musicOn' | 'musicOff'
-		| 'export' | 'import' | 'reset' | 'offense' | 'defense' | 'utility' | 'lock';
+		| 'export' | 'import' | 'reset' | 'offense' | 'defense' | 'utility' | 'lock' | 'bell';
 
 	// 24×24 grid, stroke-based line icons drawn in currentColor.
 	const PATHS: Record<IconName, string> = {
@@ -39,6 +39,7 @@
 		defense: '<path d="M12 3 5 6v6c0 4 3 6.5 7 9 4-2.5 7-5 7-9V6l-7-3Z" />',
 		utility: '<path d="M14 6.5a3.5 3.5 0 0 0-4.8 4.4l-5 5a1.5 1.5 0 0 0 2.1 2.1l5-5A3.5 3.5 0 0 0 18 9l-2.3 2.3-2-2L16 7" />',
 		lock: '<rect x="5" y="11" width="14" height="9" rx="1.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" />',
+		bell: '<path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6.5H4c.5-1 2-2.5 2-6.5Z" /><path d="M10 19a2 2 0 0 0 4 0" />',
 	};
 </script>
 

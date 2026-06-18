@@ -2,6 +2,8 @@
 	import { onMount, onDestroy } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import FrontIcon from '$lib/components/FrontIcon.svelte';
+	import { tooltip } from '$lib/components/tooltip';
+	import { swipeHintDismissed, dismissSwipeHint } from '$lib/stores/mobileHints';
 	import { TierId, ChallengeId } from '$lib/game/engine/gameTypes';
 	import { FRONT_META, getFrontName, describeFrontUnlock } from '$lib/game/balance/tiers';
 	import { getFrontBandPanels, getSelectedFrontBandIndex, getFrontSelectorStatus } from '$lib/game/balance/frontSelector';
@@ -56,6 +58,8 @@
 		if (!bandRail) return;
 		const width = Math.max(1, bandRail.clientWidth);
 		activeBandIndex = Math.max(0, Math.min(frontBandPanels.length - 1, Math.round(bandRail.scrollLeft / width)));
+		// First real swipe dismisses the hint — they've clearly got it now.
+		if (!$swipeHintDismissed) dismissSwipeHint();
 	}
 
 	function toggleChallenge(id: ChallengeId) {
@@ -122,6 +126,10 @@
 				<button class="band-arrow" disabled={activeBandIndex === frontBandPanels.length - 1} onclick={() => selectBand(activeBandIndex + 1)} aria-label="Next Front band">›</button>
 			</div>
 
+			{#if !$swipeHintDismissed && frontBandPanels.length > 1}
+				<p class="swipe-hint" aria-hidden="true">‹ Swipe to change Front band ›</p>
+			{/if}
+
 			<div class="band-rail" bind:this={bandRail} onscroll={handleBandScroll} tabindex="0" aria-label="Scrollable Front band panels">
 				{#each frontBandPanels as group}
 					{@const unlockedCount = group.fronts.filter(m => isUnlocked(m.id)).length}
@@ -152,7 +160,9 @@
 									disabled={!unlocked}
 									aria-pressed={selectedFront === m.id && !selectedChallenge}
 									onclick={() => selectFront(m.id)}
-									title={unlocked ? m.displayName : 'Locked - ' + describeFrontUnlock(m.id)}
+									use:tooltip={unlocked
+										? `${m.displayName}\n×${getFrontAlloyMultiplier(m.front).toFixed(1)} Alloy reward${getSchematics(schematicsByFront, m.front) > 0 ? `\n${getSchematics(schematicsByFront, m.front)} Schematics recovered` : ''}`
+										: `🔒 ${m.displayName}\nLocked — ${describeFrontUnlock(m.id)}`}
 								>
 									<FrontIcon front={m.id} size={28} locked={!unlocked} />
 									<div class="front-body">
@@ -185,7 +195,7 @@
 							class:locked={!unlocked}
 							disabled={!unlocked}
 							onclick={() => toggleChallenge(c.id)}
-							title={unlocked ? c.description : req.label}
+							use:tooltip={unlocked ? `${c.name}\n${c.description}` : `🔒 ${c.name}\nLocked — ${req.label}`}
 						>
 							<span class="ops-icon">{c.icon}</span>
 							<span class="front-n">{c.name}</span>
@@ -233,6 +243,9 @@
 	.band-tab { min-height:40px; padding:.35rem .45rem; border-radius:var(--radius-sm); border:1px solid color-mix(in srgb, var(--band) 30%, transparent); color:var(--text-secondary); background:rgba(255,255,255,.02); font-family:var(--font-mono); font-size:var(--fs-caption-sm); cursor:pointer; transition:all var(--transition-fast); }
 	.band-tab.on { color:var(--band); background:color-mix(in srgb, var(--band) 11%, transparent); border-color:var(--band); box-shadow:0 0 12px color-mix(in srgb, var(--band) 22%, transparent); }
 
+	.swipe-hint { display:none; text-align:center; margin:0 0 .5rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--cyan-dim); letter-spacing:.04em; animation:swipePulse 2.4s ease-in-out infinite; }
+	@media (prefers-reduced-motion: reduce) { .swipe-hint { animation:none; } }
+	@keyframes swipePulse { 0%,100%{opacity:.45} 50%{opacity:.85} }
 	.band-rail { display:flex; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scroll-behavior:smooth; gap:.75rem; border-radius:var(--radius-md); scrollbar-width:thin; scrollbar-color:rgba(0,255,255,.35) transparent; }
 	.band-rail:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; }
 	.band-panel { scroll-snap-align:center; flex:0 0 100%; min-width:0; padding:.85rem; border:1px solid color-mix(in srgb, var(--band) 32%, transparent); border-radius:var(--radius-md); background:linear-gradient(135deg,color-mix(in srgb,var(--band) 9%, transparent),rgba(255,255,255,.015)); text-align:left; }
@@ -278,6 +291,7 @@
 		.start-card { max-height:calc(100vh - 1rem); padding:1rem .75rem .85rem; }
 		.sc-logo { max-width:170px; }
 		.band-tabs { display:none; }
+		.swipe-hint { display:block; }
 		.band-panel { padding:.65rem; }
 		.band-hero { grid-template-columns:1fr; text-align:center; justify-items:center; gap:.45rem; }
 		.band-emblem { width:58px; height:58px; }
