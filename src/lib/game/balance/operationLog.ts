@@ -42,6 +42,11 @@ export interface OpLogCategory {
 	// Hub: Lab
 	labAlreadyActive: string[];
 	labMaxLevel: string[];
+	// Black Market
+	blackMarketShipmentClaimed: string[];
+	blackMarketContractClaimed: string[];
+	blackMarketUnlockPurchased: string[];
+	blackMarketConverterUsed: string[];
 }
 
 const POOLS: OpLogCategory = {
@@ -387,6 +392,33 @@ const POOLS: OpLogCategory = {
 		'This project is fully concluded. The results have been classified.',
 		'No further research possible on this project. The scientists are relieved.',
 		'Maxed. The research team has been reassigned to something equally vague.',
+	],
+
+	// ── Black Market ────────────────────────────────────────────────────────
+
+	blackMarketShipmentClaimed: [
+		'Shipment accepted. The container stopped humming. That is probably fine.',
+		'Weekly contraband processed. Orbital Command\'s supply ledger grows more fictional by the week.',
+		'Shipment secured. No manifest. No customs. No record. No problem.',
+		'Weekly delivery claimed. The vendor has been notified. Command has not.',
+	],
+	blackMarketContractClaimed: [
+		'Daily contract filed. The shapes never knew they were part of a transaction.',
+		'Contract complete. Strange Matter allocated. Paper trail: none.',
+		'Daily assignment fulfilled. The off-grid ledger has been updated. The official one has not.',
+		'Contract claimed. The vendor acknowledges your contribution to the unofficial economy.',
+	],
+	blackMarketUnlockPurchased: [
+		'Contraband procured: {name}. The receipt has already been shredded.',
+		'{name} acquired. Strange Matter well spent. Command well uninformed.',
+		'Black Market unlock secured: {name}. Operates outside seventeen safety directives.',
+		'{name} procured. Orbital Command\'s ledger will not reflect this transaction.',
+	],
+	blackMarketConverterUsed: [
+		'Schematics converted. {converted} designs returned to the void. One emerged.',
+		'Converter cycle complete. {converted} obsolete blueprints. One restricted one. Fair trade.',
+		'{converted} Schematics fed to the converter. It hummed. It delivered.',
+		'Conversion finished. The converter thanks you for your geometric sacrifice.',
 	],
 };
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import Tutorial, { type TutorialStep } from '$lib/components/Tutorial.svelte';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
@@ -37,6 +37,7 @@
 	import { getBlueprintStatus } from '$lib/game/progression/blueprintDiscovery';
 	import type { GameSettings, WorkshopUpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
+	import { blackMarketCopy } from '$lib/game/balance/blackMarketCopy';
 	import { audio } from '$lib/game/audio/AudioManager';
 	import { playForNotification } from '$lib/game/audio/uiSounds';
 	import Toasts from '$lib/components/Toasts.svelte';
@@ -106,6 +107,10 @@
 	let blackMarketIntroSeen = $state(false);
 	let showBlackMarketIntro = $state(false);
 	let showShipmentModal = $state(false);
+	let bmSignalText = $state(blackMarketCopy.signalStatus());
+	let bmShipmentFlavour = $state(blackMarketCopy.shipmentFlavour());
+	let bmContractFlavour = $state(blackMarketCopy.contractFlavour());
+	let bmChannelIntro = $state(blackMarketCopy.channelIntro());
 	let activeLabId = $state<string | null>(null);
 	let activeLabFinish = $state<number>(0);
 	let activeLabTarget = $state<number>(0);
@@ -123,6 +128,13 @@
 		lastDailyContractDeploymentAt = save.lastDailyContractDeploymentAt ?? 0;
 		autoDeploymentEnabled = save.autoDeploymentEnabled === true;
 		blackMarketIntroSeen = save.blackMarketIntroSeen === true;
+	}
+
+	function refreshBmCopy() {
+		bmSignalText = blackMarketCopy.signalStatus();
+		bmShipmentFlavour = blackMarketCopy.shipmentFlavour();
+		bmContractFlavour = blackMarketCopy.contractFlavour();
+		bmChannelIntro = blackMarketCopy.channelIntro();
 	}
 
 	function formatDuration(ms: number): string {
@@ -149,6 +161,7 @@
 		notifications.notify({ kind: 'blackMarket', title: 'Black Market channel open', detail: 'Unauthorized procurements available' });
 		playForNotification('blackMarket');
 		refreshBlackMarketState();
+		refreshBmCopy();
 		switchSection('blackMarket');
 	}
 
@@ -173,9 +186,12 @@
 		save.lastWeeklyBlackMarketShipmentClaimedAt = now;
 		persistSave(save);
 		refreshBlackMarketState();
+		refreshBmCopy();
 		showShipmentModal = false;
 		uiSound('upgrade');
-		toast('Shipment accepted. Your discretion has been logged nowhere official. +' + STRANGE_MATTER_WEEKLY_SHIPMENT + ' Strange Matter', 'success');
+		const acceptedMsg = blackMarketCopy.shipmentAccepted();
+		toast(acceptedMsg + ' +' + STRANGE_MATTER_WEEKLY_SHIPMENT + ' Strange Matter', 'success');
+		toast(getOpLogMessage('blackMarketShipmentClaimed'), 'info');
 		notifications.notify({ kind: 'shipment', title: 'Shipment accepted', detail: `+${STRANGE_MATTER_WEEKLY_SHIPMENT} Strange Matter` });
 		playForNotification('shipment');
 	}
@@ -195,8 +211,10 @@
 		save.lastDailyContractCompletedAt = now;
 		persistSave(save);
 		refreshBlackMarketState();
+		refreshBmCopy();
 		uiSound('upgrade');
 		toast('Daily Contract complete. +' + STRANGE_MATTER_DAILY_CONTRACT + ' Strange Matter', 'success');
+		toast(getOpLogMessage('blackMarketContractClaimed'), 'info');
 		notifications.notify({ kind: 'contract', title: 'Daily Contract claimed', detail: `+${STRANGE_MATTER_DAILY_CONTRACT} Strange Matter` });
 	}
 
@@ -217,6 +235,7 @@
 		refreshBlackMarketState();
 		uiSound('upgrade');
 		toast(result.def.name + ' unlocked.', 'success');
+		toast(getOpLogMessage('blackMarketUnlockPurchased', { name: result.def.name }), 'info');
 	}
 
 	function toggleAutoDeployment() {
@@ -248,6 +267,7 @@
 		schematicsByFront = { ...save.schematicsByFront };
 		persistSave(save);
 		toast('Converted ' + result.converted + ' restricted Schematic' + (result.converted === 1 ? '.' : 's.'), 'success');
+		toast(getOpLogMessage('blackMarketConverterUsed', { converted: result.converted }), 'info');
 	}
 
 	function refreshLabProgress() {
@@ -441,6 +461,9 @@
 		if (!bmUnlocked && activeSection === 'blackMarket') {
 			activeSection = 'workshop';
 		}
+		if (activeSection === 'blackMarket') {
+			refreshBmCopy();
+		}
 	});
 </script>
 
@@ -597,7 +620,7 @@
 				<div class="hs bm-layout">
 					<div class="bm-header-bar">
 						<h2 class="hst bm-header-title">◈ BLACK MARKET</h2>
-						<span class="bm-header-sub">unauthorized channel · signal unstable</span>
+						<span class="bm-header-sub">{bmSignalText}</span>
 					</div>
 					<p class="hsd bm-copy">Orbital Command does not authorize the possession, trade, study, inhalation, resale, or emotional attachment to Strange Matter. Fortunately, this terminal is not connected to Orbital Command.</p>
 					<div class="bm-ledger">
@@ -609,7 +632,7 @@
 						<section class="bm-panel">
 							<h3 class="stats-sub">Unmarked Shipment</h3>
 							{#if weeklyReady}
-								<p class="hsd">A sealed container has arrived without paperwork, markings, or legal explanation. It is warm. It is humming. It is addressed to someone using your clearance code.</p>
+								<p class="hsd">{bmShipmentFlavour}</p>
 								<div class="bm-actions">
 									<button class="hub-action bm-primary" onclick={openShipmentModal}>Inspect Shipment (+{STRANGE_MATTER_WEEKLY_SHIPMENT})</button>
 								</div>
@@ -621,7 +644,7 @@
 
 						<section class="bm-panel">
 							<h3 class="stats-sub">Daily Contract</h3>
-							<p class="hsd bm-contract-copy">A minor off-book task. Complete one Deployment today. Nobody signs. Everybody benefits.</p>
+							<p class="hsd bm-contract-copy">{bmContractFlavour}</p>
 							<button class="hub-action bm-primary" disabled={!dailyReady || !completedDeploymentToday} onclick={claimDailyContract}>Claim Contract (+{STRANGE_MATTER_DAILY_CONTRACT})</button>
 							{#if !completedDeploymentToday}<div class="ccl">Launch any Deployment today first.</div>{:else if !dailyReady}<div class="ccl">Filed for today. Return tomorrow.</div>{/if}
 						</section>
@@ -860,10 +883,10 @@
 		<div class="overlay" role="dialog" aria-modal="true" aria-label="Unauthorized channel detected">
 			<div class="dlg dlg-bm-intro">
 				<h3 class="bm-intro-title">UNAUTHORIZED CHANNEL DETECTED</h3>
-				<p class="bm-intro-body">An encrypted procurement signal is bleeding through the Orbital Command firewall.</p>
-				<p class="bm-intro-body">The signature is old. The funding codes are current. The legal status is flexible.</p>
-				<p class="bm-intro-body bm-intro-warn">Strange Matter transactions are prohibited under seventeen active safety directives.</p>
-				<p class="bm-intro-body">Fortunately, this terminal has misplaced all seventeen.</p>
+				<p class="bm-intro-body">{bmChannelIntro[0]}</p>
+				<p class="bm-intro-body">{bmChannelIntro[1]}</p>
+				<p class="bm-intro-body bm-intro-warn">{bmChannelIntro[2]}</p>
+				<p class="bm-intro-body">{bmChannelIntro[3]}</p>
 				<div class="dlg-a" style="gap:1rem">
 					<button class="dlg-s" onclick={dismissBlackMarketIntro}>Ignore for now</button>
 					<button class="dlg-p bm-intro-open" onclick={openBlackMarketChannel}>Open Channel</button>
@@ -877,8 +900,8 @@
 		<div class="overlay" role="dialog" aria-modal="true" aria-label="Unmarked shipment available">
 			<div class="dlg dlg-bm-shipment">
 				<h3 class="bm-intro-title">UNMARKED SHIPMENT AVAILABLE</h3>
-				<p class="bm-intro-body">A sealed container has arrived without paperwork, markings, or legal explanation.</p>
-				<p class="bm-intro-body">It is warm. It is humming. It is addressed to someone using your clearance code.</p>
+				<p class="bm-intro-body">{bmShipmentFlavour}</p>
+				<p class="bm-intro-body">It is addressed to someone using your clearance code. It may or may not be humming. The legal status remains unexplored.</p>
 				<p class="bm-intro-body bm-intro-support">Flatland TD is free, local-first, and open source. If you want to support development and hosting, you can fund the next shipment.</p>
 				<p class="bm-intro-body bm-intro-support">Support is appreciated, never required. Payment is never checked. The shipment is yours either way.</p>
 				<div class="dlg-a" style="gap:1rem;flex-wrap:wrap">
