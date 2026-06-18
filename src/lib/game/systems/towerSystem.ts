@@ -95,9 +95,11 @@ export function applyBattleUpgrades(state: GameState): void {
 	tower.stats.thorns = wsThorns + getBattleUpgradeEffect(UpgradeId.Thorns, b(UpgradeId.Thorns));
 
 	// Max HP: base + workshop × lab + battle
+	const oldMaxHp = tower.maxHp;
 	tower.maxHp = Math.floor((TOWER_HP_BASE + wsHP) * lab.hp) + getBattleUpgradeEffect(UpgradeId.MaxHp, b(UpgradeId.MaxHp));
-	// Small flat heal (+30 HP) on upgrade + keep existing HP (capped at new max)
-	tower.hp = Math.min(tower.hp + 30, tower.maxHp);
+	// Heal by the HP gained from the upgrade (minimum 30 for non-MaxHP purchases), capped at new max
+	const hpGain = Math.max(0, tower.maxHp - oldMaxHp);
+	tower.hp = Math.min(tower.hp + Math.max(30, hpGain), tower.maxHp);
 }
 
 export function applyRegen(state: GameState, dt: number): void {
