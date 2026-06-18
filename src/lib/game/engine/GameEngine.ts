@@ -13,7 +13,7 @@ import type {
 	BlueprintId,
 } from './gameTypes';
 import type { SoundName } from '../audio/AudioManager';
-import { EnemyType, DEFAULT_SETTINGS } from './gameTypes';
+import { EnemyType, DEFAULT_SETTINGS, ChallengeId } from './gameTypes';
 import { createTowerState, applyBattleUpgrades, applyRegen } from '../systems/towerSystem';
 import { updateEnemySystem, updateProjectileSystem, updateTowerTargeting, resetProjectileIdCounter } from '../systems/enemySystem';
 import { updateWaveSystem, removeDeadEnemies } from '../systems/waveSystem';
@@ -115,6 +115,7 @@ export class GameEngine {
 			totalRuns: 0,
 			settings: { ...DEFAULT_SETTINGS },
 			tier: 1,
+			activeChallenge: null,
 		};
 	}
 
@@ -135,7 +136,7 @@ export class GameEngine {
 		this.onStateChange = opts.onStateChange ?? null;
 	}
 
-	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, labLevels: Partial<Record<LabId, number>>, startingCoins: number, unlockedBlueprints: BlueprintId[] = [], tier: number = 1): void {
+	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, labLevels: Partial<Record<LabId, number>>, startingCoins: number, unlockedBlueprints: BlueprintId[] = [], tier: number = 1, challenge: ChallengeId | null = null): void {
 		resetEnemyIdCounter();
 		resetProjectileIdCounter();
 		this.particles = [];
@@ -152,6 +153,7 @@ export class GameEngine {
 		this.state.labLevels = { ...labLevels } as Record<LabId, number>;
 		this.state.coins = startingCoins;
 		this.state.tier = tier;
+		this.state.activeChallenge = challenge;
 		this.state.runActive = true;
 		this.state.gameOver = false;
 		this.state.paused = false;
@@ -160,6 +162,12 @@ export class GameEngine {
 
 		this.state.tower = createTowerState(this.state);
 		this.state.cash = getStartingEnergy(this.state);
+
+		// Glass Tower: 1 HP tower — must be applied after createTowerState
+		if (challenge === ChallengeId.GlassTower) {
+			this.state.tower.hp = 1;
+			this.state.tower.maxHp = 1;
+		}
 
 		this.state.wave.betweenWaveTimer = 1.0;
 		this.emitImmediateSnapshot();

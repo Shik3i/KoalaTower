@@ -5,11 +5,12 @@
  * boss escort spawning, wave-completion gold bonus.
  */
 
-import { EnemyType, type GameState } from '../engine/gameTypes';
+import { ChallengeId, EnemyType, type GameState } from '../engine/gameTypes';
 import {
 	createEnemy,
 	getEnemyTypeForWave,
 	getEnemyCountForWave,
+	getBossWaveEnemyCount,
 	getSpawnIntervalForWave,
 	resetEnemyIdCounter,
 	hasBossEscortsRemaining,
@@ -24,7 +25,18 @@ import { SUB_WAVES, SUB_WAVE_PAUSE, BETWEEN_WAVE_TIME } from '../engine/gameConf
 export function startNewWave(state: GameState): void {
 	state.wave.currentWave++;
 	resetBossEscortCounter();
-	const totalEnemies = getEnemyCountForWave(state.wave.currentWave);
+
+	const challenge = state.activeChallenge;
+	const forceBossWave = challenge === ChallengeId.BossRush;
+	const isBossWave = forceBossWave || state.wave.currentWave % 10 === 0;
+
+	let totalEnemies = isBossWave
+		? getBossWaveEnemyCount(state.wave.currentWave)
+		: getEnemyCountForWave(state.wave.currentWave);
+
+	// FastSwarm: triple spawn count for non-boss waves
+	if (challenge === ChallengeId.FastSwarm && !isBossWave) totalEnemies *= 3;
+
 	state.wave.enemiesInWave = totalEnemies;
 	state.wave.enemiesSpawned = 0;
 	state.wave.enemiesKilled = 0;
@@ -40,10 +52,7 @@ export function startNewWave(state: GameState): void {
 	state.wave.subWavePauseTimer = 0;
 	state.wave.subWaveActive = true;
 
-	// If this is a boss wave, set up escort counter
-	if (state.wave.currentWave % 10 === 0) {
-		setupBossEscorts(state.wave.currentWave);
-	}
+	if (isBossWave) setupBossEscorts(state.wave.currentWave);
 }
 
 export function updateWaveSystem(state: GameState, dt: number): void {
@@ -94,13 +103,16 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 			wave.betweenWaveTimer = 0;
 			// Award wave completion energy
 			state.cash += getWaveCompletionBonus(state, state.wave.currentWave);
-			// Award wave completion alloy (primary alloy source)
-			state.coins += getWaveCoinReward(state, state.wave.currentWave);
+			// Award wave completion alloy (primary alloy source), doubled for relevant challenges
+			const alloyMult = (state.activeChallenge === ChallengeId.GlassTower || state.activeChallenge === ChallengeId.BossRush) ? 2 : 1;
+			state.coins += Math.floor(getWaveCoinReward(state, state.wave.currentWave) * alloyMult);
 		}
 }
 
 function spawnEnemy(state: GameState): void {
-	const isBossWave = state.wave.currentWave % 10 === 0;
+	const challenge = state.activeChallenge;
+	const forceBossWave = challenge === ChallengeId.BossRush;
+	const isBossWave = forceBossWave || state.wave.currentWave % 10 === 0;
 	let type: EnemyType;
 
 	if (isBossWave && hasBossEscortsRemaining()) {
@@ -110,9 +122,10 @@ function spawnEnemy(state: GameState): void {
 		state.wave.spawnInterval = getSpawnIntervalForWave(state.wave.currentWave) * 0.6;
 	} else {
 		const types = getEnemyTypeForWave(state.wave.currentWave);
-		type = types.length === 1
-			? types[0]!
-			: types[Math.floor(Math.random() * types.length)]!;
+		// FastSwarm: force all non-boss spawns to Fast type
+		type = (challenge === ChallengeId.FastSwarm && !isBossWave)
+			? EnemyType.Fast
+			: (types.length === 1 ? types[0]! : types[Math.floor(Math.random() * types.length)]!);
 		state.wave.spawnInterval = getSpawnIntervalForWave(state.wave.currentWave);
 	}
 
@@ -121,6 +134,19 @@ function spawnEnemy(state: GameState): void {
 
 	const { x, y } = getSpawnPosition(state);
 	const enemy = createEnemy(type, state.wave.currentWave, x, y, state.tier ?? 1, isShiny);
+
+	// Apply challenge modifiers to freshly spawned enemy
+	if (challenge === ChallengeId.FastSwarm) {
+		enemy.speed *= 2;
+	} else if (challenge === ChallengeId.GlassTower) {
+		enemy.hp = Math.max(1, Math.floor(enemy.hp * 0.5));
+		enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp * 0.5));
+		enemy.coinReward = Math.floor(enemy.coinReward * 2);
+	} else if (challenge === ChallengeId.BossRush && isBoss) {
+		enemy.reward = Math.floor(enemy.reward * 3);
+		enemy.coinReward = Math.floor(enemy.coinReward * 3);
+	}
+
 	state.enemies.push(enemy);
 	state.wave.enemiesSpawned++;
 	state.wave.enemiesSpawnedInSubWave++;

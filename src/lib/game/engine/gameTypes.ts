@@ -367,6 +367,8 @@ export interface GameState {
 	viewWidth?: number;
 	/** Live viewport height in px, set by the renderer — used for enemy spawn placement. */
 	viewHeight?: number;
+	/** Active Special Ops challenge for this run, or null for a standard run. */
+	activeChallenge: ChallengeId | null;
 }
 
 export interface GameSettings {

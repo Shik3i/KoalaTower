@@ -33,6 +33,11 @@ export function getEnemyCountForWave(wave: number): number {
 	return enemiesPerWave(wave);
 }
 
+/** Boss-wave enemy count for a given wave — used by BossRush challenge. */
+export function getBossWaveEnemyCount(wave: number): number {
+	return bossEscortCount(wave) + 1;
+}
+
 /**
  * Get the spawn interval in seconds for a given wave.
  */

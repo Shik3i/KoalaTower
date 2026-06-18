@@ -8,13 +8,14 @@
 	import BossHealthBar from '$lib/components/BossHealthBar.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { GAME_CONFIG } from '$lib/game/engine/gameConfig';
-	import { UpgradeId, type GameSnapshot, type GameSettings, AchievementId, DEFAULT_SETTINGS } from '$lib/game/engine/gameTypes';
+	import { UpgradeId, type GameSnapshot, type GameSettings, AchievementId, DEFAULT_SETTINGS, ChallengeId } from '$lib/game/engine/gameTypes';
 	import { buildBattleUpgradeList } from '$lib/game/balance/battleUpgrades';
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
 	import { getBlueprintDef } from '$lib/game/balance/blueprints';
 	import { getUnlockedFronts, getTierNumber, getFrontName } from '$lib/game/balance/tiers';
 	import { rollBlueprintDiscovery } from '$lib/game/progression/blueprintDiscovery';
 	import { TierId } from '$lib/game/engine/gameTypes';
+	import { isChallengeUnlocked } from '$lib/game/balance/challenges';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
@@ -78,6 +79,8 @@
 	let selectedFront = $state<TierId>(TierId.Tier1);
 	let frontBestWave = $state<Partial<Record<TierId, number>>>({});
 	let unlockedFronts = $derived(getUnlockedFronts(frontBestWave));
+	let selectedChallenge = $state<ChallengeId | null>(null);
+	let challengeHighScores = $state<Partial<Record<ChallengeId, number>>>({});
 
 	let showSaveMenu = $state(false);
 	let showSaveIndicator = $state(false);
@@ -100,6 +103,7 @@
 		const cachedSave = getCachedSave();
 		if (cachedSave?.selectedFront) selectedFront = cachedSave.selectedFront;
 		if (cachedSave?.frontBestWave) frontBestWave = { ...cachedSave.frontBestWave };
+		if (cachedSave?.challengeHighScores) challengeHighScores = { ...cachedSave.challengeHighScores };
 		window.addEventListener('keydown', onKey);
 		window.addEventListener('keyup', onKeyUp);
 
@@ -261,13 +265,24 @@
 					save.totalShiniesKilled += engine.state.shiniesKilled;
 					save.totalAlloyEarned += runCoinsEarned;
 
-					// Per-front best wave — gates sequential front unlocks.
 					const reachedWave = engine.state.wave.currentWave;
-					const frontPrev = save.frontBestWave?.[save.selectedFront] ?? 0;
-					save.frontBestWave = { ...(save.frontBestWave ?? {}), [save.selectedFront]: Math.max(frontPrev, reachedWave) };
-					const justUnlocked = getUnlockedFronts(save.frontBestWave).length > getUnlockedFronts(frontBestWave).length;
-					frontBestWave = { ...save.frontBestWave };
-					if (justUnlocked) toast('🌍 ' + getOpLogMessage('frontUnlocked', { name: getFrontName(save.selectedFront) }), 'milestone');
+					const runChallenge = engine.state.activeChallenge;
+
+					// Challenge runs track their own high score, not front progression
+					if (runChallenge) {
+						const prevHs = save.challengeHighScores?.[runChallenge] ?? 0;
+						const newHs = Math.max(prevHs, reachedWave);
+						save.challengeHighScores = { ...(save.challengeHighScores ?? {}), [runChallenge]: newHs };
+						challengeHighScores = { ...save.challengeHighScores };
+						if (newHs > prevHs && prevHs > 0) toast('🏆 New high score on ' + runChallenge + ': Wave ' + newHs, 'milestone');
+					} else {
+						// Per-front best wave — gates sequential front unlocks.
+						const frontPrev = save.frontBestWave?.[save.selectedFront] ?? 0;
+						save.frontBestWave = { ...(save.frontBestWave ?? {}), [save.selectedFront]: Math.max(frontPrev, reachedWave) };
+						const justUnlocked = getUnlockedFronts(save.frontBestWave).length > getUnlockedFronts(frontBestWave).length;
+						frontBestWave = { ...save.frontBestWave };
+						if (justUnlocked) toast('🌍 ' + getOpLogMessage('frontUnlocked', { name: getFrontName(save.selectedFront) }), 'milestone');
+					}
 
 					const bLevels = engine.state.battleUpgrades;
 					let runFieldUpgrades = 0;
@@ -373,7 +388,9 @@
 		if (!unlockedFronts.includes(selectedFront)) selectedFront = TierId.Tier1;
 		if (save) { save.selectedFront = selectedFront; persistSave(save); }
 		const unlockedBPs = (save?.unlockedBlueprints ?? []) as import('$lib/game/engine/gameTypes').BlueprintId[];
-		engine.startRun(save?.workshopUpgrades ?? {}, save?.labLevels ?? {}, coins, unlockedBPs, getTierNumber(selectedFront));
+		// Validate challenge is still unlocked (defensive — selection persists across sessions)
+		const validChallenge = selectedChallenge && isChallengeUnlocked(selectedChallenge, frontBestWave) ? selectedChallenge : null;
+		engine.startRun(save?.workshopUpgrades ?? {}, save?.labLevels ?? {}, coins, unlockedBPs, getTierNumber(selectedFront), validChallenge);
 		syncSettingsToEngine(save?.settings ?? { ...DEFAULT_SETTINGS });
 		gameView?.start();
 		refreshSnap();
@@ -648,7 +665,10 @@
 					{coins}
 					{totalRuns}
 					bind:selectedFront
+					bind:selectedChallenge
 					{unlockedFronts}
+					{frontBestWave}
+					{challengeHighScores}
 					onDeploy={startRun}
 				/>
 			{/if}
