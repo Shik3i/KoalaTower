@@ -1,6 +1,6 @@
-export const prerender = true;
-
 import { SITE_URL } from '$lib/version';
+
+export const prerender = true;
 
 export function GET() {
 	const urls = [
