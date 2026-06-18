@@ -23,7 +23,7 @@
 	viewBox="0 0 32 32"
 	role="img"
 	aria-label={locked ? `${meta.displayName} (locked)` : meta.displayName}
-	style="--band:{band.color};--accent:{band.accent}"
+	style="display:block;{locked ? 'opacity:.7' : `filter:drop-shadow(0 0 6px ${band.color}66)`}"
 >
 	<!-- Shared shield/chevron glyph -->
 	<defs>
@@ -45,8 +45,3 @@
 		<circle cx={starX[i]} cy="9" r="1.7" fill={locked ? 'rgba(150,160,190,0.6)' : '#fff'} stroke={band.accent} stroke-width="0.6" />
 	{/each}
 </svg>
-
-<style>
-	.front-icon { display:block; filter:drop-shadow(0 0 6px color-mix(in srgb, var(--band) 40%, transparent)); }
-	.front-icon.locked { filter:none; opacity:.7; }
-</style>

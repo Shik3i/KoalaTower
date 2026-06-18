@@ -493,18 +493,16 @@
 		}
 		.cta-buttons {
 			display: grid;
-			grid-template-columns: 1fr 1fr;
+			grid-template-columns: 1fr;
 			gap: 0.55rem;
 			margin-bottom: 1rem;
 		}
 		.btn-primary,
 		.btn-secondary {
+			width: 100%;
 			justify-content: center;
 			min-height: 2.65rem;
 			padding: 0.65rem 0.75rem;
-		}
-		.btn-accent {
-			grid-column: 1 / -1;
 		}
 		.features {
 			padding: 1rem 1rem 1.5rem;

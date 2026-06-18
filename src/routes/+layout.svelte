@@ -12,7 +12,7 @@
 	import { loadSave, persistSave, getCachedSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore, loadedStore } from '$lib/stores/gameUiStore';
 	import { LAB_DEFS } from '$lib/game/balance/labs';
-	import { APP_VERSION, SUPPORT_URL } from '$lib/version';
+	import { APP_VERSION, SUPPORT_URL, GITHUB_URL } from '$lib/version';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
 
@@ -117,7 +117,12 @@
 		<a href="/imprint" class="lf-link">Imprint</a>
 	</nav>
 	<div class="lf-bottom">
-		<span class="lf-version">{APP_VERSION}</span>
+		<a href={GITHUB_URL} target="_blank" rel="noopener" class="lf-version-link" aria-label="View source on GitHub (version {APP_VERSION})">
+			<span class="lf-version">{APP_VERSION}</span>
+			<svg class="lf-gh" viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+				<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+			</svg>
+		</a>
 		<a href={SUPPORT_URL} target="_blank" rel="noopener" class="lf-coffee" aria-label="Buy me a coffee">
 			☕ Support
 		</a>
@@ -132,7 +137,10 @@
 	.lf-link:hover { color:var(--cyan); }
 	.lf-sep { color:var(--text-dim); opacity:.3; font-size:var(--fs-caption-sm); }
 	.lf-bottom { display:flex; align-items:center; gap:.75rem; }
-	.lf-version { font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:.4; }
+	.lf-version-link { display:inline-flex; align-items:center; gap:.35rem; color:var(--text-dim); opacity:.5; text-decoration:none; transition:color var(--transition-fast),opacity var(--transition-fast); }
+	.lf-version-link:hover { color:var(--cyan); opacity:1; }
+	.lf-version { font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:inherit; }
+	.lf-gh { display:block; }
 	.lf-coffee { font-size:var(--fs-caption-sm); color:var(--yellow); text-decoration:none; border:1px solid rgba(255,221,68,0.3); border-radius:100px; padding:.2rem .75rem; transition:all var(--transition-fast); }
 	.lf-coffee:hover { border-color:var(--yellow); box-shadow:0 0 12px rgba(255,221,68,0.2); }
 	:global(body) {
