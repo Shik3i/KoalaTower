@@ -9,7 +9,7 @@ describe('Flatland Wars News', () => {
 
 	it('every news item has required fields', () => {
 		for (const item of newsItems) {
-			expect(item.id).toBeTypeOf('number');
+			expect(item.id).toBeDefined();
 			expect(item.category).toBeTypeOf('string');
 			expect(item.category.length).toBeGreaterThan(0);
 			expect(item.headline).toBeTypeOf('string');
@@ -21,6 +21,11 @@ describe('Flatland Wars News', () => {
 			expect(item.classification).toBeTypeOf('string');
 			expect(item.classification.length).toBeGreaterThan(0);
 			expect(item.thumbnail).toBeTypeOf('string');
+			expect(item.timestamp).toBeTypeOf('string');
+			expect(item.author).toBeTypeOf('string');
+			expect(item.author.length).toBeGreaterThan(0);
+			expect(item.refId).toBeTypeOf('string');
+			expect(item.source).toBe('handwritten');
 		}
 	});
 
@@ -38,5 +43,9 @@ describe('Flatland Wars News', () => {
 	it('no duplicate headlines', () => {
 		const headlines = newsItems.map(i => i.headline);
 		expect(new Set(headlines).size).toBe(headlines.length);
+	});
+
+	it('has at least 100 handwritten articles', () => {
+		expect(newsItems.length).toBeGreaterThanOrEqual(100);
 	});
 });

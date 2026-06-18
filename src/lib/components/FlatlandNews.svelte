@@ -1,15 +1,31 @@
 <script lang="ts">
-	import { newsItems } from '$lib/content/flatlandNews';
+	import { onMount } from 'svelte';
+	import { getDailyArticles, getNextDispatchMs } from '$lib/content/newsEngine';
+	import type { NewsItem } from '$lib/content/newsTypes';
 
-	let shuffled = $state<typeof newsItems>([]);
+	let articles = $state<NewsItem[]>([]);
+	let countdown = $state('');
 
-	$effect(() => {
-		const pool = [...newsItems];
-		for (let i = pool.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[pool[i], pool[j]] = [pool[j], pool[i]];
+	function formatCountdown(ms: number): string {
+		if (ms <= 0) return 'New reports arriving...';
+		const totalMin = Math.floor(ms / 60000);
+		const hours = Math.floor(totalMin / 60);
+		const minutes = totalMin % 60;
+		if (hours > 0) {
+			return `New reports in ${hours}h ${minutes}m`;
 		}
-		shuffled = pool.slice(0, 6);
+		return `New reports in ${minutes}m`;
+	}
+
+	function updateCountdown() {
+		countdown = formatCountdown(getNextDispatchMs());
+	}
+
+	onMount(() => {
+		articles = getDailyArticles();
+		updateCountdown();
+		const interval = setInterval(updateCountdown, 60000);
+		return () => clearInterval(interval);
 	});
 </script>
 
@@ -17,10 +33,10 @@
 	<div class="news-header">
 		<div class="news-badge">LIVE</div>
 		<h2 class="news-title">Flatland Wars News</h2>
-		<span class="news-orbital">Orbital Command Dispatch</span>
+		<span class="news-orbital">{countdown}</span>
 	</div>
 	<div class="news-grid">
-		{#each shuffled as item}
+		{#each articles as item}
 			<article class="news-card">
 				<div class="nc-thumb" aria-hidden="true">
 					{#if item.thumbnail === 'triangle'}
@@ -48,7 +64,14 @@
 					</div>
 					<h3 class="nc-headline">{item.headline}</h3>
 					<p class="nc-snippet">{item.snippet}</p>
-					<span class="nc-cycle">{item.cycle}</span>
+					<div class="nc-footer">
+						<span class="nc-cycle">{item.cycle}</span>
+						<span class="nc-divider" aria-hidden="true">·</span>
+						<span class="nc-timestamp">{item.timestamp}</span>
+						<span class="nc-divider" aria-hidden="true">·</span>
+						<span class="nc-author">{item.author}</span>
+					</div>
+					<span class="nc-refid">{item.refId}</span>
 				</div>
 			</article>
 		{/each}
@@ -229,9 +252,17 @@
 		line-height: 1.5;
 		margin: 0;
 		display: -webkit-box;
-		-webkit-line-clamp: 3;
+		-webkit-line-clamp: 4;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
+	}
+
+	.nc-footer {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		flex-wrap: wrap;
+		margin-top: auto;
 	}
 
 	.nc-cycle {
@@ -239,7 +270,36 @@
 		color: var(--text-dim);
 		font-family: var(--font-tech);
 		font-weight: 600;
-		margin-top: auto;
+	}
+
+	.nc-divider {
+		font-size: var(--fs-caption-sm);
+		color: rgba(255, 255, 255, 0.12);
+	}
+
+	.nc-timestamp {
+		font-size: var(--fs-caption-sm);
+		color: var(--text-dim);
+		font-family: var(--font-mono);
+		font-weight: 500;
+	}
+
+	.nc-author {
+		font-size: var(--fs-caption-sm);
+		color: var(--text-dim);
+		font-style: italic;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 12ch;
+	}
+
+	.nc-refid {
+		font-size: 0.6rem;
+		color: rgba(255, 255, 255, 0.08);
+		font-family: var(--font-mono);
+		letter-spacing: 0.05em;
+		margin-top: 0.1rem;
 	}
 
 	@media (max-width: 767px) {
