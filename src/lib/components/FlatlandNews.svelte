@@ -240,7 +240,7 @@
 
 	.nc-headline {
 		font-family: var(--font-display);
-		font-size: clamp(0.94rem, 0.9rem + 0.15vw, 1.02rem);
+		font-size: clamp(0.88rem, 0.85rem + 0.12vw, 0.95rem);
 		color: var(--text-primary);
 		font-weight: 600;
 		line-height: 1.22;
@@ -253,7 +253,7 @@
 	}
 
 	.nc-snippet {
-		font-size: var(--fs-caption-sm);
+		font-size: clamp(0.7rem, 0.69rem + 0.04vw, 0.76rem);
 		color: var(--text-secondary);
 		line-height: 1.48;
 		margin: 0;
