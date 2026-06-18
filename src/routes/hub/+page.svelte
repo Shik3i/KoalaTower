@@ -37,6 +37,7 @@
 	import { getBlueprintStatus } from '$lib/game/progression/blueprintDiscovery';
 	import type { GameSettings, WorkshopUpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
+	import { audio } from '$lib/game/audio/AudioManager';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
 
@@ -59,13 +60,13 @@
 
 	const HUB_TUTORIAL_KEY = 'geocore-td-hub-tutorial-done';
 	const hubTutorialSteps: TutorialStep[] = [
-		{ title: '🛰️ Welcome to Orbital Command', desc: 'This is your permanent base between deployments. Here you spend Alloy (🔩) on permanent upgrades that persist across all runs. The Tower may fall — your research endures.', target: '', placement: 'center' },
-		{ title: '⚙ Forge — Permanent Upgrades', desc: 'The Forge pre-installs tower upgrades BEFORE every deployment. Damage, Fire Rate, Range, HP — every level makes every future run stronger. Spend Alloy wisely. Procurement approves this spending. Mostly.', target: '[data-section="workshop"]', placement: 'right' },
-		{ title: '🔬 Research Deck — Time-Based Projects', desc: 'Research runs in real time — even offline! Each level gives a multiplicative bonus that stacks with Forge upgrades. Start a project, come back later. The scientists work while you sleep. Allegedly.', target: '[data-section="lab"]', placement: 'right' },
-		{ title: '📐 Schematics — Reconstruct New Paths', desc: 'Schematics are recovered design fragments, collected per Front. Spend a Front\'s Schematics here to reconstruct upgrade paths that unlock hidden Forge and Field upgrades. Some Schematics were definitely not lost by Procurement.', target: '[data-section="blueprints"]', placement: 'right' },
-		{ title: '🌍 Fronts & Special Ops', desc: 'Fronts are difficulty tiers — push deeper to unlock harder planets with better rewards. Special Operations are challenge modes with modified rules. Simulation lets you preview enemy stats at any wave.', target: '[data-section="tiers"]', placement: 'right' },
-		{ title: '📊 Archives & Systems', desc: 'Archives track your campaign statistics. Systems lets you configure visuals, sound, and lab notifications. Everything is saved automatically to your browser. No cloud. No tracking. Not even the Shapes know your high score.', target: '[data-section="stats"]', placement: 'right' },
-		{ title: '🚀 Ready to Deploy', desc: 'Upgrade your Forge, start some Research, then head to Deployment and drop a Tower. Orbital Command will be here when you return — with more Alloy and fewer questions.', target: '.hub-back', placement: 'bottom' },
+		{ title: '🛰️ Welcome to Orbital Command', desc: 'This is your permanent base between deployments. Every Alloy you earn in battle can be spent here on upgrades that survive every tower fall. Click Deploy when ready — Orbital Command will keep the lights on.', target: '', placement: 'center' },
+		{ title: '⚙ Forge — Permanent Upgrades', desc: 'The Forge pre-installs tower upgrades BEFORE every deployment. Buy a level of Damage or Fire Rate — it applies to every future run. Spend early, spend often. The Shapes do not wait.', target: '[data-section="workshop"]', placement: 'right' },
+		{ title: '🔬 Research Deck — Time-Based Projects', desc: 'Research runs in real time — even while you are offline. Each level gives a multiplicative bonus that stacks with Forge upgrades. Start a project, deploy, and it will be done when you return.', target: '[data-section="lab"]', placement: 'right' },
+		{ title: '📐 Schematics — Reconstruct New Paths', desc: 'Completing waves on a Front recovers Schematics. Come back here after a run to reconstruct new upgrade paths. The first ones unlock cheap — the shapes are generous with obsolete blueprints.', target: '[data-section="blueprints"]', placement: 'right' },
+		{ title: '🌍 Fronts & Special Ops', desc: 'Front 1 is always open. Push to Wave 100 to unlock Front 2 — each new Front means harder enemies and better rewards. Special Ops are challenge modes that unlock as you climb.', target: '[data-section="tiers"]', placement: 'right' },
+		{ title: '📊 Archives & Systems', desc: 'Archives track your campaign statistics — empty now, but they fill fast. Systems lets you toggle audio, visuals, and lab notifications. Everything is saved to your browser. No cloud. No tracking.', target: '[data-section="stats"]', placement: 'right' },
+		{ title: '🚀 Ready to Deploy', desc: 'Buy a Forge upgrade, start a Research project, then click → Deploy in the header. The tower will fall. Your upgrades will not. That is the promise of Orbital Command.', target: '.hub-deploy', placement: 'bottom' },
 	];
 
 	let simWave = $state(1);
@@ -142,7 +143,7 @@
 		save.blackMarketIntroSeen = true;
 		persistSave(save);
 		refreshBlackMarketState();
-		activeSection = 'blackMarket';
+		switchSection('blackMarket');
 	}
 
 	function dismissBlackMarketIntro() {
@@ -167,6 +168,7 @@
 		persistSave(save);
 		refreshBlackMarketState();
 		showShipmentModal = false;
+		uiSound('upgrade');
 		toast('Shipment accepted. Your discretion has been logged nowhere official. +' + STRANGE_MATTER_WEEKLY_SHIPMENT + ' Strange Matter', 'success');
 	}
 
@@ -185,6 +187,7 @@
 		save.lastDailyContractCompletedAt = now;
 		persistSave(save);
 		refreshBlackMarketState();
+		uiSound('upgrade');
 		toast('Daily Contract complete. +' + STRANGE_MATTER_DAILY_CONTRACT + ' Strange Matter', 'success');
 	}
 
@@ -203,6 +206,7 @@
 		save.blackMarketUnlocks = { ...unlocks, [id]: true };
 		persistSave(save);
 		refreshBlackMarketState();
+		uiSound('upgrade');
 		toast(result.def.name + ' unlocked.', 'success');
 	}
 
@@ -340,6 +344,7 @@
 		if (bought > 0) {
 			coinsStore.set(save.totalCoins);
 			persistSave(save);
+			uiSound('upgrade');
 			const newLv = initialLv + bought;
 			toast('🔧 ' + (upgrade?.name ?? id) + ' → Lv.' + newLv + (bought > 1 ? ' (+' + bought + ')' : ''), 'success');
 		} else {
@@ -368,6 +373,7 @@
 		coinsStore.set(save.totalCoins);
 		persistSave(save);
 		refreshLabProgress();
+		uiSound('upgrade');
 		toast('🔬 Started ' + def.name + ' Lv.' + (lv + 1) + ' — ' + formatLabDuration(duration), 'success');
 	}
 
@@ -412,6 +418,16 @@
 	];
 	let visibleSections = $derived(allSections.filter(s => !s.requiresUnlock || bmUnlocked));
 
+	function uiSound(name: 'click' | 'upgrade') {
+		audio.unlock();
+		audio.play(name === 'click' ? 'uiClick' : 'upgrade');
+	}
+
+	function switchSection(id: typeof activeSection) {
+		if (id !== activeSection) uiSound('click');
+		activeSection = id;
+	}
+
 	$effect(() => {
 		if (!bmUnlocked && activeSection === 'blackMarket') {
 			activeSection = 'workshop';
@@ -434,6 +450,7 @@
 
 	<header class="hub-top">
 		<a href="/" class="hub-back">← Home</a>
+		<a href="/play" class="hub-deploy">→ Deploy</a>
 		<h1 class="hub-title">🛰️ Orbital Command</h1>
 		<div class="hub-coins">
 			🔩 {coins.toLocaleString()}
@@ -443,7 +460,7 @@
 					class="bm-signal"
 					class:bm-signal-glow={bmSignal === 'glow'}
 					class:bm-signal-subtle={bmSignal === 'subtle'}
-					onclick={() => { if (!blackMarketIntroSeen) { showBlackMarketIntro = true; } else { activeSection = 'blackMarket'; } }}
+					onclick={() => { if (!blackMarketIntroSeen) { showBlackMarketIntro = true; } else { switchSection('blackMarket'); } }}
 					aria-label={bmSignal === 'glow' ? 'Black Market — unauthorized signal active' : 'Black Market — unauthorized channel'}
 					title={bmSignal === 'glow' ? 'Unauthorized signal active' : 'Black Market'}
 				>
@@ -457,7 +474,7 @@
 	<div class="hub-body">
 		<nav class="hub-nav">
 			{#each visibleSections as s}
-				<button class="hub-nav-btn" class:on={activeSection === s.id} data-section={s.id} onclick={() => activeSection = s.id}>
+				<button class="hub-nav-btn" class:on={activeSection === s.id} data-section={s.id} onclick={() => switchSection(s.id)}>
 					{s.icon} {s.label}
 				</button>
 			{/each}
@@ -701,6 +718,10 @@
 					<h2 class="hst">📊 Archives</h2>
 					<p class="hsd">Campaign telemetry and historical records. Some data has been revised for clarity. Some has been revised for morale. Some has been revised because we forgot what happened.</p>
 
+					{#if totalRuns === 0}
+						<p class="hsd" style="color:var(--text-dim);font-style:italic;">No campaign records yet. The Shapes are still waiting for you to make the first move. Deploy a Tower — even a single wave writes history.</p>
+					{:else}
+
 					<h3 class="stats-sub">Lifetime Statistics</h3>
 					<div class="ig" style="max-width:600px">
 						<div class="ir"><span class="il">Total Deployments</span><span class="iv">{totalRuns}</span></div>
@@ -771,6 +792,7 @@
 							<div class="ir"><span class="il" style="color:var(--text-dim)">No Special Ops records yet.</span></div>
 						{/if}
 					</div>
+					{/if}
 				</div>
 			{:else if activeSection === 'settings'}
 				<div class="hs"><h2 class="hst">⚙ Systems</h2>
@@ -858,6 +880,8 @@
 	.hub-top { display:flex; align-items:center; gap:.75rem; padding:.75rem 1.5rem; background:rgba(7,8,18,.95); border-bottom:1px solid var(--border-neon); position:sticky; top:0; z-index:10; }
 	.hub-back { color:var(--text-secondary); font-size:var(--fs-body); text-decoration:none; padding:.25rem .65rem; border:1px solid var(--border-neon); border-radius:var(--radius-sm); transition:all var(--transition-fast); }
 	.hub-back:hover { color:var(--cyan); border-color:var(--cyan); }
+	.hub-deploy { color:var(--cyan); font-size:var(--fs-body); font-weight:600; text-decoration:none; padding:.25rem .65rem; border:1px solid rgba(0,255,255,.25); border-radius:var(--radius-sm); transition:all var(--transition-fast); }
+	.hub-deploy:hover { color:var(--bg-primary); background:var(--cyan); border-color:var(--cyan); }
 	.hub-title { font-size:var(--fs-hero); font-weight:700; background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
 	.hub-coins { margin-left:auto; font-family:var(--font-mono); font-size:var(--fs-mono-lg); color:var(--yellow); }
 	.hub-sm { color:var(--violet); margin-left:.5rem; }
@@ -991,8 +1015,8 @@
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	.save-note { margin-top:1.25rem; padding:.75rem 1rem; background:rgba(255,221,68,.04); border:1px solid rgba(255,221,68,.12); border-radius:var(--radius-sm); max-width:800px; }
 	.save-note-flavor { font-size:var(--fs-caption-sm); color:rgba(255,221,68,.45); font-style:italic; line-height:1.4; margin:0; }
-	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;width:auto;flex-direction:initial} .hub-nav-btn{flex-shrink:0;white-space:nowrap;text-align:center;padding:.55rem .5rem;font-size:var(--fs-body-sm)} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.bm-grid{grid-template-columns:1fr}.hub-coins{font-size:var(--fs-mono)} }
-	@media(max-width:380px){ .hub-nav{grid-template-columns:1fr 1fr} .hub-nav-btn{font-size:var(--fs-caption);padding:.5rem .4rem} }
+	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:flex;flex-direction:row;overflow-x:auto;gap:.4rem;width:auto;padding-bottom:.25rem;scrollbar-width:thin;scrollbar-color:rgba(0,255,255,.35) transparent} .hub-nav-btn{flex-shrink:0;white-space:nowrap;text-align:center;padding:.55rem .75rem;font-size:var(--fs-body-sm)} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.bm-grid{grid-template-columns:1fr}.hub-coins{font-size:var(--fs-mono)} }
+	@media(max-width:380px){ .hub-nav-btn{font-size:var(--fs-caption);padding:.5rem .6rem} }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:var(--fs-caption); display:flex; flex-direction:column; gap:.4rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
 	.hub-footer-flavor { font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:0.35; margin:0; }
 	.hub-footer-links { display:flex; gap:.4rem; align-items:center; }

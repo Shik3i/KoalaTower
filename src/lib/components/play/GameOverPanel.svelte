@@ -72,10 +72,10 @@
 			<span><Icon name="crit" size={13} /> Best: Wave {best}</span>
 		</div>
 		<button class="go-btn" bind:this={primaryBtn} onclick={onRedeploy}><Icon name="play" size={16} /> Launch Deployment</button>
-		<button class="go-btn2" style="margin-top:.5rem;width:100%" onclick={onRedeploy}><Icon name="play" size={15} /> Quick Redeploy (Same Front)</button>
+		<a href="/hub" class="go-hub-btn"><Icon name="hub" size={16} /> Return to Orbital Command</a>
 		<div class="go-row2">
-			<a href="/hub" class="go-btn2"><Icon name="hub" size={15} /> Orbital Command</a>
-			<button class="go-btn2" onclick={onExport}><Icon name="export" size={15} /> Export</button>
+			<button class="go-btn2" onclick={onRedeploy}><Icon name="play" size={14} /> Quick Redeploy</button>
+			<button class="go-btn2" onclick={onExport}><Icon name="export" size={14} /> Export</button>
 		</div>
 	</div>
 </div>
@@ -109,6 +109,8 @@
 	.go-btn { display:block; width:100%; padding:.75rem; background:linear-gradient(135deg,var(--cyan),var(--blue)); color:var(--bg-primary); font-weight:700; font-size:var(--fs-btn); border-radius:var(--radius-md); cursor:pointer; transition:all var(--transition-normal); box-shadow:0 0 20px rgba(0,255,255,.1); }
 	.go-btn:hover { box-shadow:0 0 30px rgba(0,255,255,.2); transform:translateY(-1px); }
 	.go-row2 { display:flex; gap:.4rem; margin-top:.45rem; }
+	.go-hub-btn { display:flex; align-items:center; justify-content:center; gap:.4rem; width:100%; margin:.5rem 0; padding:.6rem; font-size:var(--fs-btn); font-weight:600; border-radius:var(--radius-md); background:linear-gradient(135deg,rgba(136,68,255,.15),rgba(68,68,255,.1)); border:1px solid rgba(136,68,255,.3); color:var(--violet); cursor:pointer; text-decoration:none; transition:all var(--transition-fast); }
+	.go-hub-btn:hover { background:linear-gradient(135deg,rgba(136,68,255,.25),rgba(68,68,255,.18)); border-color:rgba(136,68,255,.5); color:#c8b0ff; transform:translateY(-1px); }
 	.go-btn2 { flex:1; padding:.5rem; font-size:var(--fs-btn-sm); border-radius:var(--radius-sm); background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); cursor:pointer; text-decoration:none; display:block; text-align:center; transition:all var(--transition-fast); }
 	.go-btn2:hover { border-color:var(--text-secondary); color:var(--text-primary); }
 	@media(max-width:899px){ .go-panel{max-width:340px;padding:1.5rem 1.25rem 1.25rem} }
