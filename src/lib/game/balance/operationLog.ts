@@ -404,7 +404,7 @@ export function getOpLogMessage(
 	let msg = pick(pool);
 	if (tokens) {
 		for (const [key, val] of Object.entries(tokens)) {
-			msg = msg.replace(`{${key}}`, String(val));
+			msg = msg.replaceAll(`{${key}}`, String(val));
 		}
 	}
 	return msg;

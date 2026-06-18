@@ -9,6 +9,8 @@
 		kills,
 		bosses,
 		cash,
+		schematics = 0,
+		frontName = '',
 		onRedeploy,
 		onExport,
 	}: {
@@ -18,11 +20,14 @@
 		kills: number;
 		bosses: number;
 		cash: number;
+		schematics?: number;
+		frontName?: string;
 		onRedeploy: () => void;
 		onExport: () => void;
 	} = $props();
 
-	const isRecord = $derived(wave >= best && best > 0);
+	// First run (best === 0) still counts as a new record if any wave was reached.
+	const isRecord = $derived(wave > 0 && wave >= best);
 	let primaryBtn = $state<HTMLButtonElement>();
 
 	// Move focus to the primary action when the panel appears (it mounts only
@@ -47,6 +52,9 @@
 			<div class="go-sd"></div>
 			<div class="go-s"><span class="go-si"><Icon name="boss" size={20} /></span><span class="go-sv">{bosses}</span><span class="go-sl">Bosses</span></div>
 		</div>
+		{#if schematics > 0}
+			<div class="go-schem">📐 +{schematics.toLocaleString()} {frontName} Schematics recovered</div>
+		{/if}
 		<div class="go-stats-sub">
 			<span><Icon name="energy" size={13} /> {Math.floor(cash).toLocaleString()} Energy harvested</span>
 			<span><Icon name="crit" size={13} /> Best: Wave {best}</span>
@@ -77,6 +85,7 @@
 	.go-wave strong { color:var(--text-primary); }
 	.go-wave-sub { font-size:var(--fs-body); color:var(--text-secondary); margin-bottom:1rem; font-family:var(--font-mono); }
 	.go-stats { display:flex; align-items:center; justify-content:center; gap:.8rem; margin-bottom:.5rem; padding:.6rem .75rem; background:rgba(0,0,0,.12); border-radius:var(--radius-md); }
+	.go-schem { font-size:var(--fs-body-sm); color:var(--cyan); margin-bottom:.5rem; font-family:var(--font-mono); }
 	.go-stats-sub { display:flex; justify-content:center; gap:1rem; font-size:var(--fs-caption); color:var(--text-secondary); margin-bottom:1rem; font-family:var(--font-mono); }
 	.go-s { text-align:center; min-width:55px; }
 	.go-si { font-size:var(--fs-icon-md); display:block; margin-bottom:.1rem; }

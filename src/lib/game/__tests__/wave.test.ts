@@ -30,17 +30,31 @@ describe('Wave Scaling', () => {
 		expect(interval100).toBeGreaterThanOrEqual(0.08);
 	});
 
-	it('should unlock enemy types at specific waves', () => {
-		const typesWave1 = getEnemyTypeForWave(1);
-		expect(typesWave1).toContain(EnemyType.Normal);
-		expect(typesWave1).not.toContain(EnemyType.Fast);
+	it('Front 1 introduces types slowly (Basic only through wave 9)', () => {
+		// Front 1 pacing: Wave 1–9 Basic only, Fast at 11+, Tank at 50+, Ranged at 100+.
+		for (let w = 1; w <= 9; w++) {
+			if (w % 10 === 0) continue;
+			const types = getEnemyTypeForWave(w); // default front = 1
+			expect(new Set(types)).toEqual(new Set([EnemyType.Normal]));
+		}
 
+		// Wave 5 on Front 1 is STILL Basic only (Fast no longer appears this early).
 		const typesWave5 = getEnemyTypeForWave(5);
-		expect(typesWave5).toContain(EnemyType.Fast);
+		expect(typesWave5).not.toContain(EnemyType.Fast);
+
+		// Fast/Runner appears from wave 11 on Front 1.
+		const typesWave11 = getEnemyTypeForWave(11);
+		expect(typesWave11).toContain(EnemyType.Fast);
 
 		const typesWave10 = getEnemyTypeForWave(10);
 		expect(typesWave10).toContain(EnemyType.Boss);
 		expect(typesWave10.length).toBe(1); // Boss wave only returns boss
+	});
+
+	it('higher Fronts introduce known types earlier than Front 1', () => {
+		// Front 5 (Redline) fields Fast by wave 5, unlike Front 1.
+		const front5Wave5 = getEnemyTypeForWave(5, 5);
+		expect(front5Wave5).toContain(EnemyType.Fast);
 	});
 });
 

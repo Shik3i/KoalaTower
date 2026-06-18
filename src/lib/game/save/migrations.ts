@@ -1,10 +1,21 @@
 import { CURRENT_SCHEMA_VERSION, type SaveData } from './saveTypes';
 import { BlueprintId, AchievementId, TierId, DEFAULT_SETTINGS, type GameSettings } from '../engine/gameTypes';
 import { computeGrandfatheredBlueprints } from '../balance/blueprints';
+import { emptySchematics, normalizeSchematics } from '../balance/schematics';
+
+function generateSaveId(prefix = 'fltd'): string {
+	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+		return prefix + '-' + crypto.randomUUID();
+	}
+	return prefix + '-' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+}
 
 export function migrateSave(data: Record<string, unknown>): SaveData | null {
 	try {
-		const version = (data.schemaVersion as number) || 0;
+		// Normalize to a safe integer — a string "5" must not bypass the < checks.
+		const version = Number.isFinite(Number(data.schemaVersion)) && Number(data.schemaVersion) >= 0
+			? Math.floor(Number(data.schemaVersion))
+			: 0;
 		let save = data as unknown as SaveData;
 
 		if (version < 1) {
@@ -37,6 +48,9 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		if (version < 10) {
 			save = migrateV9toV10(save);
 		}
+		if (version < 11) {
+			save = migrateV10toV11(save);
+		}
 
 		save = ensureMetadata(save);
 
@@ -56,7 +70,7 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 		schemaVersion: CURRENT_SCHEMA_VERSION,
 		createdAt: new Date(now).toISOString(),
 		lastUpdated: now,
-		saveId: 'fltd-legacy-' + Math.random().toString(36).slice(2, 10),
+		saveId: generateSaveId('fltd-legacy'),
 		totalRuns: (data.totalRuns as number) || 0,
 		highestWave: (data.highestWave as number) || 0,
 		totalCoins: (data.totalCoins as number) || 0,
@@ -92,6 +106,8 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 		totalWavesCompleted: 0,
 		totalPlayTimeSeconds: 0,
 		masteryAchievements: {},
+		schematicsByFront: emptySchematics(),
+		claimedSchematicMilestones: [],
 	};
 }
 
@@ -254,6 +270,24 @@ function migrateV9toV10(save: SaveData): SaveData {
 		totalWavesCompleted: (save as any).totalWavesCompleted ?? 0,
 		totalPlayTimeSeconds: (save as any).totalPlayTimeSeconds ?? 0,
 		masteryAchievements: (save as any).masteryAchievements ?? {},
+		schematicsByFront: normalizeSchematics((save as any).schematicsByFront),
+		claimedSchematicMilestones: Array.isArray((save as any).claimedSchematicMilestones)
+			? (save as any).claimedSchematicMilestones
+			: [],
+	};
+}
+
+function migrateV10toV11(save: SaveData): SaveData {
+	// v11 adds the Schematics currency. Initialize every Front (1–16) to 0 and
+	// start with no claimed milestones. Old unlocked upgrade paths
+	// (unlockedBlueprints) are untouched — already-owned paths stay owned.
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		schematicsByFront: normalizeSchematics((save as any).schematicsByFront),
+		claimedSchematicMilestones: Array.isArray((save as any).claimedSchematicMilestones)
+			? (save as any).claimedSchematicMilestones
+			: [],
 	};
 }
 
@@ -292,6 +326,23 @@ export function validateSaveData(data: unknown): data is SaveData {
 	if (typeof d.totalRuns !== 'number') return false;
 	if (typeof d.highestWave !== 'number') return false;
 	if (typeof d.totalCoins !== 'number') return false;
+	// Validate critical collections — wrong types here would crash at runtime.
+	// null/undefined is allowed (ensureMetadata repairs those); non-object/non-array types are rejected.
+	if (d.workshopUpgrades !== undefined && d.workshopUpgrades !== null) {
+		if (typeof d.workshopUpgrades !== 'object' || Array.isArray(d.workshopUpgrades)) return false;
+	}
+	if (d.labLevels !== undefined && d.labLevels !== null) {
+		if (typeof d.labLevels !== 'object' || Array.isArray(d.labLevels)) return false;
+	}
+	if (d.achievements !== undefined && d.achievements !== null) {
+		if (typeof d.achievements !== 'object' || Array.isArray(d.achievements)) return false;
+	}
+	if (d.unlockedBlueprints !== undefined && d.unlockedBlueprints !== null) {
+		if (!Array.isArray(d.unlockedBlueprints)) return false;
+	}
+	if (d.discoveredBlueprints !== undefined && d.discoveredBlueprints !== null) {
+		if (!Array.isArray(d.discoveredBlueprints)) return false;
+	}
 	return true;
 }
 
@@ -300,7 +351,7 @@ function ensureMetadata(save: SaveData): SaveData {
 	return {
 		...save,
 		createdAt: save.createdAt || new Date(now).toISOString(),
-		saveId: save.saveId || 'fltd-' + Math.random().toString(36).slice(2, 10),
+		saveId: save.saveId || generateSaveId(),
 		lastUpdated: save.lastUpdated || now,
 		settings: normalizeSettings((save as unknown as Record<string, unknown>).settings),
 		discoveredBlueprints: Array.from(new Set([...((save as any).discoveredBlueprints ?? []), ...((save as any).unlockedBlueprints ?? [])])),
@@ -320,5 +371,9 @@ function ensureMetadata(save: SaveData): SaveData {
 		totalWavesCompleted: (save as any).totalWavesCompleted ?? 0,
 		totalPlayTimeSeconds: (save as any).totalPlayTimeSeconds ?? 0,
 		masteryAchievements: (save as any).masteryAchievements ?? {},
+		schematicsByFront: normalizeSchematics((save as any).schematicsByFront),
+		claimedSchematicMilestones: Array.isArray((save as any).claimedSchematicMilestones)
+			? (save as any).claimedSchematicMilestones
+			: [],
 	};
 }

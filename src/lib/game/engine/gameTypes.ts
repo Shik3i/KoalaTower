@@ -54,6 +54,12 @@ export interface Enemy {
 	isBoss: boolean;
 	isShiny: boolean;
 	wave: number;
+	/**
+	 * Damage-type resistance scaffolding (0–1 per type). Empty/undefined = no
+	 * resistance, the only state that exists before Front 9. Populated by later
+	 * Fronts; the damage pipeline reads it but it is a no-op while empty.
+	 */
+	resistances?: Partial<Record<DamageType, number>>;
 }
 
 export interface Projectile {
@@ -150,7 +156,38 @@ export enum TierId {
 	Tier2 = 'tier2',
 	Tier3 = 'tier3',
 	Tier4 = 'tier4',
-	Tier5 = 'tier5'
+	Tier5 = 'tier5',
+	Tier6 = 'tier6',
+	Tier7 = 'tier7',
+	Tier8 = 'tier8',
+	Tier9 = 'tier9',
+	Tier10 = 'tier10',
+	Tier11 = 'tier11',
+	Tier12 = 'tier12',
+	Tier13 = 'tier13',
+	Tier14 = 'tier14',
+	Tier15 = 'tier15',
+	Tier16 = 'tier16'
+}
+
+/** The four Front bands (4 Fronts each = 16 Fronts total). */
+export enum FrontBand {
+	Perimeter = 'perimeter',
+	Redline = 'redline',
+	Blacksite = 'blacksite',
+	Anomaly = 'anomaly',
+}
+
+/**
+ * Damage-type scaffolding. Not a full elemental system yet — `Kinetic` is the
+ * universal default every projectile uses today. Thermal/Arc/Void exist so that
+ * later Fronts (10+) can introduce resistances without a schema change.
+ */
+export enum DamageType {
+	Kinetic = 'kinetic',
+	Thermal = 'thermal',
+	Arc = 'arc',
+	Void = 'void',
 }
 
 export enum MilestoneId {

@@ -84,7 +84,7 @@
 			class:purchased={purchasedId === u.id}
 			disabled={!aff || mx || locked || !snap?.runActive}
 			onclick={() => onBuy(u.id)}
-			title={locked ? 'Locked: requires ' + getLockBlueprintName(u.id) + ' Blueprint' : 'Current: ' + upgradeCurrentValue(u.id, lv) + ' | Next: ' + upgradeNextValue(u.id, lv) + ' | Cost: ' + cost + ' Energy'}
+			title={locked ? 'Locked: reconstruct the ' + getLockBlueprintName(u.id) + ' Schematic' : 'Current: ' + upgradeCurrentValue(u.id, lv) + ' | Next: ' + upgradeNextValue(u.id, lv) + ' | Cost: ' + cost + ' Energy'}
 		>
 			<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
 			{#if !locked}

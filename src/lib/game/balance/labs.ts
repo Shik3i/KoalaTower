@@ -131,17 +131,22 @@ export function getLabCost(id: LabId, level: number): number {
 
 /**
  * Returns the duration in ms for researching the given lab level.
+ * Level is clamped to [0, maxLevel] so hand-edited saves never produce Infinity.
  */
 export function getLabDuration(id: LabId, level: number): number {
 	const def = defMap.get(id);
 	if (!def) return Infinity;
-	return Math.floor(def.baseDurationMs * Math.pow(def.durationGrowth, level));
+	const safeLevel = Number.isFinite(level) && level >= 0 ? Math.min(Math.floor(level), def.maxLevel) : 0;
+	const raw = def.baseDurationMs * Math.pow(def.durationGrowth, safeLevel);
+	return Number.isFinite(raw) ? Math.floor(raw) : def.baseDurationMs * Math.pow(def.durationGrowth, def.maxLevel);
 }
 
+/** Level is clamped to [0, maxLevel] so hand-edited saves cannot produce uncapped multipliers. */
 export function getLabEffect(id: LabId, level: number): number {
 	const def = defMap.get(id);
 	if (!def) return 0;
-	return level * def.effectPerLevel;
+	const safeLevel = Number.isFinite(level) && level >= 0 ? Math.min(Math.floor(level), def.maxLevel) : 0;
+	return safeLevel * def.effectPerLevel;
 }
 
 export interface LabMultipliers {

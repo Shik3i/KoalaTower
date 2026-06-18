@@ -6,9 +6,11 @@
 	import { buildWorkshopUpgradeList, getWorkshopUpgradeCost, getWorkshopUpgradeEffect } from '$lib/game/balance/workshopUpgrades';
 	const WORKSHOP_UPGRADES = buildWorkshopUpgradeList();
 	import { LAB_DEFS, getLabCost, getLabEffect, isLabUnlocked, getLabDuration, formatLabDuration } from '$lib/game/balance/labs';
-	import { TIERS, getUnlockedFronts, getPreviousFront, getFrontName, FRONT_UNLOCK_WAVE } from '$lib/game/balance/tiers';
+	import { TIERS, FRONT_META, getUnlockedFronts, getFrontName, describeFrontUnlock, getFrontBandDef } from '$lib/game/balance/tiers';
+	import FrontIcon from '$lib/components/FrontIcon.svelte';
 	import { CHALLENGES } from '$lib/game/balance/challenges';
 	import { formatCompact, front1EnemyDamage, front1EnemyHp, TIER_MULTIPLIERS } from '$lib/game/balance/balanceMath';
+	import { getSchematics, getPathSchematicCost, tryUnlockPathWithSchematics, normalizeSchematics, SCHEMATICS_FLAVOR } from '$lib/game/balance/schematics';
 	import { EnemyType, DEFAULT_SETTINGS } from '$lib/game/engine/gameTypes';
 	import { ENEMY_TYPE_MODIFIERS, computeEnemyConfig, ENEMY_SHAPES } from '$lib/game/balance/balanceMath';
 	import { ENEMY_TYPE_LABELS, getMasteryProgress, MASTERY_REWARDS } from '$lib/game/balance/mastery';
@@ -41,7 +43,7 @@
 		{ title: '🛰️ Welcome to Orbital Command', desc: 'This is your permanent base between deployments. Here you spend Alloy (🔩) on permanent upgrades that persist across all runs. The Tower may fall — your research endures.', target: '', placement: 'center' },
 		{ title: '⚙ Forge — Permanent Upgrades', desc: 'The Forge pre-installs tower upgrades BEFORE every deployment. Damage, Fire Rate, Range, HP — every level makes every future run stronger. Spend Alloy wisely. Procurement approves this spending. Mostly.', target: '.hub-nav-btn:nth-child(1)', placement: 'right' },
 		{ title: '🔬 Research Deck — Time-Based Projects', desc: 'Research runs in real time — even offline! Each level gives a multiplicative bonus that stacks with Forge upgrades. Start a project, come back later. The scientists work while you sleep. Allegedly.', target: '.hub-nav-btn:nth-child(2)', placement: 'right' },
-		{ title: '📐 Blueprints — Unlock New Paths', desc: 'New upgrade paths are discovered during deployments. Once a schematic is found, research it here with Alloy to unlock hidden Forge and Field upgrades. Some blueprints were definitely not lost by Procurement.', target: '.hub-nav-btn:nth-child(3)', placement: 'right' },
+		{ title: '📐 Schematics — Reconstruct New Paths', desc: 'Schematics are recovered design fragments, collected per Front. Spend a Front\'s Schematics here to reconstruct upgrade paths that unlock hidden Forge and Field upgrades. Some Schematics were definitely not lost by Procurement.', target: '.hub-nav-btn:nth-child(3)', placement: 'right' },
 		{ title: '🌍 Fronts & Special Ops', desc: 'Fronts are difficulty tiers — push deeper to unlock harder planets with better rewards. Special Operations are challenge modes with modified rules. Simulation lets you preview enemy stats at any wave.', target: '.hub-nav-btn:nth-child(4)', placement: 'right' },
 		{ title: '📊 Archives & Systems', desc: 'Archives track your campaign statistics. Systems lets you configure visuals, sound, and lab notifications. Everything is saved automatically to your browser. No cloud. No tracking. Not even the Shapes know your high score.', target: '.hub-nav-btn:nth-child(7)', placement: 'right' },
 		{ title: '🚀 Ready to Deploy', desc: 'Upgrade your Forge, start some Research, then head to Deployment and drop a Tower. Orbital Command will be here when you return — with more Alloy and fewer questions.', target: '.hub-back', placement: 'bottom' },
@@ -52,6 +54,7 @@
 
 	let ownedBlueprints = $state<BlueprintId[]>([]);
 	let discoveredBlueprints = $state<BlueprintId[]>([]);
+	let schematicsByFront = $state<Record<number, number>>({});
 	let frontBestWave = $state<Partial<Record<string, number>>>({});
 	let killsByType = $state<Partial<Record<EnemyType, number>>>({});
 	let shinyKillsByType = $state<Partial<Record<EnemyType, number>>>({});
@@ -85,18 +88,24 @@
 
 	function isBlueprintOwned(id: BlueprintId): boolean { return ownedBlueprints.includes(id); }
 	function isBlueprintDiscovered(id: BlueprintId): boolean { return discoveredBlueprints.includes(id); }
+	/** Reconstruct (unlock) an upgrade path by spending its Front's Schematics. */
 	function buyBlueprint(id: BlueprintId) {
 		const save = getCachedSave(); if (!save) return;
 		const bp = BLUEPRINT_DEFS.find(b => b.id === id); if (!bp) return;
 		if (ownedBlueprints.includes(id)) { toast(getOpLogMessage('blueprintAlreadyOwned'), 'info'); return; }
 		if (!discoveredBlueprints.includes(id)) { toast(getOpLogMessage('blueprintNotYetFound'), 'error'); return; }
-		if (save.totalCoins < bp.cost) { toast(getOpLogMessage('workshopNotEnough'), 'error'); return; }
-		save.totalCoins -= bp.cost;
+		const cost = getPathSchematicCost(id);
+		if (!cost) { toast('No Schematic cost defined for this path.', 'error'); return; }
+		save.schematicsByFront = normalizeSchematics(save.schematicsByFront);
+		if (!tryUnlockPathWithSchematics(save.schematicsByFront, save.unlockedBlueprints ?? [], id)) {
+			toast('Not enough ' + getFrontName(FRONT_META[cost.front - 1]!.id) + ' Schematics (need ' + cost.cost + ').', 'error');
+			return;
+		}
 		save.unlockedBlueprints = [...(save.unlockedBlueprints ?? []), id];
 		ownedBlueprints = [...ownedBlueprints, id];
-		coinsStore.set(save.totalCoins);
+		schematicsByFront = { ...save.schematicsByFront };
 		persistSave(save);
-		toast(bp.name + ' researched!', 'success');
+		toast(bp.name + ' reconstructed!', 'success');
 	}
 
 	let showImportDialog = $state(false);
@@ -113,6 +122,7 @@
 		const save = getCachedSave();
 		if (save?.unlockedBlueprints) ownedBlueprints = [...save.unlockedBlueprints];
 		if (save?.discoveredBlueprints) discoveredBlueprints = [...save.discoveredBlueprints];
+		if (save?.schematicsByFront) schematicsByFront = { ...save.schematicsByFront };
 		if (save?.frontBestWave) frontBestWave = { ...save.frontBestWave };
 		if (save?.killsByType) killsByType = { ...save.killsByType };
 		if (save?.shinyKillsByType) shinyKillsByType = { ...save.shinyKillsByType };
@@ -215,7 +225,7 @@
 	const sections = [
 		{ id: 'workshop' as const, label: 'Forge', icon: '⚙' },
 		{ id: 'lab' as const, label: 'Research Deck', icon: '🔬' },
-		{ id: 'blueprints' as const, label: 'Blueprints', icon: '📐' },
+		{ id: 'blueprints' as const, label: 'Schematics', icon: '📐' },
 		{ id: 'tiers' as const, label: 'Fronts', icon: '🌍' },
 		{ id: 'challenges' as const, label: 'Special Ops', icon: '⚡' },
 		{ id: 'simulation' as const, label: 'Simulation', icon: '🧪' },
@@ -242,7 +252,7 @@
 		<h1 class="hub-title">🛰️ Orbital Command</h1>
 		<div class="hub-coins">🔩 {coins.toLocaleString()}</div>
 	</header>
-	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. The Forge pre-installs permanent tower upgrades, the Research Deck runs orbital projects, and Blueprints unlock new capabilities. Archives track campaign telemetry.</p>
+	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. The Forge pre-installs permanent tower upgrades, the Research Deck runs orbital projects, and Schematics reconstruct new capabilities. Archives track campaign telemetry.</p>
 
 	<div class="hub-body">
 		<nav class="hub-nav">
@@ -255,7 +265,7 @@
 
 		<div class="hub-content">
 			{#if activeSection === 'workshop'}
-				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed tower upgrades. Each level improves the tower blueprint before every deployment. Locked paths require Blueprint unlocks. The Forge never stops. Neither does the paperwork.</p>
+				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed tower upgrades. Each level improves the tower blueprint before every deployment. Locked paths require Schematic reconstruction. The Forge never stops. Neither does the paperwork.</p>
 					<div class="buy-mult">
 						<span class="mult-label">Buy</span>
 						{#each [1, 5, 10, 50, 'max'] as m}
@@ -322,12 +332,13 @@
 					</div>
 				</div>
 			{:else if activeSection === 'blueprints'}
-				<div class="hs"><h2 class="hst">📐 Blueprints</h2><p class="hsd">New upgrade paths are found in the field. Deploy to the right Front and reach its depth — each run has a chance to recover a schematic. Once discovered, research it here with Alloy to unlock its upgrades. Orbital Command classifies 90% of schematics as \'theoretically recoverable.\' The other 10% we just lost.</p>
-					<div class="cl">{#each BLUEPRINT_DEFS as bp}{@const status = getBlueprintStatus(bp.id, ownedBlueprints, discoveredBlueprints)}{@const aff = coins >= bp.cost}{@const fieldCount = getFieldUpgradesUnlockedBy(bp.id).length}{@const foundryCount = getFoundryUpgradesUnlockedBy(bp.id).length}<div class="cc" class:lck={status === 'undiscovered'}><div class="cc-h"><span class="cci">{status === 'owned' ? '✅' : status === 'discovered' ? bp.icon : '🔒'}</span><div><div class="ccn">{status === 'undiscovered' ? '??? Unknown Schematic' : bp.name}</div><div class="ccd">{status === 'undiscovered' ? 'Schematic not yet recovered.' : bp.description}</div></div></div>{#if status === 'owned'}<div class="ccs">✓ Researched — unlocks {fieldCount} field + {foundryCount} foundry upgrade{fieldCount + foundryCount === 1 ? '' : 's'}</div>{:else if status === 'discovered'}<div class="ccl-found">🔍 Discovered — ready to research</div><div class="uc-b" style="margin-top:.3rem"><button class="hub-action" disabled={!aff} onclick={() => buyBlueprint(bp.id)} style={aff ? 'background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--bg-primary);font-weight:600' : ''}><span class="ucc">🔩{bp.cost.toLocaleString()}</span> Research</button></div>{:else}<div class="ccl">🔒 {describeBlueprintDiscovery(bp)}</div>{/if}</div>{/each}</div>
+				<div class="hs"><h2 class="hst">📐 Schematics</h2><p class="hsd">{SCHEMATICS_FLAVOR}</p>
+					<div class="schem-bal">{#each FRONT_META as m}{@const n = getSchematics(schematicsByFront, m.front)}{#if n > 0 || unlockedFronts.includes(m.id)}<span class="schem-chip" title={getFrontName(m.id) + ' Schematics'}><FrontIcon front={m.id} size={16} /> {n}</span>{/if}{/each}</div>
+					<div class="cl">{#each BLUEPRINT_DEFS as bp}{@const status = getBlueprintStatus(bp.id, ownedBlueprints, discoveredBlueprints)}{@const cost = getPathSchematicCost(bp.id)}{@const costFrontId = cost ? FRONT_META[cost.front - 1]!.id : null}{@const have = cost ? getSchematics(schematicsByFront, cost.front) : 0}{@const aff = !!cost && have >= cost.cost}{@const fieldCount = getFieldUpgradesUnlockedBy(bp.id).length}{@const foundryCount = getFoundryUpgradesUnlockedBy(bp.id).length}<div class="cc" class:lck={status === 'undiscovered'}><div class="cc-h"><span class="cci">{status === 'owned' ? '✅' : status === 'discovered' ? bp.icon : '🔒'}</span><div><div class="ccn">{status === 'undiscovered' ? '??? Unknown Schematic' : bp.name}</div><div class="ccd">{status === 'undiscovered' ? 'Schematic not yet recovered.' : bp.description}</div></div></div>{#if status === 'owned'}<div class="ccs">✓ Reconstructed — unlocks {fieldCount} field + {foundryCount} foundry upgrade{fieldCount + foundryCount === 1 ? '' : 's'}</div>{:else if status === 'discovered'}<div class="ccl-found">🔍 Recovered — ready to reconstruct</div><div class="uc-b" style="margin-top:.3rem">{#if cost && costFrontId}<button class="hub-action" disabled={!aff} onclick={() => buyBlueprint(bp.id)} style={aff ? 'background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--bg-primary);font-weight:600' : ''}><span class="ucc">📐{cost.cost} {getFrontName(costFrontId)}</span> Reconstruct</button>{:else}<span class="ucc" style="color:var(--text-dim)">Reconstruction not yet available</span>{/if}</div>{:else}<div class="ccl">🔒 {describeBlueprintDiscovery(bp)}</div>{/if}</div>{/each}</div>
 				</div>
 			{:else if activeSection === 'tiers'}
-				<div class="hs"><h2 class="hst">🌍 Fronts</h2><p class="hsd">Each front is a planet with increasing enemy density. Reach wave milestones to unlock harder fronts with better rewards. Remember: the enemy is also fighting a war. They are losing. Please continue to help them lose.</p>
-					<div class="cl">{#each TIERS as t}{@const unl = unlockedFronts.includes(t.id)}{@const prev = getPreviousFront(t.id)}<div class="tc" class:unl={unl}><div class="tc-h"><span class="tci">{unl ? '🔓' : '🔒'}</span><div><div class="tcn">{t.name}</div><div class="tcd">{t.description}</div></div></div><div class="tcr" class:tcr-ok={unl}>{unl ? '✓ Unlocked · Best Wave ' + (frontBestWave[t.id] ?? 0) : 'Reach Wave ' + FRONT_UNLOCK_WAVE + (prev ? ' on ' + getFrontName(prev) : '')}</div></div>{/each}</div>
+				<div class="hs"><h2 class="hst">🌍 Fronts</h2><p class="hsd">Sixteen Fronts across four bands — Perimeter, Redline, Blacksite, Anomaly. Each Front spawns denser waves and drops its own Schematics. Most Fronts unlock at Wave 100 on the previous one; crossing into a new band is the hard wall. Remember: the enemy is also fighting a war. They are losing. Please continue to help them lose.</p>
+					<div class="cl">{#each TIERS as t}{@const unl = unlockedFronts.includes(t.id)}{@const band = getFrontBandDef(t.id)}{@const schem = getSchematics(schematicsByFront, FRONT_META.findIndex(m => m.id === t.id) + 1)}<div class="tc" class:unl={unl} style="--band:{band.color}"><div class="tc-h"><FrontIcon front={t.id} size={30} locked={!unl} /><div><div class="tcn">{t.name}</div><div class="tcd">{t.description}</div></div></div><div class="tcr" class:tcr-ok={unl}>{unl ? '✓ Unlocked · Best Wave ' + (frontBestWave[t.id] ?? 0) + (schem > 0 ? ' · 📐' + schem : '') : '🔒 ' + describeFrontUnlock(t.id)}</div></div>{/each}</div>
 				</div>
 			{:else if activeSection === 'challenges'}
 				<div class="hs"><h2 class="hst">⚡ Special Operations</h2><p class="hsd">Tactical exercises with modified engagement rules. Each operation tests different combat scenarios under special conditions. \'Special conditions\' is military code for \'we broke something and called it a feature.\'</p>
@@ -348,9 +359,9 @@
 						<div class="sim-param">
 							<label class="sim-label" for="sim-front">Front:</label>
 							<select id="sim-front" bind:value={simFront} class="sim-select">
-								<option value={1}>Front 1 (1×)</option>
-								<option value={2}>Front 2 (20×)</option>
-								<option value={3}>Front 3 (60×)</option>
+								{#each FRONT_META as m}
+									<option value={m.front}>{m.displayName} (×{formatCompact(TIER_MULTIPLIERS[m.front]?.hp ?? 1)} HP)</option>
+								{/each}
 							</select>
 						</div>
 					</div>
@@ -490,7 +501,7 @@
 		<div class="overlay" role="dialog" aria-modal="true" aria-label="Import save"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(getOpLogMessage('saveImportFailed'), 'error'); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
 	{/if}
 	{#if showResetConfirm}
-		<div class="overlay" role="dialog" aria-modal="true" aria-label="Reset save"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Blueprints, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button><button class="dlg-dng-btn" onclick={async () => { await resetSave(); showResetConfirm = false; coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0); settingsStore.set({ ...DEFAULT_SETTINGS }); toast(getOpLogMessage('saveReset'), 'warning'); }}>Reset</button></div></div></div>
+		<div class="overlay" role="dialog" aria-modal="true" aria-label="Reset save"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Schematics, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button><button class="dlg-dng-btn" onclick={async () => { await resetSave(); showResetConfirm = false; coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0); settingsStore.set({ ...DEFAULT_SETTINGS }); toast(getOpLogMessage('saveReset'), 'warning'); }}>Reset</button></div></div></div>
 	{/if}
 
 	<footer class="hub-footer">
@@ -567,6 +578,8 @@
 	.tcd,.ccd { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.45; }
 	.tcr,.ccs,.ccl,.ccl-found { font-size:var(--fs-caption-sm); color:var(--text-secondary); font-family:var(--font-mono); margin-top:.25rem; padding:.15rem .4rem; background:rgba(0,0,0,.12); border-radius:3px; display:inline-block; }
 	.ccl-found { color:var(--cyan); background:rgba(0,255,255,.08); }
+	.schem-bal { display:flex; flex-wrap:wrap; gap:.4rem; margin:.4rem 0 .8rem; }
+	.schem-chip { display:inline-flex; align-items:center; gap:.25rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-secondary); background:rgba(0,0,0,.18); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.15rem .4rem; }
 	.tcr-ok { color:var(--green); } .ccs { color:var(--green); }
 	.ig { display:grid; gap:3px; max-width:600px; }
 	.ir { display:flex; justify-content:space-between; padding:.4rem .55rem; font-size:var(--fs-mono); border-radius:3px; }

@@ -14,18 +14,26 @@
 	} = $props();
 </script>
 
-{#if $controller.length}
-	<div
-		class="toast-stack"
-		style="{vertical}:{offsetRem}rem; z-index:{zIndex};"
-		aria-live="polite"
-		role="status"
-	>
-		{#each $controller as t (t.id)}
+<!--
+  The live region is always in the DOM so that screen reader announcements
+  work regardless of whether there are currently visible toasts.
+  Error toasts use role="alert" (implicitly assertive); all others are polite.
+-->
+<div
+	class="toast-stack"
+	style="{vertical}:{offsetRem}rem; z-index:{zIndex};"
+	aria-live="polite"
+	aria-atomic="false"
+	role="status"
+>
+	{#each $controller as t (t.id)}
+		{#if t.type === 'error'}
+			<div class="toast toast-{t.type}" role="alert">{t.msg}</div>
+		{:else}
 			<div class="toast toast-{t.type}">{t.msg}</div>
-		{/each}
-	</div>
-{/if}
+		{/if}
+	{/each}
+</div>
 
 <style>
 	.toast-stack {
@@ -36,12 +44,15 @@
 		flex-direction: column;
 		gap: .3rem;
 		pointer-events: none;
+		max-width: min(90vw, 480px);
+		width: max-content;
 	}
 	.toast {
 		padding: .4rem 1rem;
 		font-size: var(--fs-body-sm);
 		border-radius: 100px;
-		white-space: nowrap;
+		white-space: normal;
+		word-break: break-word;
 		backdrop-filter: blur(10px);
 		-webkit-backdrop-filter: blur(10px);
 		animation: toast-in .2s ease;

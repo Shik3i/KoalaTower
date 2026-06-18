@@ -18,8 +18,9 @@
 import { hybridCost, additiveEffect } from './balanceMath';
 import {
 	computeEnemyConfig, enemiesPerWave, bossEscortCount, availableEnemyTypes,
-	spawnIntervalForWave,
+	spawnIntervalForWave, frontEnemyArmor, frontHasResistance,
 } from './balanceMath';
+import { scaleCountForFront } from './enemies';
 import { BATTLE_UPGRADE_DEFS, getBattleUpgradeCost, getBattleUpgradeEffect } from './battleUpgrades';
 import { WORKSHOP_UPGRADE_DEFS, getWorkshopUpgradeEffect } from './workshopUpgrades';
 import { getLabEffect } from './labs';
@@ -39,6 +40,12 @@ export interface SimResult {
 	tier: number; strategy: Strategy; labLevels: Record<string, number>;
 	lockedUpgradesSkipped: number;
 	totalShiniesKilled: number;
+	/** True if any armored enemy was encountered this run (Front 5+ late, 6+ earlier). */
+	armorEncountered: boolean;
+	/** True if this Front has damage-type resistance scaffolding (Front 9+). */
+	resistanceScaffold: boolean;
+	/** Per-wave enemy-count multiplier for this Front. */
+	enemyCountMultiplier: number;
 }
 
 interface SimState {
@@ -55,6 +62,7 @@ interface SimState {
 	lockedUpgradesSkipped: number;
 	strategy: Strategy;
 	shiniesKilled: number;
+	armorEncountered: boolean;
 }
 
 function computeBaseline(ws: Record<string, number>, lab: Record<string, number>) {
@@ -193,6 +201,7 @@ export function simulateRun(
 		lockedUpgradesSkipped: 0,
 		strategy,
 		shiniesKilled: 0,
+		armorEncountered: false,
 	};
 
 	// Define strategy buy priorities and thresholds
@@ -230,7 +239,10 @@ export function simulateRun(
 	for (let wave = 1; wave <= maxWaves; wave++) {
 		state.wave = wave;
 		const isBossWave = wave % 10 === 0;
-		const count = isBossWave ? bossEscortCount(wave) + 1 : enemiesPerWave(wave);
+		// Per-Front enemy-count multiplier: higher Fronts spawn denser waves.
+		const count = isBossWave
+			? scaleCountForFront(bossEscortCount(wave), tier) + 1
+			: scaleCountForFront(enemiesPerWave(wave), tier);
 		const spawnInt = spawnIntervalForWave(wave);
 
 		// ── Wave-level combat summary ──────────────────────────────────
@@ -243,19 +255,22 @@ export function simulateRun(
 		// Try to unlock blueprints as we progress
 		tryUnlockBlueprints(state, totalBossesDefeated);
 
+		// Front-aware roster (delayed type introduction; Front 1 drips slowly).
+		const frontTypes = availableEnemyTypes(wave, tier);
 		for (let e = 0; e < count; e++) {
 			let type: EnemyType;
 			if (isBossWave && e < count - 1) {
-				type = availableEnemyTypes(wave)[Math.floor(rng() * availableEnemyTypes(wave).length)]!;
+				type = frontTypes[Math.floor(rng() * frontTypes.length)]!;
 			} else if (isBossWave && e === count - 1) {
 				type = EnemyType.Boss;
 			} else {
-				type = availableEnemyTypes(wave)[Math.floor(rng() * availableEnemyTypes(wave).length)]!;
+				type = frontTypes[Math.floor(rng() * frontTypes.length)]!;
 			}
 			const isBoss = type === EnemyType.Boss;
 			// 5% shiny chance, exclude bosses for safety
 			const isShiny = !isBoss && rng() < 0.05;
 			const config = computeEnemyConfig(type, wave, tier, isShiny);
+			if (config.armor > 0) state.armorEncountered = true;
 
 			const multAvg = 1 + state.multishotChance * state.multishotCount;
 			const critAvg = 1 + state.critChance * (state.critMultiplier - 1);
@@ -389,6 +404,9 @@ export function simulateRun(
 		tier, strategy, labLevels,
 		lockedUpgradesSkipped: state.lockedUpgradesSkipped,
 		totalShiniesKilled: state.shiniesKilled,
+		armorEncountered: state.armorEncountered,
+		resistanceScaffold: frontHasResistance(tier),
+		enemyCountMultiplier: 1 + 0.33 * (tier - 1),
 	};
 }
 
@@ -529,5 +547,31 @@ export const SCENARIOS: SimScenario[] = [
 		tier: 2, strategy: 'optimal',
 		unlockedBlueprints: Object.values(BlueprintId),
 		desc: '500 foundry farmer tries Tier 2.'
+	},
+	// ── 16-Front progression-structure scenarios (Part 11) ──
+	{
+		name: 'Front 5 Early (Redline opener)', workshop: {
+			[WorkshopUpgradeId.BaseDamage]: 200, [WorkshopUpgradeId.StartingHp]: 100,
+			[WorkshopUpgradeId.BaseFireRate]: 40, [WorkshopUpgradeId.DefenseAbsolute]: 50,
+			[WorkshopUpgradeId.BaseRange]: 20, [WorkshopUpgradeId.EnergyBonus]: 30,
+			[WorkshopUpgradeId.CoinBonus]: 20, [WorkshopUpgradeId.Regen]: 10,
+			[WorkshopUpgradeId.DefensePercent]: 5 },
+		labs: { damageResearch: 60, healthResearch: 40, attackSpeedResearch: 20,
+			alloyEfficiency: 15, energyEfficiency: 10 },
+		tier: 5, strategy: 'optimal',
+		unlockedBlueprints: Object.values(BlueprintId),
+		desc: 'First push onto Front 5 (Redline). Armor appears late (~Wave 100); denser waves (2.32×).'
+	},
+	{
+		name: 'Front 9 Resistance Scaffold (Blacksite)', workshop: {
+			[WorkshopUpgradeId.BaseDamage]: 500, [WorkshopUpgradeId.StartingHp]: 300,
+			[WorkshopUpgradeId.BaseFireRate]: 70, [WorkshopUpgradeId.DefenseAbsolute]: 100,
+			[WorkshopUpgradeId.BaseRange]: 40, [WorkshopUpgradeId.Regen]: 30,
+			[WorkshopUpgradeId.DefensePercent]: 15, [WorkshopUpgradeId.CritBonus]: 15 },
+		labs: { damageResearch: 120, healthResearch: 90, attackSpeedResearch: 50,
+			alloyEfficiency: 30, energyEfficiency: 20 },
+		tier: 9, strategy: 'optimal',
+		unlockedBlueprints: Object.values(BlueprintId),
+		desc: 'Front 9 (Blacksite) scaffold check — armor frequent, resistance scaffolding present, ~3.64× density.'
 	},
 ];

@@ -1,5 +1,6 @@
 import type { GameSettings, WorkshopUpgradeId, LabId, MilestoneId, ChallengeId, BlueprintId, AchievementId, EnemyType } from '../engine/gameTypes';
 import { TierId, DEFAULT_SETTINGS } from '../engine/gameTypes';
+import { emptySchematics } from '../balance/schematics';
 
 export interface LabResearch {
 	level: number;
@@ -62,9 +63,22 @@ export interface SaveData {
 	totalPlayTimeSeconds: number;
 	// v10: Mastery achievement claims (string keys like "mastery_normal_1")
 	masteryAchievements: Partial<Record<string, boolean>>;
+	// v11: Schematics — per-Front fungible currency used to reconstruct upgrade paths.
+	/** Front number (1–16) → Schematics held for that Front. */
+	schematicsByFront: Record<number, number>;
+	/** One-time Schematic milestone claim keys, e.g. "1:50" (Front 1, Wave 50). */
+	claimedSchematicMilestones: string[];
 }
 
-export const CURRENT_SCHEMA_VERSION = 10;
+export const CURRENT_SCHEMA_VERSION = 11;
+
+function generateSaveId(prefix = 'fltd'): string {
+	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+		return prefix + '-' + crypto.randomUUID();
+	}
+	// Fallback for environments without crypto.randomUUID
+	return prefix + '-' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+}
 
 export function createDefaultSave(): SaveData {
 	const now = Date.now();
@@ -72,7 +86,7 @@ export function createDefaultSave(): SaveData {
 		schemaVersion: CURRENT_SCHEMA_VERSION,
 		createdAt: new Date(now).toISOString(),
 		lastUpdated: now,
-		saveId: 'fltd-' + Math.random().toString(36).slice(2, 10),
+		saveId: generateSaveId(),
 		totalRuns: 0,
 		highestWave: 0,
 		totalCoins: 0,
@@ -102,5 +116,7 @@ export function createDefaultSave(): SaveData {
 		totalWavesCompleted: 0,
 		totalPlayTimeSeconds: 0,
 		masteryAchievements: {},
+		schematicsByFront: emptySchematics(),
+		claimedSchematicMilestones: [],
 	};
 }
