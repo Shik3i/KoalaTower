@@ -28,7 +28,7 @@
 		{
 			id: 'enemies',
 			q: 'What enemy types exist?',
-			a: 'Five types, each with a unique outline shape: ■ Square = Normal (balanced, confident), ◆ Diamond = Fast (quick, low HP, no patience), ⬡ Hexagon = Tank (slow, high HP, geometrically dense), ▶ Triangle = Ranged (stops at range, shoots from a distance, legally classified as aggressive), ⬠ Pentagon = Boss (appears every 10 waves with escorts, high HP and damage, extremely entitled). Watch their shapes to identify them instantly.',
+			a: 'Five types, each with a unique outline shape: ■ Square = Normal (baseline), ◆ Diamond = Fast (1.8× Normal speed, half HP), ⬡ Hexagon = Tank (8× HP, larger, slower), ▶ Triangle = Ranged (stops just inside starter tower range and fires), ⬠ Pentagon = Boss (every 10 waves with escorts, 22.5× HP, very large). Watch their shapes to identify them instantly.',
 		},
 		{
 			id: 'bosses',
@@ -43,7 +43,7 @@
 		{
 			id: 'upgrade-caps',
 			q: 'Do Field Upgrades have limits?',
-			a: 'Yes. Percentage-based Field Upgrades have hard caps: Multishot Chance at 50%, Crit Chance at 45%. Flat upgrades (Damage, Attack Speed, Range, Defense, HP) have high max levels. The UI shows MAXED at the cap. Even the Tower has limits. It has been informed of this regulation.',
+			a: 'Yes. Percentage-based Field Upgrades have hard caps: Multishot Chance at 50%, combined Crit Chance at 75%. Flat upgrades have high or practical caps; Damage is treated as long-tail progression rather than a normal early max. The UI shows MAXED when a real cap is reached. Even the Tower has limits. It has been informed of this regulation.',
 		},
 		{
 			id: 'workshop',
@@ -68,7 +68,7 @@
 		{
 			id: 'waves',
 			q: 'How do waves scale?',
-			a: 'Waves are endless. Enemy HP, damage, and speed increase gradually. Armor (damage reduction) appears after wave 10 and caps at 70%. More enemy types unlock at higher waves: Fast at wave 3, Tank at wave 5, Ranged at wave 8. Keep upgrading to survive. The swarm is learning. So is the Tower. One of them is better at it.',
+			a: 'Waves are endless. Enemy HP, damage, and speed increase gradually. Front 1 introduces enemies slowly: Fast after the first boss at Wave 11, Tank at Wave 50, and Ranged at Wave 100. Later Fronts introduce the roster earlier. Armor appears only on higher Fronts, not in early Perimeter deployments. Keep upgrading to survive. The swarm is learning. So is the Tower. One of them is better at it.',
 		},
 		{
 			id: 'save',
@@ -242,22 +242,22 @@
 			<div class="enemy-card">
 				<div class="enemy-shape diamond">◆</div>
 				<h3>Fast</h3>
-				<p>High speed, low HP. Appears from wave 3. Diamond outline.</p>
+				<p>1.8× Normal speed, half HP. Front 1: appears from wave 11. Diamond outline.</p>
 			</div>
 			<div class="enemy-card">
 				<div class="enemy-shape hexagon">⬡</div>
 				<h3>Tank</h3>
-				<p>Slow, high HP. Appears from wave 5. Hexagon outline.</p>
+				<p>8× Normal HP, larger, 0.55× Normal speed. Front 1: appears from wave 50.</p>
 			</div>
 			<div class="enemy-card">
 				<div class="enemy-shape triangle">▶</div>
 				<h3>Ranged</h3>
-				<p>Stops at distance, shoots at tower. Appears from wave 8. Triangle outline.</p>
+				<p>Stops at 179 range, just inside starter tower range, and fires at the tower. Front 1: appears from wave 100.</p>
 			</div>
 			<div class="enemy-card boss">
 				<div class="enemy-shape pentagon">⬠</div>
 				<h3>Boss</h3>
-				<p>Large, pulsing aura. Appears every 10 waves with escorts. Pentagon outline.</p>
+				<p>22.5× Normal HP, larger than Tanks, pulsing aura. Every 10 waves with escorts.</p>
 			</div>
 		</div>
 	</section>
@@ -271,18 +271,18 @@
 				<div class="help-card-icon">⚡</div>
 				<h3>Base Damage</h3>
 				<p>+5 damage per level. Core scaling stat — invest heavily.</p>
-				<span class="card-tag">Max 5000</span>
+				<span class="card-tag">Long-tail</span>
 			</div>
 			<div class="help-card ws">
 				<div class="help-card-icon">🔥</div>
 				<h3>Base Fire Rate</h3>
-				<p>+0.02 attacks/sec per level. Scales DPS significantly.</p>
-				<span class="card-tag">Max 99</span>
+				<p>+0.1 attacks/sec per level. Base fire rate caps at 10/s before Research.</p>
+				<span class="card-tag">Max 90</span>
 			</div>
 			<div class="help-card ws">
 				<div class="help-card-icon">🎯</div>
 				<h3>Base Range</h3>
-				<p>+1.5 range per level. See and target enemies sooner.</p>
+				<p>+0.5 range per level. Useful, but no longer required just to hit early Ranged enemies.</p>
 				<span class="card-tag">Max 79</span>
 			</div>
 			<div class="help-card ws">
@@ -306,7 +306,7 @@
 			<div class="help-card ws">
 				<div class="help-card-icon">⭐</div>
 				<h3>Crit Bonus</h3>
-				<p>+0.5% base crit chance per level. Caps at 24.5% base.</p>
+				<p>+0.5% base crit chance per level. Combined crit chance caps at 75%.</p>
 				<span class="card-tag">Max 49</span>
 			</div>
 			<div class="help-card ws">
@@ -417,7 +417,7 @@
 		<p class="section-desc">Temporary overclocks powered by Energy (⚡) during a deployment. They expire when the tower is destroyed. Three categories to choose from.</p>
 		<div class="upgrade-table">
 			<div class="ut-header"><span>Category</span><span>Upgrades</span><span>Cap</span></div>
-			<div class="ut-row"><span>⚔️ Offense</span><span>Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier</span><span>% ones capped</span></div>
+			<div class="ut-row"><span>⚔️ Offense</span><span>Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier</span><span>Crit 75%</span></div>
 			<div class="ut-row"><span>🛡️ Defense</span><span>Defense (flat damage reduction), Max HP</span><span>Max level only</span></div>
 			<div class="ut-row"><span>🔧 Utility</span><span>Energy Amp (+% energy per kill)</span><span>75% cap</span></div>
 		</div>

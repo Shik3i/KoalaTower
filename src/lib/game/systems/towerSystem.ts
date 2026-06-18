@@ -21,6 +21,7 @@ import {
 } from '../engine/gameTypes';
 import { getBattleUpgradeEffect } from '../balance/battleUpgrades';
 import { getWorkshopUpgradeEffect } from '../balance/workshopUpgrades';
+import { STARTING_TOWER_RANGE } from '../balance/balanceMath';
 import { getLabMultiplier } from '../balance/labs';
 
 export function createTowerState(state: GameState): TowerState {
@@ -31,7 +32,7 @@ export function createTowerState(state: GameState): TowerState {
 
 	const baseDamage = (50 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, w(WorkshopUpgradeId.BaseDamage))) * lab.dmg;
 	const baseFireRate = (1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, w(WorkshopUpgradeId.BaseFireRate))) * lab.fireRate;
-	const baseRange = 180 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, w(WorkshopUpgradeId.BaseRange));
+	const baseRange = STARTING_TOWER_RANGE + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, w(WorkshopUpgradeId.BaseRange));
 	const baseHp = Math.floor((TOWER_HP_BASE + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, w(WorkshopUpgradeId.StartingHp))) * lab.hp);
 	const baseCrit = Math.min(0.30, 0.01 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, w(WorkshopUpgradeId.CritBonus)));
 
@@ -82,10 +83,10 @@ export function applyBattleUpgrades(state: GameState): void {
 	// Effective = base × lab + battle
 	tower.stats.damage = (50 + wsDmg) * lab.dmg + getBattleUpgradeEffect(UpgradeId.Damage, b(UpgradeId.Damage));
 	tower.stats.fireRate = (1.0 + wsFR) * lab.fireRate + getBattleUpgradeEffect(UpgradeId.FireRate, b(UpgradeId.FireRate));
-	tower.stats.range = 180 + wsRange + getBattleUpgradeEffect(UpgradeId.Range, b(UpgradeId.Range));
+	tower.stats.range = STARTING_TOWER_RANGE + wsRange + getBattleUpgradeEffect(UpgradeId.Range, b(UpgradeId.Range));
 	tower.stats.multishotChance = getBattleUpgradeEffect(UpgradeId.Multishot, b(UpgradeId.Multishot));
 	tower.stats.multishotCount = 1 + getBattleUpgradeEffect(UpgradeId.MultishotProjectiles, b(UpgradeId.MultishotProjectiles));
-	tower.stats.critChance = Math.min(0.45, 0.01 + wsCrit + getBattleUpgradeEffect(UpgradeId.CritChance, b(UpgradeId.CritChance)));
+	tower.stats.critChance = Math.min(0.75, 0.01 + wsCrit + getBattleUpgradeEffect(UpgradeId.CritChance, b(UpgradeId.CritChance)));
 	tower.stats.critMultiplier = 1.20 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, b(UpgradeId.CritMultiplier));
 	tower.stats.defensePercent = Math.min(0.50, wsDefPct + getBattleUpgradeEffect(UpgradeId.DefensePercent, b(UpgradeId.DefensePercent)));
 	tower.stats.defenseAbsolute = wsDefAbs + getBattleUpgradeEffect(UpgradeId.Defense, b(UpgradeId.Defense));

@@ -9,6 +9,7 @@
 
 import type { GameSettings, TowerStats } from './gameTypes';
 import { DEFAULT_SETTINGS } from './gameTypes';
+import { STARTING_TOWER_RANGE } from '../balance/balanceMath';
 
 export const GAME_CONFIG = {
 	VIEW_WIDTH: 800,
@@ -68,7 +69,7 @@ export function getDefaultTowerStats(): TowerStats {
 	return {
 		damage: 50,
 		fireRate: 1.0,
-		range: 180,
+		range: STARTING_TOWER_RANGE,
 		multishotChance: 0,
 		multishotCount: 1,
 		critChance: 0.01,

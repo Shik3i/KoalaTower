@@ -213,12 +213,11 @@ export function waveCoinRewardMultiplier(wave: number): number {
 
 // ─── Boss multipliers ──────────────────────────────────────────────────────
 // Boss stats relative to a normal enemy at the same wave × tier.
-// Capped to prevent absurd spikes on top of already steep piecewise enemy scaling.
-// Early boss wave 10: ~5.5× HP, ~1.6× ATK — reachable after early permanent progress.
-// Late boss: caps at 25× HP, 8× ATK to remain walls but not impossible spikes.
+// HP is stable so every boss wave reads as a major event without hidden ramp
+// weirdness on top of the already steep piecewise enemy scaling.
 
-export function bossHpMultiplier(wave: number): number {
-	return Math.min(25, 5 + wave * 0.05);
+export function bossHpMultiplier(_wave: number): number {
+	return 22.5;
 }
 
 export function bossAttackMultiplier(wave: number): number {
@@ -283,6 +282,9 @@ export function additiveEffect(perLevel: number, level: number, cap?: number): n
 	return cap !== undefined ? Math.min(raw, cap) : raw;
 }
 
+export const STARTING_TOWER_RANGE = 180;
+export const RANGED_ATTACK_RANGE = STARTING_TOWER_RANGE - 1;
+
 // ─── Enemy type configuration ───────────────────────────────────────
 
 export const ENEMY_BASE_STATS: Record<EnemyType, {
@@ -294,9 +296,9 @@ export const ENEMY_BASE_STATS: Record<EnemyType, {
 	size: number;
 }> = {
 	[EnemyType.Normal]:  { hp: 45,  speed: 65,  attack: 22, attackRange: 30,  attackCooldown: 1.5, size: 16 },
-	[EnemyType.Fast]:    { hp: 22,  speed: 120, attack: 11, attackRange: 25,  attackCooldown: 1.0, size: 13 },
-	[EnemyType.Tank]:    { hp: 140, speed: 30,  attack: 33, attackRange: 30,  attackCooldown: 2.0, size: 24 },
-	[EnemyType.Ranged]:  { hp: 34,  speed: 50,  attack: 18, attackRange: 200, attackCooldown: 2.5, size: 15 },
+	[EnemyType.Fast]:    { hp: 22,  speed: 65,  attack: 11, attackRange: 25,  attackCooldown: 1.0, size: 13 },
+	[EnemyType.Tank]:    { hp: 140, speed: 65,  attack: 33, attackRange: 30,  attackCooldown: 2.0, size: 24 },
+	[EnemyType.Ranged]:  { hp: 34,  speed: 50,  attack: 18, attackRange: RANGED_ATTACK_RANGE, attackCooldown: 2.5, size: 15 },
 	[EnemyType.Boss]:    { hp: 800, speed: 30,  attack: 55, attackRange: 50,  attackCooldown: 1.5, size: 40 },
 };
 
@@ -308,7 +310,7 @@ export const ENEMY_TYPE_MODIFIERS: Record<EnemyType, {
 }> = {
 	[EnemyType.Normal]:  { hp: 1.0,  attack: 1.0,  speed: 1.0,  reward: 1.0 },
 	[EnemyType.Fast]:    { hp: 0.5,  attack: 1.0,  speed: 1.8,  reward: 1.3 },
-	[EnemyType.Tank]:    { hp: 3.0,  attack: 1.5,  speed: 0.6,  reward: 2.2 },
+	[EnemyType.Tank]:    { hp: 8.0,  attack: 1.5,  speed: 0.55, reward: 2.2 },
 	[EnemyType.Ranged]:  { hp: 1.3,  attack: 1.2,  speed: 0.8,  reward: 1.7 },
 	[EnemyType.Boss]:    { hp: 1.0,  attack: 1.0,  speed: 1.0,  reward: 1.0 },
 };

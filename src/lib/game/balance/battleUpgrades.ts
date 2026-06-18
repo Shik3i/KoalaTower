@@ -85,15 +85,15 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 	{
 		id: UpgradeId.CritChance,
 		name: 'Crit Chance',
-		description: '+1% crit chance per level. Doubles on first purchase.',
+		description: '+1% crit chance per level. Combined crit chance caps at 75%.',
 		icon: '⭐',
 		category: 'offense',
-		maxLevel: 45,
+		maxLevel: 75,
 		baseCost: 5,
 		costGrowth: 1.20,
 		costExponent: 0,
 		effectPerLevel: 0.01,
-		effectCap: 0.45,
+		effectCap: 0.75,
 	},
 	{
 		id: UpgradeId.CritMultiplier,

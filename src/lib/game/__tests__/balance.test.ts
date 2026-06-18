@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { getOpLogMessage } from '../balance/operationLog';
 import {
 	getBattleUpgradeCost,
@@ -35,6 +36,8 @@ import {
 	SHINY_COLOR_OVERRIDE,
 	isShinySpawn,
 	TIER_MULTIPLIERS,
+	STARTING_TOWER_RANGE,
+	RANGED_ATTACK_RANGE,
 } from '../balance/balanceMath';
 import { UpgradeId, WorkshopUpgradeId, EnemyType, BlueprintId, LabId } from '../engine/gameTypes';
 import { simulateRun, SCENARIOS } from '../balance/balanceSimulator';
@@ -176,6 +179,24 @@ describe('Workshop Upgrades', () => {
 			expect(eff10).toBeGreaterThan(0);
 		}
 	});
+
+	it('Base Range grants +0.5 range per level', () => {
+		expect(getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, 1)).toBeCloseTo(0.5, 4);
+		expect(getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, 10)).toBeCloseTo(5, 4);
+	});
+
+	it('Base Fire Rate grants +0.1/s per level and caps base rate at 10/s', () => {
+		const def = WORKSHOP_UPGRADE_DEFS.find(d => d.id === WorkshopUpgradeId.BaseFireRate)!;
+		expect(def.maxLevel).toBe(90);
+		expect(getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, 1)).toBeCloseTo(0.1, 4);
+		expect(1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, def.maxLevel)).toBeCloseTo(10, 4);
+		expect(1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, def.maxLevel + 10)).toBeCloseTo(10, 4);
+	});
+
+	it('Base Damage is long-tail rather than a normal early max', () => {
+		const def = WORKSHOP_UPGRADE_DEFS.find(d => d.id === WorkshopUpgradeId.BaseDamage)!;
+		expect(def.maxLevel).toBeGreaterThan(100_000);
+	});
 });
 
 // ─── Wave Scaling Tests ─────────────────────────────────────────────────────
@@ -242,8 +263,8 @@ describe('Enemy Config', () => {
 	it('boss should have significantly more HP than normal', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 10);
 		const boss = computeEnemyConfig(EnemyType.Boss, 10);
-		// Boss HP multiplier is now capped at 25x; at wave 10 it's ~5.5x
-		expect(boss.hp).toBeGreaterThan(normal.hp * 4);
+		expect(boss.hp / normal.hp).toBeGreaterThanOrEqual(20);
+		expect(boss.hp / normal.hp).toBeLessThanOrEqual(25);
 	});
 
 	it('fast enemy should have lower HP than normal', () => {
@@ -256,6 +277,38 @@ describe('Enemy Config', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 10);
 		const tank = computeEnemyConfig(EnemyType.Tank, 10);
 		expect(tank.hp).toBeGreaterThan(normal.hp);
+	});
+
+	it('fast identity is faster than normal but keeps low HP', () => {
+		const normal = computeEnemyConfig(EnemyType.Normal, 20);
+		const fast = computeEnemyConfig(EnemyType.Fast, 20);
+		expect(fast.speed / normal.speed).toBeGreaterThan(1.6);
+		expect(fast.speed / normal.speed).toBeLessThanOrEqual(2.0);
+		expect(fast.hp).toBeLessThan(normal.hp);
+	});
+
+	it('tank identity is 8x HP, larger, and slower than normal', () => {
+		const normal = computeEnemyConfig(EnemyType.Normal, 60);
+		const tank = computeEnemyConfig(EnemyType.Tank, 60);
+		expect(tank.hp / normal.hp).toBeCloseTo(8, 2);
+		expect(tank.size).toBeGreaterThan(normal.size);
+		expect(tank.speed / normal.speed).toBeCloseTo(0.55, 2);
+	});
+
+	it('boss identity is 20x-25x HP and larger than tank', () => {
+		const normal = computeEnemyConfig(EnemyType.Normal, 10);
+		const tank = computeEnemyConfig(EnemyType.Tank, 10);
+		const boss = computeEnemyConfig(EnemyType.Boss, 10);
+		expect(boss.hp / normal.hp).toBeGreaterThanOrEqual(20);
+		expect(boss.hp / normal.hp).toBeLessThanOrEqual(25);
+		expect(boss.size).toBeGreaterThan(tank.size);
+	});
+
+	it('ranged stops just inside starter tower range', () => {
+		const ranged = computeEnemyConfig(EnemyType.Ranged, 100);
+		expect(ranged.attackRange).toBeLessThanOrEqual(STARTING_TOWER_RANGE);
+		expect(ranged.attackRange).toBe(RANGED_ATTACK_RANGE);
+		expect(RANGED_ATTACK_RANGE).toBe(STARTING_TOWER_RANGE - 1);
 	});
 
 	it('should have correct shape assignments', () => {
@@ -283,11 +336,11 @@ describe('Enemy Config', () => {
 describe('Boss Waves', () => {
 	it('boss hp multiplier should scale and cap', () => {
 		const bm10 = bossHpMultiplier(10);
-		expect(bm10).toBeGreaterThan(5);
 		const bm50 = bossHpMultiplier(50);
-		expect(bm50).toBeGreaterThan(7);
 		const bm500 = bossHpMultiplier(500);
-		expect(bm500).toBe(25); // capped
+		expect(bm10).toBe(22.5);
+		expect(bm50).toBe(22.5);
+		expect(bm500).toBe(22.5);
 	});
 
 	it('boss attack multiplier should scale and cap', () => {
@@ -1136,18 +1189,18 @@ describe('Crit chance cap regression', () => {
 		expect(baseCrit).toBeLessThanOrEqual(0.30);
 	});
 
-	it('battle CritChance at max level effect is exactly at the cap (0.45)', () => {
+	it('battle CritChance at max level effect is exactly at the cap (0.75)', () => {
 		const critDef = BATTLE_UPGRADE_DEFS.find(d => d.id === UpgradeId.CritChance)!;
 		expect(critDef).toBeDefined();
 		const eff = getBattleUpgradeEffect(UpgradeId.CritChance, critDef.maxLevel);
 		expect(eff).toBeCloseTo(critDef.effectCap!, 4);
 	});
 
-	it('combined workshop + battle crit cannot exceed 0.45', () => {
+	it('combined workshop + battle crit cannot exceed 0.75', () => {
 		const maxWsCrit = getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, 999);
 		const maxBattleCrit = getBattleUpgradeEffect(UpgradeId.CritChance, 999);
-		const combined = Math.min(0.45, 0.01 + maxWsCrit + maxBattleCrit);
-		expect(combined).toBeLessThanOrEqual(0.45);
+		const combined = Math.min(0.75, 0.01 + maxWsCrit + maxBattleCrit);
+		expect(combined).toBeLessThanOrEqual(0.75);
 	});
 
 	it('battle CritChance level beyond maxLevel gives same effect as maxLevel (no dead levels)', () => {
@@ -1163,7 +1216,7 @@ describe('Dead-level regression (capped upgrades fixed in this pass)', () => {
 	// sits BELOW its cap at maxLevel (0.048) — a separate deferred finding, not fixed here.
 	const fixedCaps: Array<{ id: UpgradeId; maxLevel: number; cap: number }> = [
 		{ id: UpgradeId.Multishot,      maxLevel: 84, cap: 0.50 },
-		{ id: UpgradeId.CritChance,     maxLevel: 45, cap: 0.45 },
+		{ id: UpgradeId.CritChance,     maxLevel: 75, cap: 0.75 },
 		{ id: UpgradeId.DefensePercent, maxLevel: 50, cap: 0.50 },
 		{ id: UpgradeId.Regen,          maxLevel: 20, cap: 10.0  },
 	];
@@ -1208,6 +1261,18 @@ describe('Dead-level regression (capped upgrades fixed in this pass)', () => {
 		const def = BATTLE_UPGRADE_DEFS.find(d => d.id === UpgradeId.Regen)!;
 		expect(def.maxLevel).toBe(20);
 		expect(getBattleUpgradeEffect(UpgradeId.Regen, 20)).toBeCloseTo(10.0, 4);
+	});
+});
+
+describe('Help page balance copy', () => {
+	it('does not advertise stale Base Range +1.5 or old crit cap values', () => {
+		const help = readFileSync('src/routes/help/+page.svelte', 'utf8');
+		expect(help).not.toContain('+1.5 range per level');
+		expect(help).not.toContain('Crit Chance at 45%');
+		expect(help).not.toContain('Appears from wave 3');
+		expect(help).toContain('+0.5 range per level');
+		expect(help).toContain('combined Crit Chance at 75%');
+		expect(help).toContain('Base fire rate caps at 10/s');
 	});
 });
 

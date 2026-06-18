@@ -18,7 +18,7 @@
 import { hybridCost, additiveEffect } from './balanceMath';
 import {
 	computeEnemyConfig, enemiesPerWave, bossEscortCount, availableEnemyTypes,
-	spawnIntervalForWave, frontEnemyArmor, frontHasResistance,
+	spawnIntervalForWave, frontEnemyArmor, frontHasResistance, STARTING_TOWER_RANGE,
 } from './balanceMath';
 import { scaleCountForFront } from './enemies';
 import { BATTLE_UPGRADE_DEFS, getBattleUpgradeCost, getBattleUpgradeEffect } from './battleUpgrades';
@@ -76,7 +76,7 @@ function computeBaseline(ws: Record<string, number>, lab: Record<string, number>
 	return {
 		damage: (50 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, g(WorkshopUpgradeId.BaseDamage))) * lDmg,
 		fireRate: (1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, g(WorkshopUpgradeId.BaseFireRate))) * lFR,
-		range: 180 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, g(WorkshopUpgradeId.BaseRange)),
+		range: STARTING_TOWER_RANGE + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, g(WorkshopUpgradeId.BaseRange)),
 		hp: Math.floor((100 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, g(WorkshopUpgradeId.StartingHp))) * lHP),
 		critChance: Math.min(0.30, 0.01 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CritBonus, g(WorkshopUpgradeId.CritBonus))),
 		cashMult: (1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.EnergyBonus, g(WorkshopUpgradeId.EnergyBonus))) * lCash,
@@ -126,7 +126,7 @@ function recompute(state: SimState, ws: ReturnType<typeof computeBaseline>): voi
 	state.range = ws.range + getBattleUpgradeEffect(UpgradeId.Range, bl(UpgradeId.Range));
 	state.multishotChance = getBattleUpgradeEffect(UpgradeId.Multishot, bl(UpgradeId.Multishot));
 	state.multishotCount = 1 + getBattleUpgradeEffect(UpgradeId.MultishotProjectiles, bl(UpgradeId.MultishotProjectiles));
-	state.critChance = ws.critChance + getBattleUpgradeEffect(UpgradeId.CritChance, bl(UpgradeId.CritChance));
+	state.critChance = Math.min(0.75, ws.critChance + getBattleUpgradeEffect(UpgradeId.CritChance, bl(UpgradeId.CritChance)));
 	state.critMultiplier = 1.20 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, bl(UpgradeId.CritMultiplier));
 	state.defense = ws.wsDefAbs + getBattleUpgradeEffect(UpgradeId.Defense, bl(UpgradeId.Defense));
 	state.defensePercent = Math.min(0.50, ws.wsDefPct + getBattleUpgradeEffect(UpgradeId.DefensePercent, bl(UpgradeId.DefensePercent)));
