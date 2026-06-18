@@ -55,6 +55,9 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		if (version < 12) {
 			save = migrateV11toV12(save);
 		}
+		if (version < 13) {
+			save = migrateV12toV13(save);
+		}
 
 		save = ensureMetadata(save);
 
@@ -119,6 +122,7 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 		lastDailyContractDeploymentAt: 0,
 		blackMarketUnlocks: {},
 		autoDeploymentEnabled: false,
+		blackMarketIntroSeen: false,
 	};
 }
 
@@ -316,6 +320,14 @@ function migrateV11toV12(save: SaveData): SaveData {
 	};
 }
 
+function migrateV12toV13(save: SaveData): SaveData {
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		blackMarketIntroSeen: (save as any).blackMarketIntroSeen === true,
+	};
+}
+
 function migrateV8toV9(save: SaveData): SaveData {
 	// v9 adds per-front best waves for sequential front unlocking.
 	// All prior play happened on Front 1, so grandfather global best there.
@@ -410,5 +422,6 @@ function ensureMetadata(save: SaveData): SaveData {
 		lastDailyContractDeploymentAt: normalizeTimestamp((save as any).lastDailyContractDeploymentAt),
 		blackMarketUnlocks: normalizeBlackMarketUnlocks((save as any).blackMarketUnlocks),
 		autoDeploymentEnabled: (save as any).autoDeploymentEnabled === true,
+		blackMarketIntroSeen: (save as any).blackMarketIntroSeen === true,
 	};
 }

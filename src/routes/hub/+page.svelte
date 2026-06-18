@@ -20,15 +20,17 @@
 		canBuyBlackMarketUnlock,
 		canClaimDailyContract,
 		canClaimWeeklyShipment,
+		computeBlackMarketSignal,
 		convertSchematics,
 		hasBlackMarketUnlock,
+		isBlackMarketUnlocked,
 		isSupportUrlConfigured,
 		localDayKey,
 		weeklyShipmentRemainingMs,
 		type BlackMarketUnlockId,
 		type BlackMarketUnlocks,
 	} from '$lib/game/balance/blackMarket';
-	import { EnemyType, DEFAULT_SETTINGS } from '$lib/game/engine/gameTypes';
+	import { EnemyType, DEFAULT_SETTINGS, type TierId } from '$lib/game/engine/gameTypes';
 	import { ENEMY_TYPE_MODIFIERS, computeEnemyConfig, ENEMY_SHAPES } from '$lib/game/balance/balanceMath';
 	import { ENEMY_TYPE_LABELS, getMasteryProgress, MASTERY_REWARDS } from '$lib/game/balance/mastery';
 	import { BLUEPRINT_DEFS, isFoundryUpgradeUnlocked, getBlueprintForFoundryUpgrade, getFieldUpgradesUnlockedBy, getFoundryUpgradesUnlockedBy, describeBlueprintDiscovery } from '$lib/game/balance/blueprints';
@@ -81,13 +83,24 @@
 	let autoDeploymentEnabled = $state(false);
 	let converterSourceFront = $state(1);
 	let nowTick = $state(Date.now());
-	let frontBestWave = $state<Partial<Record<string, number>>>({});
+	let frontBestWave = $state<Partial<Record<TierId, number>>>({});
 	let killsByType = $state<Partial<Record<EnemyType, number>>>({});
 	let shinyKillsByType = $state<Partial<Record<EnemyType, number>>>({});
 	let lifetimeStats = $state({ totalEnergyEarned: 0, totalDamageDealt: 0, totalCritsDealt: 0, totalWavesCompleted: 0, totalPlayTimeSeconds: 0 });
 	let masteryAchievements = $state<Partial<Record<string, boolean>>>({});
 	let challengeHighScores = $state<Partial<Record<string, number>>>({});
 	let unlockedFronts = $derived(getUnlockedFronts(frontBestWave));
+	let bmUnlocked = $derived(isBlackMarketUnlocked(frontBestWave));
+	let bmSignal = $derived(computeBlackMarketSignal({
+		unlocked: bmUnlocked,
+		introSeen: blackMarketIntroSeen,
+		weeklyReady: canClaimWeeklyShipment(lastWeeklyBlackMarketShipmentClaimedAt, nowTick),
+		dailyReady: canClaimDailyContract(lastDailyContractCompletedAt, nowTick) && localDayKey(lastDailyContractDeploymentAt) === localDayKey(nowTick),
+	}));
+	let supportReady = $derived(isSupportUrlConfigured(SUPPORT_URL));
+	let blackMarketIntroSeen = $state(false);
+	let showBlackMarketIntro = $state(false);
+	let showShipmentModal = $state(false);
 	let activeLabId = $state<string | null>(null);
 	let activeLabFinish = $state<number>(0);
 	let activeLabTarget = $state<number>(0);
@@ -104,6 +117,7 @@
 		lastDailyContractCompletedAt = save.lastDailyContractCompletedAt ?? 0;
 		lastDailyContractDeploymentAt = save.lastDailyContractDeploymentAt ?? 0;
 		autoDeploymentEnabled = save.autoDeploymentEnabled === true;
+		blackMarketIntroSeen = save.blackMarketIntroSeen === true;
 	}
 
 	function formatDuration(ms: number): string {
@@ -122,18 +136,38 @@
 		save.lifetimeStrangeMatterEarned = Math.max(0, Math.floor(save.lifetimeStrangeMatterEarned ?? 0)) + grant;
 	}
 
-	function claimWeeklyShipment() {
+	function openBlackMarketChannel() {
+		showBlackMarketIntro = false;
+		const save = getCachedSave(); if (!save) return;
+		save.blackMarketIntroSeen = true;
+		persistSave(save);
+		refreshBlackMarketState();
+		activeSection = 'blackMarket';
+	}
+
+	function dismissBlackMarketIntro() {
+		showBlackMarketIntro = false;
+	}
+
+	function openShipmentModal() {
 		const save = getCachedSave(); if (!save) return;
 		const now = Date.now();
 		if (!canClaimWeeklyShipment(save.lastWeeklyBlackMarketShipmentClaimedAt ?? 0, now)) {
 			toast('Shipment unavailable. Paperwork remains absent.', 'info');
 			return;
 		}
+		showShipmentModal = true;
+	}
+
+	function acceptShipment() {
+		const save = getCachedSave(); if (!save) return;
+		const now = Date.now();
 		grantStrangeMatter(save, STRANGE_MATTER_WEEKLY_SHIPMENT);
 		save.lastWeeklyBlackMarketShipmentClaimedAt = now;
 		persistSave(save);
 		refreshBlackMarketState();
-		toast('Shipment accepted. +' + STRANGE_MATTER_WEEKLY_SHIPMENT + ' Strange Matter', 'success');
+		showShipmentModal = false;
+		toast('Shipment accepted. Your discretion has been logged nowhere official. +' + STRANGE_MATTER_WEEKLY_SHIPMENT + ' Strange Matter', 'success');
 	}
 
 	function claimDailyContract() {
@@ -274,6 +308,12 @@
 		refreshLabProgress();
 		labProgressTimer = setInterval(refreshLabProgress, 1000);
 		clockTimer = setInterval(() => { nowTick = Date.now(); }, 30000);
+
+		const introSave = getCachedSave();
+		if (introSave && isBlackMarketUnlocked(introSave.frontBestWave ?? {}) && !introSave.blackMarketIntroSeen) {
+			showBlackMarketIntro = true;
+		}
+
 		return () => { u1(); u2(); u3(); u4(); if (labProgressTimer) clearInterval(labProgressTimer); if (clockTimer) clearInterval(clockTimer); toasts.clear(); };
 	});
 
@@ -359,17 +399,24 @@
 		{ key: 'browserNotifications' as keyof GameSettings, label: 'Lab Notifications', desc: 'Browser notification when research finishes' },
 	];
 
-	const sections = [
+	const allSections = [
 		{ id: 'workshop' as const, label: 'Forge', icon: '⚙' },
 		{ id: 'lab' as const, label: 'Research Deck', icon: '🔬' },
 		{ id: 'blueprints' as const, label: 'Schematics', icon: '📐' },
-		{ id: 'blackMarket' as const, label: 'Black Market', icon: '◈' },
+		{ id: 'blackMarket' as const, label: 'Black Market', icon: '◈', requiresUnlock: true },
 		{ id: 'tiers' as const, label: 'Fronts', icon: '🌍' },
 		{ id: 'challenges' as const, label: 'Special Ops', icon: '⚡' },
 		{ id: 'simulation' as const, label: 'Simulation', icon: '🧪' },
 		{ id: 'stats' as const, label: 'Archives', icon: '📊' },
 		{ id: 'settings' as const, label: 'Systems', icon: '⚙' },
 	];
+	let visibleSections = $derived(allSections.filter(s => !s.requiresUnlock || bmUnlocked));
+
+	$effect(() => {
+		if (!bmUnlocked && activeSection === 'blackMarket') {
+			activeSection = 'workshop';
+		}
+	});
 </script>
 
 <svelte:head>
@@ -388,18 +435,40 @@
 	<header class="hub-top">
 		<a href="/" class="hub-back">← Home</a>
 		<h1 class="hub-title">🛰️ Orbital Command</h1>
-		<div class="hub-coins">🔩 {coins.toLocaleString()} <span class="hub-sm">◈ {strangeMatter.toLocaleString()}</span></div>
+		<div class="hub-coins">
+			🔩 {coins.toLocaleString()}
+			<span class="hub-sm">◈ {strangeMatter.toLocaleString()}</span>
+			{#if bmUnlocked}
+				<button
+					class="bm-signal"
+					class:bm-signal-glow={bmSignal === 'glow'}
+					class:bm-signal-subtle={bmSignal === 'subtle'}
+					onclick={() => { if (!blackMarketIntroSeen) { showBlackMarketIntro = true; } else { activeSection = 'blackMarket'; } }}
+					aria-label={bmSignal === 'glow' ? 'Black Market — unauthorized signal active' : 'Black Market — unauthorized channel'}
+					title={bmSignal === 'glow' ? 'Unauthorized signal active' : 'Black Market'}
+				>
+					◈
+				</button>
+			{/if}
+		</div>
 	</header>
 	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. The Forge pre-installs permanent tower upgrades, the Research Deck runs orbital projects, and Schematics reconstruct new capabilities. Archives track campaign telemetry.</p>
 
 	<div class="hub-body">
 		<nav class="hub-nav">
-			{#each sections as s}
+			{#each visibleSections as s}
 				<button class="hub-nav-btn" class:on={activeSection === s.id} onclick={() => activeSection = s.id}>
 					{s.icon} {s.label}
 				</button>
 			{/each}
 		</nav>
+
+		{#if !bmUnlocked}
+			<div class="bm-locked-teaser" aria-label="Unauthorized signal: Black Market channel unavailable">
+				<span class="bm-locked-icon">◈</span>
+				<span class="bm-locked-text">Unauthorized signal: no carrier detected. Field exposure insufficient.</span>
+			</div>
+		{/if}
 
 		<div class="hub-content">
 			{#if activeSection === 'workshop'}
@@ -480,10 +549,12 @@
 				{@const completedDeploymentToday = localDayKey(lastDailyContractDeploymentAt) === localDayKey(nowTick)}
 				{@const sourceBalance = getSchematics(schematicsByFront, converterSourceFront)}
 				{@const maxConversions = Math.floor(sourceBalance / SCHEMATIC_CONVERSION_RATE)}
-				{@const supportReady = isSupportUrlConfigured(SUPPORT_URL)}
-				<div class="hs">
-					<h2 class="hst">BLACK MARKET</h2>
-					<p class="hsd bm-copy">Unauthorized Procurement Channel. Signal origin unknown. Ledger entries self-delete after being read. Orbital Command does not authorize the possession, trade, study, inhalation, resale, or emotional attachment to Strange Matter. Fortunately, this terminal insists it has never met Orbital Command.</p>
+				<div class="hs bm-layout">
+					<div class="bm-header-bar">
+						<h2 class="hst bm-header-title">◈ BLACK MARKET</h2>
+						<span class="bm-header-sub">unauthorized channel · signal unstable</span>
+					</div>
+					<p class="hsd bm-copy">Orbital Command does not authorize the possession, trade, study, inhalation, resale, or emotional attachment to Strange Matter. Fortunately, this terminal is not connected to Orbital Command.</p>
 					<div class="bm-ledger">
 						<div class="ir"><span class="il">Strange Matter</span><span class="iv">◈ {strangeMatter.toLocaleString()}</span></div>
 						<div class="ir"><span class="il">Lifetime Recovered</span><span class="iv">◈ {lifetimeStrangeMatterEarned.toLocaleString()}</span></div>
@@ -491,33 +562,27 @@
 
 					<div class="bm-grid">
 						<section class="bm-panel">
-							<h3 class="stats-sub">Weekly Shipment</h3>
+							<h3 class="stats-sub">Unmarked Shipment</h3>
 							{#if weeklyReady}
-								<p class="hsd">A sealed container has arrived without paperwork, markings, or legal explanation.</p>
-								<p class="hsd">Flatland TD is free, local-first, and open source. Support is appreciated, never required. Payment is never checked. The shipment is yours either way.</p>
+								<p class="hsd">A sealed container has arrived without paperwork, markings, or legal explanation. It is warm. It is humming. It is addressed to someone using your clearance code.</p>
 								<div class="bm-actions">
-									{#if supportReady}
-										<a class="hub-action" href={SUPPORT_URL} target="_blank" rel="noopener" title="Support development">Fund the next shipment</a>
-									{:else}
-										<button class="hub-action" disabled title="Support relay not configured yet">Funding relay unavailable</button>
-									{/if}
-									<button class="hub-action bm-primary" onclick={claimWeeklyShipment}>Accept Shipment (+{STRANGE_MATTER_WEEKLY_SHIPMENT})</button>
+									<button class="hub-action bm-primary" onclick={openShipmentModal}>Inspect Shipment (+{STRANGE_MATTER_WEEKLY_SHIPMENT})</button>
 								</div>
 							{:else}
-								<p class="hsd">Shipment accepted. Your discretion has been logged nowhere official.</p>
+								<p class="hsd">Previous shipment accepted. No record exists of the transaction.</p>
 								<div class="ccl">Next shipment in {formatDuration(weeklyShipmentRemainingMs(lastWeeklyBlackMarketShipmentClaimedAt, nowTick))}</div>
 							{/if}
 						</section>
 
 						<section class="bm-panel">
 							<h3 class="stats-sub">Daily Contract</h3>
-							<p class="hsd">Complete one Deployment today. No streaks. No punishment. Just paperwork that somehow leaks radiation.</p>
+							<p class="hsd bm-contract-copy">A minor off-book task. Complete one Deployment today. Nobody signs. Everybody benefits.</p>
 							<button class="hub-action bm-primary" disabled={!dailyReady || !completedDeploymentToday} onclick={claimDailyContract}>Claim Contract (+{STRANGE_MATTER_DAILY_CONTRACT})</button>
 							{#if !completedDeploymentToday}<div class="ccl">Launch any Deployment today first.</div>{:else if !dailyReady}<div class="ccl">Filed for today. Return tomorrow.</div>{/if}
 						</section>
 					</div>
 
-					<h3 class="stats-sub" style="margin-top:1rem">Procurement List</h3>
+					<h3 class="stats-sub" style="margin-top:1rem">Contraband Procurement</h3>
 					<div class="cl">
 						{#each BLACK_MARKET_UNLOCKS as item}
 							{@const owned = hasBlackMarketUnlock(blackMarketUnlocks, item.id)}
@@ -732,6 +797,42 @@
 		</div>
 	</div>
 
+	<!-- Black Market Discovery Modal -->
+	{#if showBlackMarketIntro}
+		<div class="overlay" role="dialog" aria-modal="true" aria-label="Unauthorized channel detected">
+			<div class="dlg dlg-bm-intro">
+				<h3 class="bm-intro-title">UNAUTHORIZED CHANNEL DETECTED</h3>
+				<p class="bm-intro-body">An encrypted procurement signal is bleeding through the Orbital Command firewall.</p>
+				<p class="bm-intro-body">The signature is old. The funding codes are current. The legal status is flexible.</p>
+				<p class="bm-intro-body bm-intro-warn">Strange Matter transactions are prohibited under seventeen active safety directives.</p>
+				<p class="bm-intro-body">Fortunately, this terminal has misplaced all seventeen.</p>
+				<div class="dlg-a" style="gap:1rem">
+					<button class="dlg-s" onclick={dismissBlackMarketIntro}>Ignore for now</button>
+					<button class="dlg-p bm-intro-open" onclick={openBlackMarketChannel}>Open Channel</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Weekly Shipment Storylet Modal -->
+	{#if showShipmentModal}
+		<div class="overlay" role="dialog" aria-modal="true" aria-label="Unmarked shipment available">
+			<div class="dlg dlg-bm-shipment">
+				<h3 class="bm-intro-title">UNMARKED SHIPMENT AVAILABLE</h3>
+				<p class="bm-intro-body">A sealed container has arrived without paperwork, markings, or legal explanation.</p>
+				<p class="bm-intro-body">It is warm. It is humming. It is addressed to someone using your clearance code.</p>
+				<p class="bm-intro-body bm-intro-support">Flatland TD is free, local-first, and open source. If you want to support development and hosting, you can fund the next shipment.</p>
+				<p class="bm-intro-body bm-intro-support">Support is appreciated, never required. Payment is never checked. The shipment is yours either way.</p>
+				<div class="dlg-a" style="gap:1rem;flex-wrap:wrap">
+					{#if supportReady}
+						<a class="hub-action" href={SUPPORT_URL} target="_blank" rel="noopener" title="Support development">Fund the next shipment</a>
+					{/if}
+					<button class="hub-action bm-primary" style="margin:0" onclick={acceptShipment}>Accept Shipment (+{STRANGE_MATTER_WEEKLY_SHIPMENT})</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Import Dialog -->
 	{#if showImportDialog}
 		<div class="overlay" role="dialog" aria-modal="true" aria-label="Import save"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(getOpLogMessage('saveImportFailed'), 'error'); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
@@ -782,6 +883,43 @@
 	.bm-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.65rem; }
 	.bm-primary { border-color:rgba(0,255,255,.35); color:var(--cyan); }
 	.converter { margin-top:1rem; max-width:760px; }
+
+	/* Black Market header styling */
+	.bm-layout { border:1px solid rgba(136,68,255,.15); border-radius:var(--radius-md); padding:1.15rem 1.25rem; background:linear-gradient(180deg,rgba(136,68,255,.04),rgba(0,0,0,.06)),var(--bg-secondary); }
+	.bm-header-bar { display:flex; align-items:baseline; gap:.65rem; flex-wrap:wrap; margin-bottom:.5rem; }
+	.bm-header-title { color:rgba(210,190,255,.85); text-shadow:0 0 18px rgba(136,68,255,.18); }
+	.bm-header-sub { font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:.65; text-transform:uppercase; letter-spacing:.04em; }
+	.bm-contract-copy { color:var(--text-secondary); font-style:italic; }
+
+	/* Signal icon in header */
+	.bm-signal { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; margin-left:.35rem; padding:0; border:1px solid var(--border-neon); border-radius:50%; background:transparent; color:var(--text-dim); font-size:1.1rem; cursor:pointer; transition:all var(--transition-fast); flex-shrink:0; }
+	.bm-signal:hover { border-color:var(--cyan); color:var(--cyan); }
+	.bm-signal:focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
+	.bm-signal-subtle { color:var(--text-dim); border-color:rgba(255,255,255,.08); }
+	.bm-signal-glow { color:var(--violet); border-color:rgba(136,68,255,.55); animation:bm-pulse 2s ease-in-out infinite; box-shadow:0 0 14px rgba(136,68,255,.35); }
+	.bm-signal-glow:hover { border-color:var(--violet); color:var(--violet); box-shadow:0 0 22px rgba(136,68,255,.5); }
+
+	@keyframes bm-pulse {
+		0%, 100% { box-shadow:0 0 14px rgba(136,68,255,.35); }
+		50% { box-shadow:0 0 24px rgba(136,68,255,.55); }
+	}
+
+	@media (prefers-reduced-motion:reduce) {
+		.bm-signal-glow { animation:none; box-shadow:0 0 18px rgba(136,68,255,.4); }
+	}
+
+	/* Locked teaser */
+	.bm-locked-teaser { padding:.55rem 1rem; margin-top:.75rem; display:flex; align-items:center; gap:.5rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:.45; border:1px dashed rgba(136,68,255,.1); border-radius:var(--radius-sm); max-width:fit-content; }
+	.bm-locked-icon { color:var(--violet); opacity:.35; font-size:1.1rem; }
+
+	/* Black Market modals */
+	.dlg-bm-intro, .dlg-bm-shipment { border-color:rgba(136,68,255,.35); background:linear-gradient(180deg,rgba(20,15,40,.95),rgba(7,8,18,.98)); max-width:500px; }
+	.bm-intro-title { font-family:var(--font-display); font-size:var(--fs-subheading); color:rgba(210,190,255,.9); letter-spacing:.04em; margin-bottom:.65rem; text-shadow:0 0 16px rgba(136,68,255,.2); }
+	.bm-intro-body { color:var(--text-secondary); font-size:var(--fs-body-sm); line-height:1.55; margin-bottom:.55rem; }
+	.bm-intro-warn { color:rgba(255,200,100,.65); font-size:var(--fs-caption-sm); font-family:var(--font-mono); }
+	.bm-intro-support { color:var(--text-dim); font-size:var(--fs-caption-sm); }
+	.bm-intro-open { background:linear-gradient(135deg,rgba(136,68,255,.7),rgba(100,30,200,.7)); border-color:rgba(136,68,255,.5); }
+	.bm-intro-open:hover { box-shadow:0 0 16px rgba(136,68,255,.4); }
 	.buy-mult { display:flex; align-items:center; gap:2px; margin-bottom:.5rem; }
 	.mult-label { font-size:var(--fs-caption-sm); color:var(--text-dim); font-family:var(--font-mono); margin-right:.2rem; }
 	.mult-btn { padding:.15rem .4rem; font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); border-radius:4px; background:rgba(0,0,0,.12); border:1px solid transparent; cursor:pointer; transition:all var(--transition-fast); }

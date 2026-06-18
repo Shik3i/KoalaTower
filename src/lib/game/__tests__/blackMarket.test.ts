@@ -7,13 +7,16 @@ import {
 	canBuyBlackMarketUnlock,
 	canClaimDailyContract,
 	canClaimWeeklyShipment,
+	computeBlackMarketSignal,
 	convertSchematics,
 	getMaxUnlockedSpeed,
+	isBlackMarketUnlocked,
 	isSupportUrlConfigured,
 	normalizeBlackMarketUnlocks,
 	normalizeStrangeMatter,
 	weeklyShipmentRemainingMs,
 } from '../balance/blackMarket';
+import { TierId } from '../engine/gameTypes';
 import { emptySchematics } from '../balance/schematics';
 
 describe('Black Market economy', () => {
@@ -78,5 +81,62 @@ describe('Black Market economy', () => {
 		expect(convertSchematics(map, 16, 1).reason).toBe('invalidFront');
 		expect(convertSchematics(map, 15, 0).reason).toBe('invalidCount');
 		expect(convertSchematics(map, 15, 2).reason).toBe('insufficient');
+	});
+});
+
+describe('Black Market unlock gating', () => {
+	it('is locked when no Front 2 progress exists', () => {
+		expect(isBlackMarketUnlocked({})).toBe(false);
+	});
+
+	it('is locked when only Front 1 has any progress', () => {
+		expect(isBlackMarketUnlocked({ [TierId.Tier1]: 50 })).toBe(false);
+	});
+
+	it('is locked when Front 1 has not reached wave 100', () => {
+		expect(isBlackMarketUnlocked({ [TierId.Tier1]: 99 })).toBe(false);
+	});
+
+	it('unlocks when Front 1 reaches wave 100 (Front 2 = Perimeter ★)', () => {
+		expect(isBlackMarketUnlocked({ [TierId.Tier1]: 100 })).toBe(true);
+	});
+
+	it('unlocks when Front 2 already has progress', () => {
+		expect(isBlackMarketUnlocked({ [TierId.Tier1]: 100, [TierId.Tier2]: 50 })).toBe(true);
+	});
+
+	it('unlocks when all Perimeter Fronts are unlocked', () => {
+		expect(isBlackMarketUnlocked({
+			[TierId.Tier1]: 100,
+			[TierId.Tier2]: 100,
+			[TierId.Tier3]: 100,
+			[TierId.Tier4]: 200, // unlocks Redline
+		})).toBe(true);
+	});
+});
+
+describe('Black Market signal state', () => {
+	it('returns hidden when not unlocked', () => {
+		expect(computeBlackMarketSignal({ unlocked: false, introSeen: false, weeklyReady: false, dailyReady: false })).toBe('hidden');
+	});
+
+	it('returns glow when newly unlocked and intro not seen', () => {
+		expect(computeBlackMarketSignal({ unlocked: true, introSeen: false, weeklyReady: false, dailyReady: false })).toBe('glow');
+	});
+
+	it('returns glow when weekly shipment is available', () => {
+		expect(computeBlackMarketSignal({ unlocked: true, introSeen: true, weeklyReady: true, dailyReady: false })).toBe('glow');
+	});
+
+	it('returns glow when daily contract is claimable', () => {
+		expect(computeBlackMarketSignal({ unlocked: true, introSeen: true, weeklyReady: false, dailyReady: true })).toBe('glow');
+	});
+
+	it('returns subtle when unlocked, intro seen, and nothing available', () => {
+		expect(computeBlackMarketSignal({ unlocked: true, introSeen: true, weeklyReady: false, dailyReady: false })).toBe('subtle');
+	});
+
+	it('returns glow when both weekly and daily are available', () => {
+		expect(computeBlackMarketSignal({ unlocked: true, introSeen: true, weeklyReady: true, dailyReady: true })).toBe('glow');
 	});
 });

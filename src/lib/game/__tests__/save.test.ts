@@ -113,6 +113,38 @@ describe('Save Migration', () => {
 		expect(migrated!.lastDailyContractDeploymentAt).toBe(456);
 		expect(migrated!.blackMarketUnlocks).toEqual({ gameSpeed3: true });
 	});
+
+	it('should add blackMarketIntroSeen default false for v12→v13 migration', () => {
+		const v12 = {
+			schemaVersion: 12,
+			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalCoins: 1,
+			strangeMatter: 5,
+			blackMarketUnlocks: {},
+		};
+		const migrated = migrateSave(v12 as unknown as Record<string, unknown>);
+		expect(migrated).not.toBeNull();
+		expect(migrated!.schemaVersion).toBe(13);
+		expect(migrated!.blackMarketIntroSeen).toBe(false);
+	});
+
+	it('should preserve blackMarketIntroSeen true from v13 saves', () => {
+		const v13 = {
+			schemaVersion: 13,
+			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalCoins: 1,
+			strangeMatter: 5,
+			blackMarketUnlocks: {},
+			blackMarketIntroSeen: true,
+		};
+		const migrated = migrateSave(v13 as unknown as Record<string, unknown>);
+		expect(migrated).not.toBeNull();
+		expect(migrated!.blackMarketIntroSeen).toBe(true);
+	});
+
+	it('should have blackMarketIntroSeen in createDefaultSave', () => {
+		const save = createDefaultSave();
+		expect(save.blackMarketIntroSeen).toBe(false);
+		expect(save.schemaVersion).toBe(13);
+	});
 });
 
 describe('Save Validation', () => {

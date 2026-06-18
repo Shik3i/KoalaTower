@@ -77,9 +77,11 @@ export interface SaveData {
 	lastDailyContractDeploymentAt: number;
 	blackMarketUnlocks: BlackMarketUnlocks;
 	autoDeploymentEnabled: boolean;
+	/** v13: Whether the Black Market discovery intro has been seen. */
+	blackMarketIntroSeen: boolean;
 }
 
-export const CURRENT_SCHEMA_VERSION = 12;
+export const CURRENT_SCHEMA_VERSION = 13;
 
 function generateSaveId(prefix = 'fltd'): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -134,5 +136,6 @@ export function createDefaultSave(): SaveData {
 		lastDailyContractDeploymentAt: 0,
 		blackMarketUnlocks: {},
 		autoDeploymentEnabled: false,
+		blackMarketIntroSeen: false,
 	};
 }

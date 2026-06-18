@@ -1,4 +1,5 @@
-import { FRONT_COUNT } from './tiers';
+import { TierId } from '../engine/gameTypes';
+import { FRONT_COUNT, getUnlockedFronts } from './tiers';
 import { addSchematics, getSchematics, normalizeSchematics, spendSchematics, type SchematicsByFront } from './schematics';
 
 export type BlackMarketUnlockId =
@@ -159,4 +160,22 @@ export function convertSchematics(
 	}
 	addSchematics(schematics, sourceFront + 1, requested);
 	return { ok: true, schematics, converted: requested };
+}
+
+export function isBlackMarketUnlocked(frontBestWave: Partial<Record<TierId, number>>): boolean {
+	const unlocked = getUnlockedFronts(frontBestWave);
+	return unlocked.includes(TierId.Tier2);
+}
+
+export interface BlackMarketSignalState {
+	unlocked: boolean;
+	introSeen: boolean;
+	weeklyReady: boolean;
+	dailyReady: boolean;
+}
+
+export function computeBlackMarketSignal(s: BlackMarketSignalState): 'hidden' | 'glow' | 'subtle' {
+	if (!s.unlocked) return 'hidden';
+	if (!s.introSeen || s.weeklyReady || s.dailyReady) return 'glow';
+	return 'subtle';
 }
