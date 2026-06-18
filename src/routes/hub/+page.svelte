@@ -19,6 +19,16 @@
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
 
+	function formatPlayTime(totalSeconds: number): string {
+		if (totalSeconds <= 0) return '0s';
+		const h = Math.floor(totalSeconds / 3600);
+		const m = Math.floor((totalSeconds % 3600) / 60);
+		if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+		if (m > 0) return `${m}m`;
+		const s = totalSeconds % 60;
+		return `${s}s`;
+	}
+
 	let coins = $state(0);
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 	let highestWave = $state(0);

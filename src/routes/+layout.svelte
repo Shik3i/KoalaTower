@@ -102,6 +102,7 @@
 {@render children()}
 
 <footer class="layout-footer">
+	<p class="lf-tagline">All data stored locally in your browser. No tracking, no cookies. The Shapes remain hostile, flat, and statistically inconvenient.</p>
 	<nav class="lf-nav" aria-label="Site navigation">
 		<a href="/" class="lf-link">Home</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
@@ -112,17 +113,28 @@
 		<a href="/help" class="lf-link">Help</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
 		<a href="/privacy" class="lf-link">Privacy</a>
+		<span class="lf-sep" aria-hidden="true">·</span>
+		<a href="/imprint" class="lf-link">Imprint</a>
 	</nav>
-	<span class="lf-version">{APP_VERSION}</span>
+	<div class="lf-bottom">
+		<span class="lf-version">{APP_VERSION}</span>
+		<a href="https://support.koalastuff.net" target="_blank" rel="noopener" class="lf-coffee" aria-label="Buy me a coffee">
+			☕ Support
+		</a>
+	</div>
 </footer>
 
 <style>
-	.layout-footer { display:flex; align-items:center; justify-content:center; gap:.75rem; padding:.65rem 1rem; border-top:1px solid var(--border-neon); background:var(--bg-primary); position:relative; z-index:1; flex-wrap:wrap; }
-	.lf-nav { display:flex; gap:.35rem; align-items:center; }
+	.layout-footer { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.5rem; padding:.8rem 1rem 1rem; border-top:1px solid var(--border-neon); background:var(--bg-primary); position:relative; z-index:1; }
+	.lf-tagline { color:var(--text-dim); font-size:var(--fs-caption-sm); text-align:center; margin:0; max-width:40rem; line-height:1.5; }
+	.lf-nav { display:flex; gap:.35rem; align-items:center; flex-wrap:wrap; justify-content:center; }
 	.lf-link { color:var(--text-dim); font-size:var(--fs-caption-sm); text-decoration:none; transition:color var(--transition-fast); }
 	.lf-link:hover { color:var(--cyan); }
 	.lf-sep { color:var(--text-dim); opacity:.3; font-size:var(--fs-caption-sm); }
+	.lf-bottom { display:flex; align-items:center; gap:.75rem; }
 	.lf-version { font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:.4; }
+	.lf-coffee { font-size:var(--fs-caption-sm); color:var(--yellow); text-decoration:none; border:1px solid rgba(255,221,68,0.3); border-radius:100px; padding:.2rem .75rem; transition:all var(--transition-fast); }
+	.lf-coffee:hover { border-color:var(--yellow); box-shadow:0 0 12px rgba(255,221,68,0.2); }
 	:global(body) {
 		margin: 0;
 		padding: 0;

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { coinsStore, loadedStore } from '$lib/stores/gameUiStore';
-	import { APP_VERSION, GITHUB_URL } from '$lib/version';
 	import FlatlandNews from '$lib/components/FlatlandNews.svelte';
 
 	const jsonLd = {
@@ -74,12 +73,7 @@
 	{/each}
 
 	<div class="hero">
-		<div class="hero-signal" aria-hidden="true"></div>
 		<div class="hero-content">
-			<a href={GITHUB_URL} target="_blank" rel="noopener" class="version-badge" aria-label="View on GitHub">
-				<svg class="github-icon" viewBox="0 0 16 16" width="14" height="14"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" fill="currentColor"/></svg>
-				<span class="version-text">{APP_VERSION}</span>
-			</a>
 			<h1 class="title">
 				<img class="hero-logo" src="/branding/flatland-logo-large.svg" alt="Flatland TD logo" />
 			</h1>
@@ -90,11 +84,6 @@
 				and refine alloy for permanent upgrades aboard Orbital Command.
 				Each front is a new battlefield. The tower is lost with every drop.
 			</p>
-			<div class="signal-strip" aria-label="Project values">
-				<span><strong>Free</strong> open source</span>
-				<span><strong>Zero</strong> tracking</span>
-				<span><strong>Local</strong> saves</span>
-			</div>
 			<div class="cta-buttons">
 				<a href="/play" class="btn-primary" class:btn-disabled={!saveLoaded} aria-disabled={!saveLoaded}>
 					<span class="btn-icon">{saveLoaded ? '▶' : ''}</span>
@@ -149,16 +138,11 @@
 
 	<FlatlandNews />
 
-	<footer class="footer">
-		<p>All data stored locally in your browser. No tracking, no cookies. The Shapes remain hostile, flat, and statistically inconvenient.</p>
-		<nav class="footer-links" aria-label="Footer navigation">
-			<a href="/help" class="footer-link">Help</a>
-			<span class="footer-sep" aria-hidden="true">·</span>
-			<a href="/privacy" class="footer-link">Privacy</a>
-			<span class="footer-sep" aria-hidden="true">·</span>
-			<a href="/imprint" class="footer-link">Imprint</a>
-		</nav>
-	</footer>
+	<div class="signal-strip" aria-label="Project values">
+		<span><strong>Free</strong> open source</span>
+		<span><strong>Zero</strong> tracking</span>
+		<span><strong>Local</strong> saves</span>
+	</div>
 </main>
 
 <style>
@@ -206,52 +190,11 @@
 		z-index: 1;
 	}
 
-	.hero-signal {
-		position: absolute;
-		inset: 0;
-		background:
-			linear-gradient(100deg, transparent 0 22%, rgba(0, 255, 255, 0.08) 22.2% 22.6%, transparent 22.8% 100%),
-			linear-gradient(258deg, transparent 0 63%, rgba(255, 221, 68, 0.08) 63.1% 63.45%, transparent 63.7% 100%),
-			repeating-linear-gradient(90deg, transparent 0 5.8rem, rgba(68, 255, 136, 0.03) 5.8rem 5.86rem, transparent 5.86rem 9.4rem);
-		mask-image: linear-gradient(180deg, black 0%, transparent 85%);
-		pointer-events: none;
-	}
-
 	.hero-content {
 		position: relative;
 		z-index: 1;
 		width: min(var(--content-max), 100%);
 		animation: fadeInUp 0.6s ease;
-	}
-
-	.version-badge {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		padding: 0.3rem 0.8rem;
-		font-size: var(--fs-caption-sm);
-		font-family: var(--font-tech);
-		font-weight: 700;
-		color: var(--text-dim);
-		border: 1px solid var(--border-neon);
-		border-radius: 100px;
-		margin-bottom: 1.25rem;
-		text-decoration: none;
-		transition: all var(--transition-fast);
-	}
-
-	.version-badge:hover {
-		color: var(--cyan);
-		border-color: var(--cyan);
-		box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
-	}
-
-	.github-icon {
-		flex-shrink: 0;
-	}
-
-	.version-text {
-		letter-spacing: 0;
 	}
 
 	.title {
@@ -520,43 +463,9 @@
 		line-height: 1.62;
 	}
 
-	.footer {
-		padding: 2rem 1.5rem;
-		color: var(--text-dim);
-		font-size: var(--fs-caption);
-		text-align: center;
-		z-index: 1;
-		display: flex;
-		flex-direction: column;
-		gap: 0.6rem;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.footer-links {
-		display: flex;
-		gap: 0.4rem;
-		align-items: center;
-	}
-
-	.footer-sep {
-		color: var(--text-dim);
-		opacity: 0.3;
-	}
-
-	.footer-link {
-		color: var(--cyan-dim);
-		text-decoration: underline;
-		text-underline-offset: 3px;
-		text-decoration-color: rgba(0, 255, 255, 0.2);
-	}
-
 	@media (max-width: 767px) {
 		.hero {
 			padding: 1.5rem 1rem 1rem;
-		}
-		.version-badge {
-			margin-bottom: 0.8rem;
 		}
 		.title {
 			margin-bottom: 0.5rem;
