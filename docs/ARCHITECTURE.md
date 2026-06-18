@@ -86,19 +86,20 @@ koala-tower/
 │   │       ├── systems/      # Pure game logic
 │   │       ├── balance/      # Data configs + formulas
 │   │       ├── progression/  # Unlock requirements + discovery
-│   │       ├── render/       # PixiJS WebGL rendering
+│   │       ├── render/       # PixiJS WebGL rendering (death FX, effects, damage states)
 │   │       ├── audio/        # Procedural Web Audio
 │   │       ├── save/         # IndexedDB persistence
-│   │       └── __tests__/    # Vitest (184 tests)
-│   └── routes/
-│       ├── +layout.svelte    # Global footer + lab polling + toasts
-│       ├── +page.svelte      # Home / landing page
-│       ├── play/             # Game screen (canvas + panels)
-│       ├── hub/              # Forge, Lab, Blueprints, Fronts, etc.
-│       ├── help/             # FAQ + lore + replay tutorials
-│       ├── privacy/          # Privacy policy
-│       ├── imprint/          # Legal notice
-│       └── sitemap.xml/      # Dynamic XML sitemap
+│   │       └── __tests__/    # Vitest (390 tests)
+│   ├── routes/
+│   │   ├── +layout.svelte    # Global footer + lab polling + toasts
+│   │   ├── +error.svelte     # Themed error page (404/500)
+│   │   ├── +page.svelte      # Home / landing page
+│   │   ├── play/             # Game screen (canvas + HUD + vignette + boss intro + killstreak)
+│   │   ├── hub/              # Forge, Lab, Blueprints, Fronts, Black Market, etc.
+│   │   ├── help/             # FAQ + lore + replay tutorials
+│   │   ├── privacy/          # Privacy policy
+│   │   ├── imprint/          # Legal notice
+│   │   └── sitemap.xml/      # Dynamic XML sitemap
 ├── static/
 │   ├── robots.txt
 │   ├── favicon.svg
@@ -109,10 +110,12 @@ koala-tower/
 
 ## Currency System
 
-| Currency | Icon | Type       | Earned by          | Spent on                                  |
-|----------|------|------------|--------------------|-------------------------------------------|
-| Energy   | ⚡   | Temporary  | Destroying shapes  | Field upgrades / overclocks (per deployment) |
-| Alloy    | 🔩   | Permanent  | Destroying shapes  | Forge upgrades + Research Deck + Blueprints |
+| Currency       | Icon     | Type       | Earned by          | Spent on                                              |
+|----------------|----------|------------|--------------------|-------------------------------------------------------|
+| Energy         | ⚡       | Temporary  | Destroying shapes  | Field upgrades / overclocks (per deployment)          |
+| Alloy          | 🔩       | Permanent  | Destroying shapes  | Forge upgrades + Research Deck + Blueprints           |
+| Schematics     | §        | Per-Front  | Boss kills         | Blueprint reconstruction (per-Front)                  |
+| Strange Matter | ✦        | Permanent  | Black Market       | Contraband unlocks, weekly shipments, daily contracts |
 
 ## Progression Systems
 
@@ -126,10 +129,23 @@ koala-tower/
 10 discoverable schematics. Found randomly during deployments on specific Fronts. Research with Alloy to unlock hidden Forge and Field upgrade paths.
 
 ### Fronts (Tiers)
-5 difficulty tiers with escalating enemy multipliers (1× → 10,000×) and alloy rewards (1.0× → 1.8×). Unlocked by reaching wave milestones on previous Fronts.
+16 Fronts across 4 bands (Perimeter → Redline → Blacksite → Anomaly) with escalating difficulty and Schematics rewards. Unlocked by reaching wave milestones on previous Fronts within the same band.
 
 ### Achievements
 42 achievements across 6 categories (deployments, best wave, shapes destroyed, bosses defeated, field upgrades, alloy earned). Each awards Alloy.
+
+### Black Market
+Hidden unlock with Strange Matter economy. Supports weekly shipments, daily contracts, contraband unlocks (auto-deployment, speed unlocks, schematic converter), and a discovery storyboard.
+
+## Render Feedback Systems
+
+- **Death proxies**: Render-only corpses (capped at 60, 200ms lifetime) that scale-out + spin + fade — never enter combat state
+- **Cosmetic killstreak**: Escalating chain counter near tower (cyan → yellow → pink), resets on tower damage or timeout, grants no resources
+- **Enemy damage states**: Fracture lines + tint shift at ≤50% / ≤25% HP (no per-enemy HP bars)
+- **Low-HP vignette**: Red radial CSS overlay that pulses <30% tower HP, stronger <15%
+- **Boss intro flash**: One-shot centered overlay on boss-wave start (~850ms)
+- **Floating text variety**: 8 distinct kind styles (damage/crit/energy/alloy/strange/schematic/chain/error)
+- **Number count-up**: Svelte action with cubic ease-out on currency/wave pills
 
 ## Wave Scaling
 

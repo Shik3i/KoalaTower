@@ -1,5 +1,5 @@
 import { GAME_CONFIG } from '../engine/gameConfig';
-import { EnemyType, type Enemy, type GameState, type Projectile } from '../engine/gameTypes';
+import { EnemyType, type Enemy, type GameState, type Projectile, type DamageNumberKind } from '../engine/gameTypes';
 import { damageTower, applyThorns, applyLifesteal, computeDamageToTower } from './towerSystem';
 import { calculateEnergyFromKill, getBossCoinReward } from './economySystem';
 import { getFrontAlloyMultiplier } from '../balance/balanceMath';
@@ -9,22 +9,26 @@ import type { EnemyFrameIndex } from './spatialIndex';
 // Feedback helpers
 import type { SoundName } from '../audio/AudioManager';
 
-let _addDmg: ((x: number, y: number, text: string, color: number) => void) | null = null;
+let _addDmg: ((x: number, y: number, text: string, color: number, kind?: DamageNumberKind) => void) | null = null;
 let _addParticles: ((x: number, y: number, color: number, count: number, speed?: number) => void) | null = null;
 let _addShake: ((amount: number) => void) | null = null;
 let _triggerMuzzleFlash: (() => void) | null = null;
 let _playSound: ((name: SoundName) => void) | null = null;
 let _hitStop: ((seconds: number) => void) | null = null;
 let _addShockwave: ((x: number, y: number, color: number, maxRadius: number, duration: number, width?: number) => void) | null = null;
+let _addDeathEffect: ((enemy: Enemy) => void) | null = null;
+let _onKillstreakMilestone: ((count: number) => void) | null = null;
 
 export function setFeedbackHooks(hooks: {
-	addDmg: (x: number, y: number, text: string, color: number) => void;
+	addDmg: (x: number, y: number, text: string, color: number, kind?: DamageNumberKind) => void;
 	addParticles: (x: number, y: number, color: number, count: number, speed?: number) => void;
 	addShake?: (amount: number) => void;
 	triggerMuzzleFlash?: () => void;
 	playSound?: (name: SoundName) => void;
 	hitStop?: (seconds: number) => void;
 	addShockwave?: (x: number, y: number, color: number, maxRadius: number, duration: number, width?: number) => void;
+	addDeathEffect?: (enemy: Enemy) => void;
+	onKillstreakMilestone?: (count: number) => void;
 }): void {
 	_addDmg = hooks.addDmg;
 	_addParticles = hooks.addParticles;
@@ -33,6 +37,8 @@ export function setFeedbackHooks(hooks: {
 	_playSound = hooks.playSound ?? null;
 	_hitStop = hooks.hitStop ?? null;
 	_addShockwave = hooks.addShockwave ?? null;
+	_addDeathEffect = hooks.addDeathEffect ?? null;
+	_onKillstreakMilestone = hooks.onKillstreakMilestone ?? null;
 }
 
 let nextProjectileId = 1;
@@ -58,6 +64,13 @@ export function processEnemyDeath(state: GameState, target: Enemy, isCrit = fals
 		state.shinyKillsByType = state.shinyKillsByType ?? {};
 		state.shinyKillsByType[target.type] = (state.shinyKillsByType[target.type] ?? 0) + 1;
 	}
+
+	// ── Spawn render-only death proxy so the body shrinks/fades instead of popping out.
+	// Lives in a separate buffer; never affects targeting or wave completion.
+	_addDeathEffect?.(target);
+
+	// ── Cosmetic killstreak: increment + refresh timer. No economy/combat effect.
+	bumpKillstreak(state);
 
 	// ── Death effects by enemy type ──
 	const deathColor = target.isBoss ? GAME_CONFIG.NEON_PINK : target.color;
@@ -98,20 +111,57 @@ export function processEnemyDeath(state: GameState, target: Enemy, isCrit = fals
 	if (target.isBoss) {
 		const bossCoins = getBossCoinReward(state);
 		state.coins += bossCoins;
-		_addDmg?.(target.position.x, target.position.y + target.size * 1.1, '+' + bossCoins + ' 🪙', GAME_CONFIG.NEON_YELLOW);
+		_addDmg?.(target.position.x, target.position.y + target.size * 1.1, '+' + bossCoins + ' 🪙', GAME_CONFIG.NEON_YELLOW, 'alloy');
 	}
 	if (target.isShiny) {
 		state.shiniesKilled++;
 		const shinyAlloy = Math.floor(target.coinReward * getFrontAlloyMultiplier(state.tier ?? 1));
 		if (shinyAlloy > 0) {
 			state.coins += shinyAlloy;
-			_addDmg?.(target.position.x, target.position.y + target.size * 1.2, '+' + shinyAlloy + ' 🪙', GAME_CONFIG.NEON_YELLOW);
+			_addDmg?.(target.position.x, target.position.y + target.size * 1.2, '+' + shinyAlloy + ' 🪙', GAME_CONFIG.NEON_YELLOW, 'alloy');
 		}
 	}
 
 	// Feedback popup
 	const energyLabel = target.isShiny ? '+' + energy + ' ⚡✨' : '+' + energy + ' ⚡';
-	_addDmg?.(target.position.x, target.position.y + target.size * 0.6, energyLabel, target.isShiny ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_GREEN);
+	_addDmg?.(target.position.x, target.position.y + target.size * 0.6, energyLabel, target.isShiny ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_GREEN, 'energy');
+}
+
+/**
+ * Increment the cosmetic killstreak, refresh its timeout window, and fire the
+ * milestone callback whenever a new tier is crossed. Purely visual — grants
+ * no resources, no damage, no hidden multipliers.
+ */
+function bumpKillstreak(state: GameState): void {
+	if (!state.killstreak) return;
+	state.killstreak.count = Math.min(state.killstreak.count + 1, GAME_CONFIG.KILLSTREAK_MAX);
+	state.killstreak.timer = GAME_CONFIG.KILLSTREAK_WINDOW;
+	if (state.killstreak.count > state.killstreak.best) {
+		state.killstreak.best = state.killstreak.count;
+	}
+	// Fire the milestone callback only when crossing into a new tier (no per-frame retrigger).
+	const tiers = GAME_CONFIG.KILLSTREAK_TIERS;
+	for (let i = tiers.length - 1; i >= 0; i--) {
+		const t = tiers[i]!;
+		if (state.killstreak.count === t && state.killstreak.lastMilestone < t) {
+			state.killstreak.lastMilestone = t;
+			_onKillstreakMilestone?.(t);
+			break;
+		}
+	}
+}
+
+/**
+ * Returns the cosmetic killstreak tier index (0..N) for a given count, used
+ * by renderer + HUD to pick the escalation colour. Exposed for tests.
+ */
+export function getKillstreakTier(count: number): number {
+	const tiers = GAME_CONFIG.KILLSTREAK_TIERS;
+	let tier = -1;
+	for (let i = 0; i < tiers.length; i++) {
+		if (count >= tiers[i]!) tier = i;
+	}
+	return tier;
 }
 
 export function updateEnemySystem(state: GameState, dt: number): void {
@@ -214,8 +264,8 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 			const impactColor = proj.isCrit ? GAME_CONFIG.NEON_YELLOW : proj.color;
 			_addParticles?.(target.position.x, target.position.y, impactColor, proj.isCrit ? 5 : 3, 120);
 
-			// Damage number popup
-			_addDmg?.(target.position.x, target.position.y - target.size * 0.5, '-' + effectiveDmg, proj.isCrit ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_CYAN);
+		// Damage number popup
+		_addDmg?.(target.position.x, target.position.y - target.size * 0.5, '-' + effectiveDmg, proj.isCrit ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_CYAN, proj.isCrit ? 'crit' : 'damage');
 
 			if (target.hp <= 0) {
 				target.alive = false;

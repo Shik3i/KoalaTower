@@ -41,6 +41,22 @@ export const GAME_CONFIG = {
 	MAX_SCREEN_SHAKE: 8,
 	SHAKE_DECAY: 0.85,
 	SPEED_PRESETS: [1, 2, 3, 5] as const,
+
+	// ─── Death animation tuning ────────────────────────────────────────────
+	/** Lifetime of a death-effect proxy in seconds (200ms feel). */
+	DEATH_FX_LIFETIME: 0.2,
+	/** Lifetime used when reduced motion / low-effects are on (snappier). */
+	DEATH_FX_LIFETIME_REDUCED: 0.12,
+	/** Hard cap so a wave of instant kills cannot flood the layer. */
+	MAX_DEATH_FX: 60,
+
+	// ─── Cosmetic killstreak tuning ────────────────────────────────────────
+	/** Seconds without a kill before the chain resets. */
+	KILLSTREAK_WINDOW: 2.5,
+	/** Counts at which the chain text colour / pulse escalates. */
+	KILLSTREAK_TIERS: [5, 10, 25, 50, 100] as const,
+	/** Hard cap so a long idle run cannot overflow best-count display. */
+	KILLSTREAK_MAX: 9999,
 };
 
 /**

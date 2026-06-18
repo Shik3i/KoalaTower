@@ -11,8 +11,17 @@
 - [x] Add tower firing muzzle flash
 - [x] Global font-size system with CSS variables
 - [x] Bulk-upgrade system (Shift×5, Ctrl×Max, toggle buttons)
+- [x] Enemy death animation (scale-out + spin + fade, shape-specific)
+- [x] Cosmetic killstreak chain (visual-only, resets on damage/timeout)
+- [x] Low-HP vignette overlay (<30% red pulse, <15% stronger)
+- [x] Damage-state readability on enemies (cracks + tint, no HP bars)
+- [x] Boss-wave intro flash
+- [x] Floating-text visual hierarchy (8 kind styles)
+- [x] Number count-up animation on currency/wave pills
+- [x] Themed +error.svelte (404/500)
+- [x] Brotli/Gzip precompression in static adapter
+- [x] Enemy object pooling for projectiles, particles, damage text, death FX
 - [ ] Improve multishot spread angle visualization
-- [ ] Add crit hit screen flash effect
 - [ ] Draw enemy path indicators (subtle lines from spawn to tower)
 - [ ] Per-run stats dashboard with charts
 
@@ -31,11 +40,12 @@
 - [ ] Prestige/ascension system
 
 ## Performance
-- [ ] Add object pooling for projectiles and particles
-- [ ] Reduce allocations in hot paths (enemy system, projectile system)
-- [ ] Add canvas size clamping on very large screens
+- [x] Object pooling for projectiles, particles, damage text, shockwaves, death FX
+- [x] Spatial index for targeting queries
+- [x] Canvas size clamping on very large screens
+- [x] Tab visibility handling (auto-pause on blur, persist on visibilitychange)
 - [ ] Add FPS counter (debug mode)
-- [x] Handle tab visibility (auto-pause on blur, persist on visibilitychange)
+- [ ] Reduce per-frame allocation in hot paths (further micro-optimizations)
 
 ## Mobile
 - [x] Bottom upgrade drawer for mobile (thumb-friendly)

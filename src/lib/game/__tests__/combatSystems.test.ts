@@ -174,6 +174,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
 		shinyKillsByType: {},
 		masteryDmgBonus: {},
 		critsDealt: 0,
+		killstreak: { count: 0, timer: 0, best: 0, lastMilestone: 0 },
 		...overrides,
 	};
 }

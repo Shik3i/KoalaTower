@@ -22,10 +22,14 @@ Flatland is at war with **hostile geometric shapes**. Deploy towers from orbit, 
 - 🔬 **5 Research Deck projects** — real-time orbital research with offline progress
 - ⚡ **14 Field upgrades** — temporary overclocks per deployment (Offense, Defense, Utility)
 - 📐 **10 Blueprints** — discover hidden upgrade paths during runs, research with Alloy
-- 🌍 **5 Fronts (Tiers)** — escalating difficulty with better Alloy rewards
+- 🌍 **16 Fronts (4 bands × 4 Fronts)** — escalating difficulty with better Alloy rewards and per-Front Schematics
+- 📑 **Schematics** — per-Front currency dropped by bosses, used to reconstruct upgrade paths
+- 🛰️ **Black Market** — hidden Strange Matter economy with weekly shipments, daily contracts, and procurement unlocks
 - 🏆 **42 Achievements** — deploy towers, destroy shapes, earn Alloy rewards
 - 👾 **5 Enemy types** — Normal ■, Fast ◆, Tank ⬡, Ranged ▶, Boss ⬠ — each visually distinct
 - ⚡ **3 Special Operations** — challenge modes with modified rules
+- 💥 **Cosmetic killstreak chain** — visual-only feedback for clean waves (no economy tie-in)
+- 🩸 **Damage-state readability** — enemies show cracks + tint as HP drops (no per-enemy HP bars)
 
 ### Controls
 
@@ -45,7 +49,7 @@ npm install
 npm run dev         # dev server at localhost:5173
 npm run build       # production build → build/
 npm run preview     # preview production build
-npm test            # run 184 tests
+npm test            # run 390 tests
 ```
 
 ---
@@ -59,9 +63,10 @@ npm test            # run 184 tests
 | Renderer | **PixiJS v8** (WebGL + AdvancedBloomFilter) |
 | Storage | **IndexedDB** via idb-keyval |
 | Audio | Procedural **Web Audio API** (no asset files) |
-| Testing | **Vitest** (184 tests, 6 test files) |
-| Build | **Vite** + @sveltejs/adapter-static |
+| Testing | **Vitest** (390 tests, 22 test files) |
+| Build | **Vite** + @sveltejs/adapter-static (Brotli + Gzip precompression) |
 | Container | Multi-arch **Docker** (amd64 + arm64) |
+| PWA | Installable + offline-ready via SvelteKit service worker |
 
 ---
 
@@ -80,15 +85,17 @@ src/
 │       ├── systems/         # Wave, Enemy, Tower, Projectile, Economy (pure functions)
 │       ├── balance/         # Enemies, Upgrades, Labs, Tiers, Blueprints, Achievements
 │       ├── progression/     # Unlock requirements + blueprint discovery RNG
-│       ├── render/          # PixiJS WebGL rendering (layered renderers, effects)
+│       ├── render/          # PixiJS WebGL rendering (layered renderers, death FX, effects)
 │       ├── audio/           # Procedural Web Audio SFX + music
 │       ├── save/            # IndexedDB persistence + schema migrations
-│       └── __tests__/       # 184 Vitest unit tests
+│       └── __tests__/       # 390 Vitest unit tests
+├── utils/                   # countUp action, viewport math
 └── routes/
     ├── +layout.svelte       # Global footer nav + lab polling + toasts
+    ├── +error.svelte        # Themed 404/500 error page
     ├── +page.svelte         # Landing page with animated stars + news
-    ├── play/+page.svelte    # Game canvas + side panels + launch/game-over screens
-    ├── hub/+page.svelte     # Forge · Lab · Blueprints · Fronts · SpecialOps · Simulation · Archives
+    ├── play/+page.svelte    # Game canvas + HUD + vignette + boss intro + killstreak chip
+    ├── hub/+page.svelte     # Forge · Lab · Blueprints · Fronts · Black Market · Simulation · Archives
     ├── help/+page.svelte    # FAQ (12 questions) · Lore · Controls · Tutorial replay
     ├── imprint/+page.svelte # Legal notice
     ├── privacy/+page.svelte # Privacy policy (100% local data)
@@ -133,12 +140,12 @@ git push origin v0.3.0
 ## 🧪 Testing
 
 ```bash
-npm test            # 184 tests across 6 suites
+npm test            # 390 tests across 22 suites
 npm run check       # TypeScript strict typecheck
 npm run build       # Production build verification
 ```
 
-Test coverage includes: enemy scaling formulas, upgrade cost curves, save migration integrity, progression requirements, wave system, and viewport placement math.
+Test coverage includes: enemy scaling formulas, upgrade cost curves, save migration integrity, progression requirements, wave system, viewport placement math, killstreak/cosmetic-contract tests, floating-text classification, and enemy damage-state helpers.
 
 ---
 

@@ -116,6 +116,9 @@ export class PixiGameView {
 
 		stage.addChild(this.layers.enemy);
 		this.layers.enemy.addChild(this.enemy.container);
+		// Death-effect proxies render directly under the enemy layer so corpses
+		// fade behind any live enemies overlapping the same tile.
+		this.layers.enemy.addChild(this.effects.deathContainer);
 
 		stage.addChild(this.layers.projectile);
 		this.layers.projectile.addChild(this.projectile.container);
@@ -234,6 +237,7 @@ export class PixiGameView {
 		this.effects.syncParticles(this.engine.particles, settings);
 		this.effects.syncShockwaves(this.engine.shockwaves, settings);
 		this.effects.syncDamageNumbers(this.engine.damageNumbers, settings);
+		this.effects.syncDeathEffects(this.engine.deathEffects, settings, effTime);
 		this.effects.syncWaveAnnounce(
 			state.wave.currentWave,
 			state.wave.enemiesInWave,

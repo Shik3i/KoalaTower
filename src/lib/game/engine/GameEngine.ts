@@ -3,6 +3,8 @@ import type {
 	Enemy,
 	Particle,
 	DamageNumber,
+	DamageNumberKind,
+	DeathEffect,
 	Shockwave,
 	GameSettings,
 	GameSnapshot,
@@ -27,15 +29,34 @@ import { buildEnemyFrameIndex } from '../systems/spatialIndex';
 
 export type MuzzleFlashCallback = () => void;
 
+/**
+ * Per-kind ascent speed (px/s) for floating damage numbers. Mirrored from
+ * EffectsRenderer's KIND_STYLE so the engine owns the simulation while the
+ * renderer owns the visuals — no renderer→engine import.
+ */
+const DAMAGE_ASCENT: Record<DamageNumberKind, number> = {
+	damage: 30,
+	crit: 42,
+	energy: 34,
+	alloy: 38,
+	strange: 38,
+	schematic: 36,
+	chain: 0,
+	error: 22,
+};
+
 export class GameEngine {
 	public state: GameState;
 	public particles: Particle[] = [];
 	public damageNumbers: DamageNumber[] = [];
 	public shockwaves: Shockwave[] = [];
+	public deathEffects: DeathEffect[] = [];
 	public shakeAmount: number = 0;
 	public speedMultiplier: number = 1;
 	private hitStopTimer: number = 0;
 	private soundHandler: ((name: SoundName) => void) | null = null;
+	private onKillstreakMilestoneHandler: ((count: number) => void) | null = null;
+	private nextDeathEffectId: number = 1;
 
 	private snapshotTimer: number = 0;
 	private lastWave: number = 0;
@@ -57,14 +78,21 @@ export class GameEngine {
 	public wireMuzzleFlash(cb: MuzzleFlashCallback): void {
 		this.muzzleFlashCallback = cb;
 		setFeedbackHooks({
-			addDmg: (x, y, text, color) => this.addDamageNumber(x, y, text, color),
+			addDmg: (x, y, text, color, kind) => this.addDamageNumber(x, y, text, color, kind),
 			addParticles: (x, y, color, count, speed) => this.addParticles(x, y, color, count, speed),
 			addShake: (amount) => this.addShake(amount),
 			triggerMuzzleFlash: () => this.muzzleFlashCallback?.(),
 			playSound: (name) => this.soundHandler?.(name),
 			hitStop: (seconds) => this.triggerHitStop(seconds),
 			addShockwave: (x, y, color, maxRadius, duration, width) => this.addShockwave(x, y, color, maxRadius, duration, width),
+			addDeathEffect: (enemy) => this.addDeathEffect(enemy),
+			onKillstreakMilestone: (count) => this.onKillstreakMilestoneHandler?.(count),
 		});
+	}
+
+	/** Wire a handler invoked when a cosmetic killstreak tier is crossed. */
+	public setKillstreakMilestoneHandler(cb: ((count: number) => void) | null): void {
+		this.onKillstreakMilestoneHandler = cb;
 	}
 
 	/** Wire a sound handler (e.g. the AudioManager). */
@@ -123,6 +151,7 @@ export class GameEngine {
 			shinyKillsByType: {},
 			masteryDmgBonus: {},
 			critsDealt: 0,
+			killstreak: { count: 0, timer: 0, best: 0, lastMilestone: 0 },
 		};
 	}
 
@@ -149,6 +178,8 @@ export class GameEngine {
 		this.particles = [];
 		this.damageNumbers = [];
 		this.shockwaves = [];
+		this.deathEffects = [];
+		this.nextDeathEffectId = 1;
 		this.shakeAmount = 0;
 		this.hitStopTimer = 0;
 		this.speedMultiplier = 1;
@@ -199,6 +230,7 @@ export class GameEngine {
 		if (this.hitStopTimer > 0) {
 			this.hitStopTimer -= dt;
 			this.updateShockwaves(dt);
+			this.updateDeathEffects(dt);
 			this.emitSnapshot(dt);
 			return;
 		}
@@ -229,6 +261,8 @@ export class GameEngine {
 		this.updateDamageNumbers(effectiveDt);
 		this.updateShockwaves(effectiveDt);
 		this.updateShake(effectiveDt);
+		this.updateDeathEffects(effectiveDt);
+		this.updateKillstreak(effectiveDt);
 
 		this.checkGameOver();
 		this.checkMilestones();
@@ -425,11 +459,15 @@ export class GameEngine {
 		}
 	}
 
-	public addDamageNumber(x: number, y: number, text: string, color: number): void {
+	public addDamageNumber(x: number, y: number, text: string, color: number, kind?: DamageNumberKind): void {
 		if (!this.state.settings.damageNumbers) return;
 		if (this.damageNumbers.length >= GAME_CONFIG.MAX_DAMAGE_NUMBERS) {
 			this.damageNumbers.shift();
 		}
+		const resolvedKind: DamageNumberKind = kind ?? 'damage';
+		// Lazy import avoided — pulling the style resolver up front would create a
+		// renderer→engine dependency. Mirror the ascent table here instead.
+		const ascent = DAMAGE_ASCENT[resolvedKind] ?? 30;
 		this.damageNumbers.push({
 			x,
 			y,
@@ -438,7 +476,61 @@ export class GameEngine {
 			life: GAME_CONFIG.DAMAGE_NUMBER_LIFETIME,
 			maxLife: GAME_CONFIG.DAMAGE_NUMBER_LIFETIME,
 			alpha: 1,
+			kind: resolvedKind,
+			drift: ascent,
 		});
+	}
+
+	/**
+	 * Spawn a render-only corpse proxy at the enemy's last position. The
+	 * proxy lives in `deathEffects` (separate from `state.enemies`) so it
+	 * never affects targeting, collision, or wave completion.
+	 */
+	public addDeathEffect(enemy: Enemy): void {
+		if (this.deathEffects.length >= GAME_CONFIG.MAX_DEATH_FX) {
+			// Drop the oldest so new deaths always get a slot — FIFO queue.
+			this.deathEffects.shift();
+		}
+		const reduced = this.state.settings.reducedMotion || this.state.settings.lowEffectsMode;
+		const id = enemy.id;
+		this.deathEffects.push({
+			id: this.nextDeathEffectId++,
+			x: enemy.position.x,
+			y: enemy.position.y,
+			color: enemy.isBoss ? GAME_CONFIG.NEON_PINK : enemy.color,
+			size: enemy.size,
+			shape: enemy.shape,
+			isBoss: enemy.isBoss,
+			isShiny: enemy.isShiny,
+			rotation: (id % 7) * 0.9,
+			spin: (id % 2 === 0 ? 1 : -1) * (enemy.isBoss ? 1.2 : 3.5),
+			age: 0,
+			life: reduced ? GAME_CONFIG.DEATH_FX_LIFETIME_REDUCED : GAME_CONFIG.DEATH_FX_LIFETIME,
+		});
+	}
+
+	private updateDeathEffects(dt: number): void {
+		for (let i = this.deathEffects.length - 1; i >= 0; i--) {
+			const d = this.deathEffects[i]!;
+			d.age += dt;
+			d.rotation += d.spin * dt;
+			if (d.age >= d.life) this.deathEffects.splice(i, 1);
+		}
+	}
+
+	/**
+	 * Tick the cosmetic killstreak timeout. Resets the chain when no kill
+	 * occurs within the window. Purely visual — no economy / combat effect.
+	 */
+	private updateKillstreak(dt: number): void {
+		const ks = this.state.killstreak;
+		if (!ks || ks.count === 0 || ks.timer <= 0) return;
+		ks.timer -= dt;
+		if (ks.timer <= 0) {
+			ks.count = 0;
+			ks.timer = 0;
+			ks.lastMilestone = 0;
+		}
 	}
 
 	private updateParticles(dt: number): void {
@@ -457,7 +549,9 @@ export class GameEngine {
 	private updateDamageNumbers(dt: number): void {
 		for (let i = this.damageNumbers.length - 1; i >= 0; i--) {
 			const n = this.damageNumbers[i]!;
-			n.y -= 30 * dt;
+			// Per-kind ascent so crits lift triumphantly, alloy drifts gently,
+			// and chain text holds position (drift = 0).
+			n.y -= (n.drift ?? 30) * dt;
 			n.life -= dt;
 			n.alpha = Math.max(0, n.life / n.maxLife);
 			if (n.life <= 0) {
@@ -471,11 +565,13 @@ export class GameEngine {
 		this.onGameOver = null;
 		this.onMilestone = null;
 		this.onStateChange = null;
+		this.onKillstreakMilestoneHandler = null;
 		this.state.enemies = [];
 		this.state.projectiles = [];
 		this.particles = [];
 		this.damageNumbers = [];
 		this.shockwaves = [];
+		this.deathEffects = [];
 		this.hitStopTimer = 0;
 		this.firedMilestones = new Set();
 		this.speedMultiplier = 1;

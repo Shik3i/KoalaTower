@@ -344,6 +344,21 @@ export interface Particle {
 	alpha: number;
 }
 
+/**
+ * Floating-text categories. The renderer picks font size, weight, prefix
+ * glyph, and ascent behaviour per kind so damage/crit/resource gains stay
+ * visually distinct instead of blurring together.
+ */
+export type DamageNumberKind =
+	| 'damage'
+	| 'crit'
+	| 'energy'
+	| 'alloy'
+	| 'strange'
+	| 'schematic'
+	| 'chain'
+	| 'error';
+
 export interface DamageNumber {
 	x: number;
 	y: number;
@@ -352,6 +367,10 @@ export interface DamageNumber {
 	life: number;
 	maxLife: number;
 	alpha: number;
+	/** Visual classification; defaults to 'damage' when omitted for back-compat. */
+	kind?: DamageNumberKind;
+	/** Optional upward drift speed (px/s). Lower = sticks around longer in place. */
+	drift?: number;
 }
 
 /** Expanding ring burst used for impact feedback (boss/crit kills). */
@@ -364,6 +383,43 @@ export interface Shockwave {
 	life: number;
 	maxLife: number;
 	width: number;
+}
+
+/**
+ * Render-only corpse proxy. Created when an enemy dies and animated
+ * independently for ~200ms so the body shrinks / spins / fades instead of
+ * popping out. Lives in a separate buffer from `state.enemies` so it never
+ * affects wave completion, targeting, or collision.
+ */
+export interface DeathEffect {
+	id: number;
+	x: number;
+	y: number;
+	color: number;
+	size: number;
+	shape: EnemyConfig['shape'];
+	isBoss: boolean;
+	isShiny: boolean;
+	/** Starting rotation (rad) — captured from the enemy's renderer phase. */
+	rotation: number;
+	/** Per-effect spin velocity (rad/s) — alternating sign for variety. */
+	spin: number;
+	/** Seconds since spawn. */
+	age: number;
+	/** Total lifetime in seconds. */
+	life: number;
+}
+
+/** Cosmetic-only consecutive-kill counter (no economy / combat effect). */
+export interface KillstreakState {
+	/** Current consecutive kills (resets on tower damage / timeout / new run). */
+	count: number;
+	/** Seconds remaining before the chain resets if no kill occurs. */
+	timer: number;
+	/** Highest count reached this deployment — purely a vanity metric. */
+	best: number;
+	/** Last tick when a milestone pulse fired (avoids retriggering per frame). */
+	lastMilestone: number;
 }
 
 export interface WaveState {
@@ -421,6 +477,11 @@ export interface GameState {
 	masteryDmgBonus: Partial<Record<EnemyType, number>>;
 	/** Crits dealt this run. */
 	critsDealt: number;
+	/**
+	 * Cosmetic-only consecutive-kill counter. Rendering concern — never
+	 * feeds into economy, damage, or progression. Reset by startRun.
+	 */
+	killstreak: KillstreakState;
 }
 
 export interface GameSettings {

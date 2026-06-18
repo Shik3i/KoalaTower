@@ -1,22 +1,56 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { GAME_CONFIG } from '../engine/gameConfig';
-import type { GameSettings, Particle, DamageNumber, Shockwave } from '../engine/gameTypes';
+import type { GameSettings, Particle, DamageNumber, DamageNumberKind, Shockwave, DeathEffect } from '../engine/gameTypes';
 
 // ─── Instance-level particle pool ───────────────────────────────────────────
 
 interface PooledParticle { g: Graphics; active: boolean; }
-interface PooledText { t: Text; active: boolean; fontSize: number; color: number; lastText?: string; }
+interface PooledText { t: Text; active: boolean; kind: DamageNumberKind; lastText?: string; }
+interface PooledDeath {
+	gfx: Graphics;
+	inner: Graphics;
+	active: boolean;
+	shape: string;
+	size: number;
+	color: number;
+	isBoss: boolean;
+	isShiny: boolean;
+}
+
+/**
+ * Per-kind text style. Pool entries are keyed by kind so the renderer can
+ * vary font size, weight, colour, and ascent without the caller computing
+ * them — keeps damage / crits / energy / alloy visually distinct.
+ */
+interface KindStyle { fontSize: number; fontWeight: 'bold' | 'normal'; strokeWidth: number; ascent: number; }
+const KIND_STYLE: Record<DamageNumberKind, KindStyle> = {
+	damage:   { fontSize: 14, fontWeight: 'bold',   strokeWidth: 2.5, ascent: 30 },
+	crit:     { fontSize: 22, fontWeight: 'bold',   strokeWidth: 3.5, ascent: 42 },
+	energy:   { fontSize: 16, fontWeight: 'bold',   strokeWidth: 2.5, ascent: 34 },
+	alloy:    { fontSize: 18, fontWeight: 'bold',   strokeWidth: 3.0, ascent: 38 },
+	strange:  { fontSize: 18, fontWeight: 'bold',   strokeWidth: 3.0, ascent: 38 },
+	schematic:{ fontSize: 17, fontWeight: 'bold',   strokeWidth: 2.8, ascent: 36 },
+	chain:    { fontSize: 16, fontWeight: 'bold',   strokeWidth: 3.0, ascent: 0   },
+	error:    { fontSize: 14, fontWeight: 'bold',   strokeWidth: 2.5, ascent: 22 },
+};
+
+/** Resolve kind → style; falls back to plain damage for unknown / omitted kinds. */
+export function resolveKindStyle(kind?: DamageNumberKind): KindStyle {
+	return KIND_STYLE[kind ?? 'damage'] ?? KIND_STYLE.damage!;
+}
 
 export class EffectsRenderer {
 	public particleContainer = new Container();
 	public shockwaveContainer = new Container();
 	public textContainer = new Container();
 	public waveContainer = new Container();
+	public deathContainer = new Container();
 
 	private particlePool: PooledParticle[] = [];
 	private particleFree: PooledParticle[] = [];
 	private textPool: PooledText[] = [];
 	private shockwavePool: Graphics[] = [];
+	private deathPool: PooledDeath[] = [];
 
 	// ... (wave objects unchanged)
 
@@ -103,15 +137,33 @@ export class EffectsRenderer {
 	}
 
 	// ─── Text helpers (instance methods) ─────────────────────────────────────
+	// Pool entries are keyed by `kind` — each kind has a fixed font size,
+	// weight, and stroke width (see KIND_STYLE). Color travels per-message
+	// via tint so the cache stays small without flattening crit / energy /
+	// alloy / etc. into the same visual.
 
-	private getText(fontSize: number, color: number): PooledText {
-		const f = this.textPool.find(e => !e.active && e.fontSize === fontSize && e.color === color);
-		if (f) { f.active = true; f.t.visible = true; f.t.alpha = 1; return f; }
-		const style = new TextStyle({ fontFamily: '"SF Mono","Fira Code",monospace', fontSize, fontWeight: 'bold', fill: color, stroke: { color: 0x000000, width: 2.5 } });
+	private getText(kind: DamageNumberKind, color: number): PooledText {
+		const f = this.textPool.find(e => !e.active && e.kind === kind);
+		if (f) {
+			f.active = true;
+			f.t.visible = true;
+			f.t.alpha = 1;
+			f.t.tint = color;
+			return f;
+		}
+		const style = resolveKindStyle(kind);
+		const ts = new TextStyle({
+			fontFamily: '"SF Mono","Fira Code",monospace',
+			fontSize: style.fontSize,
+			fontWeight: style.fontWeight,
+			fill: 0xFFFFFF,
+			stroke: { color: 0x000000, width: style.strokeWidth },
+		});
 		const t = new Text({ text: '', style });
 		t.anchor.set(0.5);
+		t.tint = color;
 		this.textContainer.addChild(t);
-		const entry: PooledText = { t, active: true, fontSize, color };
+		const entry: PooledText = { t, active: true, kind };
 		this.textPool.push(entry);
 		return entry;
 	}
@@ -169,10 +221,8 @@ export class EffectsRenderer {
 
 		for (let i = 0; i < count; i++) {
 			const n = nums[i]!;
-			const isCrit = n.color === GAME_CONFIG.NEON_YELLOW;
-			const isCoin = n.color === GAME_CONFIG.NEON_GREEN;
-			const fs = isCrit ? 22 : isCoin ? 14 : 15;
-			const entry = this.getText(fs, n.color);
+			const kind: DamageNumberKind = n.kind ?? 'damage';
+			const entry = this.getText(kind, n.color);
 			used.add(entry);
 			const t = entry.t;
 
@@ -185,6 +235,130 @@ export class EffectsRenderer {
 		}
 
 		for (const tp of this.textPool) { if (!used.has(tp) && tp.active) this.releaseText(tp); }
+	}
+
+	// ─── Death-effect sync (render-only corpse proxies) ──────────────────────
+	// Each proxy is a shrinking, spinning, fading shape that overlays the
+	// frame of death so enemies don't pop out. Lives in its own container
+	// above the enemy layer. Reuses a small pool keyed by shape+size so
+	// hundreds of simultaneous deaths stay cheap.
+
+	syncDeathEffects(deathEffects: DeathEffect[], settings: GameSettings, time: number): void {
+		// Always release all active proxies first; cheap and avoids stale state.
+		for (const d of this.deathPool) if (d.active) this.releaseDeath(d);
+		if (!settings.particles) return;
+
+		const reduced = settings.reducedMotion;
+		const usedCount = Math.min(deathEffects.length, GAME_CONFIG.MAX_DEATH_FX);
+		for (let i = 0; i < usedCount; i++) {
+			const d = deathEffects[i]!;
+			const pooled = this.getDeath(d);
+			const gfx = pooled.gfx;
+			const inner = pooled.inner;
+
+			const t = Math.min(1, d.age / d.life);
+			// Ease-out scale: snap-shrink at the end. Bosses implode a touch slower.
+			const eased = reduced ? (1 - t) : (1 - t) * (1 - t);
+			const scale = Math.max(0, eased);
+			// Alpha falls off slightly after scale so the shape reads as "imploding".
+			const alpha = Math.max(0, 1 - t * (reduced ? 1.2 : 0.9));
+
+			gfx.x = d.x; gfx.y = d.y;
+			gfx.rotation = d.rotation;
+			gfx.scale.set(scale);
+			gfx.alpha = alpha;
+			inner.x = d.x; inner.y = d.y;
+			inner.rotation = d.rotation;
+			inner.scale.set(scale);
+			inner.alpha = alpha * 0.6;
+		}
+		// Touch `time` so reduced-motion branches can still pulse without eslint warnings.
+		void time;
+	}
+
+	private getDeath(d: DeathEffect): PooledDeath {
+		const pooled = this.deathPool.find(e => !e.active);
+		if (pooled) {
+			pooled.active = true;
+			pooled.shape = d.shape;
+			pooled.size = d.size;
+			pooled.color = d.color;
+			pooled.isBoss = d.isBoss;
+			pooled.isShiny = d.isShiny;
+			this.drawDeath(pooled);
+			pooled.gfx.visible = true;
+			pooled.inner.visible = true;
+			return pooled;
+		}
+		const gfx = new Graphics();
+		const inner = new Graphics();
+		this.deathContainer.addChild(gfx);
+		this.deathContainer.addChild(inner);
+		const entry: PooledDeath = {
+			gfx, inner, active: true,
+			shape: d.shape, size: d.size, color: d.color,
+			isBoss: d.isBoss, isShiny: d.isShiny,
+		};
+		this.drawDeath(entry);
+		this.deathPool.push(entry);
+		return entry;
+	}
+
+	private releaseDeath(p: PooledDeath): void {
+		if (!p.active) return;
+		p.active = false;
+		p.gfx.visible = false;
+		p.inner.visible = false;
+	}
+
+	/** Redraw the death-shape onto a pooled entry. Same geometry vocabulary as EnemyRenderer. */
+	private drawDeath(p: PooledDeath): void {
+		const s = p.gfx;
+		const inner = p.inner;
+		s.clear();
+		inner.clear();
+		const hw = p.size / 2;
+		const lw = p.isBoss ? 3 : 2;
+		const fillAlpha = p.isBoss ? 0.18 : 0.12;
+
+		switch (p.shape) {
+			case 'square':
+				s.rect(-hw, -hw, p.size, p.size).fill({ color: p.color, alpha: fillAlpha })
+					.stroke({ width: lw, color: p.color, alpha: 0.95 });
+				break;
+			case 'diamond':
+				s.moveTo(0, -hw).lineTo(hw, 0).lineTo(0, hw).lineTo(-hw, 0).closePath()
+					.fill({ color: p.color, alpha: fillAlpha })
+					.stroke({ width: lw, color: p.color, alpha: 0.95 });
+				break;
+			case 'hexagon':
+				for (let i = 0; i < 6; i++) {
+					const a = (Math.PI / 3) * i - Math.PI / 6;
+					i === 0 ? s.moveTo(Math.cos(a) * hw, Math.sin(a) * hw) : s.lineTo(Math.cos(a) * hw, Math.sin(a) * hw);
+				}
+				s.closePath().fill({ color: p.color, alpha: fillAlpha }).stroke({ width: lw, color: p.color, alpha: 0.95 });
+				break;
+			case 'triangle':
+				s.moveTo(hw, 0).lineTo(-hw, -hw).lineTo(-hw, hw).closePath()
+					.fill({ color: p.color, alpha: fillAlpha })
+					.stroke({ width: lw, color: p.color, alpha: 0.95 });
+				break;
+			case 'pentagon':
+				for (let i = 0; i < 5; i++) {
+					const a = (Math.PI * 2 / 5) * i - Math.PI / 2;
+					i === 0 ? s.moveTo(Math.cos(a) * hw, Math.sin(a) * hw) : s.lineTo(Math.cos(a) * hw, Math.sin(a) * hw);
+				}
+				s.closePath().fill({ color: p.color, alpha: fillAlpha }).stroke({ width: lw, color: p.color, alpha: 0.95 });
+				break;
+		}
+
+		// Inner fracture lines — read as "shattering" as scale collapses.
+		if (p.isBoss) {
+			s.circle(0, 0, p.size * 1.6).stroke({ width: 2, color: p.color, alpha: 0.25 });
+		}
+		// Two cross cracks on the inner layer so spinning reads as breaking.
+		inner.moveTo(-hw, -hw).lineTo(hw, hw).stroke({ width: 0.8, color: p.color, alpha: 0.5 });
+		inner.moveTo(-hw, hw).lineTo(hw, -hw).stroke({ width: 0.8, color: p.color, alpha: 0.5 });
 	}
 
 	syncWaveAnnounce(currentWave: number, enemiesInWave: number, betweenWaveTimer: number, waveActive: boolean, vw: number, vh: number): void {
@@ -248,6 +422,7 @@ export class EffectsRenderer {
 		this.particleFree.length = 0;
 		for (const p of this.particlePool) { p.active = false; p.g.clear(); p.g.rotation = 0; this.particleFree.push(p); }
 		for (const t of this.textPool) { t.active = false; t.lastText = undefined; t.t.visible = false; }
+		for (const d of this.deathPool) { d.active = false; d.gfx.visible = false; d.inner.visible = false; }
 	}
 
 	destroy(): void {
@@ -255,9 +430,11 @@ export class EffectsRenderer {
 		this.particleFree.length = 0;
 		this.textPool.length = 0;
 		this.shockwavePool.length = 0;
+		this.deathPool.length = 0;
 		this.particleContainer.destroy({ children: true });
 		this.shockwaveContainer.destroy({ children: true });
 		this.textContainer.destroy({ children: true });
 		this.waveContainer.destroy({ children: true });
+		this.deathContainer.destroy({ children: true });
 	}
 }

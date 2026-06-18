@@ -139,6 +139,12 @@ export function computeDamageToTower(rawDamage: number, state: GameState, isBoss
 export function damageTower(state: GameState, rawDamage: number, isBoss: boolean = false): void {
 	const dmg = computeDamageToTower(rawDamage, state, isBoss);
 	state.tower.hp -= dmg;
+	// Any tower hit breaks the cosmetic kill chain — feedback only, no gameplay effect.
+	if (dmg > 0 && state.killstreak?.count > 0) {
+		state.killstreak.count = 0;
+		state.killstreak.timer = 0;
+		state.killstreak.lastMilestone = 0;
+	}
 	if (state.tower.hp <= 0) {
 		state.tower.hp = 0;
 		state.tower.alive = false;

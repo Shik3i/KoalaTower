@@ -9,6 +9,8 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { GAME_CONFIG } from '$lib/game/engine/gameConfig';
 	import { UpgradeId, type GameSnapshot, type GameSettings, AchievementId, DEFAULT_SETTINGS, ChallengeId, EnemyType } from '$lib/game/engine/gameTypes';
+	import { getKillstreakTier } from '$lib/game/systems/enemySystem';
+	import { countUp } from '$lib/utils/countUp';
 	import { checkMasteryAchievements } from '$lib/game/balance/mastery';
 	import { buildBattleUpgradeList } from '$lib/game/balance/battleUpgrades';
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
@@ -98,6 +100,18 @@
 	let autoDeploymentArmed = $state(false);
 	let autoDeploymentCountdown = $state(0);
 	let autoDeploymentTimer: ReturnType<typeof setInterval> | null = null;
+
+	// Cosmetic killstreak state — purely visual HUD chip, no economy / combat tie-in.
+	let killstreakCount = $state(0);
+	let killstreakTier = $state(-1);
+	// Boss-wave intro flash overlay (~0.7s) triggered on wave change.
+	let bossIntroWave = $state(0);
+	let bossIntroKey = $state(0);
+
+	// HP ratio for the low-HP vignette overlay (driven by snapshot, not engine internals).
+	const hpRatio = $derived(snap?.runActive && snap.towerMaxHp > 0 ? snap.towerHp / snap.towerMaxHp : 1);
+	const isCriticalHP = $derived(snap?.runActive === true && hpRatio < 0.3);
+	const isSevereHP = $derived(snap?.runActive === true && hpRatio < 0.15);
 
 	const toasts = createToastStore(2200);
 	const toast = toasts.push;
@@ -203,6 +217,12 @@
 		if (boss) { snap.bossActive = true; snap.bossHp = boss.hp; snap.bossMaxHp = boss.maxHp; }
 		speed = engine.speedMultiplier;
 		paused = engine.isPaused();
+		// Cosmetic killstreak — feed HUD chip from authoritative engine state.
+		const ks = st.killstreak;
+		if (ks) {
+			killstreakCount = ks.count;
+			killstreakTier = getKillstreakTier(ks.count);
+		}
 	}
 
 	function syncSettingsToEngine(s: GameSettings): void {
@@ -241,6 +261,9 @@
 						const flavor = getOpLogMessage('bossIncoming');
 						if (flavor) toast('👾 ' + flavor, 'info');
 						audio.play('bossWarning');
+						// Brief one-shot boss intro flash overlay (CSS, ~700ms).
+						bossIntroWave = st.wave.currentWave;
+						bossIntroKey++;
 					}
 					// Boss defeated detection
 					if (st.bossesDefeated > prevBossCount && prevBossCount > 0) {
@@ -466,6 +489,16 @@
 		engine = new GameEngine();
 		engineStore.set(engine);
 		wireEngineCallbacks();
+		// Cosmetic killstreak: on tier cross, spawn a floating "Chain xN" above
+		// the tower. Purely feedback — no resources, no damage, no multipliers.
+		engine.setKillstreakMilestoneHandler((count) => {
+			if (!engine) return;
+			const tx = engine.state.tower.position.x;
+			const ty = engine.state.tower.position.y - 55;
+			// Cyan → yellow → pink escalation matches KILLSTREAK_TIERS progression.
+			const color = count >= 50 ? GAME_CONFIG.NEON_PINK : count >= 25 ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_CYAN;
+			engine.addDamageNumber(tx, ty, `Chain x${count}`, color, 'chain');
+		});
 		if (!container) return;
 		gameView = new PixiGameView(container, engine);
 		engine.wireMuzzleFlash(() => gameView?.triggerMuzzleFlash());
@@ -595,17 +628,17 @@
 		<a href="/" class="tb-back" aria-label="Home" title="Home"><Icon name="back" size={18} /></a>
 		<div class="tb-brand">Flatland TD</div>
 		<div class="tb-div"></div>
-		<div class="tb-stats">
-			{#if snap?.runActive}
-				<div class="tb-pill wave-pill" title="Current wave number"><Icon name="wave" size={15} /><span>{snap.wave}</span></div>
-			{/if}
-			<div class="tb-pill coin-pill" title="Alloy — permanent material, spent in Forge & Research"><Icon name="alloy" size={15} /><span>{coins.toLocaleString()}</span></div>
-			{#if snap?.runActive}
-				<div class="tb-pill cash-pill" title="Energy — harvested from destroyed enemies, spent on Field Upgrades"><Icon name="energy" size={15} /><span>{Math.floor(snap.cash).toLocaleString()}</span></div>
-				<div class="tb-pill hp-pill" class:low={snap.towerHp / snap.towerMaxHp < 0.3} title="Tower HP — run ends when this reaches 0"><Icon name="hp" size={15} /><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
-				<div class="tb-pill kill-pill" title="Total enemies killed this run"><Icon name="kill" size={15} /><span>{snap.killCount}</span></div>
-			{/if}
-		</div>
+	<div class="tb-stats">
+		{#if snap?.runActive}
+			<div class="tb-pill wave-pill" title="Current wave number"><Icon name="wave" size={15} /><span use:countUp={snap.wave}>{snap.wave}</span></div>
+		{/if}
+		<div class="tb-pill coin-pill" title="Alloy — permanent material, spent in Forge & Research"><Icon name="alloy" size={15} /><span use:countUp={coins}>{coins.toLocaleString()}</span></div>
+		{#if snap?.runActive}
+			<div class="tb-pill cash-pill" title="Energy — harvested from destroyed enemies, spent on Field Upgrades"><Icon name="energy" size={15} /><span use:countUp={Math.floor(snap.cash)}>{Math.floor(snap.cash).toLocaleString()}</span></div>
+			<div class="tb-pill hp-pill" class:low={snap.towerHp / snap.towerMaxHp < 0.3} title="Tower HP — run ends when this reaches 0"><Icon name="hp" size={15} /><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
+			<div class="tb-pill kill-pill" title="Total enemies killed this run"><Icon name="kill" size={15} /><span use:countUp={snap.killCount}>{snap.killCount}</span></div>
+		{/if}
+	</div>
 		<div class="tb-actions">
 			{#if snap?.runActive}
 				<div class="spd-grp" title="Game speed — also: keys 1-4, Space to pause">
@@ -766,30 +799,74 @@
 			</aside>
 		{/if}
 
-		<!-- Game Canvas -->
-		<div class="game-canvas" bind:this={container} role="img" aria-label="Flatland TD — game viewport showing Tower defense against hostile geometric shapes">
-			<!-- Live run info lives in the bottom-left (Tower) / bottom-right (Shapes) panels
-			     and the top bar — the canvas itself is kept clear. -->
-			{#if snap?.bossActive && snap.bossMaxHp > 0}
-				<BossHealthBar hp={snap.bossHp} maxHp={snap.bossMaxHp} wave={snap.wave} />
-			{/if}
-			<TowerStatsPanel {snap} />
-			<EnemyStatsPanel {snap} />
-			{#if showLaunchScreen}
-				<LaunchScreen
-					{highestWave}
-					{coins}
-					{totalRuns}
-					bind:selectedFront
-					bind:selectedChallenge
-					{unlockedFronts}
-					{frontBestWave}
-					{schematicsByFront}
-					{challengeHighScores}
-					onDeploy={startRun}
-				/>
-			{/if}
-		</div>
+	<!-- Game Canvas -->
+	<div class="game-canvas" bind:this={container} role="img" aria-label="Flatland TD — game viewport showing Tower defense against hostile geometric shapes">
+		<!-- Low-HP vignette overlay (CSS — above canvas, below HUD panels). Pulses
+		     red when tower HP < 30%, stronger + faster when < 15%. -->
+		<div
+			class="vignette"
+			class:critical={isCriticalHP}
+			class:severe={isSevereHP}
+			class:reduced={settings.reducedMotion || settings.lowEffectsMode}
+			aria-hidden="true"
+		></div>
+
+		<!-- Boss wave intro flash. {#key} re-triggers the CSS animation each time
+		     bossIntroKey increments so back-to-back boss waves re-play cleanly. -->
+		{#if bossIntroWave > 0}
+			<div class="boss-intro-host" aria-hidden="true">
+				{#key bossIntroKey}
+					<div class="boss-intro" class:reduced={settings.reducedMotion || settings.lowEffectsMode}>
+						<div class="boss-intro-label">⚠ BOSS WAVE ⚠</div>
+						<div class="boss-intro-wave">// Wave {bossIntroWave}</div>
+					</div>
+				{/key}
+			</div>
+		{/if}
+
+		<!-- Critical HP warning chip — small, lives above vignette so it isn't washed out. -->
+		{#if isCriticalHP && snap?.runActive}
+			<div class="hp-warn" class:flicker={isSevereHP && !settings.reducedMotion} aria-live="polite">
+				<span class="hp-warn-dot"></span>
+				Tower integrity critical
+			</div>
+		{/if}
+
+		<!-- Cosmetic killstreak chip — appears at chain ≥ 5. Never grants anything. -->
+		{#if killstreakCount >= 5 && snap?.runActive}
+			<div
+				class="chain-chip tier-{killstreakTier}"
+				class:reduced={settings.reducedMotion || settings.lowEffectsMode}
+				title="Consecutive kills without taking tower damage. Cosmetic — no reward."
+				aria-label="Killstreak chain {killstreakCount}"
+			>
+				<span class="chain-glyph">⛓</span>
+				<span class="chain-count">x{killstreakCount}</span>
+			</div>
+		{/if}
+
+		<!-- Live run info lives in the bottom-left (Tower) / bottom-right (Shapes) panels
+		     and the top bar — the canvas itself is kept clear. -->
+		{#if snap?.bossActive && snap.bossMaxHp > 0}
+			<BossHealthBar hp={snap.bossHp} maxHp={snap.bossMaxHp} wave={snap.wave} />
+		{/if}
+		<TowerStatsPanel {snap} />
+		<EnemyStatsPanel {snap} />
+		{#if showLaunchScreen}
+			<LaunchScreen
+				{highestWave}
+				{coins}
+				{totalRuns}
+				bind:selectedFront
+				bind:selectedChallenge
+				{unlockedFronts}
+				{frontBestWave}
+				{schematicsByFront}
+				{challengeHighScores}
+				onDeploy={startRun}
+			/>
+		{/if}
+	</div>
 
 		<!-- Right Panel: only Battle Upgrades -->
 		{#if !isMobile}
@@ -921,6 +998,71 @@
 	.mob-upgrade-drawer { position:fixed; bottom:var(--mob-nav-h,48px); left:0; right:0; max-height:60vh; background:var(--bg-secondary); border-top:1px solid var(--border-neon-strong); border-radius:var(--radius-xl) var(--radius-xl) 0 0; z-index:150; overflow-y:auto; padding:.5rem .65rem .75rem; padding-bottom: calc(.75rem + env(safe-area-inset-bottom, 0px)); animation:mobDrawerIn .25s cubic-bezier(.34,1.56,.64,1); box-shadow:0 -8px 32px rgba(0,0,0,.5); }
 	.mob-ug-header { display:flex; justify-content:space-between; align-items:center; font-size:var(--fs-caption); color:var(--cyan); font-family:var(--font-mono); margin-bottom:.35rem; }
 	.mob-ug-close { color:var(--text-dim); font-size:var(--fs-body-sm); padding:.1rem .3rem; cursor:pointer; }
+
+	/* ─── Low-HP vignette ───────────────────────────────────────────────── */
+	/* Red radial-gradient overlay on the canvas. Pulses while HP < 30%,
+	   pulses faster + brighter while < 15%. Disabled (opacity 0) otherwise.
+	   `pointer-events:none` so it never blocks interaction. */
+	.vignette { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .35s ease; z-index:6;
+		background:radial-gradient(ellipse at center, transparent 35%, rgba(255,40,80,0.18) 80%, rgba(255,40,80,0.35) 100%);
+		mix-blend-mode:screen; }
+	.vignette.critical { opacity:1; animation:vignettePulse 1.4s ease-in-out infinite; }
+	.vignette.severe   { opacity:1; animation:vignettePulse .7s  ease-in-out infinite; background:radial-gradient(ellipse at center, transparent 25%, rgba(255,40,80,0.30) 70%, rgba(255,40,80,0.55) 100%); }
+	.vignette.reduced.critical, .vignette.reduced.severe { animation:none; opacity:.7; }
+	@keyframes vignettePulse { 0%,100%{opacity:.55} 50%{opacity:1} }
+
+	/* ─── Boss-wave intro flash ─────────────────────────────────────────── */
+	/* One-shot centered overlay shown for ~700ms when a boss wave starts.
+	   Purely additive — does not block input (pointer-events:none). */
+	.boss-intro-host { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:7; }
+	.boss-intro { text-align:center; font-family:var(--font-tech); text-transform:uppercase; letter-spacing:.18em;
+		color:var(--pink); text-shadow:0 0 16px rgba(255,68,170,.7), 0 0 36px rgba(255,68,170,.4);
+		animation:bossIntro .85s cubic-bezier(.22,1,.36,1) forwards; }
+	.boss-intro.reduced { animation:bossIntroReduced .5s ease forwards; }
+	.boss-intro-label { font-size:clamp(1.2rem, 3vw, 2rem); font-weight:700; }
+	.boss-intro-wave { font-size:clamp(.9rem, 2vw, 1.25rem); color:var(--text-secondary); margin-top:.35rem; letter-spacing:.25em; }
+	@keyframes bossIntro {
+		0%   { opacity:0; transform:scale(.85); }
+		15%  { opacity:1; transform:scale(1.05); }
+		25%  { transform:scale(1); }
+		75%  { opacity:1; }
+		100% { opacity:0; transform:scale(1.02); }
+	}
+	@keyframes bossIntroReduced { from{opacity:0} 30%{opacity:1} to{opacity:0} }
+
+	/* ─── Critical HP warning chip ──────────────────────────────────────── */
+	.hp-warn { position:absolute; top:18%; left:50%; transform:translateX(-50%);
+		display:inline-flex; align-items:center; gap:.4rem; padding:.3rem .75rem;
+		font-family:var(--font-mono); font-size:var(--fs-caption); font-weight:600;
+		color:var(--red); background:rgba(7,8,18,.85); border:1px solid rgba(255,68,68,.45);
+		border-radius:100px; z-index:8; pointer-events:none;
+		box-shadow:0 0 14px rgba(255,68,68,.25);
+		animation:hpWarnIn .25s ease; }
+	.hp-warn.flicker { animation:hpWarnFlicker .55s ease-in-out infinite; }
+	.hp-warn-dot { width:8px; height:8px; border-radius:50%; background:var(--red); box-shadow:0 0 8px var(--red); }
+	@keyframes hpWarnIn { from{opacity:0; transform:translate(-50%,-6px)} to{opacity:1; transform:translate(-50%,0)} }
+	@keyframes hpWarnFlicker { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+	/* ─── Cosmetic killstreak chip ──────────────────────────────────────── */
+	/* Appears bottom-center when chain ≥ 5. Colours escalate cyan → yellow → pink.
+	   Cosmetic only — never grants anything. */
+	.chain-chip { position:absolute; bottom:14%; left:50%; transform:translateX(-50%);
+		display:inline-flex; align-items:center; gap:.35rem; padding:.28rem .8rem;
+		font-family:var(--font-mono); font-weight:700;
+		background:rgba(7,8,18,.82); border:1px solid currentColor; border-radius:100px;
+		z-index:8; pointer-events:none; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+		animation:chainIn .3s cubic-bezier(.34,1.56,.64,1); }
+	.chain-chip.reduced { animation:fi .2s ease; }
+	.chain-chip .chain-glyph { font-size:1rem; line-height:1; }
+	.chain-chip .chain-count { font-size:var(--fs-body-sm); letter-spacing:.04em; }
+	.chain-chip.tier-0 { color:var(--cyan);   box-shadow:0 0 10px rgba(0,255,255,.35); }
+	.chain-chip.tier-1 { color:var(--cyan);   box-shadow:0 0 14px rgba(0,255,255,.5); }
+	.chain-chip.tier-2 { color:var(--yellow); box-shadow:0 0 16px rgba(255,221,68,.55); }
+	.chain-chip.tier-3 { color:var(--pink);   box-shadow:0 0 18px rgba(255,68,170,.6); }
+	.chain-chip.tier-4 { color:var(--pink);   box-shadow:0 0 22px rgba(255,68,170,.8); animation:chainIn .3s cubic-bezier(.34,1.56,.64,1), chainGlitch 1.6s steps(2) infinite; }
+	@keyframes chainIn { from{opacity:0; transform:translate(-50%,8px) scale(.9)} to{opacity:1; transform:translate(-50%,0) scale(1)} }
+	@keyframes chainGlitch { 0%{text-shadow:none} 50%{text-shadow:1px 0 var(--pink), -1px 0 var(--cyan)} 100%{text-shadow:none} }
+
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	@keyframes si { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
 	@keyframes mobDrawerIn { from{opacity:0;transform:translateY(100%)} to{opacity:1;transform:translateY(0)} }
