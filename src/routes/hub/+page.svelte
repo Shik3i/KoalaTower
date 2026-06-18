@@ -60,11 +60,11 @@
 	const HUB_TUTORIAL_KEY = 'geocore-td-hub-tutorial-done';
 	const hubTutorialSteps: TutorialStep[] = [
 		{ title: '🛰️ Welcome to Orbital Command', desc: 'This is your permanent base between deployments. Here you spend Alloy (🔩) on permanent upgrades that persist across all runs. The Tower may fall — your research endures.', target: '', placement: 'center' },
-		{ title: '⚙ Forge — Permanent Upgrades', desc: 'The Forge pre-installs tower upgrades BEFORE every deployment. Damage, Fire Rate, Range, HP — every level makes every future run stronger. Spend Alloy wisely. Procurement approves this spending. Mostly.', target: '.hub-nav-btn:nth-child(1)', placement: 'right' },
-		{ title: '🔬 Research Deck — Time-Based Projects', desc: 'Research runs in real time — even offline! Each level gives a multiplicative bonus that stacks with Forge upgrades. Start a project, come back later. The scientists work while you sleep. Allegedly.', target: '.hub-nav-btn:nth-child(2)', placement: 'right' },
-		{ title: '📐 Schematics — Reconstruct New Paths', desc: 'Schematics are recovered design fragments, collected per Front. Spend a Front\'s Schematics here to reconstruct upgrade paths that unlock hidden Forge and Field upgrades. Some Schematics were definitely not lost by Procurement.', target: '.hub-nav-btn:nth-child(3)', placement: 'right' },
-		{ title: '🌍 Fronts & Special Ops', desc: 'Fronts are difficulty tiers — push deeper to unlock harder planets with better rewards. Special Operations are challenge modes with modified rules. Simulation lets you preview enemy stats at any wave.', target: '.hub-nav-btn:nth-child(4)', placement: 'right' },
-		{ title: '📊 Archives & Systems', desc: 'Archives track your campaign statistics. Systems lets you configure visuals, sound, and lab notifications. Everything is saved automatically to your browser. No cloud. No tracking. Not even the Shapes know your high score.', target: '.hub-nav-btn:nth-child(7)', placement: 'right' },
+		{ title: '⚙ Forge — Permanent Upgrades', desc: 'The Forge pre-installs tower upgrades BEFORE every deployment. Damage, Fire Rate, Range, HP — every level makes every future run stronger. Spend Alloy wisely. Procurement approves this spending. Mostly.', target: '[data-section="workshop"]', placement: 'right' },
+		{ title: '🔬 Research Deck — Time-Based Projects', desc: 'Research runs in real time — even offline! Each level gives a multiplicative bonus that stacks with Forge upgrades. Start a project, come back later. The scientists work while you sleep. Allegedly.', target: '[data-section="lab"]', placement: 'right' },
+		{ title: '📐 Schematics — Reconstruct New Paths', desc: 'Schematics are recovered design fragments, collected per Front. Spend a Front\'s Schematics here to reconstruct upgrade paths that unlock hidden Forge and Field upgrades. Some Schematics were definitely not lost by Procurement.', target: '[data-section="blueprints"]', placement: 'right' },
+		{ title: '🌍 Fronts & Special Ops', desc: 'Fronts are difficulty tiers — push deeper to unlock harder planets with better rewards. Special Operations are challenge modes with modified rules. Simulation lets you preview enemy stats at any wave.', target: '[data-section="tiers"]', placement: 'right' },
+		{ title: '📊 Archives & Systems', desc: 'Archives track your campaign statistics. Systems lets you configure visuals, sound, and lab notifications. Everything is saved automatically to your browser. No cloud. No tracking. Not even the Shapes know your high score.', target: '[data-section="stats"]', placement: 'right' },
 		{ title: '🚀 Ready to Deploy', desc: 'Upgrade your Forge, start some Research, then head to Deployment and drop a Tower. Orbital Command will be here when you return — with more Alloy and fewer questions.', target: '.hub-back', placement: 'bottom' },
 	];
 
@@ -457,14 +457,14 @@
 	<div class="hub-body">
 		<nav class="hub-nav">
 			{#each visibleSections as s}
-				<button class="hub-nav-btn" class:on={activeSection === s.id} onclick={() => activeSection = s.id}>
+				<button class="hub-nav-btn" class:on={activeSection === s.id} data-section={s.id} onclick={() => activeSection = s.id}>
 					{s.icon} {s.label}
 				</button>
 			{/each}
 			{#if !bmUnlocked}
 				<div class="bm-locked-teaser" aria-label="Unauthorized signal: Black Market channel unavailable">
 					<span class="bm-locked-icon">◈</span>
-					<span class="bm-locked-text">Unauthorized signal: no carrier detected. Field exposure insufficient.</span>
+					<span class="bm-locked-text">No carrier detected. Field exposure insufficient.</span>
 				</div>
 			{/if}
 		</nav>
@@ -908,8 +908,9 @@
 	}
 
 	/* Locked teaser */
-	.bm-locked-teaser { padding:.55rem 1rem; margin-top:.75rem; display:flex; align-items:center; gap:.5rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:.45; border:1px dashed rgba(136,68,255,.1); border-radius:var(--radius-sm); max-width:fit-content; }
-	.bm-locked-icon { color:var(--violet); opacity:.35; font-size:1.1rem; }
+	.bm-locked-teaser { padding:.55rem .75rem; margin-top:.75rem; display:flex; align-items:flex-start; gap:.4rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:.45; border:1px dashed rgba(136,68,255,.1); border-radius:var(--radius-sm); width:100%; }
+	.bm-locked-icon { color:var(--violet); opacity:.35; font-size:1.1rem; flex-shrink:0; margin-top:1px; }
+	.bm-locked-text { overflow-wrap:break-word; word-break:break-word; }
 
 	/* Black Market modals */
 	.dlg-bm-intro, .dlg-bm-shipment { border-color:rgba(136,68,255,.35); background:linear-gradient(180deg,rgba(20,15,40,.95),rgba(7,8,18,.98)); max-width:500px; }
