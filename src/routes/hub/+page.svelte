@@ -11,6 +11,7 @@
 	import { formatCompact, front1EnemyDamage, front1EnemyHp, TIER_MULTIPLIERS } from '$lib/game/balance/balanceMath';
 	import { EnemyType, DEFAULT_SETTINGS } from '$lib/game/engine/gameTypes';
 	import { ENEMY_TYPE_MODIFIERS, computeEnemyConfig, ENEMY_SHAPES } from '$lib/game/balance/balanceMath';
+	import { ENEMY_TYPE_LABELS, getMasteryProgress, MASTERY_REWARDS } from '$lib/game/balance/mastery';
 	import { BLUEPRINT_DEFS, isFoundryUpgradeUnlocked, getBlueprintForFoundryUpgrade, getFieldUpgradesUnlockedBy, getFoundryUpgradesUnlockedBy, describeBlueprintDiscovery } from '$lib/game/balance/blueprints';
 	import { getBlueprintStatus } from '$lib/game/progression/blueprintDiscovery';
 	import type { GameSettings, WorkshopUpgradeId, BlueprintId } from '$lib/game/engine/gameTypes';
@@ -42,6 +43,11 @@
 	let ownedBlueprints = $state<BlueprintId[]>([]);
 	let discoveredBlueprints = $state<BlueprintId[]>([]);
 	let frontBestWave = $state<Partial<Record<string, number>>>({});
+	let killsByType = $state<Partial<Record<EnemyType, number>>>({});
+	let shinyKillsByType = $state<Partial<Record<EnemyType, number>>>({});
+	let lifetimeStats = $state({ totalEnergyEarned: 0, totalDamageDealt: 0, totalCritsDealt: 0, totalWavesCompleted: 0, totalPlayTimeSeconds: 0 });
+	let masteryAchievements = $state<Partial<Record<string, boolean>>>({});
+	let challengeHighScores = $state<Partial<Record<string, number>>>({});
 	let unlockedFronts = $derived(getUnlockedFronts(frontBestWave));
 	let activeLabId = $state<string | null>(null);
 	let activeLabFinish = $state<number>(0);
@@ -98,6 +104,17 @@
 		if (save?.unlockedBlueprints) ownedBlueprints = [...save.unlockedBlueprints];
 		if (save?.discoveredBlueprints) discoveredBlueprints = [...save.discoveredBlueprints];
 		if (save?.frontBestWave) frontBestWave = { ...save.frontBestWave };
+		if (save?.killsByType) killsByType = { ...save.killsByType };
+		if (save?.shinyKillsByType) shinyKillsByType = { ...save.shinyKillsByType };
+		lifetimeStats = {
+			totalEnergyEarned: save?.totalEnergyEarned ?? 0,
+			totalDamageDealt: save?.totalDamageDealt ?? 0,
+			totalCritsDealt: save?.totalCritsDealt ?? 0,
+			totalWavesCompleted: save?.totalWavesCompleted ?? 0,
+			totalPlayTimeSeconds: save?.totalPlayTimeSeconds ?? 0,
+		};
+		masteryAchievements = { ...(save?.masteryAchievements ?? {}) };
+		challengeHighScores = { ...(save?.challengeHighScores ?? {}) };
 		refreshLabProgress();
 		labProgressTimer = setInterval(refreshLabProgress, 1000);
 		return () => { u1(); u2(); u3(); u4(); if (labProgressTimer) clearInterval(labProgressTimer); toasts.clear(); };
@@ -358,9 +375,81 @@
 					<p class="sim-note">Values computed using deterministic piecewise power interpolation. Front multipliers: 1× / 20× / 60×. Boss values include boss multipliers (capped at 25× HP, 8× ATK).</p>
 				</div>
 			{:else if activeSection === 'stats'}
-				<div class="hs"><h2 class="hst">📊 Archives</h2>
+				{@const enemyTypes = [EnemyType.Normal, EnemyType.Fast, EnemyType.Tank, EnemyType.Ranged, EnemyType.Boss]}
+				<div class="hs">
+					<h2 class="hst">📊 Archives</h2>
 					<p class="hsd">Campaign telemetry and historical records. Some data has been revised for clarity. Some has been revised for morale. Some has been revised because we forgot what happened.</p>
-					<div class="ig"><div class="ir"><span class="il">Total Deployments</span><span class="iv">{totalRuns}</span></div><div class="ir"><span class="il">Highest Wave</span><span class="iv">{highestWave}</span></div><div class="ir"><span class="il">Alloy Reserves</span><span class="iv">🔩 {coins.toLocaleString()}</span></div><div class="ir"><span class="il">Peak Performance</span><span class="iv">🏆 Wave {highestWave}</span></div></div>
+
+					<h3 class="stats-sub">Lifetime Statistics</h3>
+					<div class="ig" style="max-width:600px">
+						<div class="ir"><span class="il">Total Deployments</span><span class="iv">{totalRuns}</span></div>
+						<div class="ir"><span class="il">Highest Wave</span><span class="iv">🏆 {highestWave}</span></div>
+						<div class="ir"><span class="il">Total Kills</span><span class="iv">{formatCompact(getCachedSave()?.totalKills ?? 0)}</span></div>
+						<div class="ir"><span class="il">Bosses Defeated</span><span class="iv">{formatCompact(getCachedSave()?.totalBossesDefeated ?? 0)}</span></div>
+						<div class="ir"><span class="il">Shinies Collected</span><span class="iv">{formatCompact(getCachedSave()?.totalShiniesKilled ?? 0)}</span></div>
+						<div class="ir"><span class="il">Damage Dealt</span><span class="iv">{formatCompact(lifetimeStats.totalDamageDealt)}</span></div>
+						<div class="ir"><span class="il">Critical Hits</span><span class="iv">{formatCompact(lifetimeStats.totalCritsDealt)}</span></div>
+						<div class="ir"><span class="il">Energy Earned</span><span class="iv">⚡ {formatCompact(lifetimeStats.totalEnergyEarned)}</span></div>
+						<div class="ir"><span class="il">Alloy Earned</span><span class="iv">🔩 {formatCompact(getCachedSave()?.totalAlloyEarned ?? 0)}</span></div>
+						<div class="ir"><span class="il">Waves Completed</span><span class="iv">{formatCompact(lifetimeStats.totalWavesCompleted)}</span></div>
+						<div class="ir"><span class="il">Play Time</span><span class="iv">{formatPlayTime(lifetimeStats.totalPlayTimeSeconds)}</span></div>
+					</div>
+
+					<h3 class="stats-sub" style="margin-top:1.5rem">Enemy Mastery</h3>
+					<p class="hsd" style="margin-bottom:.75rem">Defeat enemies to earn mastery levels. Each mastery level grants +1% damage against that enemy type. Claim rewards as you cross thresholds.</p>
+					<div class="mastery-list">
+						{#each enemyTypes as et}
+							{@const kills = killsByType[et] ?? 0}
+							{@const shinies = shinyKillsByType[et] ?? 0}
+							{@const prog = getMasteryProgress(kills)}
+							{@const dmgBonus = prog.level * 1}
+							<div class="mastery-card">
+								<div class="mastery-header">
+									<span class="mastery-name">{ENEMY_TYPE_LABELS[et]}</span>
+									<span class="mastery-level" class:maxed={prog.level >= 5}>Mastery {prog.level}/5</span>
+									{#if dmgBonus > 0}<span class="mastery-bonus">+{dmgBonus}% DMG</span>{/if}
+								</div>
+								<div class="mastery-kills">
+									<span class="il">{formatCompact(kills)} kills</span>
+									{#if shinies > 0}<span class="mastery-shiny">✨ {formatCompact(shinies)} shiny</span>{/if}
+									{#if prog.level < 5}<span class="il" style="margin-left:auto">{formatCompact(prog.next - kills)} to next</span>{/if}
+								</div>
+								<div class="mastery-bar-track">
+									<div class="mastery-bar-fill" style="width:{prog.pct}%"></div>
+								</div>
+								<div class="mastery-rewards">
+									{#each [1,2,3,4,5] as l}
+										{@const key = `mastery_${et}_${l}`}
+										{@const claimed = !!masteryAchievements[key]}
+										{@const earned = prog.level >= l}
+										<div class="mastery-pip" class:earned={earned} class:claimed={claimed} title="Mastery {l} — {MASTERY_REWARDS[l-1]?.toLocaleString()} Alloy">
+											{#if claimed}✓{:else if earned}!{:else}{l}{/if}
+										</div>
+									{/each}
+								</div>
+							</div>
+						{/each}
+					</div>
+
+					<h3 class="stats-sub" style="margin-top:1.5rem">Front Progress</h3>
+					<div class="ig" style="max-width:600px">
+						{#each Object.entries(frontBestWave) as [front, wave]}
+							<div class="ir"><span class="il">{front}</span><span class="iv">Wave {wave}</span></div>
+						{/each}
+						{#if Object.keys(frontBestWave).length === 0}
+							<div class="ir"><span class="il" style="color:var(--text-dim)">No front data yet — complete a deployment.</span></div>
+						{/if}
+					</div>
+
+					<h3 class="stats-sub" style="margin-top:1.5rem">Special Ops Records</h3>
+					<div class="ig" style="max-width:600px">
+						{#each Object.entries(challengeHighScores) as [challenge, score]}
+							<div class="ir"><span class="il">{challenge}</span><span class="iv">Wave {score}</span></div>
+						{/each}
+						{#if Object.keys(challengeHighScores).length === 0}
+							<div class="ir"><span class="il" style="color:var(--text-dim)">No Special Ops records yet.</span></div>
+						{/if}
+					</div>
 				</div>
 			{:else if activeSection === 'settings'}
 				<div class="hs"><h2 class="hst">⚙ Systems</h2>
@@ -520,4 +609,20 @@
 	.boss-row td { color:var(--pink)!important; font-weight:600; }
 	.boss-row .sim-type { color:var(--pink)!important; }
 	.sim-note { margin-top:.75rem; font-size:var(--fs-caption-sm); color:var(--text-dim); font-style:italic; }
+	/* ── Archives / Mastery ─────────────────────────────── */
+	.stats-sub { margin:.9rem 0 .45rem; font-size:var(--fs-body); color:var(--text-primary); font-family:var(--font-display); }
+	.mastery-list { display:grid; gap:.45rem; max-width:800px; }
+	.mastery-card { padding:.65rem .75rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
+	.mastery-header { display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; margin-bottom:.35rem; }
+	.mastery-name { color:var(--text-primary); font-weight:600; font-size:var(--fs-body-sm); }
+	.mastery-level,.mastery-bonus { font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-secondary); padding:.1rem .35rem; border-radius:3px; background:rgba(0,0,0,.16); }
+	.mastery-level.maxed,.mastery-bonus { color:var(--cyan); }
+	.mastery-kills { display:flex; align-items:center; gap:.55rem; min-height:1.2rem; font-size:var(--fs-caption); }
+	.mastery-shiny { color:var(--yellow); font-family:var(--font-mono); }
+	.mastery-bar-track { height:5px; margin:.35rem 0; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
+	.mastery-bar-fill { height:100%; background:linear-gradient(90deg,var(--cyan),var(--green)); border-radius:2px; transition:width var(--transition-normal); }
+	.mastery-rewards { display:flex; gap:.25rem; }
+	.mastery-pip { width:22px; height:22px; display:grid; place-items:center; border:1px solid var(--border-neon); border-radius:3px; color:var(--text-dim); font-family:var(--font-mono); font-size:var(--fs-caption-sm); }
+	.mastery-pip.earned { color:var(--yellow); border-color:rgba(255,221,68,.35); }
+	.mastery-pip.claimed { color:var(--green); border-color:rgba(68,255,136,.35); background:rgba(68,255,136,.06); }
 </style>

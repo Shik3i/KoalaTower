@@ -19,6 +19,7 @@ const _meta = new WeakMap<Container, EnemyMeta>();
 export class EnemyRenderer {
 	public container = new Container();
 	private gfxMap = new Map<number, Container>();
+	private free: Container[] = [];
 
 	sync(enemies: Enemy[], time: number, reduced: boolean = false): void {
 		const activeIds = new Set<number>();
@@ -29,8 +30,7 @@ export class EnemyRenderer {
 
 			let c = this.gfxMap.get(enemy.id);
 			if (!c) {
-				c = this.create(enemy, time);
-				this.container.addChild(c);
+				c = this.acquire(enemy, time);
 				this.gfxMap.set(enemy.id, c);
 			}
 			this.updateVisuals(c, enemy, time, reduced);
@@ -43,15 +43,31 @@ export class EnemyRenderer {
 		for (const [id, c] of this.gfxMap) {
 			if (!activeIds.has(id)) {
 				c.visible = false;
-				this.container.removeChild(c);
-				c.destroy({ children: true });
 				this.gfxMap.delete(id);
-				_meta.delete(c);
+				this.free.push(c);
 			}
 		}
 	}
 
-	private create(enemy: Enemy, time: number): Container {
+	private acquire(enemy: Enemy, time: number): Container {
+		const pooled = this.free.pop();
+		if (pooled) {
+			const meta = _meta.get(pooled);
+			if (meta) {
+				const dir = (enemy.id % 2 === 0) ? 1 : -1;
+				meta.type = enemy.type;
+				meta.size = enemy.size;
+				meta.boss = enemy.isBoss;
+				meta.shiny = enemy.isShiny;
+				meta.spawnTime = time;
+				meta.spin = enemy.isBoss ? 0.25 * dir : (0.4 + (enemy.id % 5) * 0.12) * dir;
+				meta.spinPhase = (enemy.id % 7) * 0.9;
+				this.draw(enemy, meta.shape, meta.inner, meta.glow);
+				pooled.visible = true;
+				return pooled;
+			}
+		}
+
 		const c = new Container();
 		const shape = new Graphics();
 		const inner = new Graphics();
@@ -69,6 +85,7 @@ export class EnemyRenderer {
 			spawnTime: time, spin, spinPhase: (enemy.id % 7) * 0.9,
 		});
 		this.draw(enemy, shape, inner, glow);
+		this.container.addChild(c);
 		return c;
 	}
 
@@ -202,6 +219,7 @@ export class EnemyRenderer {
 			_meta.delete(c);
 		}
 		this.gfxMap.clear();
+		this.free.length = 0;
 		this.container.destroy({ children: true });
 	}
 }

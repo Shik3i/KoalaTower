@@ -1,11 +1,20 @@
 import { Container, Graphics } from 'pixi.js';
 import type { Projectile } from '../engine/gameTypes';
 
-const _meta = new WeakMap<Container, Graphics>();
+interface ProjectileMeta {
+	trail: Graphics;
+	body: Graphics;
+	ring: Graphics;
+	crit: boolean;
+	color: number;
+}
+
+const _meta = new WeakMap<Container, ProjectileMeta>();
 
 export class ProjectileRenderer {
 	public container = new Container();
 	private gfxMap = new Map<number, Container>();
+	private free: Container[] = [];
 
 	sync(projectiles: Projectile[]): void {
 		const activeIds = new Set<number>();
@@ -16,8 +25,7 @@ export class ProjectileRenderer {
 
 			let c = this.gfxMap.get(proj.id);
 			if (!c) {
-				c = this.create(proj);
-				this.container.addChild(c);
+				c = this.acquire(proj);
 				this.gfxMap.set(proj.id, c);
 			}
 
@@ -30,8 +38,9 @@ export class ProjectileRenderer {
 			}
 
 			// Render trail
-			const trailGfx = _meta.get(c);
-			if (trailGfx && proj.trail.length > 1) {
+			const meta = _meta.get(c);
+			if (meta && proj.trail.length > 1) {
+				const trailGfx = meta.trail;
 				trailGfx.clear();
 				const col = proj.color;
 				const baseAlpha = proj.isCrit ? 0.5 : 0.35;
@@ -49,36 +58,58 @@ export class ProjectileRenderer {
 		for (const [id, c] of this.gfxMap) {
 			if (!activeIds.has(id)) {
 				c.visible = false;
-				this.container.removeChild(c);
-				c.destroy({ children: true });
 				this.gfxMap.delete(id);
-				_meta.delete(c);
+				this.free.push(c);
 			}
 		}
 	}
 
-	private create(proj: Projectile): Container {
+	private acquire(proj: Projectile): Container {
+		const pooled = this.free.pop();
+		if (pooled) {
+			const meta = _meta.get(pooled);
+			if (meta) {
+				this.drawProjectile(meta, proj);
+				pooled.visible = true;
+				pooled.rotation = 0;
+				return pooled;
+			}
+		}
+
 		const c = new Container();
 		const trailGfx = new Graphics();
 		const g = new Graphics();
+		const ring = new Graphics();
 		c.addChild(trailGfx);
 		c.addChild(g);
-		_meta.set(c, trailGfx);
+		c.addChild(ring);
+		const meta: ProjectileMeta = { trail: trailGfx, body: g, ring, crit: proj.isCrit, color: proj.color };
+		_meta.set(c, meta);
+		this.drawProjectile(meta, proj);
+		this.container.addChild(c);
+		return c;
+	}
 
+	private drawProjectile(meta: ProjectileMeta, proj: Projectile): void {
 		const sz = proj.isCrit ? 4 : 2;
 		const col = proj.color;
 
-		g.moveTo(0, -sz * 1.6).lineTo(sz * 0.6, 0).lineTo(0, sz * 0.4).lineTo(-sz * 0.6, 0).closePath()
+		meta.trail.clear();
+		meta.body.clear();
+		meta.ring.clear();
+		meta.crit = proj.isCrit;
+		meta.color = proj.color;
+
+		meta.body.moveTo(0, -sz * 1.6).lineTo(sz * 0.6, 0).lineTo(0, sz * 0.4).lineTo(-sz * 0.6, 0).closePath()
 			.fill({ color: 0xFFFFFF, alpha: 0.95 });
-		g.circle(0, 0, sz * 2.5).fill({ color: col, alpha: 0.4 });
+		meta.body.circle(0, 0, sz * 2.5).fill({ color: col, alpha: 0.4 });
 
 		if (proj.isCrit) {
-			const ring = new Graphics();
-			ring.circle(0, 0, sz * 3.5).stroke({ width: 2.5, color: col, alpha: 0.5 });
-			c.addChild(ring);
+			meta.ring.visible = true;
+			meta.ring.circle(0, 0, sz * 3.5).stroke({ width: 2.5, color: col, alpha: 0.5 });
+		} else {
+			meta.ring.visible = false;
 		}
-
-		return c;
 	}
 
 	destroy(): void {
@@ -87,6 +118,7 @@ export class ProjectileRenderer {
 			_meta.delete(c);
 		}
 		this.gfxMap.clear();
+		this.free.length = 0;
 		this.container.destroy({ children: true });
 	}
 }

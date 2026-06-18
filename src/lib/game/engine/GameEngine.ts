@@ -19,9 +19,11 @@ import { updateEnemySystem, updateProjectileSystem, updateTowerTargeting, resetP
 import { updateWaveSystem, removeDeadEnemies } from '../systems/waveSystem';
 import { getStartingEnergy } from '../systems/economySystem';
 import { resetEnemyIdCounter } from '../balance/enemies';
+import { getMasteryBonus } from '../balance/balanceMath';
 import { getBattleUpgradeCost, buildBattleUpgradeList } from '../balance/battleUpgrades';
 import { isFieldUpgradeUnlocked } from '../balance/blueprints';
 import { setFeedbackHooks } from '../systems/enemySystem';
+import { buildEnemyFrameIndex } from '../systems/spatialIndex';
 
 export type MuzzleFlashCallback = () => void;
 
@@ -111,11 +113,16 @@ export class GameEngine {
 			bossesDefeated: 0,
 			shiniesKilled: 0,
 			totalDamageDealt: 0,
+			totalEnergyEarned: 0,
 			highestWave: 0,
 			totalRuns: 0,
 			settings: { ...DEFAULT_SETTINGS },
 			tier: 1,
 			activeChallenge: null,
+			killsByType: {},
+			shinyKillsByType: {},
+			masteryDmgBonus: {},
+			critsDealt: 0,
 		};
 	}
 
@@ -136,7 +143,7 @@ export class GameEngine {
 		this.onStateChange = opts.onStateChange ?? null;
 	}
 
-	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, labLevels: Partial<Record<LabId, number>>, startingCoins: number, unlockedBlueprints: BlueprintId[] = [], tier: number = 1, challenge: ChallengeId | null = null): void {
+	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, labLevels: Partial<Record<LabId, number>>, startingCoins: number, unlockedBlueprints: BlueprintId[] = [], tier: number = 1, challenge: ChallengeId | null = null, killsByType: Partial<Record<EnemyType, number>> = {}): void {
 		resetEnemyIdCounter();
 		resetProjectileIdCounter();
 		this.particles = [];
@@ -154,6 +161,14 @@ export class GameEngine {
 		this.state.coins = startingCoins;
 		this.state.tier = tier;
 		this.state.activeChallenge = challenge;
+
+		// Precompute mastery damage bonuses from lifetime kill counts
+		this.state.masteryDmgBonus = {};
+		for (const type of Object.values(EnemyType)) {
+			const bonus = getMasteryBonus(killsByType[type] ?? 0);
+			if (bonus > 0) this.state.masteryDmgBonus[type] = bonus;
+		}
+
 		this.state.runActive = true;
 		this.state.gameOver = false;
 		this.state.paused = false;
@@ -205,8 +220,9 @@ export class GameEngine {
 		}
 
 		updateEnemySystem(this.state, effectiveDt);
-		updateTowerTargeting(this.state, effectiveDt);
-		updateProjectileSystem(this.state, effectiveDt);
+		const enemyIndex = buildEnemyFrameIndex(this.state.enemies);
+		updateTowerTargeting(this.state, effectiveDt, enemyIndex);
+		updateProjectileSystem(this.state, effectiveDt, enemyIndex);
 		removeDeadEnemies(this.state);
 
 		this.updateParticles(effectiveDt);

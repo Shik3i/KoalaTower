@@ -34,6 +34,9 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		if (version < 9) {
 			save = migrateV8toV9(save);
 		}
+		if (version < 10) {
+			save = migrateV9toV10(save);
+		}
 
 		save = ensureMetadata(save);
 
@@ -81,6 +84,14 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 		totalFieldUpgradesPurchased: 0,
 		totalAlloyEarned: 0,
 		totalShiniesKilled: 0,
+		killsByType: {},
+		shinyKillsByType: {},
+		totalEnergyEarned: 0,
+		totalDamageDealt: 0,
+		totalCritsDealt: 0,
+		totalWavesCompleted: 0,
+		totalPlayTimeSeconds: 0,
+		masteryAchievements: {},
 	};
 }
 
@@ -230,6 +241,22 @@ function migrateV7toV8(save: SaveData): SaveData {
 	};
 }
 
+function migrateV9toV10(save: SaveData): SaveData {
+	// v10 adds per-enemy kill tracking and extended lifetime stats for the mastery system.
+	return {
+		...save,
+		schemaVersion: 10,
+		killsByType: (save as any).killsByType ?? {},
+		shinyKillsByType: (save as any).shinyKillsByType ?? {},
+		totalEnergyEarned: (save as any).totalEnergyEarned ?? 0,
+		totalDamageDealt: (save as any).totalDamageDealt ?? 0,
+		totalCritsDealt: (save as any).totalCritsDealt ?? 0,
+		totalWavesCompleted: (save as any).totalWavesCompleted ?? 0,
+		totalPlayTimeSeconds: (save as any).totalPlayTimeSeconds ?? 0,
+		masteryAchievements: (save as any).masteryAchievements ?? {},
+	};
+}
+
 function migrateV8toV9(save: SaveData): SaveData {
 	// v9 adds per-front best waves for sequential front unlocking.
 	// All prior play happened on Front 1, so grandfather global best there.
@@ -285,5 +312,13 @@ function ensureMetadata(save: SaveData): SaveData {
 		totalFieldUpgradesPurchased: (save as any).totalFieldUpgradesPurchased ?? 0,
 		totalAlloyEarned: (save as any).totalAlloyEarned ?? 0,
 		totalShiniesKilled: (save as any).totalShiniesKilled ?? 0,
+		killsByType: (save as any).killsByType ?? {},
+		shinyKillsByType: (save as any).shinyKillsByType ?? {},
+		totalEnergyEarned: (save as any).totalEnergyEarned ?? 0,
+		totalDamageDealt: (save as any).totalDamageDealt ?? 0,
+		totalCritsDealt: (save as any).totalCritsDealt ?? 0,
+		totalWavesCompleted: (save as any).totalWavesCompleted ?? 0,
+		totalPlayTimeSeconds: (save as any).totalPlayTimeSeconds ?? 0,
+		masteryAchievements: (save as any).masteryAchievements ?? {},
 	};
 }

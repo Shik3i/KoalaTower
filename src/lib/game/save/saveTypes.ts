@@ -1,4 +1,4 @@
-import type { GameSettings, WorkshopUpgradeId, LabId, MilestoneId, ChallengeId, BlueprintId, AchievementId } from '../engine/gameTypes';
+import type { GameSettings, WorkshopUpgradeId, LabId, MilestoneId, ChallengeId, BlueprintId, AchievementId, EnemyType } from '../engine/gameTypes';
 import { TierId, DEFAULT_SETTINGS } from '../engine/gameTypes';
 
 export interface LabResearch {
@@ -51,9 +51,20 @@ export interface SaveData {
 	totalFieldUpgradesPurchased: number;
 	totalAlloyEarned: number;
 	totalShiniesKilled: number;
+	// v10: Per-enemy kill tracking for Enemy Mastery system
+	killsByType: Partial<Record<EnemyType, number>>;
+	shinyKillsByType: Partial<Record<EnemyType, number>>;
+	// v10: Extended lifetime stats
+	totalEnergyEarned: number;
+	totalDamageDealt: number;
+	totalCritsDealt: number;
+	totalWavesCompleted: number;
+	totalPlayTimeSeconds: number;
+	// v10: Mastery achievement claims (string keys like "mastery_normal_1")
+	masteryAchievements: Partial<Record<string, boolean>>;
 }
 
-export const CURRENT_SCHEMA_VERSION = 9;
+export const CURRENT_SCHEMA_VERSION = 10;
 
 export function createDefaultSave(): SaveData {
 	const now = Date.now();
@@ -83,5 +94,13 @@ export function createDefaultSave(): SaveData {
 		totalFieldUpgradesPurchased: 0,
 		totalAlloyEarned: 0,
 		totalShiniesKilled: 0,
+		killsByType: {},
+		shinyKillsByType: {},
+		totalEnergyEarned: 0,
+		totalDamageDealt: 0,
+		totalCritsDealt: 0,
+		totalWavesCompleted: 0,
+		totalPlayTimeSeconds: 0,
+		masteryAchievements: {},
 	};
 }

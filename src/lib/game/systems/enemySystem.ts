@@ -3,6 +3,8 @@ import { EnemyType, type Enemy, type GameState, type Projectile } from '../engin
 import { damageTower, applyThorns, applyLifesteal, computeDamageToTower } from './towerSystem';
 import { calculateEnergyFromKill, getBossCoinReward } from './economySystem';
 import { getFrontAlloyMultiplier } from '../balance/balanceMath';
+import { calculateEnemyDamage, createProjectileDamageContext } from './damageSystem';
+import type { EnemyFrameIndex } from './spatialIndex';
 
 // Feedback helpers
 import type { SoundName } from '../audio/AudioManager';
@@ -95,13 +97,13 @@ export function createProjectile(
 	};
 }
 
-export function updateProjectileSystem(state: GameState, dt: number): void {
+export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?: EnemyFrameIndex): void {
 	if (!state.runActive || state.gameOver || state.paused) return;
 
 	for (const proj of state.projectiles) {
 		if (!proj.alive) continue;
 
-		const target = state.enemies.find(e => e.id === proj.targetId && e.alive);
+		const target = enemyIndex?.byId.get(proj.targetId) ?? state.enemies.find(e => e.id === proj.targetId && e.alive);
 		if (!target) {
 			proj.alive = false;
 			continue;
@@ -109,11 +111,17 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 
 		const dx = target.position.x - proj.position.x;
 		const dy = target.position.y - proj.position.y;
-		const dist = Math.sqrt(dx * dx + dy * dy);
+		const distSq = dx * dx + dy * dy;
 
-		if (dist < 8) {
-			// Armor reduces damage by a factor (0=no reduction, 0.5=50% reduction)
-			const effectiveDmg = Math.max(1, Math.floor(proj.damage * (1 - target.armor)));
+		if (distSq < 64) {
+			const hitDistance = Math.sqrt(distSq);
+			const damage = calculateEnemyDamage(
+				target,
+				createProjectileDamageContext(proj, target, state.masteryDmgBonus?.[target.type] ?? 0, hitDistance),
+			);
+			const effectiveDmg = damage.finalDamage;
+			// Track crits
+			if (damage.isCrit) state.critsDealt = (state.critsDealt ?? 0) + 1;
 			// Lifesteal heals based on damage dealt
 			applyLifesteal(state, effectiveDmg);
 			target.hp -= effectiveDmg;
@@ -132,6 +140,13 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 				state.killCount++;
 				if (target.isBoss) state.bossesDefeated++;
 				state.wave.enemiesKilled++;
+				// Track per-type kills for mastery system
+				state.killsByType = state.killsByType ?? {};
+				state.killsByType[target.type] = (state.killsByType[target.type] ?? 0) + 1;
+				if (target.isShiny) {
+					state.shinyKillsByType = state.shinyKillsByType ?? {};
+					state.shinyKillsByType[target.type] = (state.shinyKillsByType[target.type] ?? 0) + 1;
+				}
 
 				// ── Death effects by enemy type ──
 				const deathColor = target.isBoss ? GAME_CONFIG.NEON_PINK : target.color;
@@ -170,6 +185,7 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 				// Energy (temporary field resource) — Energy Amp already applied in calculateEnergyFromKill
 				const energy = calculateEnergyFromKill(state, target.reward);
 				state.cash += energy;
+				state.totalEnergyEarned += energy;
 
 				// Alloy (permanent currency) is NOT granted by normal kills —
 				// only bosses, shiny enemies, and wave completion award Alloy.
@@ -211,7 +227,7 @@ export function updateProjectileSystem(state: GameState, dt: number): void {
 	state.projectiles = state.projectiles.filter(p => p.alive);
 }
 
-export function updateTowerTargeting(state: GameState, dt: number): void {
+export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: EnemyFrameIndex): void {
 	if (!state.runActive || state.gameOver || state.paused) return;
 	if (!state.tower.alive) return;
 
@@ -220,7 +236,7 @@ export function updateTowerTargeting(state: GameState, dt: number): void {
 
 	const range = state.tower.stats.range;
 	const towerPos = state.tower.position;
-	const target = findNearestEnemy(state, range);
+	const target = findNearestEnemy(state, range, enemyIndex);
 
 	if (!target) return;
 
@@ -276,11 +292,12 @@ export function updateTowerTargeting(state: GameState, dt: number): void {
 	}
 }
 
-function findNearestEnemy(state: GameState, range: number): Enemy | null {
+function findNearestEnemy(state: GameState, range: number, enemyIndex?: EnemyFrameIndex): Enemy | null {
 	let nearest: Enemy | null = null;
 	let nearestDist = range * range;
+	const candidates = enemyIndex?.grid.queryCircle(state.tower.position.x, state.tower.position.y, range) ?? state.enemies;
 
-	for (const enemy of state.enemies) {
+	for (const enemy of candidates) {
 		if (!enemy.alive) continue;
 		const dx = enemy.position.x - state.tower.position.x;
 		const dy = enemy.position.y - state.tower.position.y;

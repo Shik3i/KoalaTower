@@ -102,7 +102,9 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 			wave.subWaveActive = false;
 			wave.betweenWaveTimer = 0;
 			// Award wave completion energy
-			state.cash += getWaveCompletionBonus(state, state.wave.currentWave);
+			const energyBonus = getWaveCompletionBonus(state, state.wave.currentWave);
+			state.cash += energyBonus;
+			state.totalEnergyEarned += energyBonus;
 			// Award wave completion alloy (primary alloy source), doubled for relevant challenges
 			const alloyMult = (state.activeChallenge === ChallengeId.GlassTower || state.activeChallenge === ChallengeId.BossRush) ? 2 : 1;
 			state.coins += Math.floor(getWaveCoinReward(state, state.wave.currentWave) * alloyMult);

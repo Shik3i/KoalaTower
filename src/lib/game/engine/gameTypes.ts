@@ -66,6 +66,12 @@ export interface Projectile {
 	alive: boolean;
 	trail: Vec2[];
 	isCrit: boolean;
+	/** Optional future combat modifiers; omitted values preserve current behavior. */
+	armorPierce?: number;
+	damageMultiplier?: number;
+	maxDistance?: number;
+	distanceFalloff?: number;
+	tags?: string[];
 }
 
 export interface TowerStats {
@@ -357,6 +363,7 @@ export interface GameState {
 	killCount: number;
 	bossesDefeated: number;
 	totalDamageDealt: number;
+	totalEnergyEarned: number;
 	highestWave: number;
 	totalRuns: number;
 	settings: GameSettings;
@@ -369,6 +376,14 @@ export interface GameState {
 	viewHeight?: number;
 	/** Active Special Ops challenge for this run, or null for a standard run. */
 	activeChallenge: ChallengeId | null;
+	/** Per-run kill counts by enemy type — accumulated into save on game over. */
+	killsByType: Partial<Record<EnemyType, number>>;
+	/** Per-run shiny kills by type. */
+	shinyKillsByType: Partial<Record<EnemyType, number>>;
+	/** Mastery damage bonus per type, precomputed at run start from lifetime killsByType. */
+	masteryDmgBonus: Partial<Record<EnemyType, number>>;
+	/** Crits dealt this run. */
+	critsDealt: number;
 }
 
 export interface GameSettings {

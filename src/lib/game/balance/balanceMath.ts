@@ -472,3 +472,20 @@ export function formatCompact(n: number): string {
 	// One decimal at K, two beyond — matches the prior formatting.
 	return scaled.toFixed(decimals(tier)) + COMPACT_SUFFIXES[tier];
 }
+
+// ─── Enemy Mastery system ──────────────────────────────────────────────────
+
+/** Kill-count thresholds for mastery levels 1–5. */
+export const MASTERY_THRESHOLDS = [100, 1000, 10_000, 100_000, 1_000_000];
+
+/** 0–5: how many mastery levels have been earned for this kill count. */
+export function getMasteryLevel(kills: number): number {
+	let level = 0;
+	for (const t of MASTERY_THRESHOLDS) { if (kills >= t) level++; else break; }
+	return level;
+}
+
+/** Damage bonus multiplier addend: +0.01 per mastery level (0.0–0.05). */
+export function getMasteryBonus(kills: number): number {
+	return getMasteryLevel(kills) * 0.01;
+}

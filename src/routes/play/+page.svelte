@@ -8,7 +8,8 @@
 	import BossHealthBar from '$lib/components/BossHealthBar.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { GAME_CONFIG } from '$lib/game/engine/gameConfig';
-	import { UpgradeId, type GameSnapshot, type GameSettings, AchievementId, DEFAULT_SETTINGS, ChallengeId } from '$lib/game/engine/gameTypes';
+	import { UpgradeId, type GameSnapshot, type GameSettings, AchievementId, DEFAULT_SETTINGS, ChallengeId, EnemyType } from '$lib/game/engine/gameTypes';
+	import { checkMasteryAchievements } from '$lib/game/balance/mastery';
 	import { buildBattleUpgradeList } from '$lib/game/balance/battleUpgrades';
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
 	import { getBlueprintDef } from '$lib/game/balance/blueprints';
@@ -265,6 +266,40 @@
 					save.totalShiniesKilled += engine.state.shiniesKilled;
 					save.totalAlloyEarned += runCoinsEarned;
 
+					// Aggregate per-run kill counts into lifetime save stats
+					if (engine.state.killsByType) {
+						for (const [type, count] of Object.entries(engine.state.killsByType)) {
+							const key = type as EnemyType;
+							save.killsByType = save.killsByType ?? {};
+							save.killsByType[key] = (save.killsByType[key] ?? 0) + (count ?? 0);
+						}
+					}
+					if (engine.state.shinyKillsByType) {
+						for (const [type, count] of Object.entries(engine.state.shinyKillsByType)) {
+							const key = type as EnemyType;
+							save.shinyKillsByType = save.shinyKillsByType ?? {};
+							save.shinyKillsByType[key] = (save.shinyKillsByType[key] ?? 0) + (count ?? 0);
+						}
+					}
+					save.totalEnergyEarned = (save.totalEnergyEarned ?? 0) + (engine.state.totalEnergyEarned ?? 0);
+					save.totalDamageDealt = (save.totalDamageDealt ?? 0) + engine.state.totalDamageDealt;
+					save.totalCritsDealt = (save.totalCritsDealt ?? 0) + (engine.state.critsDealt ?? 0);
+					save.totalWavesCompleted = (save.totalWavesCompleted ?? 0) + Math.max(0, engine.state.wave.currentWave - 1);
+					save.totalPlayTimeSeconds = (save.totalPlayTimeSeconds ?? 0) + Math.floor(engine.state.elapsedTime);
+
+					// Check mastery achievements
+					const newMasteryRewards = checkMasteryAchievements(save.masteryAchievements ?? {}, save.killsByType ?? {});
+					if (newMasteryRewards.length > 0) {
+						save.masteryAchievements = save.masteryAchievements ?? {};
+						for (const reward of newMasteryRewards) {
+							save.masteryAchievements[reward.key] = true;
+							save.totalCoins += reward.alloy;
+							gameOverCoins += reward.alloy;
+							toast('🏅 ' + reward.name + ' — +' + reward.alloy.toLocaleString() + ' Alloy!', 'milestone');
+						}
+						coinsStore.set(save.totalCoins);
+					}
+
 					const reachedWave = engine.state.wave.currentWave;
 					const runChallenge = engine.state.activeChallenge;
 
@@ -390,7 +425,7 @@
 		const unlockedBPs = (save?.unlockedBlueprints ?? []) as import('$lib/game/engine/gameTypes').BlueprintId[];
 		// Validate challenge is still unlocked (defensive — selection persists across sessions)
 		const validChallenge = selectedChallenge && isChallengeUnlocked(selectedChallenge, frontBestWave) ? selectedChallenge : null;
-		engine.startRun(save?.workshopUpgrades ?? {}, save?.labLevels ?? {}, coins, unlockedBPs, getTierNumber(selectedFront), validChallenge);
+		engine.startRun(save?.workshopUpgrades ?? {}, save?.labLevels ?? {}, coins, unlockedBPs, getTierNumber(selectedFront), validChallenge, save?.killsByType ?? {});
 		syncSettingsToEngine(save?.settings ?? { ...DEFAULT_SETTINGS });
 		gameView?.start();
 		refreshSnap();
