@@ -186,6 +186,11 @@ export class GameEngine {
 		this.lastWave = 0;
 		this.firedMilestones = new Set();
 
+		// Preserve viewport dimensions across restarts so spawn positions
+		// and tower placement use the actual canvas size, not the 800px default
+		const prevViewWidth = this.state.viewWidth;
+		const prevViewHeight = this.state.viewHeight;
+
 		this.state = this.createInitialState();
 		this.state.workshopUpgrades = { ...workshopUpgrades } as Record<WorkshopUpgradeId, number>;
 		this.state.labLevels = { ...labLevels } as Record<LabId, number>;
@@ -206,7 +211,20 @@ export class GameEngine {
 		this.unlockedFieldBlueprints = [...unlockedBlueprints];
 		this.statsDirty = true;
 
+		// Restore viewport dimensions so spawns, tower position, and
+		// enemy pathing use the actual canvas size
+		if (prevViewWidth != null) this.state.viewWidth = prevViewWidth;
+		if (prevViewHeight != null) this.state.viewHeight = prevViewHeight;
+
 		this.state.tower = createTowerState(this.state);
+
+		// Correct tower position to actual viewport center (createTowerState
+		// hardcodes VIEW_WIDTH/2 which may not match the live canvas)
+		if (this.state.viewWidth != null) {
+			this.state.tower.position.x = this.state.viewWidth / 2;
+			this.state.tower.position.y = (this.state.viewHeight ?? this.state.viewWidth) / 2;
+		}
+
 		this.state.cash = getStartingEnergy(this.state);
 
 		// Glass Tower: 1 HP tower — must be applied after createTowerState

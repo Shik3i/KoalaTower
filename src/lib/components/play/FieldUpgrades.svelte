@@ -94,10 +94,10 @@
 			<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
 			{#if !locked}
 				<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
-				<div class="uc-eff">{upgradeCurrentValue(u.id, lv)}</div>
-				<div class="uc-b"><span class="ucc">⚡{cost}</span><span class="ucnx">{mx ? 'MAXED' : '→ ' + upgradeNextValue(u.id, lv)}</span></div>
+				<div class="uc-val">{upgradeCurrentValue(u.id, lv)}</div>
+				<div class="uc-b"><span class="ucc">⚡{cost.toLocaleString()}</span><span class="ucnx">{mx ? 'MAXED' : '+ ' + upgradeNextValue(u.id, lv)}</span></div>
 			{:else}
-				<div class="uc-eff" style="color:var(--text-dim)">🔒 Requires {getLockBlueprintName(u.id)}</div>
+				<div class="uc-val" style="color:var(--text-dim)">🔒 Requires {getLockBlueprintName(u.id)}</div>
 			{/if}
 		</button>
 	{/each}
@@ -122,17 +122,20 @@
 	@keyframes purchaseGlow { 0%{box-shadow:0 0 0 rgba(0,255,255,0);transform:scale(1)} 25%{box-shadow:0 0 25px rgba(0,255,255,.8),0 0 50px rgba(0,255,255,.3);transform:scale(1.03)} 100%{box-shadow:0 0 0 rgba(0,255,255,0);transform:scale(1)} }
 	.uc.mx { opacity:.45; cursor:default; }
 	.uc:disabled:not(.mx) { opacity:.55; cursor:default; }
-	.uc-t { display:flex; align-items:center; gap:.25rem; }
+	.uc-t { display:flex; align-items:center; gap:.3rem; }
 	.uci { font-size:var(--fs-mono-lg); flex-shrink:0; }
-	.ucn { flex:1; font-size:var(--fs-mono-lg); font-weight:500; color:var(--text-primary); }
-	.ucl { font-size:var(--fs-mono-sm); font-family:var(--font-mono); color:var(--text-secondary); }
-	.uc-btr { height:3px; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
+	.ucn { flex:1; font-size:var(--fs-mono); font-weight:600; color:var(--text-primary); }
+	.ucl { font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-secondary); }
+	.uc-btr { height:3px; background:rgba(0,0,0,.35); border-radius:2px; overflow:hidden; margin-bottom:.08rem; }
 	.uc-btf { height:100%; background:linear-gradient(90deg,var(--cyan),var(--blue)); border-radius:2px; transition:width var(--transition-normal); }
 	.uc.aff .uc-btf { background:linear-gradient(90deg,var(--green),var(--cyan)); }
-	.uc-eff { font-size:var(--fs-mono); color:var(--text-secondary); font-family:var(--font-mono); padding:.05rem 0; }
-	.uc.aff .uc-eff { color:var(--green); }
-	.uc-b { display:flex; align-items:center; gap:.3rem; font-size:var(--fs-mono); }
-	.ucc { font-family:var(--font-mono); color:var(--yellow); }
-	.ucnx { margin-left:auto; color:var(--text-secondary); font-family:var(--font-mono); }
-	.uc.aff .ucnx { color:var(--green); }
+	/* Primary: current value */
+	.uc-val { font-size:var(--fs-mono-lg); color:var(--text-primary); font-family:var(--font-mono); font-weight:600; padding:.02rem 0; }
+	.uc.aff .uc-val { color:var(--green); }
+	/* Bottom row: cost (prominent) + next delta (subtle) */
+	.uc-b { display:flex; align-items:baseline; gap:.25rem; }
+	.ucc { font-family:var(--font-mono); font-size:var(--fs-body); font-weight:600; color:var(--yellow); }
+	.uc.aff .ucc { color:var(--yellow); }
+	.ucnx { margin-left:auto; font-size:var(--fs-caption-sm); color:var(--text-dim); font-family:var(--font-mono); }
+	.uc.aff .ucnx { color:var(--text-secondary); }
 </style>

@@ -127,7 +127,7 @@ function recompute(state: SimState, ws: ReturnType<typeof computeBaseline>): voi
 	state.multishotChance = getBattleUpgradeEffect(UpgradeId.Multishot, bl(UpgradeId.Multishot));
 	state.multishotCount = 1 + getBattleUpgradeEffect(UpgradeId.MultishotProjectiles, bl(UpgradeId.MultishotProjectiles));
 	state.critChance = Math.min(0.75, ws.critChance + getBattleUpgradeEffect(UpgradeId.CritChance, bl(UpgradeId.CritChance)));
-	state.critMultiplier = 1.20 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, bl(UpgradeId.CritMultiplier));
+	state.critMultiplier = 1.30 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, bl(UpgradeId.CritMultiplier));
 	state.defense = ws.wsDefAbs + getBattleUpgradeEffect(UpgradeId.Defense, bl(UpgradeId.Defense));
 	state.defensePercent = Math.min(0.50, ws.wsDefPct + getBattleUpgradeEffect(UpgradeId.DefensePercent, bl(UpgradeId.DefensePercent)));
 	state.regen = ws.wsRegen + getBattleUpgradeEffect(UpgradeId.Regen, bl(UpgradeId.Regen));
@@ -190,7 +190,7 @@ export function simulateRun(
 	const state: SimState = {
 		damage: ws.damage, fireRate: ws.fireRate, range: ws.range,
 		multishotChance: 0, multishotCount: 1,
-		critChance: ws.critChance, critMultiplier: 1.20,
+		critChance: ws.critChance, critMultiplier: 1.30,
 		maxHp: ws.hp, hp: ws.hp,
 		defense: ws.wsDefAbs, defensePercent: ws.wsDefPct,
 		regen: ws.wsRegen, lifesteal: ws.wsLifesteal, thorns: ws.wsThorns,

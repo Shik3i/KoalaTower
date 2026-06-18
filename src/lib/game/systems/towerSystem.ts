@@ -47,7 +47,7 @@ export function createTowerState(state: GameState): TowerState {
 			multishotChance: 0,
 			multishotCount: 1,
 			critChance: baseCrit,
-			critMultiplier: 1.20,
+			critMultiplier: 1.30,
 			defensePercent: Math.min(0.50, getWorkshopUpgradeEffect(WorkshopUpgradeId.DefensePercent, w(WorkshopUpgradeId.DefensePercent))),
 			defenseAbsolute: getWorkshopUpgradeEffect(WorkshopUpgradeId.DefenseAbsolute, w(WorkshopUpgradeId.DefenseAbsolute)),
 			regen: getWorkshopUpgradeEffect(WorkshopUpgradeId.Regen, w(WorkshopUpgradeId.Regen)),
@@ -87,7 +87,7 @@ export function applyBattleUpgrades(state: GameState): void {
 	tower.stats.multishotChance = getBattleUpgradeEffect(UpgradeId.Multishot, b(UpgradeId.Multishot));
 	tower.stats.multishotCount = 1 + getBattleUpgradeEffect(UpgradeId.MultishotProjectiles, b(UpgradeId.MultishotProjectiles));
 	tower.stats.critChance = Math.min(0.75, 0.01 + wsCrit + getBattleUpgradeEffect(UpgradeId.CritChance, b(UpgradeId.CritChance)));
-	tower.stats.critMultiplier = 1.20 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, b(UpgradeId.CritMultiplier));
+	tower.stats.critMultiplier = 1.30 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, b(UpgradeId.CritMultiplier));
 	tower.stats.defensePercent = Math.min(0.50, wsDefPct + getBattleUpgradeEffect(UpgradeId.DefensePercent, b(UpgradeId.DefensePercent)));
 	tower.stats.defenseAbsolute = wsDefAbs + getBattleUpgradeEffect(UpgradeId.Defense, b(UpgradeId.Defense));
 	tower.stats.regen = wsRegen + getBattleUpgradeEffect(UpgradeId.Regen, b(UpgradeId.Regen));

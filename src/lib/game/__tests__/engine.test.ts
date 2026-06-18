@@ -120,4 +120,44 @@ describe('GameEngine — enemy spawn placement uses the live viewport', () => {
 		// Right-edge spawn at x≈viewWidth+margin would be impossible (~810) under the bug.
 		expect(engine.state.enemies[0]!.position.x).toBeGreaterThan(1500);
 	});
+
+	it('preserves viewport dimensions across restarts so spawns use the live canvas size', () => {
+		// Regression: startRun() replaced the entire state, dropping viewWidth/viewHeight
+		// that initPixi() had written. A second run would fall back to the 800px default.
+		const engine = new GameEngine();
+		engine.state.viewWidth = 1200;
+		engine.state.viewHeight = 900;
+		engine.state.tower.position.x = 600;
+		engine.state.tower.position.y = 450;
+
+		engine.startRun({}, {}, 0, [], 1);
+
+		expect(engine.state.viewWidth).toBe(1200);
+		expect(engine.state.viewHeight).toBe(900);
+	});
+
+	it('corrects tower position to viewport centre after restart', () => {
+		const engine = new GameEngine();
+		engine.state.viewWidth = 1200;
+		engine.state.viewHeight = 900;
+		engine.state.tower.position.x = 600;
+		engine.state.tower.position.y = 450;
+
+		engine.startRun({}, {}, 0, [], 1);
+
+		expect(engine.state.tower.position.x).toBe(600);
+		expect(engine.state.tower.position.y).toBe(450);
+	});
+
+	it('falls back to GAME_CONFIG defaults when no prior viewport dimensions exist', () => {
+		const engine = new GameEngine();
+		// No viewWidth/viewHeight set — simulate first-ever launch
+		engine.startRun({}, {}, 0, [], 1);
+
+		expect(engine.state.viewWidth).toBeUndefined();
+		expect(engine.state.viewHeight).toBeUndefined();
+		// Tower defaults to the config constants
+		expect(engine.state.tower.position.x).toBe(GAME_CONFIG.VIEW_WIDTH / 2);
+		expect(engine.state.tower.position.y).toBe(GAME_CONFIG.VIEW_HEIGHT / 2);
+	});
 });

@@ -73,7 +73,7 @@ export function getDefaultTowerStats(): TowerStats {
 		multishotChance: 0,
 		multishotCount: 1,
 		critChance: 0.01,
-		critMultiplier: 1.20,
+		critMultiplier: 1.30,
 		defensePercent: 0,
 		defenseAbsolute: 0,
 		regen: 0,
