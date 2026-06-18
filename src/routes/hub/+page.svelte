@@ -62,6 +62,9 @@
 	let totalRuns = $state(0);
 	let activeSection = $state<'workshop' | 'lab' | 'blueprints' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings'>('workshop');
 	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
+	let workshopLevels = $state<Partial<Record<WorkshopUpgradeId, number>>>({});
+	let labLevels = $state<Record<string, number>>({});
+	let hubStats = $state({ bestKillstreak: 0, totalKills: 0, totalBossesDefeated: 0, totalShiniesKilled: 0, totalAlloyEarned: 0 });
 
 	const HUB_TUTORIAL_KEY = 'geocore-td-hub-tutorial-done';
 	const hubTutorialSteps: TutorialStep[] = [
@@ -272,6 +275,15 @@
 
 	function refreshLabProgress() {
 		const save = getCachedSave(); if (!save) return;
+		// Sync lab levels and campaign stats so all sections stay current
+		labLevels = { ...(save.labLevels ?? {}) } as Record<string, number>;
+		hubStats = {
+			bestKillstreak: save.bestKillstreak ?? 0,
+			totalKills: save.totalKills ?? 0,
+			totalBossesDefeated: save.totalBossesDefeated ?? 0,
+			totalShiniesKilled: save.totalShiniesKilled ?? 0,
+			totalAlloyEarned: save.totalAlloyEarned ?? 0,
+		};
 		if (save.activeLab) {
 			activeLabId = save.activeLab.labId;
 			activeLabTarget = save.activeLab.targetLevel;
@@ -408,6 +420,15 @@
 		if (save?.unlockedBlueprints) ownedBlueprints = [...save.unlockedBlueprints];
 		if (save?.discoveredBlueprints) discoveredBlueprints = [...save.discoveredBlueprints];
 		if (save?.schematicsByFront) schematicsByFront = { ...save.schematicsByFront };
+		workshopLevels = { ...(save?.workshopUpgrades ?? {}) } as Record<WorkshopUpgradeId, number>;
+		labLevels = { ...(save?.labLevels ?? {}) } as Record<string, number>;
+		hubStats = {
+			bestKillstreak: save?.bestKillstreak ?? 0,
+			totalKills: save?.totalKills ?? 0,
+			totalBossesDefeated: save?.totalBossesDefeated ?? 0,
+			totalShiniesKilled: save?.totalShiniesKilled ?? 0,
+			totalAlloyEarned: save?.totalAlloyEarned ?? 0,
+		};
 		refreshBlackMarketState();
 		if (save?.frontBestWave) frontBestWave = { ...save.frontBestWave };
 		if (save?.killsByType) killsByType = { ...save.killsByType };
@@ -433,7 +454,7 @@
 		return () => { u1(); u2(); u3(); u4(); if (labProgressTimer) clearInterval(labProgressTimer); if (clockTimer) clearInterval(clockTimer); toasts.clear(); };
 	});
 
-	function wLv(id: WorkshopUpgradeId): number { return getCachedSave()?.workshopUpgrades[id] ?? 0; }
+	function wLv(id: WorkshopUpgradeId): number { return workshopLevels[id] ?? 0; }
 	function buyWorkshopUpgrade(id: WorkshopUpgradeId) {
 		const save = getCachedSave(); if (!save) return;
 		const upgrade = WORKSHOP_UPGRADES.find(u => u.id === id);
@@ -456,6 +477,7 @@
 		if (bought > 0) {
 			coinsStore.set(save.totalCoins);
 			persistSave(save);
+			workshopLevels = { ...save.workshopUpgrades } as Record<WorkshopUpgradeId, number>;
 			uiSound('upgrade');
 			const newLv = initialLv + bought;
 			toast('🔧 ' + (upgrade?.name ?? id) + ' → Lv.' + newLv + (bought > 1 ? ' (+' + bought + ')' : ''), 'success');
@@ -489,7 +511,7 @@
 		toast('🔬 Started ' + def.name + ' Lv.' + (lv + 1) + ' — ' + formatLabDuration(duration), 'success');
 	}
 
-	function lLv(id: string): number { return (getCachedSave()?.labLevels as Record<string, number>)[id] ?? 0; }
+	function lLv(id: string): number { return labLevels[id] ?? 0; }
 
 	/** Toggle a boolean setting and persist it. Used by both click and keyboard. */
 	function toggleSetting(key: keyof GameSettings) {
@@ -653,7 +675,7 @@
 							{@const mx = lv >= lab.maxLevel}
 							{@const isResearching = activeLabId === lab.id}
 							{@const currMult = 1 + getLabEffect(lab.id, lv)}
-							{@const hasActive = !!getCachedSave()?.activeLab}
+							{@const hasActive = !!activeLabId}
 							{@const lockedDisplay = '🔒 Reach Wave ' + lab.unlockWave}
 							<div class="uc lc" class:locked={!unlocked} class:researching={isResearching} class:mx={mx && unlocked}
 								use:tooltip={!unlocked
@@ -868,14 +890,14 @@
 					<div class="ig" style="max-width:600px">
 						<div class="ir"><span class="il">Total Deployments</span><span class="iv">{totalRuns}</span></div>
 						<div class="ir"><span class="il">Highest Wave</span><span class="iv">🏆 {highestWave}</span></div>
-						<div class="ir"><span class="il">Best Killstreak</span><span class="iv">⛓ {formatCompact(getCachedSave()?.bestKillstreak ?? 0)}</span></div>
-						<div class="ir"><span class="il">Total Kills</span><span class="iv">{formatCompact(getCachedSave()?.totalKills ?? 0)}</span></div>
-						<div class="ir"><span class="il">Bosses Defeated</span><span class="iv">{formatCompact(getCachedSave()?.totalBossesDefeated ?? 0)}</span></div>
-						<div class="ir"><span class="il">Shinies Collected</span><span class="iv">{formatCompact(getCachedSave()?.totalShiniesKilled ?? 0)}</span></div>
+						<div class="ir"><span class="il">Best Killstreak</span><span class="iv">⛓ {formatCompact(hubStats.bestKillstreak)}</span></div>
+						<div class="ir"><span class="il">Total Kills</span><span class="iv">{formatCompact(hubStats.totalKills)}</span></div>
+						<div class="ir"><span class="il">Bosses Defeated</span><span class="iv">{formatCompact(hubStats.totalBossesDefeated)}</span></div>
+						<div class="ir"><span class="il">Shinies Collected</span><span class="iv">{formatCompact(hubStats.totalShiniesKilled)}</span></div>
 						<div class="ir"><span class="il">Damage Dealt</span><span class="iv">{formatCompact(lifetimeStats.totalDamageDealt)}</span></div>
 						<div class="ir"><span class="il">Critical Hits</span><span class="iv">{formatCompact(lifetimeStats.totalCritsDealt)}</span></div>
 						<div class="ir"><span class="il">Energy Earned</span><span class="iv">⚡ {formatCompact(lifetimeStats.totalEnergyEarned)}</span></div>
-						<div class="ir"><span class="il">Alloy Earned</span><span class="iv">🔩 {formatCompact(getCachedSave()?.totalAlloyEarned ?? 0)}</span></div>
+						<div class="ir"><span class="il">Alloy Earned</span><span class="iv">🔩 {formatCompact(hubStats.totalAlloyEarned)}</span></div>
 						<div class="ir"><span class="il">Waves Completed</span><span class="iv">{formatCompact(lifetimeStats.totalWavesCompleted)}</span></div>
 						<div class="ir"><span class="il">Play Time</span><span class="iv">{formatPlayTime(lifetimeStats.totalPlayTimeSeconds)}</span></div>
 					</div>
