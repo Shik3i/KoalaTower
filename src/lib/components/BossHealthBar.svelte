@@ -23,11 +23,17 @@
 		<span class="boss-wave">WAVE {wave}</span>
 		<span class="boss-hp">{formatCompact(Math.max(0, Math.ceil(hp)))} / {formatCompact(maxHp)}</span>
 	</div>
-	<div class="boss-track" role="progressbar" aria-valuenow={hp} aria-valuemin={0} aria-valuemax={maxHp} aria-label="Boss Health">
+	<div class="boss-track"
+		role="progressbar"
+		aria-valuenow={Math.round(pct)}
+		aria-valuemin={0}
+		aria-valuemax={100}
+		aria-label="Boss health: {Math.round(pct)}%"
+	>
 		<!-- Ghost of total HP across all layers -->
 		<div class="boss-total" style="width:{pct}%"></div>
-		<!-- Current layer fill (sits on top) -->
-		<div class="boss-fill" style="width:{withinLayer * 100}%" role="progressbar" aria-valuenow={hp} aria-valuemin={0} aria-valuemax={maxHp} aria-label="Boss Health"></div>
+		<!-- Current layer fill (sits on top) — presentational only -->
+		<div class="boss-fill" style="width:{withinLayer * 100}%" aria-hidden="true"></div>
 	</div>
 	{#if segments > 1}
 		<div class="boss-pips">

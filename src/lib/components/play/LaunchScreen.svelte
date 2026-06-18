@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { TierId, ChallengeId } from '$lib/game/engine/gameTypes';
-	import { TIERS, getTierNumber, getFrontName, getPreviousFront, FRONT_UNLOCK_WAVE } from '$lib/game/balance/tiers';
+	import FrontIcon from '$lib/components/FrontIcon.svelte';
+	import { TierId, ChallengeId, FrontBand } from '$lib/game/engine/gameTypes';
+	import { FRONT_META, FRONT_BANDS, getFrontName, describeFrontUnlock } from '$lib/game/balance/tiers';
 	import { getFrontAlloyMultiplier } from '$lib/game/balance/balanceMath';
+	import { getSchematics } from '$lib/game/balance/schematics';
 	import { CHALLENGES, CHALLENGE_UNLOCK_REQS, isChallengeUnlocked } from '$lib/game/balance/challenges';
 
 	let {
@@ -13,6 +16,7 @@
 		selectedChallenge = $bindable<ChallengeId | null>(null),
 		unlockedFronts,
 		frontBestWave = {},
+		schematicsByFront = {},
 		challengeHighScores = {},
 		onDeploy,
 	}: {
@@ -23,13 +27,39 @@
 		selectedChallenge?: ChallengeId | null;
 		unlockedFronts: TierId[];
 		frontBestWave?: Partial<Record<TierId, number>>;
+		schematicsByFront?: Record<number, number>;
 		challengeHighScores?: Partial<Record<ChallengeId, number>>;
 		onDeploy: () => void;
 	} = $props();
 
+	// Group the 16 Fronts by band for the selector.
+	const bandOrder: FrontBand[] = [FrontBand.Perimeter, FrontBand.Redline, FrontBand.Blacksite, FrontBand.Anomaly];
+	const frontsByBand = $derived(bandOrder.map(band => ({
+		band,
+		def: FRONT_BANDS[band],
+		fronts: FRONT_META.filter(m => m.band === band),
+	})));
+
+	function isUnlocked(id: TierId): boolean {
+		return unlockedFronts.includes(id);
+	}
+
 	function toggleChallenge(id: ChallengeId) {
 		selectedChallenge = selectedChallenge === id ? null : id;
 	}
+
+	function handleGlobalKey(e: KeyboardEvent) {
+		if (e.key !== 'Enter') return;
+		// Don't intercept Enter on interactive elements that handle it themselves.
+		const t = e.target;
+		if (t instanceof HTMLButtonElement || t instanceof HTMLAnchorElement
+			|| t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement
+			|| t instanceof HTMLSelectElement) return;
+		onDeploy();
+	}
+
+	onMount(() => window.addEventListener('keydown', handleGlobalKey));
+	onDestroy(() => window.removeEventListener('keydown', handleGlobalKey));
 
 	const deployLabel = $derived(
 		selectedChallenge
@@ -52,37 +82,48 @@
 			</div>
 		{/if}
 
-		<!-- Front (tier) selector -->
+		<!-- Front selector — 16 Fronts across 4 bands -->
 		<div class="front-sel">
 			<div class="front-sel-h"><Icon name="hub" size={13} /> Select Front</div>
-			<div class="front-list">
-				{#each TIERS as t}
-					{@const unlocked = unlockedFronts.includes(t.id)}
-					{@const tierNum = getTierNumber(t.id)}
-					<button
-						class="front-opt"
-						class:on={selectedFront === t.id && !selectedChallenge}
-						class:locked={!unlocked}
-						disabled={!unlocked}
-						onclick={() => { selectedFront = t.id; selectedChallenge = null; }}
-						title={unlocked ? t.name : 'Locked — reach Wave ' + FRONT_UNLOCK_WAVE + ' on ' + (getPreviousFront(t.id) ? getFrontName(getPreviousFront(t.id)!) : '')}
-					>
-						<span class="front-n">{getFrontName(t.id)}</span>
-						{#if unlocked}
-							<span class="front-sub">
-								{tierNum === 1 ? 'Baseline' : '×' + tierNum + ' difficulty'} · ×{getFrontAlloyMultiplier(tierNum).toFixed(1)} Alloy
-							</span>
-						{:else}
-							<span class="front-sub front-lock">🔒 W{FRONT_UNLOCK_WAVE} on T{getPreviousFront(t.id) ? getTierNumber(getPreviousFront(t.id)!) : 1}</span>
-						{/if}
-					</button>
-				{/each}
-			</div>
+			{#each frontsByBand as group}
+				{@const anyUnlocked = group.fronts.some(m => isUnlocked(m.id))}
+				<div class="band-grp" style="--band:{group.def.color};--accent:{group.def.accent}">
+					<div class="band-h">
+						<span class="band-dot"></span>{group.def.label}
+						{#if !anyUnlocked}<span class="band-lock">classified</span>{/if}
+					</div>
+					<div class="front-list">
+						{#each group.fronts as m}
+							{@const unlocked = isUnlocked(m.id)}
+							{@const best = frontBestWave[m.id] ?? 0}
+							{@const schem = getSchematics(schematicsByFront, m.front)}
+							<button
+								class="front-opt"
+								class:on={selectedFront === m.id && !selectedChallenge}
+								class:locked={!unlocked}
+								disabled={!unlocked}
+								onclick={() => { selectedFront = m.id; selectedChallenge = null; }}
+								title={unlocked ? m.displayName : 'Locked — ' + describeFrontUnlock(m.id)}
+							>
+								<FrontIcon front={m.id} size={30} locked={!unlocked} />
+								<div class="front-body">
+									<span class="front-n">{m.displayName}</span>
+									{#if unlocked}
+										<span class="front-meta">×{getFrontAlloyMultiplier(m.front).toFixed(1)} Alloy{#if best > 0} · Best W{best}{/if}{#if schem > 0} · 📐{schem}{/if}</span>
+									{:else}
+										<span class="front-meta front-lock">🔒 {describeFrontUnlock(m.id)}</span>
+									{/if}
+								</div>
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/each}
 		</div>
 
 		<!-- Special Ops -->
 		{#if CHALLENGES.some(c => isChallengeUnlocked(c.id, frontBestWave))}
-			<div class="ops-sel">
+			<div class="ops-sel" style="--band:rgb(255,200,0);--accent:rgb(255,200,0)">
 				<div class="front-sel-h">⚡ Special Ops</div>
 				<div class="front-list">
 					{#each CHALLENGES as c}
@@ -100,9 +141,9 @@
 							<span class="ops-icon">{c.icon}</span>
 							<span class="front-n">{c.name}</span>
 							{#if unlocked}
-								<span class="front-sub ops-hs">{hs > 0 ? 'Best: W' + hs : 'No record'}</span>
+								<span class="front-meta ops-hs" style="margin-left:auto">{hs > 0 ? 'Best: W' + hs : 'No record'}</span>
 							{:else}
-								<span class="front-sub front-lock">🔒 {req.label.replace('Reach Wave ', 'W').replace(' on Tier ', '·T')}</span>
+								<span class="front-meta front-lock" style="margin-left:auto">🔒 {req.label.replace('Reach Wave ', 'W').replace(' on Tier ', '·T')}</span>
 							{/if}
 						</button>
 					{/each}
@@ -135,21 +176,28 @@
 	/* Vertical stack — each button is full-width and tall */
 	.front-list { display:flex; flex-direction:column; gap:.3rem; }
 
+	/* ── Band grouping ─────────────────────────────────────────── */
+	.band-grp { margin-bottom:.55rem; }
+	.band-h { display:flex; align-items:center; gap:.35rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); letter-spacing:.05em; text-transform:uppercase; color:var(--band); margin:.25rem 0 .3rem; }
+	.band-dot { width:8px; height:8px; border-radius:2px; background:var(--band); box-shadow:0 0 8px var(--band); }
+	.band-lock { margin-left:auto; color:var(--text-dim); text-transform:none; letter-spacing:0; font-style:italic; }
+
 	/* ── Front buttons (horizontal row layout) ─────────────────── */
 	.front-opt {
-		display:flex; flex-direction:row; align-items:center; gap:.5rem;
-		width:100%; padding:.55rem .75rem;
+		display:flex; flex-direction:row; align-items:center; gap:.55rem;
+		width:100%; padding:.45rem .6rem;
 		border-radius:var(--radius-sm); background:var(--bg-tertiary);
-		border:1px solid var(--border-neon); transition:all var(--transition-fast);
+		border:1px solid color-mix(in srgb, var(--band) 35%, transparent); transition:all var(--transition-fast);
 		cursor:pointer; text-align:left;
 	}
-	.front-opt:hover:not(:disabled) { border-color:var(--cyan); background:rgba(0,255,255,.06); }
-	.front-opt.on { border-color:var(--cyan); background:rgba(0,255,255,.12); box-shadow:0 0 12px rgba(0,255,255,.18); }
-	.front-opt.locked { opacity:.4; cursor:not-allowed; }
+	.front-opt:hover:not(:disabled) { border-color:var(--band); background:color-mix(in srgb, var(--band) 8%, transparent); }
+	.front-opt.on { border-color:var(--band); background:color-mix(in srgb, var(--band) 16%, transparent); box-shadow:0 0 12px color-mix(in srgb, var(--band) 30%, transparent); }
+	.front-opt.locked { opacity:.5; cursor:not-allowed; border-color:var(--border-neon); }
+	.front-body { display:flex; flex-direction:column; gap:.1rem; min-width:0; }
 	.front-n { font-family:var(--font-display); font-weight:700; font-size:var(--fs-body-sm); color:var(--text-primary); white-space:nowrap; }
-	.front-sub { font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); margin-left:auto; white-space:nowrap; flex-shrink:0; }
+	.front-meta { font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 	.front-lock { color:var(--text-secondary); }
-	.front-opt.on .front-n { color:var(--cyan); }
+	.front-opt.on .front-n { color:var(--band); }
 
 	/* ── Ops-specific additions ─────────────────────────────────── */
 	.ops-opt { border-color:rgba(255,200,0,.25); }

@@ -14,6 +14,7 @@
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
 	import { getBlueprintDef } from '$lib/game/balance/blueprints';
 	import { getUnlockedFronts, getTierNumber, getFrontName } from '$lib/game/balance/tiers';
+	import { addSchematics, getBossSchematicReward, pendingMilestoneSchematics, normalizeSchematics } from '$lib/game/balance/schematics';
 	import { rollBlueprintDiscovery } from '$lib/game/progression/blueprintDiscovery';
 	import { TierId } from '$lib/game/engine/gameTypes';
 	import { isChallengeUnlocked } from '$lib/game/balance/challenges';
@@ -43,6 +44,8 @@
 	let gameOverKills = $state(0);
 	let gameOverBosses = $state(0);
 	let gameOverCash = $state(0);
+	let gameOverSchematics = $state(0);
+	let gameOverFrontName = $state('');
 	let prevWave = $state(0);
 	let prevBossCount = $state(0);
 	let upgradeCategory = $state<'offense' | 'defense' | 'utility'>('offense');
@@ -79,6 +82,7 @@
 	let paused = $state(false);
 	let selectedFront = $state<TierId>(TierId.Tier1);
 	let frontBestWave = $state<Partial<Record<TierId, number>>>({});
+	let schematicsByFront = $state<Record<number, number>>({});
 	let unlockedFronts = $derived(getUnlockedFronts(frontBestWave));
 	let selectedChallenge = $state<ChallengeId | null>(null);
 	let challengeHighScores = $state<Partial<Record<ChallengeId, number>>>({});
@@ -104,6 +108,7 @@
 		const cachedSave = getCachedSave();
 		if (cachedSave?.selectedFront) selectedFront = cachedSave.selectedFront;
 		if (cachedSave?.frontBestWave) frontBestWave = { ...cachedSave.frontBestWave };
+		if (cachedSave?.schematicsByFront) schematicsByFront = { ...cachedSave.schematicsByFront };
 		if (cachedSave?.challengeHighScores) challengeHighScores = { ...cachedSave.challengeHighScores };
 		window.addEventListener('keydown', onKey);
 		window.addEventListener('keyup', onKeyUp);
@@ -251,6 +256,8 @@
 				gameOverKills = engine?.state.killCount ?? 0;
 				gameOverBosses = engine?.state.bossesDefeated ?? 0;
 				gameOverCash = engine?.state.cash ?? 0;
+				gameOverSchematics = 0;
+				gameOverFrontName = '';
 				showGameOver = true;
 				const save = getCachedSave();
 				if (save && engine) {
@@ -313,10 +320,35 @@
 					} else {
 						// Per-front best wave — gates sequential front unlocks.
 						const frontPrev = save.frontBestWave?.[save.selectedFront] ?? 0;
-						save.frontBestWave = { ...(save.frontBestWave ?? {}), [save.selectedFront]: Math.max(frontPrev, reachedWave) };
+						const newFrontBest = Math.max(frontPrev, reachedWave);
+						save.frontBestWave = { ...(save.frontBestWave ?? {}), [save.selectedFront]: newFrontBest };
 						const justUnlocked = getUnlockedFronts(save.frontBestWave).length > getUnlockedFronts(frontBestWave).length;
 						frontBestWave = { ...save.frontBestWave };
 						if (justUnlocked) toast('🌍 ' + getOpLogMessage('frontUnlocked', { name: getFrontName(save.selectedFront) }), 'milestone');
+
+						// ── Schematic rewards (Part 5) — non-challenge runs only ──
+						const frontNum = getTierNumber(save.selectedFront);
+						gameOverFrontName = getFrontName(save.selectedFront);
+						save.schematicsByFront = normalizeSchematics(save.schematicsByFront);
+						let schematicsThisRun = 0;
+						// Repeatable: one grant per boss killed this deployment.
+						const bossesThisRun = engine.state.bossesDefeated;
+						if (bossesThisRun > 0) {
+							const perBoss = getBossSchematicReward(frontNum);
+							schematicsThisRun += bossesThisRun * perBoss;
+							addSchematics(save.schematicsByFront, frontNum, bossesThisRun * perBoss);
+						}
+						// One-time: first-time wave milestones on this Front.
+						save.claimedSchematicMilestones = Array.isArray(save.claimedSchematicMilestones) ? save.claimedSchematicMilestones : [];
+						const milestoneAwards = pendingMilestoneSchematics(frontNum, newFrontBest, save.claimedSchematicMilestones);
+						for (const award of milestoneAwards) {
+							schematicsThisRun += award.amount;
+							addSchematics(save.schematicsByFront, frontNum, award.amount);
+							save.claimedSchematicMilestones = [...save.claimedSchematicMilestones, award.key];
+							toast('📐 +' + award.amount + ' ' + gameOverFrontName + ' Schematics — Wave ' + award.wave + ' first clear', 'milestone');
+						}
+						gameOverSchematics = schematicsThisRun;
+						schematicsByFront = { ...save.schematicsByFront };
 					}
 
 					const bLevels = engine.state.battleUpgrades;
@@ -625,6 +657,8 @@
 			kills={gameOverKills}
 			bosses={gameOverBosses}
 			cash={gameOverCash}
+			schematics={gameOverSchematics}
+			frontName={gameOverFrontName}
 			onRedeploy={startRun}
 			onExport={handleExportSave}
 		/>
@@ -635,7 +669,7 @@
 		<div class="overlay" role="dialog" aria-modal="true" aria-label="Import save"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON below.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(getOpLogMessage('saveImportFailed'), 'error'); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
 	{/if}
 	{#if showResetConfirm}
-		<div class="overlay" role="dialog" aria-modal="true" aria-label="Reset save"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Blueprints, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button><button class="dlg-dng-btn" onclick={handleResetSave}>Reset</button></div></div></div>
+		<div class="overlay" role="dialog" aria-modal="true" aria-label="Reset save"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Schematics, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button><button class="dlg-dng-btn" onclick={handleResetSave}>Reset</button></div></div></div>
 	{/if}
 
 	<div class="game-body">
@@ -703,6 +737,7 @@
 					bind:selectedChallenge
 					{unlockedFronts}
 					{frontBestWave}
+					{schematicsByFront}
 					{challengeHighScores}
 					onDeploy={startRun}
 				/>

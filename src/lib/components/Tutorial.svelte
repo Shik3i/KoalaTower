@@ -116,6 +116,13 @@
 		if (e.key === 'Escape') { skip(); }
 	}
 
+	function focusTooltip() {
+		requestAnimationFrame(() => {
+			const first = tooltipEl?.querySelector<HTMLElement>('button:not([disabled])');
+			first?.focus();
+		});
+	}
+
 	onMount(() => {
 		const done = localStorage.getItem(tutorialKey);
 		if (!done) {
@@ -123,17 +130,23 @@
 			requestAnimationFrame(() => {
 				requestAnimationFrame(() => {
 					updateHighlight();
-					requestAnimationFrame(() => recalcPosition());
+					requestAnimationFrame(() => {
+						recalcPosition();
+						focusTooltip();
+					});
 				});
 			});
 		}
 		window.addEventListener('resize', recalcPosition);
 		window.addEventListener('keydown', onKey);
+		// Recalculate highlight position on scroll (passive for performance)
+		window.addEventListener('scroll', recalcPosition, { passive: true, capture: true });
 	});
 
 	onDestroy(() => {
 		window.removeEventListener('resize', recalcPosition);
 		window.removeEventListener('keydown', onKey);
+		window.removeEventListener('scroll', recalcPosition, { capture: true } as AddEventListenerOptions);
 	});
 
 	const currentStep = $derived(steps[step]);
@@ -167,7 +180,7 @@
 			<h3 class="tt-title">{currentStep.title}</h3>
 			<p class="tt-desc">{currentStep.desc}</p>
 			<div class="tt-actions">
-				<button class="tt-back" class:invisible={isFirst} onclick={prev}>Back</button>
+				<button class="tt-back" class:invisible={isFirst} tabindex={isFirst ? -1 : 0} aria-hidden={isFirst} onclick={prev}>Back</button>
 				<div class="tt-right">
 					<button class="tt-skip" onclick={skip}>Skip</button>
 					<button class="tt-next" onclick={next}>{isLast ? 'Done' : 'Next'}</button>

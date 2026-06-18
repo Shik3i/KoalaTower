@@ -30,9 +30,10 @@ export function startNewWave(state: GameState): void {
 	const forceBossWave = challenge === ChallengeId.BossRush;
 	const isBossWave = forceBossWave || state.wave.currentWave % 10 === 0;
 
+	const front = state.tier ?? 1;
 	let totalEnemies = isBossWave
-		? getBossWaveEnemyCount(state.wave.currentWave)
-		: getEnemyCountForWave(state.wave.currentWave);
+		? getBossWaveEnemyCount(state.wave.currentWave, front)
+		: getEnemyCountForWave(state.wave.currentWave, front);
 
 	// FastSwarm: triple spawn count for non-boss waves
 	if (challenge === ChallengeId.FastSwarm && !isBossWave) totalEnemies *= 3;
@@ -117,13 +118,14 @@ function spawnEnemy(state: GameState): void {
 	const isBossWave = forceBossWave || state.wave.currentWave % 10 === 0;
 	let type: EnemyType;
 
+	const front = state.tier ?? 1;
 	if (isBossWave && hasBossEscortsRemaining()) {
 		consumeBossEscort();
-		type = getEscortTypeForWave(state.wave.currentWave);
+		type = getEscortTypeForWave(state.wave.currentWave, front);
 		// Escorts spawn faster
 		state.wave.spawnInterval = getSpawnIntervalForWave(state.wave.currentWave) * 0.6;
 	} else {
-		const types = getEnemyTypeForWave(state.wave.currentWave);
+		const types = getEnemyTypeForWave(state.wave.currentWave, front);
 		// FastSwarm: force all non-boss spawns to Fast type
 		type = (challenge === ChallengeId.FastSwarm && !isBossWave)
 			? EnemyType.Fast

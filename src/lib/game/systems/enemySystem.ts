@@ -41,6 +41,79 @@ export function resetProjectileIdCounter(): void {
 	nextProjectileId = 1;
 }
 
+/**
+ * Central enemy-death handler. Must be called exactly once per enemy death,
+ * regardless of kill source (projectile, Thorns, future AOE, etc.).
+ * Increments all counters, grants rewards, and spawns death effects.
+ *
+ * @param isCrit - true only for projectile crits (Thorns kills pass false)
+ */
+export function processEnemyDeath(state: GameState, target: Enemy, isCrit = false): void {
+	state.killCount++;
+	if (target.isBoss) state.bossesDefeated++;
+	state.wave.enemiesKilled++;
+	state.killsByType = state.killsByType ?? {};
+	state.killsByType[target.type] = (state.killsByType[target.type] ?? 0) + 1;
+	if (target.isShiny) {
+		state.shinyKillsByType = state.shinyKillsByType ?? {};
+		state.shinyKillsByType[target.type] = (state.shinyKillsByType[target.type] ?? 0) + 1;
+	}
+
+	// ── Death effects by enemy type ──
+	const deathColor = target.isBoss ? GAME_CONFIG.NEON_PINK : target.color;
+	let pCount = 6;
+	if (target.type === EnemyType.Tank || target.type === EnemyType.Boss) pCount = target.isBoss ? 25 : 12;
+	else if (target.type === EnemyType.Fast) pCount = 8;
+	else if (target.type === EnemyType.Ranged) pCount = 8;
+
+	_addParticles?.(target.position.x, target.position.y, 0xFFFFFF, target.isBoss ? 12 : 4, 60);
+	_addParticles?.(target.position.x, target.position.y, deathColor, pCount, target.isBoss ? 150 : 80);
+
+	// ── Impact feedback (shockwave ring, hit-stop, sound) ──
+	if (target.isBoss) {
+		_addShake?.(7);
+		_addParticles?.(target.position.x, target.position.y, GAME_CONFIG.NEON_CYAN, 8, 200);
+		_addParticles?.(target.position.x, target.position.y, GAME_CONFIG.NEON_YELLOW, 6, 180);
+		_addShockwave?.(target.position.x, target.position.y, GAME_CONFIG.NEON_PINK, target.size * 6, 0.55, 4);
+		_addShockwave?.(target.position.x, target.position.y, GAME_CONFIG.NEON_CYAN, target.size * 4, 0.4, 2.5);
+		_hitStop?.(0.09);
+		_playSound?.('bossKill');
+	} else if (target.isShiny) {
+		_addShockwave?.(target.position.x, target.position.y, 0xFFD700, target.size * 3.2, 0.4, 2.5);
+		_hitStop?.(0.05);
+		_playSound?.('shiny');
+	} else {
+		if (isCrit) {
+			_addShockwave?.(target.position.x, target.position.y, GAME_CONFIG.NEON_YELLOW, target.size * 2.4, 0.3, 2);
+		}
+		_playSound?.('kill');
+	}
+
+	// Energy (temporary field resource)
+	const energy = calculateEnergyFromKill(state, target.reward);
+	state.cash += energy;
+	state.totalEnergyEarned += energy;
+
+	// Alloy (permanent currency) — bosses and shiny enemies only
+	if (target.isBoss) {
+		const bossCoins = getBossCoinReward(state);
+		state.coins += bossCoins;
+		_addDmg?.(target.position.x, target.position.y + target.size * 1.1, '+' + bossCoins + ' 🪙', GAME_CONFIG.NEON_YELLOW);
+	}
+	if (target.isShiny) {
+		state.shiniesKilled++;
+		const shinyAlloy = Math.floor(target.coinReward * getFrontAlloyMultiplier(state.tier ?? 1));
+		if (shinyAlloy > 0) {
+			state.coins += shinyAlloy;
+			_addDmg?.(target.position.x, target.position.y + target.size * 1.2, '+' + shinyAlloy + ' 🪙', GAME_CONFIG.NEON_YELLOW);
+		}
+	}
+
+	// Feedback popup
+	const energyLabel = target.isShiny ? '+' + energy + ' ⚡✨' : '+' + energy + ' ⚡';
+	_addDmg?.(target.position.x, target.position.y + target.size * 0.6, energyLabel, target.isShiny ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_GREEN);
+}
+
 export function updateEnemySystem(state: GameState, dt: number): void {
 	if (!state.runActive || state.gameOver || state.paused) return;
 
@@ -60,8 +133,12 @@ export function updateEnemySystem(state: GameState, dt: number): void {
 			enemy.attackTimer -= dt;
 			if (enemy.attackTimer <= 0) {
 				enemy.attackTimer = enemy.attackCooldown;
-				// Apply thorns before tower takes damage (enemy may die)
-				applyThorns(state, enemy);
+				// Apply thorns before tower takes damage (enemy may die from Thorns).
+				// If it does, route through processEnemyDeath to increment all counters.
+				if (applyThorns(state, enemy)) {
+					processEnemyDeath(state, enemy);
+				}
+				// Tower still takes the hit even if enemy died — the attack already landed.
 				damageTower(state, enemy.damage, enemy.isBoss);
 			}
 		} else {
@@ -103,7 +180,12 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 	for (const proj of state.projectiles) {
 		if (!proj.alive) continue;
 
-		const target = enemyIndex?.byId.get(proj.targetId) ?? state.enemies.find(e => e.id === proj.targetId && e.alive);
+		// byId lookup does not recheck alive (index was built before this frame's kills).
+		// Explicitly guard so a projectile never double-damages an enemy killed earlier
+		// in the same frame by another projectile.
+		const byIdTarget = enemyIndex?.byId.get(proj.targetId);
+		const target = (byIdTarget?.alive ? byIdTarget : null)
+			?? state.enemies.find(e => e.id === proj.targetId && e.alive);
 		if (!target) {
 			proj.alive = false;
 			continue;
@@ -137,77 +219,8 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 
 			if (target.hp <= 0) {
 				target.alive = false;
-				state.killCount++;
-				if (target.isBoss) state.bossesDefeated++;
-				state.wave.enemiesKilled++;
-				// Track per-type kills for mastery system
-				state.killsByType = state.killsByType ?? {};
-				state.killsByType[target.type] = (state.killsByType[target.type] ?? 0) + 1;
-				if (target.isShiny) {
-					state.shinyKillsByType = state.shinyKillsByType ?? {};
-					state.shinyKillsByType[target.type] = (state.shinyKillsByType[target.type] ?? 0) + 1;
-				}
-
-				// ── Death effects by enemy type ──
-				const deathColor = target.isBoss ? GAME_CONFIG.NEON_PINK : target.color;
-				let pCount = 6;
-				if (target.type === EnemyType.Tank || target.type === EnemyType.Boss) pCount = target.isBoss ? 25 : 12;
-				else if (target.type === EnemyType.Fast) pCount = 8;
-				else if (target.type === EnemyType.Ranged) pCount = 8;
-
-				// Outer burst ring (bigger particles, slower)
-				_addParticles?.(target.position.x, target.position.y, 0xFFFFFF, target.isBoss ? 12 : 4, 60);
-
-				// Colored death particles (faster spread)
-				_addParticles?.(target.position.x, target.position.y, deathColor, pCount, target.isBoss ? 150 : 80);
-
-				// ── Impact feedback (shockwave ring, hit-stop, sound) ──
-				if (target.isBoss) {
-					_addShake?.(7);
-					// Ring of particles at boss death
-					_addParticles?.(target.position.x, target.position.y, GAME_CONFIG.NEON_CYAN, 8, 200);
-					_addParticles?.(target.position.x, target.position.y, GAME_CONFIG.NEON_YELLOW, 6, 180);
-					_addShockwave?.(target.position.x, target.position.y, GAME_CONFIG.NEON_PINK, target.size * 6, 0.55, 4);
-					_addShockwave?.(target.position.x, target.position.y, GAME_CONFIG.NEON_CYAN, target.size * 4, 0.4, 2.5);
-					_hitStop?.(0.09);
-					_playSound?.('bossKill');
-				} else if (target.isShiny) {
-					_addShockwave?.(target.position.x, target.position.y, 0xFFD700, target.size * 3.2, 0.4, 2.5);
-					_hitStop?.(0.05);
-					_playSound?.('shiny');
-				} else {
-					if (proj.isCrit) {
-						_addShockwave?.(target.position.x, target.position.y, GAME_CONFIG.NEON_YELLOW, target.size * 2.4, 0.3, 2);
-					}
-					_playSound?.('kill');
-				}
-
-				// Energy (temporary field resource) — Energy Amp already applied in calculateEnergyFromKill
-				const energy = calculateEnergyFromKill(state, target.reward);
-				state.cash += energy;
-				state.totalEnergyEarned += energy;
-
-				// Alloy (permanent currency) is NOT granted by normal kills —
-				// only bosses, shiny enemies, and wave completion award Alloy.
-				if (target.isBoss) {
-					const bossCoins = getBossCoinReward(state);
-					state.coins += bossCoins;
-					_addDmg?.(target.position.x, target.position.y + target.size * 1.1, '+' + bossCoins + ' 🪙', GAME_CONFIG.NEON_YELLOW);
-				}
-				// Shiny enemies grant Alloy directly from their config coinReward,
-				// scaled by the front's Alloy multiplier.
-				if (target.isShiny) {
-					state.shiniesKilled++;
-					const shinyAlloy = Math.floor(target.coinReward * getFrontAlloyMultiplier(state.tier ?? 1));
-					if (shinyAlloy > 0) {
-						state.coins += shinyAlloy;
-						_addDmg?.(target.position.x, target.position.y + target.size * 1.2, '+' + shinyAlloy + ' 🪙', GAME_CONFIG.NEON_YELLOW);
-					}
-				}
-
-				// Feedback popups — stagger them slightly for readability
-				const energyLabel = target.isShiny ? '+' + energy + ' ⚡✨' : '+' + energy + ' ⚡';
-				_addDmg?.(target.position.x, target.position.y + target.size * 0.6, energyLabel, target.isShiny ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_GREEN);
+				target.hp = 0;
+				processEnemyDeath(state, target, proj.isCrit);
 			}
 			proj.alive = false;
 			continue;
@@ -224,7 +237,15 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 		}
 	}
 
-	state.projectiles = state.projectiles.filter(p => p.alive);
+	// Swap-remove dead projectiles in-place to avoid a per-frame allocation.
+	let i = state.projectiles.length - 1;
+	while (i >= 0) {
+		if (!state.projectiles[i]!.alive) {
+			state.projectiles[i] = state.projectiles[state.projectiles.length - 1]!;
+			state.projectiles.pop();
+		}
+		i--;
+	}
 }
 
 export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: EnemyFrameIndex): void {

@@ -17,7 +17,7 @@
  *   Maxing everything is never expected.
  */
 
-import { EnemyType } from '../engine/gameTypes';
+import { EnemyType, DamageType } from '../engine/gameTypes';
 import type { EnemyConfig } from '../engine/gameTypes';
 
 // ─── Piecewise power interpolation ──────────────────────────────────────────
@@ -138,16 +138,44 @@ export interface TierMultiplier {
 	alloy: number;
 }
 
-export const TIER_MULTIPLIERS: Record<number, TierMultiplier> = {
-	1: { hp: 1.0,      attack: 1.0,      speed: 1.0,  reward: 1.0,      alloy: 1.0 },
-	2: { hp: 10.0,     attack: 10.0,     speed: 1.15, reward: 10.0,     alloy: 1.2 },
-	3: { hp: 100.0,    attack: 100.0,    speed: 1.30, reward: 100.0,    alloy: 1.4 },
-	4: { hp: 1000.0,   attack: 1000.0,   speed: 1.45, reward: 1000.0,   alloy: 1.6 },
-	5: { hp: 10000.0,  attack: 10000.0,  speed: 1.50, reward: 10000.0,  alloy: 1.8 },
-};
+// Fronts 1–5 keep their original, tuned values (locked by existing tests).
+// Fronts 6–16 are PLACEHOLDER scaffolding: difficulty continues ~10× per Front,
+// Alloy continues +0.2 per Front, speed eases up toward a 1.6 cap. These are NOT
+// final balance — the 16-Front curve is not claimed complete (see report).
+export const TIER_MULTIPLIERS: Record<number, TierMultiplier> = (() => {
+	const base: Record<number, TierMultiplier> = {
+		1: { hp: 1.0,      attack: 1.0,      speed: 1.0,  reward: 1.0,      alloy: 1.0 },
+		2: { hp: 10.0,     attack: 10.0,     speed: 1.15, reward: 10.0,     alloy: 1.2 },
+		3: { hp: 100.0,    attack: 100.0,    speed: 1.30, reward: 100.0,    alloy: 1.4 },
+		4: { hp: 1000.0,   attack: 1000.0,   speed: 1.45, reward: 1000.0,   alloy: 1.6 },
+		5: { hp: 10000.0,  attack: 10000.0,  speed: 1.50, reward: 10000.0,  alloy: 1.8 },
+	};
+	for (let front = 6; front <= 16; front++) {
+		const mag = Math.pow(10, front - 1); // ~10× per Front (placeholder)
+		base[front] = {
+			hp: mag,
+			attack: mag,
+			speed: Math.min(1.6, 1.5 + (front - 5) * 0.01),
+			reward: mag,
+			alloy: 1.0 + (front - 1) * 0.2,
+		};
+	}
+	return base;
+})();
 
 export function getTierMultiplier(tier: number): TierMultiplier {
 	return TIER_MULTIPLIERS[tier] ?? TIER_MULTIPLIERS[1]!;
+}
+
+// ─── Enemy count scaling per Front ──────────────────────────────────────────
+// Higher Fronts spawn MORE enemies per wave (not more HP/damage — that is the
+// Front multiplier above). This keeps the economy/shiny rate scaling with the
+// Front while making higher Fronts feel denser, not just numerically bigger.
+
+/** Per-Front enemy-count multiplier: 1 + 0.33·(front−1). Front 1 = 1.00×. */
+export function enemyCountMultiplier(front: number): number {
+	const f = Number.isFinite(front) && front >= 1 ? front : 1;
+	return 1 + 0.33 * (f - 1);
 }
 
 /** Permanent Alloy multiplier for a front (1.0 on Front 1, rising on harder fronts). */
@@ -293,8 +321,68 @@ export const ENEMY_BASE_ARMOR: Record<EnemyType, number> = {
 	[EnemyType.Boss]:    0,
 };
 
-export function waveArmorBonus(wave: number, isBoss: boolean): number {
+/** Legacy no-op kept for back-compat; Front-aware armor lives in frontEnemyArmor. */
+export function waveArmorBonus(_wave: number, _isBoss: boolean): number {
 	return 0;
+}
+
+// ─── Armor / Resistance / Damage-Type scaffolding ───────────────────────────
+// Armor is a flat damage-reduction fraction (0–1), the same field the combat
+// pipeline already reads. Policy (see design pass):
+//   Perimeter (1–4): NO armor anywhere.
+//   Redline opener (Front 5): armor appears LATE, ~Wave 100 / Boss 10.
+//   Front 6–8: armor more frequent, from mid-game.
+//   Blacksite/Anomaly (9+): armor is part of the Front identity, from early on.
+
+/** True once a Front can ever field armored enemies (Front 5+). */
+export function frontHasArmor(front: number): boolean {
+	return front >= 5;
+}
+
+/** True once a Front can ever field damage-type resistances (Front 9+). */
+export function frontHasResistance(front: number): boolean {
+	return front >= 9;
+}
+
+/** Front-aware enemy armor fraction for a given wave (capped later by type). */
+export function frontEnemyArmor(front: number, wave: number, isBoss: boolean): number {
+	if (front <= 4) return 0; // Perimeter — no armor
+	if (front === 5) {
+		// Late Redline introduction: nothing until ~Wave 100 / Boss 10.
+		if (wave < 100) return 0;
+		const t = Math.min(1, (wave - 100) / 200);
+		return (isBoss ? 0.15 : 0.08) + t * 0.15;
+	}
+	if (front <= 8) {
+		if (wave < 30) return 0;
+		const t = Math.min(1, (wave - 30) / 200);
+		return (isBoss ? 0.20 : 0.12) + t * 0.20;
+	}
+	// Front 9+ : armor is identity.
+	const t = Math.min(1, wave / 200);
+	return (isBoss ? 0.28 : 0.18) + t * 0.22;
+}
+
+/**
+ * Front-aware damage-type resistances (0–1 per type). Empty before Front 9 —
+ * the only state Perimeter/Redline ever see. Scaffolded for Front 9+ so the
+ * damage pipeline and UI can display resistances without a later schema change.
+ * Values are PLACEHOLDER and intentionally mild; not a tuned elemental system.
+ */
+export function frontEnemyResistances(front: number, wave: number): Partial<Record<DamageType, number>> {
+	if (front < 9) return {};
+	const t = Math.min(0.5, 0.1 + wave / 1000);
+	// Blacksite (9–12): a single non-Kinetic resistance begins to matter.
+	if (front <= 12) {
+		return { [DamageType.Thermal]: t * 0.6 };
+	}
+	// Anomaly (13–16): broader resistance spread; Front 16 hints at immunity.
+	const immune = front >= 16 ? 1 : t;
+	return {
+		[DamageType.Thermal]: t,
+		[DamageType.Arc]: t * 0.8,
+		[DamageType.Void]: immune,
+	};
 }
 
 export const ENEMY_BASE_CASH_REWARD: Record<EnemyType, number> = {
@@ -350,6 +438,7 @@ export function computeEnemyConfig(
 	cashReward: number;
 	coinReward: number;
 	isShiny: boolean;
+	resistances: Partial<Record<DamageType, number>>;
 } {
 	const base = ENEMY_BASE_STATS[type];
 	const mod = ENEMY_TYPE_MODIFIERS[type];
@@ -383,7 +472,7 @@ export function computeEnemyConfig(
 		coinReward = Math.floor(ENEMY_BASE_COIN_REWARD[type] * coinMul * tierMul.reward);
 	}
 
-	const armor = Math.min(ENEMY_BASE_ARMOR[type] + waveArmorBonus(wave, isBoss), isBoss ? 0.55 : 0.45);
+	const armor = Math.min(ENEMY_BASE_ARMOR[type] + frontEnemyArmor(tier, wave, isBoss), isBoss ? 0.55 : 0.45);
 
 	const effectiveCashReward = isShiny
 		? Math.max(1, Math.floor(cashReward * SHINY_ENERGY_MULTIPLIER))
@@ -407,19 +496,44 @@ export function computeEnemyConfig(
 		cashReward: effectiveCashReward,
 		coinReward: effectiveCoinReward,
 		isShiny,
+		resistances: frontEnemyResistances(tier, wave),
 	};
 }
 
-export function availableEnemyTypes(wave: number): EnemyType[] {
+/**
+ * Enemy types eligible for random spawn on a given (wave, Front).
+ *
+ * Front 1 introduces mechanics SLOWLY so the player learns one thing at a time:
+ *   Wave 1–9  Basic only      (Wave 10 is the first Boss, handled elsewhere)
+ *   Wave 11+  + Fast / Runner  (after the first Boss)
+ *   Wave 50+  + Tank / Bulwark (after Boss 5)
+ *   Wave 100+ + Ranged / Needle (after Boss 10)
+ *
+ * Fronts 2–4 (Perimeter escalation) introduce the SAME known types earlier.
+ * Fronts 5+ (Redline and beyond) field the full roster from early on.
+ * Array duplicates act as spawn weights.
+ */
+export function availableEnemyTypes(wave: number, front: number = 1): EnemyType[] {
 	const types: EnemyType[] = [EnemyType.Normal];
-	if (wave >= 4) types.push(EnemyType.Fast);
-	if (wave >= 8) types.push(EnemyType.Tank);
-	if (wave >= 15) types.push(EnemyType.Ranged);
-	// Increase tank and ranged weight at higher waves for more pressure
-	if (wave >= 20) { types.push(EnemyType.Tank); types.push(EnemyType.Tank); }
-	if (wave >= 25) types.push(EnemyType.Ranged);
-	if (wave >= 35) types.push(EnemyType.Fast);
-	if (wave >= 50) { types.push(EnemyType.Tank); types.push(EnemyType.Ranged); }
+
+	let fastAt: number, tankAt: number, rangedAt: number;
+	if (front <= 1) {
+		fastAt = 11; tankAt = 50; rangedAt = 100;       // deliberate slow drip
+	} else if (front <= 4) {
+		fastAt = 4; tankAt = 15; rangedAt = 30;          // Perimeter escalation
+	} else {
+		fastAt = 3; tankAt = 8; rangedAt = 15;           // Redline+ full roster
+	}
+
+	if (wave >= fastAt) types.push(EnemyType.Fast);
+	if (wave >= tankAt) types.push(EnemyType.Tank);
+	if (wave >= rangedAt) types.push(EnemyType.Ranged);
+
+	// Pressure weighting once the roster is open (scaled off each Front's pacing).
+	if (wave >= tankAt + 10) types.push(EnemyType.Tank);
+	if (wave >= rangedAt + 15) types.push(EnemyType.Ranged);
+	if (front >= 2 && wave >= 50) { types.push(EnemyType.Tank); types.push(EnemyType.Fast); }
+
 	return types;
 }
 

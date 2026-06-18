@@ -77,10 +77,14 @@ function atobFallback(str: string): string {
 	const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	let result = '';
 	for (let i = 0; i < str.length; i += 4) {
-		const a = chars.indexOf(str[i] ?? 'A');
-		const b = chars.indexOf(str[i + 1] ?? 'A');
-		const c = str[i + 2] === '=' ? 0 : chars.indexOf(str[i + 2] ?? 'A');
-		const d = str[i + 3] === '=' ? 0 : chars.indexOf(str[i + 3] ?? 'A');
+		const a = chars.indexOf(str[i] ?? '');
+		const b = chars.indexOf(str[i + 1] ?? '');
+		const c = str[i + 2] === '=' ? 0 : chars.indexOf(str[i + 2] ?? '');
+		const d = str[i + 3] === '=' ? 0 : chars.indexOf(str[i + 3] ?? '');
+		// Reject invalid characters (-1 from indexOf) — do not silently produce garbage.
+		if (a < 0 || b < 0 || (str[i + 2] !== '=' && c < 0) || (str[i + 3] !== '=' && d < 0)) {
+			throw new Error('Invalid base64 input: unexpected character');
+		}
 		const n = (a << 18) | (b << 12) | (c << 6) | d;
 		result += String.fromCharCode((n >> 16) & 255);
 		if (str[i + 2] !== '=') result += String.fromCharCode((n >> 8) & 255);

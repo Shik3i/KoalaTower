@@ -14,7 +14,21 @@ import {
 	bossEscortCount,
 	availableEnemyTypes,
 	spawnIntervalForWave,
+	enemyCountMultiplier,
 } from './balanceMath';
+
+/**
+ * Hard cap on enemies spawned per wave AFTER the Front count-multiplier.
+ * Prevents the 16-Front density from melting performance — the multiplier is
+ * never silently dropped, it is clamped and logged via this constant.
+ */
+export const MAX_ENEMIES_PER_WAVE = 600;
+
+/** Apply the Front enemy-count multiplier to a base count, floored + capped. */
+export function scaleCountForFront(baseCount: number, front: number): number {
+	const scaled = Math.floor(baseCount * enemyCountMultiplier(front));
+	return Math.min(MAX_ENEMIES_PER_WAVE, Math.max(1, scaled));
+}
 
 let nextEnemyId = 1;
 
@@ -23,19 +37,20 @@ export function resetEnemyIdCounter(): void {
 }
 
 /**
- * Get the total number of enemies for a wave.
- * Boss waves return escort count + 1 (the boss itself).
+ * Get the total number of enemies for a wave on a given Front.
+ * Boss waves return (scaled escort count) + 1 (the boss itself).
+ * `front` defaults to 1, so existing call sites keep Front-1 counts unchanged.
  */
-export function getEnemyCountForWave(wave: number): number {
+export function getEnemyCountForWave(wave: number, front: number = 1): number {
 	if (wave % 10 === 0) {
-		return bossEscortCount(wave) + 1;
+		return scaleCountForFront(bossEscortCount(wave), front) + 1;
 	}
-	return enemiesPerWave(wave);
+	return scaleCountForFront(enemiesPerWave(wave), front);
 }
 
-/** Boss-wave enemy count for a given wave — used by BossRush challenge. */
-export function getBossWaveEnemyCount(wave: number): number {
-	return bossEscortCount(wave) + 1;
+/** Boss-wave enemy count for a given wave/Front — used by BossRush challenge. */
+export function getBossWaveEnemyCount(wave: number, front: number = 1): number {
+	return scaleCountForFront(bossEscortCount(wave), front) + 1;
 }
 
 /**
@@ -49,18 +64,18 @@ export function getSpawnIntervalForWave(wave: number): number {
  * Pick enemy types available for random spawn in a wave.
  * On boss waves, returns only Boss type (escorts handled separately).
  */
-export function getEnemyTypeForWave(wave: number): EnemyType[] {
+export function getEnemyTypeForWave(wave: number, front: number = 1): EnemyType[] {
 	if (wave % 10 === 0) {
 		return [EnemyType.Boss];
 	}
-	return availableEnemyTypes(wave);
+	return availableEnemyTypes(wave, front);
 }
 
 /**
  * Pick an escort type for the pre-boss phase of a boss wave.
  */
-export function getEscortTypeForWave(wave: number): EnemyType {
-	const types = availableEnemyTypes(wave);
+export function getEscortTypeForWave(wave: number, front: number = 1): EnemyType {
+	const types = availableEnemyTypes(wave, front);
 	return types[Math.floor(Math.random() * types.length)]!;
 }
 
@@ -141,5 +156,6 @@ export function createEnemy(type: EnemyType, wave: number, spawnX: number, spawn
 		isBoss: type === EnemyType.Boss,
 		isShiny,
 		wave,
+		resistances: config.resistances,
 	};
 }

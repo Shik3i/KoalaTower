@@ -43,7 +43,7 @@
 		{
 			id: 'workshop',
 			q: 'What is the Forge?',
-			a: 'The Forge (⚙) contains permanent pre-installed tower upgrades bought with Alloy (🔩): Base Damage, Base Fire Rate, Base Range, Starting HP, Alloy Bonus, Energy Bonus, Crit Bonus, Starting Energy. These improve the tower blueprint and apply to every deployment. Blueprints do not make you stronger by themselves. They authorize new ways to make questionable decisions.',
+			a: 'The Forge (⚙) contains permanent pre-installed tower upgrades bought with Alloy (🔩): Base Damage, Base Fire Rate, Base Range, Starting HP, Alloy Bonus, Energy Bonus, Crit Bonus, Starting Energy. These improve the tower blueprint and apply to every deployment. Reconstructed Schematics do not make you stronger by themselves. They authorize new ways to make questionable decisions.',
 		},
 		{
 			id: 'lab',
@@ -149,7 +149,7 @@
 					<span class="lore-mi">🛰️</span>
 					<div>
 						<strong>Orbital Command</strong>
-						<span>Your permanent base between deployments. The Forge pre-installs upgrades, the Research Deck runs orbital projects (results are sanitized for morale reasons), and Blueprints unlock new capabilities — assuming Procurement has not lost them.</span>
+						<span>Your permanent base between deployments. The Forge pre-installs upgrades, the Research Deck runs orbital projects (results are sanitized for morale reasons), and Schematics reconstruct new capabilities — assuming Procurement has not lost them.</span>
 					</div>
 				</div>
 				<div class="lore-m">
@@ -198,7 +198,13 @@
 				<div class="info-icon">🔩</div>
 				<h3>Alloy</h3>
 				<span class="info-badge">Permanent</span>
-				<p>Refined from shape remnants. Spent at the <strong>Forge</strong> for pre-installed tower upgrades and on the <strong>Research Deck</strong> for orbital projects. Boosted by <strong>Alloy Bonus</strong>. Persists forever across all deployments.</p>
+				<p>Official permanent progression. Refined from shape remnants. Spent at the <strong>Forge</strong> for pre-installed tower upgrades and on the <strong>Research Deck</strong> for orbital projects. Boosted by <strong>Alloy Bonus</strong>. Persists forever across all deployments.</p>
+			</div>
+			<div class="info-card">
+				<div class="info-icon">📐</div>
+				<h3>Schematics</h3>
+				<span class="info-badge">Per Front</span>
+				<p>Recovered design fragments — used to <strong>reconstruct upgrade paths</strong>. Collected separately for each Front (Perimeter Schematics, Redline Schematics, …). Earned from <strong>boss kills</strong> (repeatable) and <strong>first-time wave milestones</strong> (one-time). One fragment is useless. A hundred becomes engineering. Higher Fronts drop their own Schematics. <em>A Black Market converter to trade Schematics between Fronts is planned for a later update — not yet implemented.</em></p>
 			</div>
 		</div>
 	</section>
@@ -331,38 +337,32 @@
 
 	<!-- Fronts -->
 	<section class="help-section">
-		<h2>🌍 Fronts (Planets)</h2>
-		<p class="section-desc">Each Front is a different planet with increasing enemy density. Push deeper waves to unlock harder Fronts with better Alloy rewards.</p>
+		<h2>🌍 Fronts (16 across 4 bands)</h2>
+		<p class="section-desc">Sixteen Fronts, grouped into four bands of four. Each Front spawns denser waves (more enemies, more Energy, more shiny chances) and drops its own <strong>Schematics</strong>. Most Fronts unlock at <strong>Wave 100</strong> on the previous one; crossing into a new band is the hard wall — <strong>Wave 200</strong> into Redline, <strong>Wave 300</strong> into Blacksite, <strong>Wave 400</strong> into Anomaly.</p>
 		<div class="card-grid">
 			<div class="help-card tier">
-				<div class="help-card-icon">🏗️</div>
-				<h3>Tier 1: The Awakening</h3>
-				<p>Baseline difficulty (1× HP, 1× ATK). Learn the basics, farm coins, build your workshop. Unlocked from the start.</p>
-				<span class="card-tag">Wave 0+</span>
+				<div class="help-card-icon">🛡️</div>
+				<h3>Perimeter · Fronts 1–4</h3>
+				<p>Entry combat zone — clean military blue/cyan. Mechanics arrive slowly: Basic only through Wave 9, then Runner, Bulwark, Needle. No Armor, no Resistance.</p>
+				<span class="card-tag">★ 0–3</span>
 			</div>
 			<div class="help-card tier">
-				<div class="help-card-icon">🌊</div>
-				<h3>Tier 2: Neon Storm</h3>
-				<p>3× enemy HP, 2× enemy damage, 2.5× rewards. First real difficulty jump — requires workshop investment.</p>
-				<span class="card-tag">Wave 100+</span>
+				<div class="help-card-icon">🔥</div>
+				<h3>Redline · Fronts 5–8</h3>
+				<p>Harsher war zone — red/orange. <strong>Armor</strong> first appears late on Front 5 (~Wave 100 / Boss 10), then grows more frequent from Front 6 onward.</p>
+				<span class="card-tag">★ 0–3</span>
 			</div>
 			<div class="help-card tier">
-				<div class="help-card-icon">💻</div>
-				<h3>Tier 3: Digital Onslaught</h3>
-				<p>8× enemy HP, 4.5× enemy damage, 5× rewards. Significant workshop and lab required.</p>
-				<span class="card-tag">Wave 500+</span>
-			</div>
-			<div class="help-card tier">
-				<div class="help-card-icon">⚛️</div>
-				<h3>Tier 4: Quantum Surge</h3>
-				<p>22× enemy HP, 10× enemy damage, 12× rewards. Deep progression territory.</p>
-				<span class="card-tag">Wave 1500+</span>
+				<div class="help-card-icon">🟣</div>
+				<h3>Blacksite · Fronts 9–12</h3>
+				<p>Classified — purple/magenta. Armor and <strong>Resistance</strong> scaffolding become part of the Front identity. Damage types begin to matter from Front 10.</p>
+				<span class="card-tag">★ 0–3</span>
 			</div>
 			<div class="help-card tier">
 				<div class="help-card-icon">🌟</div>
-				<h3>Tier 5: Geo Ascension</h3>
-				<p>55× enemy HP, 22× enemy damage, 25× rewards. Endgame aspirational tier.</p>
-				<span class="card-tag">Wave 3000+</span>
+				<h3>Anomaly · Fronts 13–16</h3>
+				<p>Unstable endgame — white/prismatic/crimson. Immunities and extreme modifiers may appear. Balance here is aspirational and still being tuned.</p>
+				<span class="card-tag">★ 0–3</span>
 			</div>
 		</div>
 	</section>
@@ -423,12 +423,23 @@
 		<div class="faq-list">
 			{#each faqs as faq}
 				<div class="faq-item" class:open={activeFaq === faq.id}>
-					<button class="faq-question" onclick={() => activeFaq = activeFaq === faq.id ? null : faq.id}>
+					<button
+						id="faq-btn-{faq.id}"
+						class="faq-question"
+						aria-expanded={activeFaq === faq.id}
+						aria-controls="faq-panel-{faq.id}"
+						onclick={() => activeFaq = activeFaq === faq.id ? null : faq.id}
+					>
 						<span>{faq.q}</span>
-						<span class="faq-arrow">{activeFaq === faq.id ? '▾' : '▸'}</span>
+						<span class="faq-arrow" aria-hidden="true">{activeFaq === faq.id ? '▾' : '▸'}</span>
 					</button>
 					{#if activeFaq === faq.id}
-						<div class="faq-answer"><p>{faq.a}</p></div>
+						<div
+							id="faq-panel-{faq.id}"
+							class="faq-answer"
+							role="region"
+							aria-labelledby="faq-btn-{faq.id}"
+						><p>{faq.a}</p></div>
 					{/if}
 				</div>
 			{/each}

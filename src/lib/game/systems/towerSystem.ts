@@ -85,7 +85,7 @@ export function applyBattleUpgrades(state: GameState): void {
 	tower.stats.range = 180 + wsRange + getBattleUpgradeEffect(UpgradeId.Range, b(UpgradeId.Range));
 	tower.stats.multishotChance = getBattleUpgradeEffect(UpgradeId.Multishot, b(UpgradeId.Multishot));
 	tower.stats.multishotCount = 1 + getBattleUpgradeEffect(UpgradeId.MultishotProjectiles, b(UpgradeId.MultishotProjectiles));
-	tower.stats.critChance = Math.min(0.30, 0.01 + wsCrit) + getBattleUpgradeEffect(UpgradeId.CritChance, b(UpgradeId.CritChance));
+	tower.stats.critChance = Math.min(0.45, 0.01 + wsCrit + getBattleUpgradeEffect(UpgradeId.CritChance, b(UpgradeId.CritChance)));
 	tower.stats.critMultiplier = 1.20 + getBattleUpgradeEffect(UpgradeId.CritMultiplier, b(UpgradeId.CritMultiplier));
 	tower.stats.defensePercent = Math.min(0.50, wsDefPct + getBattleUpgradeEffect(UpgradeId.DefensePercent, b(UpgradeId.DefensePercent)));
 	tower.stats.defenseAbsolute = wsDefAbs + getBattleUpgradeEffect(UpgradeId.Defense, b(UpgradeId.Defense));
@@ -114,15 +114,16 @@ export function applyLifesteal(state: GameState, damageDealt: number): void {
 	}
 }
 
-export function applyThorns(state: GameState, enemy: Enemy): void {
+/** Returns true if the enemy was killed by Thorns so the caller can handle rewards. */
+export function applyThorns(state: GameState, enemy: Enemy): boolean {
 	const thorns = state.tower.stats.thorns;
-	if (thorns <= 0) return;
+	if (thorns <= 0) return false;
 	const thornDmg = enemy.isBoss ? Math.floor(thorns * 0.5) : thorns;
-	if (thornDmg > 0) {
-		enemy.hp -= thornDmg;
-		state.totalDamageDealt += thornDmg;
-		if (enemy.hp <= 0) { enemy.alive = false; enemy.hp = 0; }
-	}
+	if (thornDmg <= 0) return false;
+	enemy.hp -= thornDmg;
+	state.totalDamageDealt += thornDmg;
+	if (enemy.hp <= 0) { enemy.alive = false; enemy.hp = 0; return true; }
+	return false;
 }
 
 /** Layered damage formula: raw → def% → defAbs → minFloor */

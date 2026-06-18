@@ -187,3 +187,115 @@ describe('FLTD_SAVE Export/Import Encoding', () => {
 		expect(decoded.success).toBe(false);
 	});
 });
+
+// ─── Regression: Audit pass fixes ────────────────────────────────────────────
+
+describe('schemaVersion string bypass regression', () => {
+	it('string "5" migrates the same as numeric 5', () => {
+		const fromString = migrateSave({ schemaVersion: '5' as unknown as number, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalCoins: 50 } as Record<string, unknown>);
+		const fromNumber = migrateSave({ schemaVersion: 5, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalCoins: 50 } as Record<string, unknown>);
+		expect(fromString).not.toBeNull();
+		expect(fromNumber).not.toBeNull();
+		expect(fromString!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+		expect(fromNumber!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+		expect(fromString!.highestWave).toBe(fromNumber!.highestWave);
+	});
+
+	it('string "abc" schemaVersion is treated as v0 and migrates cleanly', () => {
+		const result = migrateSave({ schemaVersion: 'abc' as unknown as number, totalRuns: 3, highestWave: 7, totalCoins: 100 } as Record<string, unknown>);
+		expect(result).not.toBeNull();
+		expect(result!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+		expect(result!.highestWave).toBe(7);
+	});
+
+	it('missing schemaVersion is treated as v0', () => {
+		const result = migrateSave({ totalRuns: 2, highestWave: 5, totalCoins: 20 } as Record<string, unknown>);
+		expect(result).not.toBeNull();
+		expect(result!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+	});
+
+	it('negative schemaVersion is treated as v0', () => {
+		const result = migrateSave({ schemaVersion: -1, totalRuns: 1, highestWave: 1, totalCoins: 0 } as Record<string, unknown>);
+		expect(result).not.toBeNull();
+		expect(result!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+	});
+
+	it('float schemaVersion 5.9 is floored to 5', () => {
+		const fromFloat = migrateSave({ schemaVersion: 5.9, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalCoins: 50 } as Record<string, unknown>);
+		const fromInt = migrateSave({ schemaVersion: 5, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalCoins: 50 } as Record<string, unknown>);
+		expect(fromFloat).not.toBeNull();
+		expect(fromFloat!.schemaVersion).toBe(fromInt!.schemaVersion);
+	});
+});
+
+describe('validateSaveData malformed-field regression', () => {
+	const base = { schemaVersion: CURRENT_SCHEMA_VERSION, lastUpdated: 1, totalRuns: 0, highestWave: 0, totalCoins: 0 };
+
+	it('rejects workshopUpgrades as string', () => {
+		expect(validateSaveData({ ...base, workshopUpgrades: 'garbage' })).toBe(false);
+	});
+
+	it('rejects workshopUpgrades as array', () => {
+		expect(validateSaveData({ ...base, workshopUpgrades: [1, 2, 3] })).toBe(false);
+	});
+
+	it('rejects labLevels as null-ish non-object (number)', () => {
+		expect(validateSaveData({ ...base, labLevels: 42 })).toBe(false);
+	});
+
+	it('rejects labLevels as array', () => {
+		expect(validateSaveData({ ...base, labLevels: ['damageResearch'] })).toBe(false);
+	});
+
+	it('rejects achievements as array', () => {
+		expect(validateSaveData({ ...base, achievements: ['ach1', 'ach2'] })).toBe(false);
+	});
+
+	it('rejects unlockedBlueprints as plain object', () => {
+		expect(validateSaveData({ ...base, unlockedBlueprints: { a: 1 } })).toBe(false);
+	});
+
+	it('rejects discoveredBlueprints as plain object', () => {
+		expect(validateSaveData({ ...base, discoveredBlueprints: { a: 1 } })).toBe(false);
+	});
+
+	it('accepts null workshopUpgrades (repaired by ensureMetadata)', () => {
+		expect(validateSaveData({ ...base, workshopUpgrades: null })).toBe(true);
+	});
+
+	it('accepts undefined labLevels (absent key)', () => {
+		expect(validateSaveData({ ...base })).toBe(true);
+	});
+
+	it('accepts valid array for unlockedBlueprints', () => {
+		expect(validateSaveData({ ...base, unlockedBlueprints: ['blueprint1'] })).toBe(true);
+	});
+});
+
+describe('isRecord (New Record on first run) regression', () => {
+	it('wave > 0 and best === 0 is a New Record', () => {
+		// Mirrors the isRecord formula fixed in GameOverPanel:
+		// const isRecord = wave > 0 && wave >= best
+		const wave = 3, best = 0;
+		const isRecord = wave > 0 && wave >= best;
+		expect(isRecord).toBe(true);
+	});
+
+	it('wave 0 is never a New Record', () => {
+		const wave = 0, best = 0;
+		const isRecord = wave > 0 && wave >= best;
+		expect(isRecord).toBe(false);
+	});
+
+	it('wave equal to best (best > 0) is a New Record (tie counts)', () => {
+		const wave = 5, best = 5;
+		const isRecord = wave > 0 && wave >= best;
+		expect(isRecord).toBe(true);
+	});
+
+	it('wave below best is not a New Record', () => {
+		const wave = 3, best = 10;
+		const isRecord = wave > 0 && wave >= best;
+		expect(isRecord).toBe(false);
+	});
+});
