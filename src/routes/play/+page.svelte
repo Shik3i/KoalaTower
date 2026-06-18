@@ -15,6 +15,7 @@
 	import { getBlueprintDef } from '$lib/game/balance/blueprints';
 	import { getUnlockedFronts, getTierNumber, getFrontName } from '$lib/game/balance/tiers';
 	import { addSchematics, getBossSchematicReward, pendingMilestoneSchematics, normalizeSchematics } from '$lib/game/balance/schematics';
+	import { getMaxUnlockedSpeed, hasBlackMarketUnlock } from '$lib/game/balance/blackMarket';
 	import { rollBlueprintDiscovery } from '$lib/game/progression/blueprintDiscovery';
 	import { TierId } from '$lib/game/engine/gameTypes';
 	import { isChallengeUnlocked } from '$lib/game/balance/challenges';
@@ -94,6 +95,9 @@
 	let showImportDialog = $state(false);
 	let showResetConfirm = $state(false);
 	let coinsAtRunStart = $state(0);
+	let autoDeploymentArmed = $state(false);
+	let autoDeploymentCountdown = $state(0);
+	let autoDeploymentTimer: ReturnType<typeof setInterval> | null = null;
 
 	const toasts = createToastStore(2200);
 	const toast = toasts.push;
@@ -147,6 +151,7 @@
 	});
 
 	onDestroy(() => {
+		clearAutoDeployment();
 		if (engine) {
 			engine.state.paused = true;
 			engine.setCallbacks({});
@@ -267,6 +272,7 @@
 					save.totalCoins = engine.state.coins;
 					save.totalRuns = engine.state.totalRuns;
 					save.highestWave = Math.max(save.highestWave, engine.state.highestWave);
+					save.lastDailyContractDeploymentAt = Date.now();
 
 					save.totalKills += engine.state.killCount;
 					save.totalBossesDefeated += engine.state.bossesDefeated;
@@ -409,6 +415,7 @@
 					highestWaveStore.set(save.highestWave);
 					totalRunsStore.set(save.totalRuns);
 					persistSave(save);
+					scheduleAutoDeployment(save.autoDeploymentEnabled === true && hasBlackMarketUnlock(save.blackMarketUnlocks, 'autoDeployment'));
 					showSaveIndicator = true;
 					setTimeout(() => { showSaveIndicator = false; }, 1500);
 					if (isNewBest) {
@@ -427,6 +434,32 @@
 		});
 	}
 
+	function clearAutoDeployment() {
+		if (autoDeploymentTimer) clearInterval(autoDeploymentTimer);
+		autoDeploymentTimer = null;
+		autoDeploymentArmed = false;
+		autoDeploymentCountdown = 0;
+	}
+
+	function scheduleAutoDeployment(enabled: boolean) {
+		clearAutoDeployment();
+		if (!enabled || showImportDialog || showResetConfirm || showSettings) return;
+		autoDeploymentArmed = true;
+		autoDeploymentCountdown = 5;
+		autoDeploymentTimer = setInterval(() => {
+			autoDeploymentCountdown -= 1;
+			if (autoDeploymentCountdown <= 0) {
+				clearAutoDeployment();
+				if (!showImportDialog && !showResetConfirm && !showSettings) startRun();
+			}
+		}, 1000);
+	}
+
+	function cancelAutoDeployment() {
+		clearAutoDeployment();
+		toast('Auto Deployment cancelled.', 'info');
+	}
+
 	function initEngine() {
 		if (engine) engine.cleanup();
 		if (gameView) { gameView.destroy(); gameView = null; }
@@ -443,6 +476,7 @@
 	function startRun() {
 		if (!engine) initEngine();
 		if (!engine) return;
+		clearAutoDeployment();
 		showLaunchScreen = false;
 		showGameOver = false;
 		showMobileUpgrades = false;
@@ -472,10 +506,19 @@
 		} else {
 			const spds = GAME_CONFIG.SPEED_PRESETS;
 			const sp = spds[preset - 1] ?? 1;
+			const maxSpeed = getMaxUnlockedSpeed(getCachedSave()?.blackMarketUnlocks);
+			if (sp > maxSpeed) {
+				toast(sp + 'x speed requires Black Market procurement.', 'warning');
+				return;
+			}
 			engine.setSpeed(sp);
 			toast(getOpLogMessage('speedChange', { speed: sp }), 'info');
 		}
 		refreshSnap();
+	}
+
+	function isSpeedLocked(sp: number): boolean {
+		return sp > getMaxUnlockedSpeed(getCachedSave()?.blackMarketUnlocks);
 	}
 
 	function buyBattleUpgrade(id: UpgradeId) {
@@ -514,6 +557,7 @@
 	}
 
 	function handleResetSave() {
+		clearAutoDeployment();
 		resetSave().then(() => {
 			showResetConfirm = false;
 			coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0);
@@ -566,8 +610,8 @@
 			{#if snap?.runActive}
 				<div class="spd-grp" title="Game speed — also: keys 1-4, Space to pause">
 					<button class="spd-btn spd-icon" class:on={paused} onclick={() => handleSpeed(0)} title="Pause (Space)" aria-label="Pause"><Icon name={paused ? 'play' : 'pause'} size={13} /></button>
-					{#each [1,2,3] as s}<button class="spd-btn spd-n" class:on={!paused && speed === s} onclick={() => handleSpeed(s)} title="{s}× speed ({s})">{s}×</button>{/each}
-					<button class="spd-btn spd-n" class:on={!paused && speed === 5} onclick={() => handleSpeed(4)} title="5× speed (4)">5×</button>
+					{#each [1,2,3] as s}<button class="spd-btn spd-n" class:on={!paused && speed === s} class:locked={isSpeedLocked(s)} onclick={() => handleSpeed(s)} title={isSpeedLocked(s) ? `${s}x requires Black Market unlock` : `${s}x speed (${s})`}>{isSpeedLocked(s) ? '🔒' : s + '×'}</button>{/each}
+					<button class="spd-btn spd-n" class:on={!paused && speed === 5} class:locked={isSpeedLocked(5)} onclick={() => handleSpeed(4)} title={isSpeedLocked(5) ? '5x requires Black Market unlock' : '5× speed (4)'}>{isSpeedLocked(5) ? '🔒' : '5×'}</button>
 					<div class="spd-status" class:paused={paused}>{paused ? '❚❚' : speed + '×'}</div>
 				</div>
 			{/if}
@@ -641,8 +685,8 @@
 			{#if showMobileSpeed}
 				<div class="mob-spd-popup" role="menu">
 					<button class="mob-spd-opt" class:on={paused} onclick={() => { handleSpeed(0); showMobileSpeed = false; }}>⏸ Pause</button>
-					{#each [1,2,3] as s}<button class="mob-spd-opt" class:on={!paused && speed === s} onclick={() => { handleSpeed(s); showMobileSpeed = false; }}>{s}×</button>{/each}
-					<button class="mob-spd-opt" class:on={!paused && speed === 5} onclick={() => { handleSpeed(4); showMobileSpeed = false; }}>5×</button>
+					{#each [1,2,3] as s}<button class="mob-spd-opt" class:on={!paused && speed === s} class:locked={isSpeedLocked(s)} onclick={() => { handleSpeed(s); showMobileSpeed = false; }}>{isSpeedLocked(s) ? '🔒' : s + '×'}</button>{/each}
+					<button class="mob-spd-opt" class:on={!paused && speed === 5} class:locked={isSpeedLocked(5)} onclick={() => { handleSpeed(4); showMobileSpeed = false; }}>{isSpeedLocked(5) ? '🔒' : '5×'}</button>
 				</div>
 			{/if}
 		</div>
@@ -659,6 +703,9 @@
 			cash={gameOverCash}
 			schematics={gameOverSchematics}
 			frontName={gameOverFrontName}
+			{autoDeploymentArmed}
+			{autoDeploymentCountdown}
+			onCancelAutoDeployment={cancelAutoDeployment}
 			onRedeploy={startRun}
 			onExport={handleExportSave}
 		/>
@@ -806,6 +853,7 @@
 	.spd-btn { padding:.15rem .4rem; font-size:var(--fs-body-sm); font-family:var(--font-mono); color:var(--text-dim); border-radius:100px; transition:all var(--transition-fast); line-height:1; cursor:pointer; }
 	.spd-btn:hover { color:var(--text-secondary); background:rgba(255,255,255,.04); }
 	.spd-btn.on { color:var(--cyan); background:rgba(0,255,255,.1); }
+	.spd-btn.locked,.mob-spd-opt.locked { color:var(--text-dim); opacity:.7; }
 	.spd-n { min-width:1.5rem; text-align:center; }
 	.tb-actions { display:flex; gap:.2rem; align-items:center; }
 	.ibtn { display:inline-flex; align-items:center; justify-content:center; padding:.25rem; border-radius:var(--radius-sm); color:var(--text-secondary); transition:all var(--transition-fast); font-size:var(--fs-icon-md); line-height:1; cursor:pointer; }

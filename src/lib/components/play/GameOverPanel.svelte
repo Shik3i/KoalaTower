@@ -11,6 +11,9 @@
 		cash,
 		schematics = 0,
 		frontName = '',
+		autoDeploymentArmed = false,
+		autoDeploymentCountdown = 0,
+		onCancelAutoDeployment,
 		onRedeploy,
 		onExport,
 	}: {
@@ -22,6 +25,9 @@
 		cash: number;
 		schematics?: number;
 		frontName?: string;
+		autoDeploymentArmed?: boolean;
+		autoDeploymentCountdown?: number;
+		onCancelAutoDeployment?: () => void;
 		onRedeploy: () => void;
 		onExport: () => void;
 	} = $props();
@@ -55,6 +61,12 @@
 		{#if schematics > 0}
 			<div class="go-schem">📐 +{schematics.toLocaleString()} {frontName} Schematics recovered</div>
 		{/if}
+		{#if autoDeploymentArmed}
+			<div class="go-auto">
+				<span>Auto Deployment armed: {autoDeploymentCountdown}s</span>
+				<button onclick={onCancelAutoDeployment}>Cancel Auto Deployment</button>
+			</div>
+		{/if}
 		<div class="go-stats-sub">
 			<span><Icon name="energy" size={13} /> {Math.floor(cash).toLocaleString()} Energy harvested</span>
 			<span><Icon name="crit" size={13} /> Best: Wave {best}</span>
@@ -86,6 +98,8 @@
 	.go-wave-sub { font-size:var(--fs-body); color:var(--text-secondary); margin-bottom:1rem; font-family:var(--font-mono); }
 	.go-stats { display:flex; align-items:center; justify-content:center; gap:.8rem; margin-bottom:.5rem; padding:.6rem .75rem; background:rgba(0,0,0,.12); border-radius:var(--radius-md); }
 	.go-schem { font-size:var(--fs-body-sm); color:var(--cyan); margin-bottom:.5rem; font-family:var(--font-mono); }
+	.go-auto { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.45rem .55rem; margin-bottom:.65rem; background:rgba(136,68,255,.08); border:1px solid rgba(136,68,255,.25); border-radius:var(--radius-sm); color:var(--violet); font-family:var(--font-mono); font-size:var(--fs-caption); }
+	.go-auto button { padding:.3rem .45rem; border:1px solid var(--border-neon); border-radius:var(--radius-sm); color:var(--text-secondary); }
 	.go-stats-sub { display:flex; justify-content:center; gap:1rem; font-size:var(--fs-caption); color:var(--text-secondary); margin-bottom:1rem; font-family:var(--font-mono); }
 	.go-s { text-align:center; min-width:55px; }
 	.go-si { font-size:var(--fs-icon-md); display:block; margin-bottom:.1rem; }

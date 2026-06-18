@@ -2,6 +2,7 @@ import { CURRENT_SCHEMA_VERSION, type SaveData } from './saveTypes';
 import { BlueprintId, AchievementId, TierId, DEFAULT_SETTINGS, type GameSettings } from '../engine/gameTypes';
 import { computeGrandfatheredBlueprints } from '../balance/blueprints';
 import { emptySchematics, normalizeSchematics } from '../balance/schematics';
+import { normalizeBlackMarketUnlocks, normalizeStrangeMatter, normalizeTimestamp } from '../balance/blackMarket';
 
 function generateSaveId(prefix = 'fltd'): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -50,6 +51,9 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		}
 		if (version < 11) {
 			save = migrateV10toV11(save);
+		}
+		if (version < 12) {
+			save = migrateV11toV12(save);
 		}
 
 		save = ensureMetadata(save);
@@ -108,6 +112,13 @@ function migrateV0toV1(data: Record<string, unknown>): SaveData {
 		masteryAchievements: {},
 		schematicsByFront: emptySchematics(),
 		claimedSchematicMilestones: [],
+		strangeMatter: 0,
+		lifetimeStrangeMatterEarned: 0,
+		lastWeeklyBlackMarketShipmentClaimedAt: 0,
+		lastDailyContractCompletedAt: 0,
+		lastDailyContractDeploymentAt: 0,
+		blackMarketUnlocks: {},
+		autoDeploymentEnabled: false,
 	};
 }
 
@@ -291,6 +302,20 @@ function migrateV10toV11(save: SaveData): SaveData {
 	};
 }
 
+function migrateV11toV12(save: SaveData): SaveData {
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		strangeMatter: normalizeStrangeMatter((save as any).strangeMatter),
+		lifetimeStrangeMatterEarned: normalizeStrangeMatter((save as any).lifetimeStrangeMatterEarned),
+		lastWeeklyBlackMarketShipmentClaimedAt: normalizeTimestamp((save as any).lastWeeklyBlackMarketShipmentClaimedAt),
+		lastDailyContractCompletedAt: normalizeTimestamp((save as any).lastDailyContractCompletedAt),
+		lastDailyContractDeploymentAt: normalizeTimestamp((save as any).lastDailyContractDeploymentAt),
+		blackMarketUnlocks: normalizeBlackMarketUnlocks((save as any).blackMarketUnlocks),
+		autoDeploymentEnabled: (save as any).autoDeploymentEnabled === true,
+	};
+}
+
 function migrateV8toV9(save: SaveData): SaveData {
 	// v9 adds per-front best waves for sequential front unlocking.
 	// All prior play happened on Front 1, so grandfather global best there.
@@ -343,6 +368,9 @@ export function validateSaveData(data: unknown): data is SaveData {
 	if (d.discoveredBlueprints !== undefined && d.discoveredBlueprints !== null) {
 		if (!Array.isArray(d.discoveredBlueprints)) return false;
 	}
+	if (d.blackMarketUnlocks !== undefined && d.blackMarketUnlocks !== null) {
+		if (typeof d.blackMarketUnlocks !== 'object' || Array.isArray(d.blackMarketUnlocks)) return false;
+	}
 	return true;
 }
 
@@ -375,5 +403,12 @@ function ensureMetadata(save: SaveData): SaveData {
 		claimedSchematicMilestones: Array.isArray((save as any).claimedSchematicMilestones)
 			? (save as any).claimedSchematicMilestones
 			: [],
+		strangeMatter: normalizeStrangeMatter((save as any).strangeMatter),
+		lifetimeStrangeMatterEarned: normalizeStrangeMatter((save as any).lifetimeStrangeMatterEarned),
+		lastWeeklyBlackMarketShipmentClaimedAt: normalizeTimestamp((save as any).lastWeeklyBlackMarketShipmentClaimedAt),
+		lastDailyContractCompletedAt: normalizeTimestamp((save as any).lastDailyContractCompletedAt),
+		lastDailyContractDeploymentAt: normalizeTimestamp((save as any).lastDailyContractDeploymentAt),
+		blackMarketUnlocks: normalizeBlackMarketUnlocks((save as any).blackMarketUnlocks),
+		autoDeploymentEnabled: (save as any).autoDeploymentEnabled === true,
 	};
 }

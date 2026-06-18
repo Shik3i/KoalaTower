@@ -1,6 +1,7 @@
 import type { GameSettings, WorkshopUpgradeId, LabId, MilestoneId, ChallengeId, BlueprintId, AchievementId, EnemyType } from '../engine/gameTypes';
 import { TierId, DEFAULT_SETTINGS } from '../engine/gameTypes';
 import { emptySchematics } from '../balance/schematics';
+import type { BlackMarketUnlocks } from '../balance/blackMarket';
 
 export interface LabResearch {
 	level: number;
@@ -68,9 +69,17 @@ export interface SaveData {
 	schematicsByFront: Record<number, number>;
 	/** One-time Schematic milestone claim keys, e.g. "1:50" (Front 1, Wave 50). */
 	claimedSchematicMilestones: string[];
+	// v12: Black Market / Strange Matter QoL foundation.
+	strangeMatter: number;
+	lifetimeStrangeMatterEarned: number;
+	lastWeeklyBlackMarketShipmentClaimedAt: number;
+	lastDailyContractCompletedAt: number;
+	lastDailyContractDeploymentAt: number;
+	blackMarketUnlocks: BlackMarketUnlocks;
+	autoDeploymentEnabled: boolean;
 }
 
-export const CURRENT_SCHEMA_VERSION = 11;
+export const CURRENT_SCHEMA_VERSION = 12;
 
 function generateSaveId(prefix = 'fltd'): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -118,5 +127,12 @@ export function createDefaultSave(): SaveData {
 		masteryAchievements: {},
 		schematicsByFront: emptySchematics(),
 		claimedSchematicMilestones: [],
+		strangeMatter: 0,
+		lifetimeStrangeMatterEarned: 0,
+		lastWeeklyBlackMarketShipmentClaimedAt: 0,
+		lastDailyContractCompletedAt: 0,
+		lastDailyContractDeploymentAt: 0,
+		blackMarketUnlocks: {},
+		autoDeploymentEnabled: false,
 	};
 }

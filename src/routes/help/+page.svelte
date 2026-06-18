@@ -18,7 +18,12 @@
 		{
 			id: 'currencies',
 			q: 'What are Energy and Alloy?',
-			a: 'Energy (⚡) is harvested from destroyed shapes during a deployment. It powers temporary Field Overclocks and is lost when the tower is destroyed. Orbital Command regrets to confirm that raw energy transmission remains "budgetarily unfeasible." Alloy (🔩) is refined from shape remnants — dense, stable, and transmits perfectly. It is permanent, spent in the Forge and Research Deck. Alloy survives the deployment. So does the paperwork.',
+			a: 'Energy (⚡) is harvested from destroyed shapes during a deployment. It powers temporary Field Overclocks and is lost when the tower is destroyed. Alloy (🔩) is official permanent progression, spent in the Forge and Research Deck. Strange Matter (◈) is not sold. It is recovered, smuggled, misplaced, and occasionally delivered in containers nobody signed for.',
+		},
+		{
+			id: 'black-market',
+			q: 'What is the Black Market?',
+			a: 'The Black Market is an unofficial Orbital Command terminal for Strange Matter quality-of-life systems. Weekly shipments and Daily Contracts are local-first pacing tools, not secure enforcement. Support is appreciated and never required; the shipment reward is not gated by payment. Black Market unlocks are infrastructure and convenience, not raw combat power.',
 		},
 		{
 			id: 'enemies',
@@ -204,8 +209,24 @@
 				<div class="info-icon">📐</div>
 				<h3>Schematics</h3>
 				<span class="info-badge">Per Front</span>
-				<p>Recovered design fragments — used to <strong>reconstruct upgrade paths</strong>. Collected separately for each Front (Perimeter Schematics, Redline Schematics, …). Earned from <strong>boss kills</strong> (repeatable) and <strong>first-time wave milestones</strong> (one-time). One fragment is useless. A hundred becomes engineering. Higher Fronts drop their own Schematics. <em>A Black Market converter to trade Schematics between Fronts is planned for a later update — not yet implemented.</em></p>
+				<p>Recovered design fragments — used to <strong>reconstruct upgrade paths</strong>. Collected separately for each Front. Boss kills are repeatable; first-time wave milestones are one-time. The Black Market converter can trade 25 Front N Schematics for 1 Front N+1 Schematic after it is unlocked.</p>
 			</div>
+			<div class="info-card">
+				<div class="info-icon">◈</div>
+				<h3>Strange Matter</h3>
+				<span class="info-badge">Contraband QoL</span>
+				<p>Rare local-first currency from weekly shipments and Daily Contracts. It is not sold and not checked against support payments. Spent on Black Market quality-of-life systems like speed options, Auto Deployment, and the Schematic Converter.</p>
+			</div>
+		</div>
+	</section>
+
+	<section class="help-section">
+		<h2>BLACK MARKET</h2>
+		<p class="section-desc">Unauthorized Procurement Channel. Black Market upgrades are unofficial quality-of-life systems. Orbital Command denies using them. Orbital Command is lying.</p>
+		<div class="lore-box">
+			<p><strong>Strange Matter</strong> is unstable contraband recovered from anomalies, suspicious field contracts, and containers nobody signed for. It is not sold.</p>
+			<p>Weekly shipments grant Strange Matter whether or not you support the project. Daily Contracts are simple local objectives with no streaks and no punishment for missing days.</p>
+			<p>Timers are local pacing tools, not secure enforcement. The Black Market improves convenience and infrastructure; it does not buy raw damage, Alloy piles, or Front clears.</p>
 		</div>
 	</section>
 

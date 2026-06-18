@@ -11,6 +11,12 @@ describe('Save Migration', () => {
 		expect(save.totalCoins).toBe(0);
 		expect(save.totalRuns).toBe(0);
 		expect(save.highestWave).toBe(0);
+		expect(save.strangeMatter).toBe(0);
+		expect(save.lifetimeStrangeMatterEarned).toBe(0);
+		expect(save.lastWeeklyBlackMarketShipmentClaimedAt).toBe(0);
+		expect(save.lastDailyContractCompletedAt).toBe(0);
+		expect(save.lastDailyContractDeploymentAt).toBe(0);
+		expect(save.blackMarketUnlocks).toEqual({});
 		expect(save.createdAt).toBeTruthy();
 		expect(save.saveId).toBeTruthy();
 		expect(save.saveId).toMatch(/^fltd-/);
@@ -69,6 +75,8 @@ describe('Save Migration', () => {
 		expect(Array.isArray(migrated!.discoveredBlueprints)).toBe(true);
 		expect(Array.isArray(migrated!.unlockedBlueprints)).toBe(true);
 		expect(migrated!.selectedFront).toBeTruthy();
+		expect(migrated!.strangeMatter).toBe(0);
+		expect(migrated!.blackMarketUnlocks).toEqual({});
 	});
 
 	it('should backfill missing settings and stat fields on a sparse save', () => {
@@ -80,6 +88,30 @@ describe('Save Migration', () => {
 		expect(typeof migrated!.settings.browserNotifications).toBe('boolean');
 		expect(migrated!.totalKills).toBe(0);
 		expect(migrated!.totalShiniesKilled).toBe(0);
+	});
+
+	it('should clamp malformed Black Market fields during migration', () => {
+		const sparse = {
+			schemaVersion: 11,
+			lastUpdated: 1,
+			totalRuns: 1,
+			highestWave: 1,
+			totalCoins: 1,
+			strangeMatter: -99,
+			lifetimeStrangeMatterEarned: '14.8',
+			lastWeeklyBlackMarketShipmentClaimedAt: -5,
+			lastDailyContractCompletedAt: '123',
+			lastDailyContractDeploymentAt: '456',
+			blackMarketUnlocks: { gameSpeed3: true, bogus: true },
+		};
+		const migrated = migrateSave(sparse as unknown as Record<string, unknown>);
+		expect(migrated).not.toBeNull();
+		expect(migrated!.strangeMatter).toBe(0);
+		expect(migrated!.lifetimeStrangeMatterEarned).toBe(14);
+		expect(migrated!.lastWeeklyBlackMarketShipmentClaimedAt).toBe(0);
+		expect(migrated!.lastDailyContractCompletedAt).toBe(123);
+		expect(migrated!.lastDailyContractDeploymentAt).toBe(456);
+		expect(migrated!.blackMarketUnlocks).toEqual({ gameSpeed3: true });
 	});
 });
 
@@ -269,6 +301,11 @@ describe('validateSaveData malformed-field regression', () => {
 
 	it('accepts valid array for unlockedBlueprints', () => {
 		expect(validateSaveData({ ...base, unlockedBlueprints: ['blueprint1'] })).toBe(true);
+	});
+
+	it('rejects malformed blackMarketUnlocks', () => {
+		expect(validateSaveData({ ...base, blackMarketUnlocks: [] })).toBe(false);
+		expect(validateSaveData({ ...base, blackMarketUnlocks: 'bad' })).toBe(false);
 	});
 });
 

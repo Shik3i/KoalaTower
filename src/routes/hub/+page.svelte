@@ -11,6 +11,22 @@
 	import { CHALLENGES } from '$lib/game/balance/challenges';
 	import { formatCompact, front1EnemyDamage, front1EnemyHp, TIER_MULTIPLIERS } from '$lib/game/balance/balanceMath';
 	import { getSchematics, getPathSchematicCost, tryUnlockPathWithSchematics, normalizeSchematics, SCHEMATICS_FLAVOR } from '$lib/game/balance/schematics';
+	import {
+		BLACK_MARKET_UNLOCKS,
+		SCHEMATIC_CONVERSION_RATE,
+		STRANGE_MATTER_DAILY_CONTRACT,
+		STRANGE_MATTER_WEEKLY_SHIPMENT,
+		SUPPORT_URL,
+		canBuyBlackMarketUnlock,
+		canClaimDailyContract,
+		canClaimWeeklyShipment,
+		convertSchematics,
+		hasBlackMarketUnlock,
+		localDayKey,
+		weeklyShipmentRemainingMs,
+		type BlackMarketUnlockId,
+		type BlackMarketUnlocks,
+	} from '$lib/game/balance/blackMarket';
 	import { EnemyType, DEFAULT_SETTINGS } from '$lib/game/engine/gameTypes';
 	import { ENEMY_TYPE_MODIFIERS, computeEnemyConfig, ENEMY_SHAPES } from '$lib/game/balance/balanceMath';
 	import { ENEMY_TYPE_LABELS, getMasteryProgress, MASTERY_REWARDS } from '$lib/game/balance/mastery';
@@ -35,7 +51,7 @@
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
-	let activeSection = $state<'workshop' | 'lab' | 'blueprints' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings'>('workshop');
+	let activeSection = $state<'workshop' | 'lab' | 'blueprints' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings'>('workshop');
 	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
 
 	const HUB_TUTORIAL_KEY = 'geocore-td-hub-tutorial-done';
@@ -55,6 +71,15 @@
 	let ownedBlueprints = $state<BlueprintId[]>([]);
 	let discoveredBlueprints = $state<BlueprintId[]>([]);
 	let schematicsByFront = $state<Record<number, number>>({});
+	let strangeMatter = $state(0);
+	let lifetimeStrangeMatterEarned = $state(0);
+	let blackMarketUnlocks = $state<BlackMarketUnlocks>({});
+	let lastWeeklyBlackMarketShipmentClaimedAt = $state(0);
+	let lastDailyContractCompletedAt = $state(0);
+	let lastDailyContractDeploymentAt = $state(0);
+	let autoDeploymentEnabled = $state(false);
+	let converterSourceFront = $state(1);
+	let nowTick = $state(Date.now());
 	let frontBestWave = $state<Partial<Record<string, number>>>({});
 	let killsByType = $state<Partial<Record<EnemyType, number>>>({});
 	let shinyKillsByType = $state<Partial<Record<EnemyType, number>>>({});
@@ -67,6 +92,114 @@
 	let activeLabTarget = $state<number>(0);
 	let labProgressPct = $state(0);
 	let labProgressTimer: ReturnType<typeof setInterval> | null = null;
+	let clockTimer: ReturnType<typeof setInterval> | null = null;
+
+	function refreshBlackMarketState() {
+		const save = getCachedSave(); if (!save) return;
+		strangeMatter = save.strangeMatter ?? 0;
+		lifetimeStrangeMatterEarned = save.lifetimeStrangeMatterEarned ?? 0;
+		blackMarketUnlocks = { ...(save.blackMarketUnlocks ?? {}) };
+		lastWeeklyBlackMarketShipmentClaimedAt = save.lastWeeklyBlackMarketShipmentClaimedAt ?? 0;
+		lastDailyContractCompletedAt = save.lastDailyContractCompletedAt ?? 0;
+		lastDailyContractDeploymentAt = save.lastDailyContractDeploymentAt ?? 0;
+		autoDeploymentEnabled = save.autoDeploymentEnabled === true;
+	}
+
+	function formatDuration(ms: number): string {
+		const totalMinutes = Math.ceil(Math.max(0, ms) / 60000);
+		const days = Math.floor(totalMinutes / 1440);
+		const hours = Math.floor((totalMinutes % 1440) / 60);
+		const minutes = totalMinutes % 60;
+		if (days > 0) return `${days}d ${hours}h`;
+		if (hours > 0) return `${hours}h ${minutes}m`;
+		return `${minutes}m`;
+	}
+
+	function grantStrangeMatter(save: NonNullable<ReturnType<typeof getCachedSave>>, amount: number) {
+		const grant = Math.max(0, Math.floor(amount));
+		save.strangeMatter = Math.max(0, Math.floor(save.strangeMatter ?? 0)) + grant;
+		save.lifetimeStrangeMatterEarned = Math.max(0, Math.floor(save.lifetimeStrangeMatterEarned ?? 0)) + grant;
+	}
+
+	function claimWeeklyShipment() {
+		const save = getCachedSave(); if (!save) return;
+		const now = Date.now();
+		if (!canClaimWeeklyShipment(save.lastWeeklyBlackMarketShipmentClaimedAt ?? 0, now)) {
+			toast('Shipment unavailable. Paperwork remains absent.', 'info');
+			return;
+		}
+		grantStrangeMatter(save, STRANGE_MATTER_WEEKLY_SHIPMENT);
+		save.lastWeeklyBlackMarketShipmentClaimedAt = now;
+		persistSave(save);
+		refreshBlackMarketState();
+		toast('Shipment accepted. +' + STRANGE_MATTER_WEEKLY_SHIPMENT + ' Strange Matter', 'success');
+	}
+
+	function claimDailyContract() {
+		const save = getCachedSave(); if (!save) return;
+		const now = Date.now();
+		if (!canClaimDailyContract(save.lastDailyContractCompletedAt ?? 0, now)) {
+			toast('Daily Contract already filed today.', 'info');
+			return;
+		}
+		if (localDayKey(save.lastDailyContractDeploymentAt ?? 0) !== localDayKey(now)) {
+			toast('Complete one Deployment first. Any result counts.', 'warning');
+			return;
+		}
+		grantStrangeMatter(save, STRANGE_MATTER_DAILY_CONTRACT);
+		save.lastDailyContractCompletedAt = now;
+		persistSave(save);
+		refreshBlackMarketState();
+		toast('Daily Contract complete. +' + STRANGE_MATTER_DAILY_CONTRACT + ' Strange Matter', 'success');
+	}
+
+	function buyBlackMarketUnlock(id: BlackMarketUnlockId) {
+		const save = getCachedSave(); if (!save) return;
+		const unlocks = { ...(save.blackMarketUnlocks ?? {}) };
+		const result = canBuyBlackMarketUnlock(save.strangeMatter ?? 0, unlocks, id);
+		if (!result.ok || !result.def) {
+			if (result.reason === 'owned') toast('Already procured. The receipt has vanished.', 'info');
+			else if (result.reason === 'missingRequirement') toast('Prerequisite missing from the manifest.', 'warning');
+			else toast('Not enough Strange Matter.', 'error');
+			return;
+		}
+		save.strangeMatter -= result.def.cost;
+		save.blackMarketUnlocks = { ...unlocks, [id]: true };
+		persistSave(save);
+		refreshBlackMarketState();
+		toast(result.def.name + ' unlocked.', 'success');
+	}
+
+	function toggleAutoDeployment() {
+		const save = getCachedSave(); if (!save) return;
+		if (!hasBlackMarketUnlock(save.blackMarketUnlocks, 'autoDeployment')) {
+			toast('Auto Deployment must be procured first.', 'warning');
+			return;
+		}
+		save.autoDeploymentEnabled = !save.autoDeploymentEnabled;
+		persistSave(save);
+		refreshBlackMarketState();
+		toast('Auto Deployment ' + (save.autoDeploymentEnabled ? 'armed.' : 'disabled.'), 'info');
+	}
+
+	function convertOneSchematic(max = false) {
+		const save = getCachedSave(); if (!save) return;
+		if (!hasBlackMarketUnlock(save.blackMarketUnlocks, 'schematicConverter')) {
+			toast('Schematic Converter locked.', 'warning');
+			return;
+		}
+		const available = getSchematics(save.schematicsByFront, converterSourceFront);
+		const count = max ? Math.floor(available / SCHEMATIC_CONVERSION_RATE) : 1;
+		const result = convertSchematics(save.schematicsByFront, converterSourceFront, count);
+		if (!result.ok) {
+			toast('Conversion refused. The numbers were too honest.', 'error');
+			return;
+		}
+		save.schematicsByFront = result.schematics;
+		schematicsByFront = { ...save.schematicsByFront };
+		persistSave(save);
+		toast('Converted ' + result.converted + ' restricted Schematic' + (result.converted === 1 ? '.' : 's.'), 'success');
+	}
 
 	function refreshLabProgress() {
 		const save = getCachedSave(); if (!save) return;
@@ -123,6 +256,7 @@
 		if (save?.unlockedBlueprints) ownedBlueprints = [...save.unlockedBlueprints];
 		if (save?.discoveredBlueprints) discoveredBlueprints = [...save.discoveredBlueprints];
 		if (save?.schematicsByFront) schematicsByFront = { ...save.schematicsByFront };
+		refreshBlackMarketState();
 		if (save?.frontBestWave) frontBestWave = { ...save.frontBestWave };
 		if (save?.killsByType) killsByType = { ...save.killsByType };
 		if (save?.shinyKillsByType) shinyKillsByType = { ...save.shinyKillsByType };
@@ -137,7 +271,8 @@
 		challengeHighScores = { ...(save?.challengeHighScores ?? {}) };
 		refreshLabProgress();
 		labProgressTimer = setInterval(refreshLabProgress, 1000);
-		return () => { u1(); u2(); u3(); u4(); if (labProgressTimer) clearInterval(labProgressTimer); toasts.clear(); };
+		clockTimer = setInterval(() => { nowTick = Date.now(); }, 30000);
+		return () => { u1(); u2(); u3(); u4(); if (labProgressTimer) clearInterval(labProgressTimer); if (clockTimer) clearInterval(clockTimer); toasts.clear(); };
 	});
 
 	function wLv(id: WorkshopUpgradeId): number { return getCachedSave()?.workshopUpgrades[id] ?? 0; }
@@ -226,6 +361,7 @@
 		{ id: 'workshop' as const, label: 'Forge', icon: '⚙' },
 		{ id: 'lab' as const, label: 'Research Deck', icon: '🔬' },
 		{ id: 'blueprints' as const, label: 'Schematics', icon: '📐' },
+		{ id: 'blackMarket' as const, label: 'Black Market', icon: '◈' },
 		{ id: 'tiers' as const, label: 'Fronts', icon: '🌍' },
 		{ id: 'challenges' as const, label: 'Special Ops', icon: '⚡' },
 		{ id: 'simulation' as const, label: 'Simulation', icon: '🧪' },
@@ -250,7 +386,7 @@
 	<header class="hub-top">
 		<a href="/" class="hub-back">← Home</a>
 		<h1 class="hub-title">🛰️ Orbital Command</h1>
-		<div class="hub-coins">🔩 {coins.toLocaleString()}</div>
+		<div class="hub-coins">🔩 {coins.toLocaleString()} <span class="hub-sm">◈ {strangeMatter.toLocaleString()}</span></div>
 	</header>
 	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. The Forge pre-installs permanent tower upgrades, the Research Deck runs orbital projects, and Schematics reconstruct new capabilities. Archives track campaign telemetry.</p>
 
@@ -335,6 +471,97 @@
 				<div class="hs"><h2 class="hst">📐 Schematics</h2><p class="hsd">{SCHEMATICS_FLAVOR}</p>
 					<div class="schem-bal">{#each FRONT_META as m}{@const n = getSchematics(schematicsByFront, m.front)}{#if n > 0 || unlockedFronts.includes(m.id)}<span class="schem-chip" title={getFrontName(m.id) + ' Schematics'}><FrontIcon front={m.id} size={16} /> {n}</span>{/if}{/each}</div>
 					<div class="cl">{#each BLUEPRINT_DEFS as bp}{@const status = getBlueprintStatus(bp.id, ownedBlueprints, discoveredBlueprints)}{@const cost = getPathSchematicCost(bp.id)}{@const costFrontId = cost ? FRONT_META[cost.front - 1]!.id : null}{@const have = cost ? getSchematics(schematicsByFront, cost.front) : 0}{@const aff = !!cost && have >= cost.cost}{@const fieldCount = getFieldUpgradesUnlockedBy(bp.id).length}{@const foundryCount = getFoundryUpgradesUnlockedBy(bp.id).length}<div class="cc" class:lck={status === 'undiscovered'}><div class="cc-h"><span class="cci">{status === 'owned' ? '✅' : status === 'discovered' ? bp.icon : '🔒'}</span><div><div class="ccn">{status === 'undiscovered' ? '??? Unknown Schematic' : bp.name}</div><div class="ccd">{status === 'undiscovered' ? 'Schematic not yet recovered.' : bp.description}</div></div></div>{#if status === 'owned'}<div class="ccs">✓ Reconstructed — unlocks {fieldCount} field + {foundryCount} foundry upgrade{fieldCount + foundryCount === 1 ? '' : 's'}</div>{:else if status === 'discovered'}<div class="ccl-found">🔍 Recovered — ready to reconstruct</div><div class="uc-b" style="margin-top:.3rem">{#if cost && costFrontId}<button class="hub-action" disabled={!aff} onclick={() => buyBlueprint(bp.id)} style={aff ? 'background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--bg-primary);font-weight:600' : ''}><span class="ucc">📐{cost.cost} {getFrontName(costFrontId)}</span> Reconstruct</button>{:else}<span class="ucc" style="color:var(--text-dim)">Reconstruction not yet available</span>{/if}</div>{:else}<div class="ccl">🔒 {describeBlueprintDiscovery(bp)}</div>{/if}</div>{/each}</div>
+				</div>
+			{:else if activeSection === 'blackMarket'}
+				{@const weeklyReady = canClaimWeeklyShipment(lastWeeklyBlackMarketShipmentClaimedAt, nowTick)}
+				{@const dailyReady = canClaimDailyContract(lastDailyContractCompletedAt, nowTick)}
+				{@const completedDeploymentToday = localDayKey(lastDailyContractDeploymentAt) === localDayKey(nowTick)}
+				{@const sourceBalance = getSchematics(schematicsByFront, converterSourceFront)}
+				{@const maxConversions = Math.floor(sourceBalance / SCHEMATIC_CONVERSION_RATE)}
+				<div class="hs">
+					<h2 class="hst">BLACK MARKET</h2>
+					<p class="hsd">Unauthorized Procurement Channel. Orbital Command does not authorize the possession, trade, study, inhalation, resale, or emotional attachment to Strange Matter. Fortunately, this terminal is not connected to Orbital Command.</p>
+					<div class="bm-ledger">
+						<div class="ir"><span class="il">Strange Matter</span><span class="iv">◈ {strangeMatter.toLocaleString()}</span></div>
+						<div class="ir"><span class="il">Lifetime Recovered</span><span class="iv">◈ {lifetimeStrangeMatterEarned.toLocaleString()}</span></div>
+					</div>
+
+					<div class="bm-grid">
+						<section class="bm-panel">
+							<h3 class="stats-sub">Weekly Shipment</h3>
+							{#if weeklyReady}
+								<p class="hsd">A sealed container has arrived without paperwork, markings, or legal explanation.</p>
+								<p class="hsd">Flatland TD is free, local-first, and open source. Support is appreciated, never required. Payment is never checked. The shipment is yours either way.</p>
+								<div class="bm-actions">
+									<a class="hub-action" class:disabled={SUPPORT_URL === '#'} href={SUPPORT_URL} target="_blank" rel="noopener" aria-disabled={SUPPORT_URL === '#'} title={SUPPORT_URL === '#' ? 'Support URL not configured yet' : 'Support development'}>Fund the next shipment</a>
+									<button class="hub-action bm-primary" onclick={claimWeeklyShipment}>Accept Shipment (+{STRANGE_MATTER_WEEKLY_SHIPMENT})</button>
+								</div>
+							{:else}
+								<p class="hsd">Shipment accepted. Your discretion has been logged nowhere official.</p>
+								<div class="ccl">Next shipment in {formatDuration(weeklyShipmentRemainingMs(lastWeeklyBlackMarketShipmentClaimedAt, nowTick))}</div>
+							{/if}
+						</section>
+
+						<section class="bm-panel">
+							<h3 class="stats-sub">Daily Contract</h3>
+							<p class="hsd">Complete one Deployment today. No streaks. No punishment. Just paperwork that somehow leaks radiation.</p>
+							<button class="hub-action bm-primary" disabled={!dailyReady || !completedDeploymentToday} onclick={claimDailyContract}>Claim Contract (+{STRANGE_MATTER_DAILY_CONTRACT})</button>
+							{#if !completedDeploymentToday}<div class="ccl">Launch any Deployment today first.</div>{:else if !dailyReady}<div class="ccl">Filed for today. Return tomorrow.</div>{/if}
+						</section>
+					</div>
+
+					<h3 class="stats-sub" style="margin-top:1rem">Procurement List</h3>
+					<div class="cl">
+						{#each BLACK_MARKET_UNLOCKS as item}
+							{@const owned = hasBlackMarketUnlock(blackMarketUnlocks, item.id)}
+							{@const reqOk = !item.requirement || hasBlackMarketUnlock(blackMarketUnlocks, item.requirement)}
+							{@const aff = strangeMatter >= item.cost}
+							<div class="cc" class:lck={!owned && (!reqOk || !aff)}>
+								<div class="cc-h"><span class="cci">{owned ? '✓' : '◈'}</span><div><div class="ccn">{item.name}</div><div class="ccd">{item.description}</div></div></div>
+								<div class="uc-b" style="margin-top:.35rem">
+									<span class="ucc">◈ {item.cost}</span>
+									{#if owned}
+										<span class="ucnx">OWNED{item.status === 'scaffold' ? ' · UI/logic pending' : ''}</span>
+									{:else if item.requirement && !reqOk}
+										<span class="ucnx">Requires {BLACK_MARKET_UNLOCKS.find(u => u.id === item.requirement)?.name}</span>
+									{:else}
+										<button class="hub-action" disabled={!aff} onclick={() => buyBlackMarketUnlock(item.id)}>{aff ? 'Procure' : 'Need more'}</button>
+									{/if}
+								</div>
+								{#if item.id === 'autoDeployment' && owned}
+									<button class="hub-action" style="margin-top:.35rem" onclick={toggleAutoDeployment}>{autoDeploymentEnabled ? 'Disable Auto Deployment' : 'Arm Auto Deployment'}</button>
+								{/if}
+							</div>
+						{/each}
+					</div>
+
+					{#if hasBlackMarketUnlock(blackMarketUnlocks, 'schematicConverter')}
+						<section class="bm-panel converter">
+							<h3 class="stats-sub">Schematic Converter</h3>
+							<p class="hsd">Twenty-five obsolete designs go in. One restricted design comes out. Nobody asks why the ink is still wet.</p>
+							<div class="sim-controls">
+								<div class="sim-param">
+									<label class="sim-label" for="converter-front">Source:</label>
+									<select id="converter-front" bind:value={converterSourceFront} class="sim-select">
+										{#each FRONT_META.slice(0, 15) as m}
+											<option value={m.front}>{m.displayName} -> Front {m.front + 1}</option>
+										{/each}
+									</select>
+								</div>
+							</div>
+							<div class="ig" style="max-width:600px">
+								<div class="ir"><span class="il">Source Balance</span><span class="iv">{sourceBalance}</span></div>
+								<div class="ir"><span class="il">Target Balance</span><span class="iv">{getSchematics(schematicsByFront, converterSourceFront + 1)}</span></div>
+								<div class="ir"><span class="il">Rate</span><span class="iv">{SCHEMATIC_CONVERSION_RATE}:1</span></div>
+								<div class="ir"><span class="il">Max Conversions</span><span class="iv">{maxConversions}</span></div>
+							</div>
+							<div class="bm-actions">
+								<button class="hub-action bm-primary" disabled={maxConversions < 1} onclick={() => convertOneSchematic(false)}>Convert 1</button>
+								<button class="hub-action" disabled={maxConversions < 1} onclick={() => convertOneSchematic(true)}>Convert Max</button>
+							</div>
+							<div class="ccl">Conversion can prepare future Front Schematics, but it does not unlock the Front itself.</div>
+						</section>
+					{/if}
 				</div>
 			{:else if activeSection === 'tiers'}
 				<div class="hs"><h2 class="hst">🌍 Fronts</h2><p class="hsd">Sixteen Fronts across four bands — Perimeter, Redline, Blacksite, Anomaly. Each Front spawns denser waves and drops its own Schematics. Most Fronts unlock at Wave 100 on the previous one; crossing into a new band is the hard wall. Remember: the enemy is also fighting a war. They are losing. Please continue to help them lose.</p>
@@ -524,6 +751,7 @@
 	.hub-back:hover { color:var(--cyan); border-color:var(--cyan); }
 	.hub-title { font-size:var(--fs-hero); font-weight:700; background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
 	.hub-coins { margin-left:auto; font-family:var(--font-mono); font-size:var(--fs-mono-lg); color:var(--yellow); }
+	.hub-sm { color:var(--violet); margin-left:.5rem; }
 	.hub-desc { padding:1.25rem 1.5rem .5rem; text-align:center; color:var(--text-secondary); font-size:var(--fs-body); line-height:1.7; max-width:900px; margin:0 auto; position:relative; z-index:1; }
 	.hub-body { display:flex; gap:2rem; padding:1.5rem; max-width:1400px; margin:0 auto; position:relative; z-index:1; min-height:calc(100vh - 64px); }
 	.hub-nav { display:flex; flex-direction:column; gap:.35rem; width:200px; flex-shrink:0; }
@@ -536,7 +764,14 @@
 	.hsd { color:var(--text-secondary); font-size:var(--fs-body); margin-bottom:1.25rem; line-height:1.6; }
 	.hub-action { padding:.55rem 1.2rem; font-size:var(--fs-body-sm); border-radius:var(--radius-sm); background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); cursor:pointer; transition:all var(--transition-fast); margin-right:.5rem; }
 	.hub-action:hover { border-color:var(--cyan); color:var(--text-primary); }
+	.hub-action:disabled,.hub-action.disabled { opacity:.45; cursor:default; pointer-events:none; }
 	.hub-danger:hover { border-color:var(--red); color:var(--red); }
+	.bm-ledger { display:grid; gap:3px; max-width:420px; margin-bottom:1rem; }
+	.bm-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; margin-bottom:1rem; }
+	.bm-panel { padding:.85rem 1rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
+	.bm-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.65rem; }
+	.bm-primary { border-color:rgba(0,255,255,.35); color:var(--cyan); }
+	.converter { margin-top:1rem; max-width:760px; }
 	.buy-mult { display:flex; align-items:center; gap:2px; margin-bottom:.5rem; }
 	.mult-label { font-size:var(--fs-caption-sm); color:var(--text-dim); font-family:var(--font-mono); margin-right:.2rem; }
 	.mult-btn { padding:.15rem .4rem; font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); border-radius:4px; background:rgba(0,0,0,.12); border:1px solid transparent; cursor:pointer; transition:all var(--transition-fast); }
@@ -573,7 +808,7 @@
 	.tc,.cc { padding:.75rem .85rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
 	.tc.unl { border-color:rgba(68,255,136,.12); } .cc.lck { opacity:.55; }
 	.tc-h,.cc-h { display:flex; gap:.5rem; align-items:flex-start; }
-	.tci,.cci { font-size:var(--fs-icon-lg); flex-shrink:0; margin-top:2px; }
+	.cci { font-size:var(--fs-icon-lg); flex-shrink:0; margin-top:2px; }
 	.tcn,.ccn { font-size:var(--fs-body-sm); color:var(--text-primary); font-weight:500; margin-bottom:.1rem; }
 	.tcd,.ccd { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.45; }
 	.tcr,.ccs,.ccl,.ccl-found { font-size:var(--fs-caption-sm); color:var(--text-secondary); font-family:var(--font-mono); margin-top:.25rem; padding:.15rem .4rem; background:rgba(0,0,0,.12); border-radius:3px; display:inline-block; }
@@ -608,7 +843,7 @@
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	.save-note { margin-top:1.25rem; padding:.75rem 1rem; background:rgba(255,221,68,.04); border:1px solid rgba(255,221,68,.12); border-radius:var(--radius-sm); max-width:800px; }
 	.save-note-flavor { font-size:var(--fs-caption-sm); color:rgba(255,221,68,.45); font-style:italic; line-height:1.4; margin:0; }
-	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;width:auto;flex-direction:initial} .hub-nav-btn{flex-shrink:0;white-space:nowrap;text-align:center;padding:.55rem .5rem;font-size:var(--fs-body-sm)} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem} }
+	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;width:auto;flex-direction:initial} .hub-nav-btn{flex-shrink:0;white-space:nowrap;text-align:center;padding:.55rem .5rem;font-size:var(--fs-body-sm)} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.bm-grid{grid-template-columns:1fr}.hub-coins{font-size:var(--fs-mono)} }
 	@media(max-width:380px){ .hub-nav{grid-template-columns:1fr 1fr} .hub-nav-btn{font-size:var(--fs-caption);padding:.5rem .4rem} }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:var(--fs-caption); display:flex; flex-direction:column; gap:.4rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
 	.hub-footer-flavor { font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:0.35; margin:0; }
