@@ -13,6 +13,7 @@
 	import { APP_VERSION } from '$lib/version';
 	import { shouldShowWhatsNew, readSeenVersion, writeSeenVersion } from '$lib/stores/whatsNew';
 
+	let { suppressFirstRun = false } = $props<{ suppressFirstRun?: boolean }>();
 	let open = $state(false);
 	let dialogEl = $state<HTMLDivElement | null>(null);
 
@@ -38,7 +39,11 @@
 	onMount(() => {
 		// Don't interrupt an active combat session; it'll show next non-/play visit.
 		if (page.url.pathname.startsWith('/play')) return;
-		if (shouldShowWhatsNew(APP_VERSION, readSeenVersion())) {
+		if (suppressFirstRun) {
+			writeSeenVersion(APP_VERSION);
+			return;
+		}
+		if (shouldShowWhatsNew(APP_VERSION, readSeenVersion(), suppressFirstRun)) {
 			open = true;
 			queueMicrotask(() => dialogEl?.focus());
 		}

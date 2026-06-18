@@ -21,10 +21,10 @@ Flatland is at war with **hostile geometric shapes**. Deploy towers from orbit, 
 - 🏗️ **13 Forge upgrades** — permanent pre-installed improvements (Damage, Fire Rate, Range, HP, Crit, Lifesteal, Thorns...)
 - 🔬 **5 Research Deck projects** — real-time orbital research with offline progress
 - ⚡ **14 Field upgrades** — temporary overclocks per deployment (Offense, Defense, Utility)
-- 📐 **10 Blueprints** — discover hidden upgrade paths during runs, research with Alloy
+- 📐 **Schematics** — recover per-Front design fragments and reconstruct upgrade paths
 - 🌍 **16 Fronts (4 bands × 4 Fronts)** — escalating difficulty with better Alloy rewards and per-Front Schematics
 - 📑 **Schematics** — per-Front currency dropped by bosses, used to reconstruct upgrade paths
-- 🛰️ **Black Market** — hidden Strange Matter economy with weekly shipments, daily contracts, and procurement unlocks
+- 🛰️ **Black Market** — optional local-first Strange Matter systems with weekly shipments, daily contracts, and quality-of-life unlocks
 - 🏆 **42 Achievements** — deploy towers, destroy shapes, earn Alloy rewards
 - 👾 **5 Enemy types** — Normal ■, Fast ◆, Tank ⬡, Ranged ▶, Boss ⬠ — each visually distinct
 - ⚡ **3 Special Operations** — challenge modes with modified rules
@@ -49,7 +49,7 @@ npm install
 npm run dev         # dev server at localhost:5173
 npm run build       # production build → build/
 npm run preview     # preview production build
-npm test            # run 390 tests
+npm test            # run the Vitest suite
 ```
 
 ---
@@ -63,7 +63,7 @@ npm test            # run 390 tests
 | Renderer | **PixiJS v8** (WebGL + AdvancedBloomFilter) |
 | Storage | **IndexedDB** via idb-keyval |
 | Audio | Procedural **Web Audio API** (no asset files) |
-| Testing | **Vitest** (390 tests, 22 test files) |
+| Testing | **Vitest** (400+ tests across 20+ files) |
 | Build | **Vite** + @sveltejs/adapter-static (Brotli + Gzip precompression) |
 | Container | Multi-arch **Docker** (amd64 + arm64) |
 | PWA | Installable + offline-ready via SvelteKit service worker |
@@ -88,7 +88,7 @@ src/
 │       ├── render/          # PixiJS WebGL rendering (layered renderers, death FX, effects)
 │       ├── audio/           # Procedural Web Audio SFX + music
 │       ├── save/            # IndexedDB persistence + schema migrations
-│       └── __tests__/       # 390 Vitest unit tests
+│       └── __tests__/       # Vitest unit tests
 ├── utils/                   # countUp action, viewport math
 └── routes/
     ├── +layout.svelte       # Global footer nav + lab polling + toasts
@@ -119,8 +119,8 @@ Docker Compose + Caddy reverse proxy examples in `examples/` and `docker-compose
 ### Publishing a release
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.5.0
+git push origin v0.5.0
 # → CI builds multi-arch image + pushes to GHCR with SBOM attestation
 ```
 
@@ -129,7 +129,7 @@ git push origin v0.3.0
 ## 🔒 Privacy
 
 - **100% local** — all data stored in your browser (IndexedDB)
-- **No backend** — fully static, no servers, no accounts
+- **No backend** — fully static, no servers, no accounts, no login
 - **No tracking** — zero analytics, zero cookies, zero external requests
 - **No CDN** — fonts and assets are self-hosted
 - Export/Import save as JSON with encoding + checksums
@@ -140,12 +140,20 @@ git push origin v0.3.0
 ## 🧪 Testing
 
 ```bash
-npm test            # 390 tests across 22 suites
+npm test            # run the Vitest suite
 npm run check       # TypeScript strict typecheck
 npm run build       # Production build verification
 ```
 
-Test coverage includes: enemy scaling formulas, upgrade cost curves, save migration integrity, progression requirements, wave system, viewport placement math, killstreak/cosmetic-contract tests, floating-text classification, and enemy damage-state helpers.
+Test coverage includes: enemy scaling formulas, upgrade cost curves, save migration/import integrity, progression requirements, wave system, viewport placement math, killstreak/cosmetic-contract tests, floating-text classification, and enemy damage-state helpers.
+
+---
+
+## 🚧 Alpha Notes
+
+Flatland TD v0.5.0 — **Alpha Release Candidate** — is alpha software. It is local-first, offline-friendly, and playable without login, analytics, backend APIs, cloud saves, or payment checks.
+
+Known limits: Fronts 9–16 are available in the progression structure, but some unique Blacksite/Anomaly combat modifiers remain scaffolded. The Outsourced Research Lab is visible as Coming Later and is not active. Black Market support links are optional; Weekly Shipment rewards are never gated by payment or online checks.
 
 ---
 

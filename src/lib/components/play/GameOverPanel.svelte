@@ -51,6 +51,7 @@
 		{#if best > 0 && wave < best}
 			<div class="go-wave-sub">Best: Wave {best} ({(wave / best * 100).toFixed(0)}%)</div>
 		{/if}
+		<p class="go-loop">Alloy and Orbital upgrades stay with you. Energy and Field Upgrades reset for the next deployment.</p>
 		<div class="go-stats">
 			<div class="go-s"><span class="go-si"><Icon name="alloy" size={20} /></span><span class="go-sv">+{coins.toLocaleString()}</span><span class="go-sl">Alloy</span></div>
 			<div class="go-sd"></div>
@@ -96,6 +97,7 @@
 	.go-wave { font-size:var(--fs-heading); color:var(--text-secondary); margin-bottom:.1rem; font-family:var(--font-mono); }
 	.go-wave strong { color:var(--text-primary); }
 	.go-wave-sub { font-size:var(--fs-body); color:var(--text-secondary); margin-bottom:1rem; font-family:var(--font-mono); }
+	.go-loop { color:var(--text-secondary); font-size:var(--fs-body-sm); line-height:1.4; margin:.45rem auto .75rem; max-width:20rem; }
 	.go-stats { display:flex; align-items:center; justify-content:center; gap:.8rem; margin-bottom:.5rem; padding:.6rem .75rem; background:rgba(0,0,0,.12); border-radius:var(--radius-md); }
 	.go-schem { font-size:var(--fs-body-sm); color:var(--cyan); margin-bottom:.5rem; font-family:var(--font-mono); }
 	.go-auto { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.45rem .55rem; margin-bottom:.65rem; background:rgba(136,68,255,.08); border:1px solid rgba(136,68,255,.25); border-radius:var(--radius-sm); color:var(--violet); font-family:var(--font-mono); font-size:var(--fs-caption); }

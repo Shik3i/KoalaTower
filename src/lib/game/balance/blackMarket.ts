@@ -1,6 +1,8 @@
 import { TierId } from '../engine/gameTypes';
 import { FRONT_COUNT, getUnlockedFronts } from './tiers';
 import { addSchematics, getSchematics, normalizeSchematics, spendSchematics, type SchematicsByFront } from './schematics';
+import { SUPPORT_URL } from '$lib/version';
+export { SUPPORT_URL };
 
 export type BlackMarketUnlockId =
 	| 'combatTelemetryPlus'
@@ -25,10 +27,11 @@ export const STRANGE_MATTER_WEEKLY_SHIPMENT = 3;
 export const STRANGE_MATTER_DAILY_CONTRACT = 1;
 export const WEEKLY_SHIPMENT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 export const SCHEMATIC_CONVERSION_RATE = 25;
-export const SUPPORT_URL = '#'; // TODO: replace with the configured project support URL.
 
-export function isSupportUrlConfigured(url = SUPPORT_URL): boolean {
-	return url !== '#';
+export function isSupportUrlConfigured(url: string | null | undefined = SUPPORT_URL): boolean {
+	if (!url) return false;
+	const trimmed = url.trim();
+	return trimmed !== '' && trimmed !== '#' && !trimmed.toLowerCase().includes('example.');
 }
 
 export const BLACK_MARKET_UNLOCKS: BlackMarketUnlockDef[] = [

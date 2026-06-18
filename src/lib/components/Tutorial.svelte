@@ -156,9 +156,13 @@
 
 {#if visible}
 	<div class="tutorial-overlay" role="dialog" aria-modal="true" aria-label="Tutorial">
-		<div class="tutorial-backdrop" role="button" tabindex="0" onclick={skip} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') skip(); }}></div>
+		<div class="tutorial-backdrop" role="button" tabindex="0" aria-label="Skip tutorial" onclick={skip} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') skip(); }}></div>
 
 		{#if highlightRect && currentStep?.target}
+			<div
+				class="tutorial-spotlight"
+				style="left: {highlightRect.left - 10}px; top: {highlightRect.top - 10}px; width: {highlightRect.width + 20}px; height: {highlightRect.height + 20}px;"
+			></div>
 			<div
 				class="tutorial-highlight"
 				style="left: {highlightRect.left - 6}px; top: {highlightRect.top - 6}px; width: {highlightRect.width + 12}px; height: {highlightRect.height + 12}px;"
@@ -201,29 +205,37 @@
 	.tutorial-backdrop {
 		position: absolute;
 		inset: 0;
-		background: rgba(7, 8, 18, 0.65);
-		backdrop-filter: blur(2px);
-		-webkit-backdrop-filter: blur(2px);
+		background: rgba(7, 8, 18, 0.12);
+		backdrop-filter: blur(0.75px);
+		-webkit-backdrop-filter: blur(0.75px);
 		pointer-events: auto;
 		cursor: pointer;
+	}
+
+	.tutorial-spotlight {
+		position: fixed;
+		z-index: 500;
+		border-radius: calc(var(--radius-md) + 6px);
+		box-shadow: 0 0 0 9999px rgba(7, 8, 18, 0.34);
+		pointer-events: none;
 	}
 
 	.tutorial-highlight {
 		position: fixed;
 		z-index: 501;
-		border: 2px solid var(--cyan);
+		border: 2px solid rgba(122, 246, 255, 0.95);
 		border-radius: var(--radius-md);
 		box-shadow:
-			0 0 0 4px rgba(0, 255, 255, 0.15),
-			0 0 20px rgba(0, 255, 255, 0.2),
-			0 0 60px rgba(0, 255, 255, 0.1);
+			0 0 0 3px rgba(0, 255, 255, 0.16),
+			0 0 16px rgba(0, 255, 255, 0.36),
+			0 0 44px rgba(0, 255, 255, 0.18);
 		pointer-events: none;
 		animation: glow 2s ease-in-out infinite;
 	}
 
 	@keyframes glow {
-		0%, 100% { box-shadow: 0 0 0 4px rgba(0, 255, 255, 0.15), 0 0 20px rgba(0, 255, 255, 0.2), 0 0 60px rgba(0, 255, 255, 0.1); }
-		50% { box-shadow: 0 0 0 6px rgba(0, 255, 255, 0.2), 0 0 30px rgba(0, 255, 255, 0.3), 0 0 80px rgba(0, 255, 255, 0.15); }
+		0%, 100% { box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.16), 0 0 16px rgba(0, 255, 255, 0.36), 0 0 44px rgba(0, 255, 255, 0.18); }
+		50% { box-shadow: 0 0 0 5px rgba(0, 255, 255, 0.22), 0 0 26px rgba(0, 255, 255, 0.44), 0 0 64px rgba(0, 255, 255, 0.22); }
 	}
 
 	.tutorial-tooltip {
@@ -355,5 +367,13 @@
 	@keyframes slideUp {
 		from { opacity: 0; transform: translateY(100%); }
 		to { opacity: 1; transform: translateY(0); }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.tutorial-highlight,
+		.tutorial-tooltip,
+		.mobile-sheet {
+			animation: none;
+		}
 	}
 </style>

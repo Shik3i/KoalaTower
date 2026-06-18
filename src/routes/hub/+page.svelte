@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import Tutorial, { type TutorialStep } from '$lib/components/Tutorial.svelte';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
@@ -65,13 +65,13 @@
 
 	const HUB_TUTORIAL_KEY = 'geocore-td-hub-tutorial-done';
 	const hubTutorialSteps: TutorialStep[] = [
-		{ title: '🛰️ Welcome to Orbital Command', desc: 'This is your permanent base between deployments. Every Alloy you earn in battle can be spent here on upgrades that survive every tower fall. Click Deploy when ready — Orbital Command will keep the lights on.', target: '', placement: 'center' },
-		{ title: '⚙ Forge — Permanent Upgrades', desc: 'The Forge pre-installs tower upgrades BEFORE every deployment. Buy a level of Damage or Fire Rate — it applies to every future run. Spend early, spend often. The Shapes do not wait.', target: '[data-section="workshop"]', placement: 'right' },
-		{ title: '🔬 Research Deck — Time-Based Projects', desc: 'Research runs in real time — even while you are offline. Each level gives a multiplicative bonus that stacks with Forge upgrades. Start a project, deploy, and it will be done when you return.', target: '[data-section="lab"]', placement: 'right' },
-		{ title: '📐 Schematics — Reconstruct New Paths', desc: 'Completing waves on a Front recovers Schematics. Come back here after a run to reconstruct new upgrade paths. The first ones unlock cheap — the shapes are generous with obsolete blueprints.', target: '[data-section="blueprints"]', placement: 'right' },
-		{ title: '🌍 Fronts & Special Ops', desc: 'Front 1 is always open. Push to Wave 100 to unlock Front 2 — each new Front means harder enemies and better rewards. Special Ops are challenge modes that unlock as you climb.', target: '[data-section="tiers"]', placement: 'right' },
-		{ title: '📊 Archives & Systems', desc: 'Archives track your campaign statistics — empty now, but they fill fast. Systems lets you toggle audio, visuals, and lab notifications. Everything is saved to your browser. No cloud. No tracking.', target: '[data-section="stats"]', placement: 'right' },
-		{ title: '🚀 Ready to Deploy', desc: 'Buy a Forge upgrade, start a Research project, then click → Deploy in the header. The tower will fall. Your upgrades will not. That is the promise of Orbital Command.', target: '.hub-deploy', placement: 'bottom' },
+		{ title: 'Orbital Command', desc: 'This is your permanent base. Alloy earned in deployments can be spent here, and those upgrades survive every tower fall.', target: '', placement: 'center' },
+		{ title: 'Forge', desc: 'Buy permanent tower stats first. Damage, Fire Rate, and Max HP are simple early upgrades that make the next deployment stronger.', target: '[data-section="workshop"]', placement: 'right' },
+		{ title: 'Research Deck', desc: 'Research projects finish in real time, even while you are away. Start one, deploy, and collect the result when you return.', target: '[data-section="lab"]', placement: 'right' },
+		{ title: 'Schematics Later', desc: 'After you recover Schematics from a Front, this tab reconstructs new upgrade paths. If it is empty now, that is normal.', target: '[data-section="blueprints"]', placement: 'right' },
+		{ title: 'Fronts', desc: 'Front 1 is always open. Push deeper to unlock harder Fronts with better rewards; Special Ops appear after campaign milestones.', target: '[data-section="tiers"]', placement: 'right' },
+		{ title: 'Archives & Systems', desc: 'Archives track campaign stats. Systems holds audio, visual, save, and notification settings. Saves stay local in this browser.', target: '[data-section="stats"]', placement: 'right' },
+		{ title: 'Deploy Again', desc: 'Spend Alloy, start research, then return to the fight. Field upgrades reset each run; Orbital upgrades do not.', target: '.hub-deploy', placement: 'bottom' },
 	];
 
 	let simWave = $state(1);
@@ -313,8 +313,91 @@
 	let showImportDialog = $state(false);
 	let showResetConfirm = $state(false);
 	let importText = $state('');
+	let importTriggerEl = $state<HTMLButtonElement | null>(null);
+	let resetTriggerEl = $state<HTMLButtonElement | null>(null);
+	let importDialogEl = $state<HTMLDivElement | null>(null);
+	let resetDialogEl = $state<HTMLDivElement | null>(null);
+	let importTextareaEl = $state<HTMLTextAreaElement | null>(null);
+	let resetCancelEl = $state<HTMLButtonElement | null>(null);
 	const toasts = createToastStore(2500);
 	const toast = toasts.push;
+
+	async function openImportDialog() {
+		showImportDialog = true;
+		await tick();
+		importTextareaEl?.focus();
+	}
+
+	function closeImportDialog(restoreFocus = true) {
+		showImportDialog = false;
+		importText = '';
+		if (restoreFocus) queueMicrotask(() => importTriggerEl?.focus());
+	}
+
+	async function openResetDialog() {
+		showResetConfirm = true;
+		await tick();
+		resetCancelEl?.focus();
+	}
+
+	function closeResetDialog(restoreFocus = true) {
+		showResetConfirm = false;
+		if (restoreFocus) queueMicrotask(() => resetTriggerEl?.focus());
+	}
+
+	async function submitImportDialog() {
+		const r = await importSave(importText);
+		if (r.success) {
+			toast(getOpLogMessage('saveImported'), 'success');
+		} else {
+			toast(getOpLogMessage('saveImportFailed'), 'error');
+		}
+		closeImportDialog();
+		if (r.success) {
+			const s = getCachedSave();
+			if (s) {
+				coinsStore.set(s.totalCoins);
+				highestWaveStore.set(s.highestWave);
+				totalRunsStore.set(s.totalRuns);
+			}
+		}
+	}
+
+	async function confirmResetDialog() {
+		await resetSave();
+		closeResetDialog();
+		coinsStore.set(0);
+		highestWaveStore.set(0);
+		totalRunsStore.set(0);
+		settingsStore.set({ ...DEFAULT_SETTINGS });
+		toast(getOpLogMessage('saveReset'), 'warning');
+	}
+
+	function onModalKeydown(e: KeyboardEvent, dialog: HTMLDivElement | null, close: () => void) {
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			close();
+			return;
+		}
+		if (e.key !== 'Tab' || !dialog) return;
+		const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+			'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+		)).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+		if (focusable.length === 0) {
+			e.preventDefault();
+			dialog.focus();
+			return;
+		}
+		const first = focusable[0]!;
+		const last = focusable[focusable.length - 1]!;
+		if (e.shiftKey && document.activeElement === first) {
+			e.preventDefault();
+			last.focus();
+		} else if (!e.shiftKey && document.activeElement === last) {
+			e.preventDefault();
+			first.focus();
+		}
+	}
 
 	onMount(() => {
 		const u1 = coinsStore.subscribe(c => coins = c);
@@ -867,8 +950,8 @@
 					</div>
 					<div class="hsd" style="margin-top:1rem;">
 						<button class="hub-action" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}>📋 Export Save</button>
-						<button class="hub-action" onclick={() => showImportDialog = true}>📂 Import Save</button>
-						<button class="hub-action hub-danger" onclick={() => showResetConfirm = true}>🗑 Reset Save</button>
+						<button class="hub-action" bind:this={importTriggerEl} onclick={openImportDialog}>📂 Import Save</button>
+						<button class="hub-action hub-danger" bind:this={resetTriggerEl} onclick={openResetDialog}>🗑 Reset Save</button>
 					</div>
 					<div class="save-note">
 						<p class="save-note-flavor">Orbital Command cannot stop you from rewriting reality. It can only confirm that doing so makes the war considerably less interesting.</p>
@@ -916,10 +999,45 @@
 
 	<!-- Import Dialog -->
 	{#if showImportDialog}
-		<div class="overlay" role="dialog" aria-modal="true" aria-label="Import save"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(getOpLogMessage('saveImportFailed'), 'error'); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
+		<div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) closeImportDialog(); }}>
+			<div
+				class="dlg"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="import-save-title"
+				tabindex="-1"
+				bind:this={importDialogEl}
+				onkeydown={(e) => onModalKeydown(e, importDialogEl, closeImportDialog)}
+			>
+				<h3 id="import-save-title">📂 Import Save</h3>
+				<p class="dlg-d">Paste your exported Flatland TD save archive.</p>
+				<textarea bind:this={importTextareaEl} bind:value={importText} rows={5} aria-label="Save archive text"></textarea>
+				<div class="dlg-a">
+					<button class="dlg-p" onclick={submitImportDialog}>Import</button>
+					<button class="dlg-s" onclick={() => closeImportDialog()}>Cancel</button>
+				</div>
+			</div>
+		</div>
 	{/if}
 	{#if showResetConfirm}
-		<div class="overlay" role="dialog" aria-modal="true" aria-label="Reset save"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Schematics, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button><button class="dlg-dng-btn" onclick={async () => { await resetSave(); showResetConfirm = false; coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0); settingsStore.set({ ...DEFAULT_SETTINGS }); toast(getOpLogMessage('saveReset'), 'warning'); }}>Reset</button></div></div></div>
+		<div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) closeResetDialog(); }}>
+			<div
+				class="dlg dlg-dng"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="reset-save-title"
+				tabindex="-1"
+				bind:this={resetDialogEl}
+				onkeydown={(e) => onModalKeydown(e, resetDialogEl, closeResetDialog)}
+			>
+				<h3 id="reset-save-title">🗑 Reset Save?</h3>
+				<p class="dlg-d">This will erase all Alloy, Forge upgrades, Schematics, Research Deck progress, Front progress, and settings. This cannot be undone.</p>
+				<div class="dlg-a">
+					<button class="dlg-s" bind:this={resetCancelEl} onclick={() => closeResetDialog()}>Cancel</button>
+					<button class="dlg-dng-btn" onclick={confirmResetDialog}>Reset Save</button>
+				</div>
+			</div>
+		</div>
 	{/if}
 
 	<footer class="hub-footer">
@@ -958,7 +1076,7 @@
 	.empty-flavor { color:var(--text-dim); font-family:var(--font-mono); font-size:var(--fs-mono-sm); line-height:1.5; margin:0 0 1rem; padding:.6rem .8rem; border:1px dashed var(--border-neon); border-radius:var(--radius-sm); background:rgba(0,255,255,.03); }
 	.hub-action { padding:.55rem 1.2rem; font-size:var(--fs-body-sm); border-radius:var(--radius-sm); background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); cursor:pointer; transition:all var(--transition-fast); margin-right:.5rem; }
 	.hub-action:hover { border-color:var(--cyan); color:var(--text-primary); }
-	.hub-action:disabled,.hub-action.disabled { opacity:.45; cursor:default; pointer-events:none; }
+	.hub-action:disabled { opacity:.45; cursor:default; pointer-events:none; }
 	.hub-danger:hover { border-color:var(--red); color:var(--red); }
 	.bm-ledger { display:grid; gap:3px; max-width:420px; margin-bottom:1rem; }
 	.bm-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; margin-bottom:1rem; }

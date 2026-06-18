@@ -89,7 +89,7 @@ koala-tower/
 │   │       ├── render/       # PixiJS WebGL rendering (death FX, effects, damage states)
 │   │       ├── audio/        # Procedural Web Audio
 │   │       ├── save/         # IndexedDB persistence
-│   │       └── __tests__/    # Vitest (390 tests)
+│   │       └── __tests__/    # Vitest unit tests
 │   ├── routes/
 │   │   ├── +layout.svelte    # Global footer + lab polling + toasts
 │   │   ├── +error.svelte     # Themed error page (404/500)
@@ -113,9 +113,9 @@ koala-tower/
 | Currency       | Icon     | Type       | Earned by          | Spent on                                              |
 |----------------|----------|------------|--------------------|-------------------------------------------------------|
 | Energy         | ⚡       | Temporary  | Destroying shapes  | Field upgrades / overclocks (per deployment)          |
-| Alloy          | 🔩       | Permanent  | Destroying shapes  | Forge upgrades + Research Deck + Blueprints           |
-| Schematics     | §        | Per-Front  | Boss kills         | Blueprint reconstruction (per-Front)                  |
-| Strange Matter | ✦        | Permanent  | Black Market       | Contraband unlocks, weekly shipments, daily contracts |
+| Alloy          | 🔩       | Permanent  | Destroying shapes  | Forge upgrades + Research Deck                        |
+| Schematics     | §        | Per-Front  | Boss kills         | Upgrade-path reconstruction (per-Front)               |
+| Strange Matter | ✦        | Permanent  | Local Black Market | QoL unlocks, weekly shipments, daily contracts        |
 
 ## Progression Systems
 
@@ -125,8 +125,8 @@ koala-tower/
 ### Research Deck (Lab)
 5 time-based orbital research projects. Run in real time (offline too). Multiplicative bonuses stack with Forge. Browser notifications for completion.
 
-### Blueprints
-10 discoverable schematics. Found randomly during deployments on specific Fronts. Research with Alloy to unlock hidden Forge and Field upgrade paths.
+### Schematics
+Per-Front design fragments. Boss kills grant repeatable Schematics, first-time wave milestones grant larger one-time drops, and the Forge reconstructs compatible upgrade paths from them. Internal Blueprint IDs remain as legacy compatibility names.
 
 ### Fronts (Tiers)
 16 Fronts across 4 bands (Perimeter → Redline → Blacksite → Anomaly) with escalating difficulty and Schematics rewards. Unlocked by reaching wave milestones on previous Fronts within the same band.
@@ -135,7 +135,7 @@ koala-tower/
 42 achievements across 6 categories (deployments, best wave, shapes destroyed, bosses defeated, field upgrades, alloy earned). Each awards Alloy.
 
 ### Black Market
-Hidden unlock with Strange Matter economy. Supports weekly shipments, daily contracts, contraband unlocks (auto-deployment, speed unlocks, schematic converter), and a discovery storyboard.
+Hidden local-first Strange Matter system. Supports weekly shipments, daily contracts, optional support copy, contraband quality-of-life unlocks (auto-deployment, speed unlocks, schematic converter), and a discovery storyboard. No backend, payment, or online check is required for rewards.
 
 ## Render Feedback Systems
 

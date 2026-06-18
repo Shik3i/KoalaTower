@@ -94,6 +94,9 @@
 		<div class="sc-icon"><img class="sc-logo" src="/branding/flatland-logo-medium.svg" alt="Flatland TD" /></div>
 		<h2 class="sc-title">Flatland TD</h2>
 		<p class="sc-sub">Deploy from orbit. Defend the plane. Field upgrades are lost with the tower; Orbital research endures.</p>
+		{#if totalRuns === 0}
+			<p class="sc-first-run">Start on Front 1. Locked bands are future fronts, not setup errors.</p>
+		{/if}
 		{#if highestWave > 0}
 			<div class="sc-rec">
 				<div class="sc-r"><Icon name="crit" size={15} /> Best: Wave {highestWave}</div>
@@ -130,7 +133,7 @@
 				<p class="swipe-hint" aria-hidden="true">‹ Swipe to change Front band ›</p>
 			{/if}
 
-			<div class="band-rail" bind:this={bandRail} onscroll={handleBandScroll} tabindex="0" aria-label="Scrollable Front band panels">
+			<div class="band-rail" bind:this={bandRail} onscroll={handleBandScroll} role="region" aria-label="Scrollable Front band panels">
 				{#each frontBandPanels as group}
 					{@const unlockedCount = group.fronts.filter(m => isUnlocked(m.id)).length}
 					{@const bandBest = Math.max(0, ...group.fronts.map(m => frontBestWave[m.id] ?? 0))}
@@ -226,6 +229,7 @@
 	.sc-logo { width:100%; max-width:220px; height:auto; }
 	.sc-title { font-size:var(--fs-icon-lg); margin-bottom:.2rem; }
 	.sc-sub { font-size:var(--fs-body-sm); color:var(--text-secondary); margin:0 auto .85rem; max-width:42rem; }
+	.sc-first-run { color:var(--cyan-dim); font-family:var(--font-mono); font-size:var(--fs-caption); line-height:1.35; margin:-.35rem auto .85rem; }
 	.sc-rec { display:flex; flex-direction:row; flex-wrap:wrap; justify-content:center; gap:.35rem; margin-bottom:.85rem; padding:.5rem; background:rgba(0,0,0,.2); border-radius:var(--radius-md); }
 	.sc-r { font-size:var(--fs-body-sm); font-family:var(--font-mono); color:var(--text-secondary); display:flex; gap:.3rem; align-items:center; }
 
@@ -247,7 +251,6 @@
 	@media (prefers-reduced-motion: reduce) { .swipe-hint { animation:none; } }
 	@keyframes swipePulse { 0%,100%{opacity:.45} 50%{opacity:.85} }
 	.band-rail { display:flex; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scroll-behavior:smooth; gap:.75rem; border-radius:var(--radius-md); scrollbar-width:thin; scrollbar-color:rgba(0,255,255,.35) transparent; }
-	.band-rail:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; }
 	.band-panel { scroll-snap-align:center; flex:0 0 100%; min-width:0; padding:.85rem; border:1px solid color-mix(in srgb, var(--band) 32%, transparent); border-radius:var(--radius-md); background:linear-gradient(135deg,color-mix(in srgb,var(--band) 9%, transparent),rgba(255,255,255,.015)); text-align:left; }
 	.band-hero { display:grid; grid-template-columns:auto minmax(0,1fr); gap:.75rem; align-items:center; margin-bottom:.75rem; }
 	.band-emblem { width:72px; height:72px; display:grid; place-items:center; border-radius:8px; border:1px solid color-mix(in srgb,var(--band) 30%, transparent); background:radial-gradient(circle,color-mix(in srgb,var(--band) 16%, transparent),rgba(0,0,0,.14)); box-shadow:inset 0 0 20px rgba(0,0,0,.22); }

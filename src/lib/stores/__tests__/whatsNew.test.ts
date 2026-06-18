@@ -22,6 +22,10 @@ describe('shouldShowWhatsNew', () => {
 	it('never shows for an empty/unknown current version', () => {
 		expect(shouldShowWhatsNew('', null)).toBe(false);
 	});
+
+	it('does not show on a true first run even when no version was stored yet', () => {
+		expect(shouldShowWhatsNew('v0.3.0', null, true)).toBe(false);
+	});
 });
 
 describe('whatsNew storage guards', () => {

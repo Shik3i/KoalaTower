@@ -164,6 +164,76 @@ describe('Save Migration', () => {
 		expect(migrated!.blackMarketIntroSeen).toBe(true);
 	});
 
+	it('should normalize corrupted core numeric fields during metadata repair', () => {
+		const corrupted = {
+			schemaVersion: CURRENT_SCHEMA_VERSION,
+			lastUpdated: Number.POSITIVE_INFINITY,
+			totalRuns: -4,
+			highestWave: Number.NaN,
+			totalCoins: Number.POSITIVE_INFINITY,
+			totalAlloyEarned: -100,
+			totalKills: '12.9',
+			totalBossesDefeated: {},
+			totalShiniesKilled: null,
+			totalFieldUpgradesPurchased: Number.NEGATIVE_INFINITY,
+			totalEnergyEarned: '44.8',
+			totalDamageDealt: '123.5',
+			totalCritsDealt: -1,
+			totalWavesCompleted: '8.9',
+			totalPlayTimeSeconds: Number.POSITIVE_INFINITY,
+			bestKillstreak: -99,
+			killsByType: { normal: '3.7', boss: Number.POSITIVE_INFINITY },
+			shinyKillsByType: { fast: -2 },
+			frontBestWave: { tier1: Number.POSITIVE_INFINITY, tier2: -5, bogus: 100 },
+		};
+		const migrated = migrateSave(corrupted as unknown as Record<string, unknown>);
+		expect(migrated).not.toBeNull();
+		expect(migrated!.totalRuns).toBe(0);
+		expect(migrated!.highestWave).toBe(0);
+		expect(migrated!.totalCoins).toBe(0);
+		expect(migrated!.totalAlloyEarned).toBe(0);
+		expect(migrated!.totalKills).toBe(12);
+		expect(migrated!.totalBossesDefeated).toBe(0);
+		expect(migrated!.totalShiniesKilled).toBe(0);
+		expect(migrated!.totalFieldUpgradesPurchased).toBe(0);
+		expect(migrated!.totalEnergyEarned).toBe(44);
+		expect(migrated!.totalDamageDealt).toBe(123.5);
+		expect(migrated!.totalCritsDealt).toBe(0);
+		expect(migrated!.totalWavesCompleted).toBe(8);
+		expect(migrated!.totalPlayTimeSeconds).toBe(0);
+		expect(migrated!.bestKillstreak).toBe(0);
+		expect(migrated!.killsByType.normal).toBe(3);
+		expect(migrated!.killsByType.boss).toBe(0);
+		expect(migrated!.shinyKillsByType.fast).toBe(0);
+		expect(migrated!.frontBestWave.tier1).toBe(0);
+		expect(migrated!.frontBestWave.tier2).toBe(0);
+		expect((migrated!.frontBestWave as Record<string, number>).bogus).toBeUndefined();
+	});
+
+	it('keeps current v13 to v14 migration idempotent after numeric repair', () => {
+		const v13 = {
+			schemaVersion: 13,
+			lastUpdated: 1,
+			totalRuns: 2,
+			highestWave: 12,
+			totalCoins: 300,
+			totalAlloyEarned: 400,
+			blackMarketUnlocks: {},
+			blackMarketIntroSeen: true,
+			bestKillstreak: 55,
+			frontBestWave: { tier1: 12 },
+		};
+		const once = migrateSave(v13 as unknown as Record<string, unknown>);
+		const twice = migrateSave(once as unknown as Record<string, unknown>);
+		expect(once).not.toBeNull();
+		expect(twice).not.toBeNull();
+		expect(twice!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+		expect(twice!.totalCoins).toBe(300);
+		expect(twice!.highestWave).toBe(12);
+		expect(twice!.bestKillstreak).toBe(55);
+		expect(twice!.frontBestWave.tier1).toBe(12);
+	});
+
 	it('should have blackMarketIntroSeen in createDefaultSave', () => {
 		const save = createDefaultSave();
 		expect(save.blackMarketIntroSeen).toBe(false);

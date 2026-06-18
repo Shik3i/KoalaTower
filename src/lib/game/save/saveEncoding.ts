@@ -184,6 +184,9 @@ export async function decodeSaveContainer(input: string): Promise<ImportResult> 
 
 		// Validate container shape
 		if (container.format !== FLTD_SAVE_FORMAT) {
+			if (typeof container.format === 'string') {
+				return { success: false, error: 'Import failed: this is not a Flatland TD save.' };
+			}
 			// Not a FLTD_SAVE container — try legacy plain JSON import
 			return tryLegacyImport(input);
 		}
@@ -233,8 +236,9 @@ export async function decodeSaveContainer(input: string): Promise<ImportResult> 
 function tryLegacyImport(input: string): ImportResult {
 	try {
 		const parsed = JSON.parse(input);
-		// Must have schemaVersion to be a valid Flatland TD save
-		if (typeof parsed.schemaVersion !== 'number') {
+		// Legacy/pre-v1 saves may not have schemaVersion yet. They still need
+		// to be plain objects so migration can safely repair them.
+		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
 			return { success: false, error: 'Import failed: this is not a Flatland TD save.' };
 		}
 		// Accept it — the caller will handle migration

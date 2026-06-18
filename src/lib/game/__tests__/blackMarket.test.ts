@@ -63,7 +63,9 @@ describe('Black Market economy', () => {
 
 	it('treats placeholder support URLs as unavailable', () => {
 		expect(isSupportUrlConfigured('#')).toBe(false);
-		expect(isSupportUrlConfigured('https://support.example.test')).toBe(true);
+		expect(isSupportUrlConfigured('')).toBe(false);
+		expect(isSupportUrlConfigured('https://support.example.test')).toBe(false);
+		expect(isSupportUrlConfigured('https://support.koalastuff.net')).toBe(true);
 	});
 
 	it('converts Schematics after unlock logic without charging Strange Matter per conversion', () => {

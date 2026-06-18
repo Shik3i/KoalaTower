@@ -19,6 +19,35 @@ let _addShockwave: ((x: number, y: number, color: number, maxRadius: number, dur
 let _addDeathEffect: ((enemy: Enemy) => void) | null = null;
 let _onKillstreakMilestone: ((count: number) => void) | null = null;
 
+export const FLOATING_TEXT_COLORS: Record<DamageNumberKind, number> = {
+	damage: 0xF0F4FF,
+	crit: GAME_CONFIG.NEON_YELLOW,
+	energy: GAME_CONFIG.NEON_CYAN,
+	alloy: GAME_CONFIG.NEON_YELLOW,
+	strange: 0xCC66FF,
+	schematic: 0x66E6FF,
+	chain: 0xFFAA44,
+	error: 0xFF5577,
+};
+
+export function formatFloatingText(kind: DamageNumberKind, amount: number): string {
+	const value = formatFloatingAmount(amount);
+	switch (kind) {
+		case 'crit': return `CRIT ${value}`;
+		case 'energy': return `${value} ⚡`;
+		case 'alloy': return `${value} ✨`;
+		case 'strange': return `${value} ◆`;
+		case 'schematic': return `${value} ▣`;
+		case 'damage': return value;
+		default: return value;
+	}
+}
+
+function formatFloatingAmount(amount: number): string {
+	const safe = Math.max(0, Number.isFinite(amount) ? amount : 0);
+	return Number.isInteger(safe) ? String(safe) : safe.toFixed(1).replace(/\.0$/, '');
+}
+
 export function setFeedbackHooks(hooks: {
 	addDmg: (x: number, y: number, text: string, color: number, kind?: DamageNumberKind) => void;
 	addParticles: (x: number, y: number, color: number, count: number, speed?: number) => void;
@@ -111,20 +140,20 @@ export function processEnemyDeath(state: GameState, target: Enemy, isCrit = fals
 	if (target.isBoss) {
 		const bossCoins = getBossCoinReward(state);
 		state.coins += bossCoins;
-		_addDmg?.(target.position.x, target.position.y + target.size * 1.1, '+' + bossCoins + ' 🪙', GAME_CONFIG.NEON_YELLOW, 'alloy');
+		_addDmg?.(target.position.x, target.position.y + target.size * 1.1, formatFloatingText('alloy', bossCoins), FLOATING_TEXT_COLORS.alloy, 'alloy');
 	}
 	if (target.isShiny) {
 		state.shiniesKilled++;
 		const shinyAlloy = Math.floor(target.coinReward * getFrontAlloyMultiplier(state.tier ?? 1));
 		if (shinyAlloy > 0) {
 			state.coins += shinyAlloy;
-			_addDmg?.(target.position.x, target.position.y + target.size * 1.2, '+' + shinyAlloy + ' 🪙', GAME_CONFIG.NEON_YELLOW, 'alloy');
+			_addDmg?.(target.position.x, target.position.y + target.size * 1.2, formatFloatingText('alloy', shinyAlloy), FLOATING_TEXT_COLORS.alloy, 'alloy');
 		}
 	}
 
 	// Feedback popup
-	const energyLabel = target.isShiny ? '+' + energy + ' ⚡✨' : '+' + energy + ' ⚡';
-	_addDmg?.(target.position.x, target.position.y + target.size * 0.6, energyLabel, target.isShiny ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_GREEN, 'energy');
+	const energyLabel = target.isShiny ? `${formatFloatingText('energy', energy)} ✨` : formatFloatingText('energy', energy);
+	_addDmg?.(target.position.x, target.position.y + target.size * 0.6, energyLabel, FLOATING_TEXT_COLORS.energy, 'energy');
 }
 
 /**
@@ -265,7 +294,14 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 			_addParticles?.(target.position.x, target.position.y, impactColor, proj.isCrit ? 5 : 3, 120);
 
 		// Damage number popup
-		_addDmg?.(target.position.x, target.position.y - target.size * 0.5, '-' + effectiveDmg, proj.isCrit ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.NEON_CYAN, proj.isCrit ? 'crit' : 'damage');
+		const textKind: DamageNumberKind = proj.isCrit ? 'crit' : 'damage';
+		_addDmg?.(
+			target.position.x,
+			target.position.y - target.size * 0.5,
+			formatFloatingText(textKind, effectiveDmg),
+			FLOATING_TEXT_COLORS[textKind],
+			textKind,
+		);
 
 			if (target.hp <= 0) {
 				target.alive = false;

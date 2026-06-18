@@ -15,7 +15,8 @@ export const WHATS_NEW_KEY = 'flatland-whatsnew-seen-version';
  * dismissed (including the first time, when nothing is stored). Never shows for
  * an empty/unknown current version.
  */
-export function shouldShowWhatsNew(current: string, stored: string | null): boolean {
+export function shouldShowWhatsNew(current: string, stored: string | null, isFirstRun = false): boolean {
+	if (isFirstRun) return false;
 	if (!current) return false;
 	return current !== stored;
 }

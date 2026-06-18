@@ -7,6 +7,7 @@ const SAVE_KEY = 'geocore-td-save';
 
 let cachedSave: SaveData | null = null;
 let cachedSaveId: string | null = null;
+let lastLoadCreatedDefault = false;
 
 export async function loadSave(): Promise<SaveData> {
 	if (cachedSave && cachedSaveId) {
@@ -30,6 +31,7 @@ export async function loadSave(): Promise<SaveData> {
 			if (migrated && validateSaveData(migrated)) {
 				cachedSave = migrated;
 				cachedSaveId = migrated.saveId;
+				lastLoadCreatedDefault = false;
 				return migrated;
 			}
 		}
@@ -39,6 +41,7 @@ export async function loadSave(): Promise<SaveData> {
 
 	const defaults = createDefaultSave();
 	cachedSave = defaults;
+	lastLoadCreatedDefault = true;
 	await persistSave(defaults);
 	return defaults;
 }
@@ -60,6 +63,10 @@ export async function persistSave(save: SaveData): Promise<boolean> {
 
 export function getCachedSave(): SaveData | null {
 	return cachedSave;
+}
+
+export function didLastLoadCreateDefaultSave(): boolean {
+	return lastLoadCreatedDefault;
 }
 
 /**
@@ -86,8 +93,9 @@ export async function exportSaveFromData(save: SaveData): Promise<string> {
  * Flow:
  * 1. Try FLTD_SAVE container → validate format, checksum, decode payload.
  * 2. If that fails with non-JSON, try legacy plain JSON import.
- * 3. Validate and migrate the decoded SaveData.
+ * 3. Reject future schema versions before migration.
  * 4. If SaveData schema is newer than supported, reject.
+ * 5. Migrate/repair/normalize, then validate the final SaveData.
  */
 export async function importSave(input: string): Promise<{ success: boolean; error?: string; isLegacy?: boolean }> {
 	// Size limit: 1MB to prevent browser freeze from large imports
@@ -111,21 +119,26 @@ export async function importSave(input: string): Promise<{ success: boolean; err
 			return { success: false, error: 'Import failed: corrupted save data. The file contains suspiciously ambitious geometry.' };
 		}
 
-		// Step 3: Validate SaveData shape
-		if (!validateSaveData(saveData)) {
+		if (!saveData || typeof saveData !== 'object') {
 			return { success: false, error: 'Import failed: invalid save data. Orbital Command cannot parse this archive.' };
 		}
 
-		// Step 4: Check schema version — reject if newer than supported
-		const dataSchema = (saveData as unknown as Record<string, unknown>).schemaVersion as number;
-		if (dataSchema > CURRENT_SCHEMA_VERSION) {
+		// Step 3: Check schema version before migration — reject if newer than supported.
+		const rawSchema = (saveData as Record<string, unknown>).schemaVersion;
+		const dataSchema = Number(rawSchema);
+		if (Number.isFinite(dataSchema) && Math.floor(dataSchema) > CURRENT_SCHEMA_VERSION) {
 			return { success: false, error: 'Import failed: this save is from a newer version of Flatland TD. Please update the game.' };
 		}
 
-		// Step 5: Migrate
+		// Step 4: Migrate/repair/normalize
 		const migrated = migrateSave(saveData as unknown as Record<string, unknown>);
 		if (!migrated) {
 			return { success: false, error: 'Import failed: save migration failed. The archives could not reconcile this data.' };
+		}
+
+		// Step 5: Validate final migrated SaveData shape.
+		if (!validateSaveData(migrated)) {
+			return { success: false, error: 'Import failed: invalid save data. Orbital Command cannot parse this archive.' };
 		}
 
 		// Step 6: Persist

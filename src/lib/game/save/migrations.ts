@@ -4,6 +4,27 @@ import { computeGrandfatheredBlueprints } from '../balance/blueprints';
 import { emptySchematics, normalizeSchematics } from '../balance/schematics';
 import { normalizeBlackMarketUnlocks, normalizeStrangeMatter, normalizeTimestamp } from '../balance/blackMarket';
 
+export function normalizeNonNegativeInteger(value: unknown, fallback = 0): number {
+	const n = Number(value);
+	const safeFallback = Number.isFinite(Number(fallback)) ? Math.max(0, Math.floor(Number(fallback))) : 0;
+	if (!Number.isFinite(n)) return safeFallback;
+	return Math.max(0, Math.floor(n));
+}
+
+export function normalizeNonNegativeFiniteNumber(value: unknown, fallback = 0): number {
+	const n = Number(value);
+	const safeFallback = Number.isFinite(Number(fallback)) ? Math.max(0, Number(fallback)) : 0;
+	if (!Number.isFinite(n)) return safeFallback;
+	return Math.max(0, n);
+}
+
+export function normalizePositiveFiniteNumber(value: unknown, fallback = 1): number {
+	const n = Number(value);
+	const safeFallback = Number.isFinite(fallback) && fallback > 0 ? fallback : 1;
+	if (!Number.isFinite(n) || n <= 0) return safeFallback;
+	return n;
+}
+
 function generateSaveId(prefix = 'fltd'): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
 		return prefix + '-' + crypto.randomUUID();
@@ -371,11 +392,11 @@ function normalizeSettings(raw: unknown): GameSettings {
 export function validateSaveData(data: unknown): data is SaveData {
 	if (!data || typeof data !== 'object') return false;
 	const d = data as Record<string, unknown>;
-	if (typeof d.schemaVersion !== 'number') return false;
-	if (typeof d.lastUpdated !== 'number') return false;
-	if (typeof d.totalRuns !== 'number') return false;
-	if (typeof d.highestWave !== 'number') return false;
-	if (typeof d.totalCoins !== 'number') return false;
+	if (typeof d.schemaVersion !== 'number' || !Number.isFinite(d.schemaVersion)) return false;
+	if (typeof d.lastUpdated !== 'number' || !Number.isFinite(d.lastUpdated)) return false;
+	if (typeof d.totalRuns !== 'number' || !Number.isFinite(d.totalRuns) || d.totalRuns < 0) return false;
+	if (typeof d.highestWave !== 'number' || !Number.isFinite(d.highestWave) || d.highestWave < 0) return false;
+	if (typeof d.totalCoins !== 'number' || !Number.isFinite(d.totalCoins) || d.totalCoins < 0) return false;
 	// Validate critical collections — wrong types here would crash at runtime.
 	// null/undefined is allowed (ensureMetadata repairs those); non-object/non-array types are rejected.
 	if (d.workshopUpgrades !== undefined && d.workshopUpgrades !== null) {
@@ -405,24 +426,27 @@ function ensureMetadata(save: SaveData): SaveData {
 		...save,
 		createdAt: save.createdAt || new Date(now).toISOString(),
 		saveId: save.saveId || generateSaveId(),
-		lastUpdated: save.lastUpdated || now,
+		lastUpdated: normalizeTimestamp((save as any).lastUpdated) || now,
+		totalCoins: normalizeNonNegativeInteger((save as any).totalCoins),
+		highestWave: normalizeNonNegativeInteger((save as any).highestWave),
+		totalRuns: normalizeNonNegativeInteger((save as any).totalRuns),
+		totalAlloyEarned: normalizeNonNegativeInteger((save as any).totalAlloyEarned),
 		settings: normalizeSettings((save as unknown as Record<string, unknown>).settings),
 		discoveredBlueprints: Array.from(new Set([...((save as any).discoveredBlueprints ?? []), ...((save as any).unlockedBlueprints ?? [])])),
 		selectedFront: (save as any).selectedFront ?? TierId.Tier1,
-		frontBestWave: (save as any).frontBestWave ?? { [TierId.Tier1]: (save as any).highestWave ?? 0 },
+		frontBestWave: normalizeFrontBestWave((save as any).frontBestWave, normalizeNonNegativeInteger((save as any).highestWave)),
 		achievements: (save as any).achievements ?? {},
-		totalKills: (save as any).totalKills ?? 0,
-		totalBossesDefeated: (save as any).totalBossesDefeated ?? 0,
-		totalFieldUpgradesPurchased: (save as any).totalFieldUpgradesPurchased ?? 0,
-		totalAlloyEarned: (save as any).totalAlloyEarned ?? 0,
-		totalShiniesKilled: (save as any).totalShiniesKilled ?? 0,
-		killsByType: (save as any).killsByType ?? {},
-		shinyKillsByType: (save as any).shinyKillsByType ?? {},
-		totalEnergyEarned: (save as any).totalEnergyEarned ?? 0,
-		totalDamageDealt: (save as any).totalDamageDealt ?? 0,
-		totalCritsDealt: (save as any).totalCritsDealt ?? 0,
-		totalWavesCompleted: (save as any).totalWavesCompleted ?? 0,
-		totalPlayTimeSeconds: (save as any).totalPlayTimeSeconds ?? 0,
+		totalKills: normalizeNonNegativeInteger((save as any).totalKills),
+		totalBossesDefeated: normalizeNonNegativeInteger((save as any).totalBossesDefeated),
+		totalFieldUpgradesPurchased: normalizeNonNegativeInteger((save as any).totalFieldUpgradesPurchased),
+		totalShiniesKilled: normalizeNonNegativeInteger((save as any).totalShiniesKilled),
+		killsByType: normalizeCounterMap((save as any).killsByType),
+		shinyKillsByType: normalizeCounterMap((save as any).shinyKillsByType),
+		totalEnergyEarned: normalizeNonNegativeInteger((save as any).totalEnergyEarned),
+		totalDamageDealt: normalizeNonNegativeFiniteNumber((save as any).totalDamageDealt),
+		totalCritsDealt: normalizeNonNegativeInteger((save as any).totalCritsDealt),
+		totalWavesCompleted: normalizeNonNegativeInteger((save as any).totalWavesCompleted),
+		totalPlayTimeSeconds: normalizeNonNegativeFiniteNumber((save as any).totalPlayTimeSeconds),
 		masteryAchievements: (save as any).masteryAchievements ?? {},
 		schematicsByFront: normalizeSchematics((save as any).schematicsByFront),
 		claimedSchematicMilestones: Array.isArray((save as any).claimedSchematicMilestones)
@@ -436,6 +460,26 @@ function ensureMetadata(save: SaveData): SaveData {
 		blackMarketUnlocks: normalizeBlackMarketUnlocks((save as any).blackMarketUnlocks),
 		autoDeploymentEnabled: (save as any).autoDeploymentEnabled === true,
 		blackMarketIntroSeen: (save as any).blackMarketIntroSeen === true,
-		bestKillstreak: Math.max(0, Math.floor(Number((save as any).bestKillstreak)) || 0),
+		bestKillstreak: normalizeNonNegativeInteger((save as any).bestKillstreak),
 	};
+}
+
+function normalizeFrontBestWave(raw: unknown, highestWave = 0): Partial<Record<TierId, number>> {
+	const fallback = { [TierId.Tier1]: normalizeNonNegativeInteger(highestWave) };
+	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fallback;
+	const out: Partial<Record<TierId, number>> = {};
+	const allowed = new Set(Object.values(TierId));
+	for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+		if (allowed.has(key as TierId)) out[key as TierId] = normalizeNonNegativeInteger(value);
+	}
+	return Object.keys(out).length > 0 ? out : fallback;
+}
+
+function normalizeCounterMap<T extends string>(raw: unknown): Partial<Record<T, number>> {
+	const out: Partial<Record<T, number>> = {};
+	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+	for (const [key, value] of Object.entries(raw as Record<T, unknown>)) {
+		out[key as T] = normalizeNonNegativeInteger(value);
+	}
+	return out;
 }
