@@ -5,7 +5,7 @@
 	import FlatlandNews from '$lib/components/FlatlandNews.svelte';
 	import { HOME_SUBTITLES, HOME_SUBTITLE_ROTATION_MS, HOME_SUBTITLE_RESERVED_LINES } from '$lib/home/subtitles';
 
-	const jsonLd = {
+	const jsonLdApp = {
 		'@context': 'https://schema.org',
 		'@type': 'WebApplication',
 		name: 'Flatland TD',
@@ -15,6 +15,19 @@
 		url: SITE_URL,
 		author: { '@type': 'Person', name: 'Timo' },
 		offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+	};
+
+	const jsonLdSite = {
+		'@context': 'https://schema.org',
+		'@type': 'WebSite',
+		name: 'Flatland TD',
+		url: SITE_URL,
+		description: 'Open source neon cyber idle tower defense. No tracking, no cookies, no backend.',
+		potentialAction: {
+			'@type': 'SearchAction',
+			target: { '@type': 'EntryPoint', urlTemplate: SITE_URL + '/help/?q={search_term_string}' },
+			'query-input': 'required name=search_term_string',
+		},
 	};
 
 	let coins = $state(0);
@@ -49,7 +62,8 @@
 	<meta name="description" content="Deploy towers from orbit into hostile geometric fronts. Research permanent upgrades on your Orbital Command. Open source neon cyber idle tower defense. No tracking." />
 	<meta property="og:title" content="Flatland TD — Deploy Now" />
 	<meta property="og:description" content="Deploy towers from orbit into hostile geometric fronts. Research permanent upgrades on your Orbital Command." />
-	<script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+	<script type="application/ld+json">{JSON.stringify(jsonLdApp)}</script>
+	<script type="application/ld+json">{JSON.stringify(jsonLdSite)}</script>
 </svelte:head>
 
 <main class="home">

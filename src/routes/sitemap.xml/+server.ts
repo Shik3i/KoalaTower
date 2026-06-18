@@ -3,13 +3,15 @@ import { SITE_URL } from '$lib/version';
 export const prerender = true;
 
 export function GET() {
+	const lastmod = new Date().toISOString();
+
 	const urls = [
 		{ loc: '/', priority: '1.0', changefreq: 'weekly' },
-		{ loc: '/play', priority: '0.9', changefreq: 'weekly' },
-		{ loc: '/hub', priority: '0.8', changefreq: 'weekly' },
-		{ loc: '/help', priority: '0.7', changefreq: 'monthly' },
-		{ loc: '/privacy', priority: '0.5', changefreq: 'monthly' },
-		{ loc: '/imprint', priority: '0.4', changefreq: 'monthly' },
+		{ loc: '/play/', priority: '0.9', changefreq: 'weekly' },
+		{ loc: '/hub/', priority: '0.8', changefreq: 'weekly' },
+		{ loc: '/help/', priority: '0.7', changefreq: 'monthly' },
+		{ loc: '/privacy/', priority: '0.5', changefreq: 'monthly' },
+		{ loc: '/imprint/', priority: '0.4', changefreq: 'monthly' },
 	];
 
 	const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -19,6 +21,7 @@ export function GET() {
         http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 ${urls.map(u => `  <url>
     <loc>${SITE_URL}${u.loc}</loc>
+    <lastmod>${lastmod}</lastmod>
     <changefreq>${u.changefreq}</changefreq>
     <priority>${u.priority}</priority>
   </url>`).join('\n')}

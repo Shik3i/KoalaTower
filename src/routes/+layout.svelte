@@ -12,7 +12,8 @@
 	import { loadSave, persistSave, getCachedSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore, loadedStore } from '$lib/stores/gameUiStore';
 	import { LAB_DEFS } from '$lib/game/balance/labs';
-	import { APP_VERSION, SUPPORT_URL, GITHUB_URL } from '$lib/version';
+	import { APP_VERSION, SUPPORT_URL, GITHUB_URL, SITE_URL } from '$lib/version';
+	import { page } from '$app/state';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
 	import { notifications } from '$lib/stores/notificationStore';
@@ -101,6 +102,10 @@
 		if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
 	});
 </script>
+
+<svelte:head>
+	<link rel="canonical" href="{SITE_URL}{page.url.pathname}" />
+</svelte:head>
 
 <Toasts controller={toasts} vertical="bottom" offsetRem={3} zIndex={500} />
 

@@ -630,6 +630,19 @@
 <svelte:head>
 	<title>Deployment — Flatland TD · FLTD</title>
 	<meta name="description" content="Deploy a tower into Flatland. Harvest energy for field upgrades, refine alloy for permanent upgrades." />
+	<script type="application/ld+json">{JSON.stringify({
+		'@context': 'https://schema.org',
+		'@type': 'VideoGame',
+		name: 'Flatland TD',
+		applicationCategory: 'Game',
+		operatingSystem: 'Any',
+		description: 'Open source neon cyber idle tower defense. Deploy towers, fight endless waves of geometric enemies, and upgrade your arsenal.',
+		url: 'https://tower.koalastuff.net/play/',
+		author: { '@type': 'Person', name: 'Timo' },
+		offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+		playMode: 'SinglePlayer',
+		gamePlatform: 'Web Browser',
+	})}</script>
 </svelte:head>
 
 <div class="play-layout" role="main">
@@ -638,7 +651,7 @@
 	<!-- Top Bar -->
 	<header class="topbar">
 		<a href="/" class="tb-back" aria-label="Home" title="Home"><Icon name="back" size={18} /></a>
-		<div class="tb-brand">Flatland TD</div>
+		<h1 class="tb-brand">Flatland TD</h1>
 		<div class="tb-div"></div>
 	<div class="tb-stats">
 		{#if snap?.runActive}
@@ -928,7 +941,7 @@
 	.topbar { display:flex; align-items:center; padding:.3rem .65rem; gap:.4rem; background:rgba(7,8,18,.95); border-bottom:1px solid var(--border-neon); z-index:100; flex-shrink:0; position:relative; }
 	.tb-back { color:var(--text-dim); font-size:var(--fs-icon-md); text-decoration:none; padding:.1rem .3rem; border-radius:var(--radius-sm); transition:all var(--transition-fast); line-height:1; }
 	.tb-back:hover { color:var(--cyan); background:rgba(0,255,255,.06); }
-	.tb-brand { font-family:var(--font-display); font-weight:700; font-size:var(--fs-icon-md); letter-spacing:.04em; background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; white-space:nowrap; }
+	.tb-brand { font-family:var(--font-display); font-weight:700; font-size:var(--fs-icon-md); letter-spacing:.04em; background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; white-space:nowrap; margin:0; }
 	.tb-div { width:1px; height:16px; background:var(--border-neon); flex-shrink:0; }
 	.tb-stats { display:flex; gap:.25rem; align-items:center; margin-left:auto; }
 	.tb-pill { display:flex; align-items:center; gap:.2rem; padding:.15rem .5rem; font-size:var(--fs-mono); font-family:var(--font-mono); border-radius:100px; background:var(--bg-tertiary); border:1px solid var(--border-neon); }
