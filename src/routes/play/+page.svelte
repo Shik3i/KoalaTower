@@ -1183,10 +1183,10 @@
 	.tb-pill :global(.icon) { opacity:.75; }
 	.sv-wrap { position:relative; }
 	.sv-drop { position:absolute; top:calc(100% + 4px); right:0; min-width:150px; background:var(--bg-secondary); border:1px solid var(--border-neon-strong); border-radius:var(--radius-md); z-index:200; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.5); animation:fi .12s ease; }
-	.sv-drop button { display:block; width:100%; padding:.55rem .9rem; font-size:var(--fs-body); text-align:left; color:var(--text-secondary); transition:all var(--transition-fast); }
+	.sv-drop button { display:block; width:100%; min-height:44px; padding:.55rem .9rem; font-size:var(--fs-body); text-align:left; color:var(--text-secondary); transition:all var(--transition-fast); }
 	.sv-drop button:hover { background:rgba(0,255,255,.06); color:var(--text-primary); }
 	.settings-drop { min-width:220px; padding:.3rem 0; }
-	.set-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem .9rem; font-size:var(--fs-body-sm); color:var(--text-secondary); cursor:pointer; }
+	.set-row { display:flex; justify-content:space-between; align-items:center; min-height:44px; padding:.5rem .9rem; font-size:var(--fs-body-sm); color:var(--text-secondary); cursor:pointer; }
 	.set-row:hover { background:rgba(0,255,255,.04); }
 	.set-row input[type=checkbox] { width:16px; height:16px; accent-color:var(--cyan); cursor:pointer; }
 	.hub-link { padding:.25rem; border-radius:var(--radius-sm); color:var(--text-dim); font-size:var(--fs-body); text-decoration:none; transition:all var(--transition-fast); }
@@ -1194,7 +1194,7 @@
 	.mob-spd { display:flex; align-items:center; gap:2px; padding:.3rem .4rem; background:rgba(7,8,18,.9); border-bottom:1px solid var(--border-neon); flex-shrink:0; position:relative; }
 	.mob-spd-main { display:inline-flex; align-items:center; gap:.35rem; padding:.45rem .75rem; min-width:64px; min-height:44px; font-size:var(--fs-body); font-family:var(--font-mono); color:var(--cyan); background:rgba(0,255,255,.08); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; }
 	.mob-spd-popup { display:flex; gap:3px; margin-left:.3rem; animation:fi .15s ease; }
-	.mob-spd-opt { padding:.4rem .55rem; min-width:40px; min-height:40px; font-size:var(--fs-body-sm); font-family:var(--font-mono); color:var(--text-dim); background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition-fast); }
+	.mob-spd-opt { padding:.4rem .55rem; min-width:44px; min-height:44px; font-size:var(--fs-body-sm); font-family:var(--font-mono); color:var(--text-dim); background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition-fast); }
 	.mob-spd-opt.on { color:var(--cyan); background:rgba(0,255,255,.1); border-color:rgba(0,255,255,.25); }
 	.mob-spd-opt:hover { color:var(--text-primary); }
 	.game-body { flex:1; display:flex; overflow:hidden; position:relative; }

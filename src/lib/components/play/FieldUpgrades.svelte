@@ -134,14 +134,14 @@
 
 <style>
 	.cat-tabs { display:flex; gap:2px; margin-bottom:.35rem; padding:2px; background:rgba(0,0,0,.12); border-radius:var(--radius-sm); }
-	.cat-tab { flex:1; padding:.25rem .2rem; font-size:var(--fs-body-sm); color:var(--text-secondary); border-radius:4px; transition:all var(--transition-fast); text-align:center; cursor:pointer; }
+	.cat-tab { flex:1; min-height:44px; padding:.25rem .2rem; font-size:var(--fs-body-sm); color:var(--text-secondary); border-radius:4px; transition:all var(--transition-fast); text-align:center; cursor:pointer; }
 	.cat-tab.on { color:var(--cyan); background:rgba(0,255,255,.08); }
 	.cat-tab:hover:not(.on) { color:var(--text-primary); background:rgba(255,255,255,.02); }
 	.field-note, .mult-note { margin:0 0 .35rem; color:var(--text-dim); font-size:var(--fs-caption-sm); line-height:1.25; }
 	.buy-mult { display:flex; align-items:center; gap:2px; margin-bottom:.35rem; }
 	.mult-note { margin-top:-.2rem; }
 	.mult-label { font-size:var(--fs-caption-sm); color:var(--text-dim); font-family:var(--font-mono); margin-right:.2rem; }
-	.mult-btn { padding:.15rem .35rem; font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); border-radius:4px; background:rgba(0,0,0,.12); border:1px solid transparent; cursor:pointer; transition:all var(--transition-fast); }
+	.mult-btn { min-width:44px; min-height:44px; padding:.15rem .35rem; font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); border-radius:4px; background:rgba(0,0,0,.12); border:1px solid transparent; cursor:pointer; transition:all var(--transition-fast); }
 	.mult-btn:hover { color:var(--text-secondary); border-color:var(--border-neon); }
 	.mult-btn.on { color:var(--cyan); background:rgba(0,255,255,.1); border-color:rgba(0,255,255,.25); }
 	.ug { display:flex; flex-direction:column; gap:2px; }
