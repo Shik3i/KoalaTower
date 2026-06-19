@@ -48,6 +48,7 @@ describe('online API route guards', () => {
 
 	it('rejects invalid unverified leaderboard names before storing', async () => {
 		const response = await postUnverifiedLeaderboard({
+			getClientAddress: () => '127.0.0.1',
 			request: new Request('http://localhost/api/leaderboard/unverified', {
 				method: 'POST',
 				body: JSON.stringify({

@@ -66,9 +66,15 @@ export function findAccountByUsername(db: Db, username: string): Account | null 
 	return (row as Account | undefined) ?? null;
 }
 
+/** Delete sessions whose TTL has elapsed so the table cannot grow without bound. */
+export function purgeExpiredSessions(db: Db, now = new Date()): void {
+	db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now.toISOString());
+}
+
 export function createSession(db: Db, accountId: string, event: RequestEvent): string {
 	const token = createSessionToken();
 	const now = new Date();
+	purgeExpiredSessions(db, now);
 	const expires = new Date(now.getTime() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
 	db.prepare(`
 INSERT INTO sessions (id, account_id, token_hash, created_at, expires_at, last_seen_at, user_agent_hash, ip_hash)

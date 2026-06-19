@@ -30,10 +30,33 @@ import type { Handle } from '@sveltejs/kit';
  * - **Build-time prerendering:** `building` is true → fall through.
  *   SvelteKit's own prerender logic handles file generation at build.
  */
+/**
+ * Conservative security headers applied to every response. No Content-Security-Policy
+ * is set here on purpose: SvelteKit hydration and Pixi rely on inline styles/scripts,
+ * so a hash-less CSP would break the game. CSP, if desired, belongs in
+ * svelte.config.js (`kit.csp`) where SvelteKit can emit matching hashes.
+ */
+function applySecurityHeaders(headers: Headers): void {
+	headers.set('x-content-type-options', 'nosniff');
+	headers.set('x-frame-options', 'SAMEORIGIN');
+	headers.set('referrer-policy', 'strict-origin-when-cross-origin');
+	headers.set('permissions-policy', 'geolocation=(), camera=(), microphone=()');
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
-	if (event.url.pathname.startsWith('/api/')) return resolve(event);
-	if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return resolve(event);
+
+	if (event.url.pathname.startsWith('/api/')) {
+		const response = await resolve(event);
+		applySecurityHeaders(response.headers);
+		return response;
+	}
+
+	if (event.request.method !== 'GET' && event.request.method !== 'HEAD') {
+		const response = await resolve(event);
+		applySecurityHeaders(response.headers);
+		return response;
+	}
 
 	const pathname = event.url.pathname;
 
@@ -51,14 +74,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 		try {
 			const content = readFileSync(filePath, 'utf-8');
 			const mime = filePath.endsWith('.xml') ? 'application/xml; charset=utf-8' : 'text/html; charset=utf-8';
-			return new Response(content, {
-				status: 200,
-				headers: { 'content-type': mime, 'content-length': String(Buffer.byteLength(content)) }
-			});
+			const headers = new Headers({ 'content-type': mime, 'content-length': String(Buffer.byteLength(content)) });
+			applySecurityHeaders(headers);
+			return new Response(content, { status: 200, headers });
 		} catch {
 			// Read error — let the SSR handler respond.
 		}
 	}
 
-	return resolve(event);
+	const response = await resolve(event);
+	applySecurityHeaders(response.headers);
+	return response;
 };
