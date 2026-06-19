@@ -51,6 +51,21 @@
 			a: 'The Forge (⚙) sets the permanent starting level of your Field Upgrades, bought with Alloy (🔩). Combat stats (Damage, Max HP, Attack Speed, Range, Crit Chance, Crit Multiplier, Defense, etc.) share ONE curve with the in-deployment Field Upgrades: a Forge level equals that many Field levels — same value — and the next in-run purchase continues from where the Forge left off (cost included). For example, Forge Max HP Lv.1 starts you at 200 HP, exactly like buying one Max HP in deployment. Research multiplies on top of that. A few economy upgrades (Alloy Bonus, Energy Bonus, Starting Energy) have no Field equivalent and stay permanent-only.',
 		},
 		{
+			id: 'fronts',
+			q: 'What are Fronts?',
+			a: 'Fronts are campaign difficulty tracks. Each Front has denser waves, better Alloy rewards, and its own Schematic drops. Most Fronts unlock by reaching Wave 100 on the previous Front; crossing into a new band has harder milestone gates. Higher Fronts are not just bigger numbers: armor, resistance, and earlier enemy mixes become more common.',
+		},
+		{
+			id: 'schematics',
+			q: 'What are Schematics?',
+			a: 'Schematics are Front-specific reconstruction materials. Complete waves on a Front to recover that Front\'s Schematics, then spend them in Orbital Command to unlock new Field and Forge upgrade paths. They do not replace Alloy; they unlock what Alloy can be spent on.',
+		},
+		{
+			id: 'mastery',
+			q: 'How does Enemy Mastery work?',
+			a: 'Enemy Mastery tracks kills by enemy type. Defeating more Squares, Diamonds, Hexagons, Triangles, and Pentagons grants mastery levels for that type, increasing damage against it and awarding threshold Alloy bonuses automatically. No manual claim is required.',
+		},
+		{
 			id: 'lab',
 			q: 'How does the Research Deck work?',
 			a: 'The Research Deck runs orbital projects: Damage Research, Attack Speed Research, Health Research, Alloy Research, Energy Research. Purchase a level — research takes real time (it continues offline). Each level grants a permanent multiplicative bonus that stacks with the Forge. Higher levels cost more. The Research Deck turns time, Alloy, and suspicious optimism into small permanent improvements. Results are reviewed for morale compliance before release.',
