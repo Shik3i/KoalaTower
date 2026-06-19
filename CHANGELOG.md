@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.0 — Fix static-asset 404s on adapter-node 5.5.5
+
+- **Fixed all client assets 404ing in the Docker deployment** — `@sveltejs/adapter-node` 5.5.5 emits the request handler into a shared chunk under `build/server/chunks/` (via its Rollup `chunkFileNames`). That chunk derives its base directory from `path.dirname(fileURLToPath(import.meta.url))`, which resolves to `build/server/chunks` instead of the build root. As a result `serve(path.join(dir, 'client'))` pointed at the non-existent `build/server/chunks/client`, `serve()` returned `undefined`, the static middleware was dropped from the Polka chain, and every `_app/immutable/*` asset plus `/service-worker.js` returned 404. The Dockerfile now rebases `dir` two levels up to the build root, which simultaneously corrects `serve(client)`, `serve(prerendered)`, and the `read()` `asset_dir`. The patch matches by code content (not the hashed chunk filename) and fails the build loudly if the adapter layout changes.
+- Verified end-to-end: full CI (check + 576 tests + build) green, Docker image built and run, and a headless-Chromium pass over `/`, `/play/`, and `/help/` reported zero console errors and 31/31 immutable assets served `200`.
+
 ## v0.6.3 — Tower-like Spawn Rework
 
 - **Tower-like Spawn Tick Pacing**: Replaced the direct enemy-count wave model with a spawn-tick based model. Spawns are evaluated every 1/8 second (0.125s) of simulation time over a fixed 30-second wave spawn window (240 ticks total).

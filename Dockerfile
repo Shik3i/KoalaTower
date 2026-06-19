@@ -52,6 +52,38 @@ RUN if grep -q 'serve_prerendered(), ss' build/server/chunks/CEnv*.js 2>/dev/nul
 	exit 1; \
 fi
 
+# ── Fix for @sveltejs/adapter-node 5.5.5 static-asset 404 ────────────
+#
+# The adapter's Rollup config emits the handler logic (serve(), the read()
+# asset_dir, etc.) into a SHARED chunk under build/server/chunks/ (see
+# `chunkFileNames: 'server/chunks/[name]-[hash].js'` in the adapter). The
+# chunk computes its base dir from its own location:
+#
+#   const dir = path.dirname(fileURLToPath(import.meta.url));
+#
+# which resolves to /app/build/server/chunks — NOT the build root. So
+# serve(path.join(dir,'client')) points at /app/build/server/chunks/client,
+# which does not exist; serve() returns undefined and is filtered out of the
+# Polka chain, and every _app/immutable/* asset + /service-worker.js 404s.
+# The same wrong `dir` also breaks the read() asset_dir.
+#
+# Fix: rebase `dir` two levels up to the build root (/app/build). One edit
+# corrects serve(client), serve(prerendered) and asset_dir together. The
+# patch is matched by content (not the hashed filename) and guarded so the
+# build fails loudly if adapter-node's layout ever changes.
+# ──────────────────────────────────────────────────────────────────────
+RUN found=0; \
+	for f in build/server/chunks/*.js; do \
+		if grep -q 'const dir = path.dirname(fileURLToPath(import.meta.url));' "$f"; then \
+			sed -i "s#const dir = path.dirname(fileURLToPath(import.meta.url));#const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');#" "$f"; \
+			echo "patched dir resolution in $f"; found=1; \
+		fi; \
+	done; \
+	if [ "$found" -eq 0 ]; then \
+		echo "ERROR: adapter-node dir-resolution pattern not found — layout changed?" >&2; \
+		exit 1; \
+	fi
+
 RUN npm prune --omit=dev && npm cache clean --force
 
 # ── Runtime stage ───────────────────────────────────────────────────
