@@ -20,6 +20,7 @@
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
 	import { notifications } from '$lib/stores/notificationStore';
+	import { saveStatusStore, type SaveStatus } from '$lib/stores/saveStatusStore';
 	import WhatsNewModal from '$lib/components/WhatsNewModal.svelte';
 	import { registerFlatlandServiceWorker } from '$lib/pwa/serviceWorker';
 
@@ -27,12 +28,31 @@
 
 	let loaded = $state(false);
 	let suppressWhatsNewFirstRun = $state(false);
+	let saveStatus = $state<SaveStatus>({
+		writeFailed: false,
+		message: null,
+		loadWarning: null,
+		lastSuccessfulWriteAt: null,
+		lastFailureAt: null,
+	});
 	let labInterval: ReturnType<typeof setInterval> | null = null;
 	let visibilityHandler: (() => void) | null = null;
+	let unsubscribeSaveStatus: (() => void) | null = null;
+	let lastSaveStatusToast = '';
 	const toasts = createToastStore(3000);
 	const toast = toasts.push;
 
 	onMount(async () => {
+		unsubscribeSaveStatus = saveStatusStore.subscribe(status => {
+			saveStatus = status;
+			const msg = status.writeFailed
+				? (status.message ?? 'Save failed. Progress may not be stored until browser storage is available again.')
+				: status.loadWarning;
+			if (msg && msg !== lastSaveStatusToast) {
+				lastSaveStatusToast = msg;
+				toast(msg, status.writeFailed ? 'error' : 'warning', 7000);
+			}
+		});
 		try {
 			const save = await loadSave();
 			coinsStore.set(save.totalCoins);
@@ -112,9 +132,10 @@
 	});
 
 	import { onDestroy } from 'svelte';
-	onDestroy(() => {
+onDestroy(() => {
 		if (labInterval !== null) clearInterval(labInterval);
 		if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
+		unsubscribeSaveStatus?.();
 	});
 </script>
 
@@ -125,6 +146,13 @@
 <Toasts controller={toasts} vertical="bottom" offsetRem={3} zIndex={500} />
 
 <a href="#main-content" class="skip-link">Skip to content</a>
+
+{#if saveStatus.writeFailed || saveStatus.loadWarning}
+	<div class="save-alert" role="alert">
+		<strong>{saveStatus.writeFailed ? 'Save failed' : 'Save recovery'}</strong>
+		<span>{saveStatus.writeFailed ? (saveStatus.message ?? 'Browser storage is unavailable. Progress may not be saved.') : saveStatus.loadWarning}</span>
+	</div>
+{/if}
 
 {#if loaded}
 	<WhatsNewModal suppressFirstRun={suppressWhatsNewFirstRun} />
@@ -175,6 +203,8 @@
 	.skip-link { position:fixed; left:1rem; top:1rem; z-index:1000; transform:translateY(-160%); padding:.55rem .8rem; border-radius:var(--radius-sm); background:var(--bg-secondary); border:1px solid var(--cyan); color:var(--cyan); text-decoration:none; font-weight:700; transition:transform var(--transition-fast); }
 	.skip-link:focus { transform:translateY(0); }
 	#main-content:focus { outline:none; }
+	.save-alert { position:fixed; left:1rem; right:1rem; top:1rem; z-index:650; display:flex; align-items:center; justify-content:center; gap:.6rem; padding:.6rem .9rem; border:1px solid rgba(255,68,68,.55); border-radius:var(--radius-sm); background:rgba(38,8,12,.94); color:var(--text-primary); box-shadow:0 0 24px rgba(255,68,68,.18); font-size:var(--fs-body-sm); text-align:center; }
+	.save-alert strong { color:var(--red); font-family:var(--font-display); text-transform:uppercase; letter-spacing:.04em; }
 	.lf-tagline { color:var(--text-dim); font-size:var(--fs-caption-sm); text-align:center; margin:0; max-width:40rem; line-height:1.5; }
 	.lf-nav { display:flex; gap:.35rem; align-items:center; flex-wrap:wrap; justify-content:center; }
 	.lf-link { color:var(--text-dim); font-size:var(--fs-caption-sm); text-decoration:none; transition:color var(--transition-fast); }

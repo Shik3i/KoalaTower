@@ -2,6 +2,12 @@ import { get, set, del } from 'idb-keyval';
 import { createDefaultSave, CURRENT_SCHEMA_VERSION, type SaveData } from './saveTypes';
 import { migrateSave, validateSaveData } from './migrations';
 import { encodeSaveContainer, decodeSaveContainer } from './saveEncoding';
+import {
+	clearSaveLoadWarning,
+	reportSaveLoadRecovery,
+	reportSaveWriteFailure,
+	reportSaveWriteSuccess,
+} from '../../stores/saveStatusStore';
 
 const SAVE_KEY = 'flatland-td-save';
 const LEGACY_SAVE_KEY = 'geocore-td-save';
@@ -25,26 +31,38 @@ export async function loadSave(): Promise<SaveData> {
 		cachedSaveId = null;
 	}
 
+	let hadStoredSave = false;
+	let recoveredFromLoadProblem = false;
+
 	try {
 		const raw = await get(SAVE_KEY) ?? await get(LEGACY_SAVE_KEY);
+		hadStoredSave = !!raw;
 		if (raw) {
 			const migrated = migrateSave(raw as Record<string, unknown>);
 			if (migrated && validateSaveData(migrated)) {
 				cachedSave = migrated;
 				cachedSaveId = migrated.saveId;
 				lastLoadCreatedDefault = false;
+				clearSaveLoadWarning();
 				await persistSave(migrated);
 				return migrated;
 			}
+			recoveredFromLoadProblem = true;
+			reportSaveLoadRecovery('Saved data could not be validated. A fresh session was started without overwriting the stored archive.');
 		}
-	} catch {
-		// Fall through to default
+	} catch (e) {
+		recoveredFromLoadProblem = true;
+		reportSaveLoadRecovery(e instanceof Error
+			? 'Saved data could not be loaded: ' + e.message
+			: 'Saved data could not be loaded. A fresh session was started.');
 	}
 
 	const defaults = createDefaultSave();
 	cachedSave = defaults;
 	lastLoadCreatedDefault = true;
-	await persistSave(defaults);
+	if (!hadStoredSave && !recoveredFromLoadProblem) {
+		await persistSave(defaults);
+	}
 	return defaults;
 }
 
@@ -56,9 +74,11 @@ export async function persistSave(save: SaveData): Promise<boolean> {
 	cachedSaveId = cachedSave.saveId;
 	try {
 		await set(SAVE_KEY, cachedSave);
+		reportSaveWriteSuccess();
 		return true;
 	} catch {
 		console.warn('[FlatlandTD] Failed to persist save — IndexedDB may be unavailable');
+		reportSaveWriteFailure();
 		return false;
 	}
 }
@@ -145,7 +165,9 @@ export async function importSave(input: string): Promise<{ success: boolean; err
 
 		// Step 6: Persist
 		cachedSave = migrated;
-		await persistSave(migrated);
+		if (!await persistSave(migrated)) {
+			return { success: false, error: 'Import decoded successfully, but the browser refused to store it. Export a backup and check site storage permissions.' };
+		}
 
 		const message = decoded.isLegacy
 			? 'Legacy save imported and upgraded. The archives have been re-indexed with only minor screaming.'
