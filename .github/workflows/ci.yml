@@ -17,7 +17,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22+ is required for the test job: the renderer tests import
+          # pixi.js, which reads a global `navigator` at module load. That
+          # global only exists on Node 21+, so Node 20 fails with
+          # "navigator is not defined". The Docker runtime (Node 20) runs no
+          # tests and is validated by the docker-publish workflow instead.
+          node-version: 22
           cache: 'npm'
       - run: npm ci
       - run: npm run check
@@ -31,6 +36,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
+          # Build job mirrors the Docker runtime (Node 20). The prerender does
+          # not import pixi.js, so the `navigator` global is not needed here.
           node-version: 20
           cache: 'npm'
       - run: npm ci
