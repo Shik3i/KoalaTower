@@ -17,7 +17,7 @@
 	import { TIERS, FRONT_META, getUnlockedFronts, getFrontName, describeFrontUnlock, getFrontBandDef } from '$lib/game/balance/tiers';
 	import FrontIcon from '$lib/components/FrontIcon.svelte';
 	import { CHALLENGES, CHALLENGE_UNLOCK_REQS, isChallengeUnlocked } from '$lib/game/balance/challenges';
-	import { formatCompact, front1EnemyDamage, front1EnemyHp, TIER_MULTIPLIERS } from '$lib/game/balance/balanceMath';
+	import { formatCompact, TIER_MULTIPLIERS } from '$lib/game/balance/balanceMath';
 	import { getSchematics, getPathSchematicCost, tryUnlockPathWithSchematics, normalizeSchematics, SCHEMATICS_FLAVOR } from '$lib/game/balance/schematics';
 	import {
 		BLACK_MARKET_UNLOCKS,
@@ -1265,7 +1265,6 @@
 				</div>
 			{:else if activeSection === 'simulation'}
 				{@const enemyTypes = [EnemyType.Normal, EnemyType.Fast, EnemyType.Tank, EnemyType.Ranged, EnemyType.Boss]}
-				{@const tierLabel = simFront === 1 ? 'Front 1' : simFront === 2 ? 'Front 2' : simFront === 3 ? 'Front 3' : 'Front ' + simFront}
 				<div class="hs">
 					<h2 class="hst">🧪 Simulation — Enemy Stats</h2>
 					<p class="hsd">Analyze Shape combat capabilities at any wave and Front. Adjust parameters below to preview enemy health and damage output. Simulated enemies cannot hurt you. Real enemies can. This is the one advantage of bureaucracy.</p>

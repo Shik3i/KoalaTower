@@ -12,8 +12,6 @@ export interface UIState {
 	showPaused: boolean;
 	showMilestone: boolean;
 	milestoneText: string;
-	showSaveIndicator: boolean;
-	saveIndicatorText: string;
 	gameSnapshot: GameSnapshot | null;
 }
 
@@ -27,8 +25,6 @@ function createUIStore() {
 		showPaused: false,
 		showMilestone: false,
 		milestoneText: '',
-		showSaveIndicator: false,
-		saveIndicatorText: '',
 		gameSnapshot: null,
 	});
 
@@ -62,12 +58,6 @@ function createUIStore() {
 		},
 		hideMilestonePanel() {
 			update(s => ({ ...s, showMilestone: false, milestoneText: '' }));
-		},
-		flashSaveIndicator(text: string = 'Saved') {
-			update(s => ({ ...s, showSaveIndicator: true, saveIndicatorText: text }));
-			setTimeout(() => {
-				update(s => ({ ...s, showSaveIndicator: false }));
-			}, 2000);
 		},
 	};
 }

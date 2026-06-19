@@ -193,7 +193,3 @@ export async function resetSave(): Promise<void> {
 	cachedSaveId = defaults.saveId;
 	await persistSave(defaults);
 }
-
-export function getSaveExportData(): SaveData | null {
-	return cachedSave;
-}
