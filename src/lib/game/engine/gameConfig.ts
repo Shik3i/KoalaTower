@@ -95,18 +95,16 @@ export const STARTING_CASH_BASE = 100;
 export const CASH_PER_WAVE_BASE = 5;
 
 /** How many sub-waves to split each wave into for pacing. */
-export const SUB_WAVES = 4;
+export const SUB_WAVES = 1;
 
 /** Pause between sub-waves in seconds. */
-export const SUB_WAVE_PAUSE = 2.5;
+export const SUB_WAVE_PAUSE = 0;
 
 /** Delay before the first wave starts. */
 export const INITIAL_WAVE_DELAY = 1.0;
 
-/** Time between wave completions and next wave start. Slightly extended so
- *  the inter-wave announce (with its last-wave recap + next-wave preview rows)
- *  has enough full-opacity dwell time to actually read. */
-export const BETWEEN_WAVE_TIME = 2.25;
+/** Time between wave completions and next wave start. */
+export const BETWEEN_WAVE_TIME = 0.75;
 
 /** Interval in waves for boss spawns. */
 export const BOSS_INTERVAL = 10;

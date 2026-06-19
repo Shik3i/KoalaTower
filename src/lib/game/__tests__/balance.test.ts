@@ -39,6 +39,11 @@ import {
 	STARTING_TOWER_RANGE,
 	RANGED_ATTACK_RANGE,
 	ENEMY_TYPE_MODIFIERS,
+	baseSpawnChancePercent,
+	spawnDensityMultiplier,
+	expectedEnemiesPerWave,
+	MAX_ACTIVE_ENEMIES,
+	MAX_ENEMIES_PER_WAVE_SAFETY,
 } from '../balance/balanceMath';
 import { UpgradeId, WorkshopUpgradeId, EnemyType, BlueprintId, LabId } from '../engine/gameTypes';
 import { simulateRun, SCENARIOS } from '../balance/balanceSimulator';
@@ -367,24 +372,56 @@ describe('Boss Waves', () => {
 
 // ─── Enemy Count Tests ──────────────────────────────────────────────────────
 
-describe('Enemy Count', () => {
-	it('should increase with wave', () => {
-		const c1 = enemiesPerWave(1);
-		const c10 = enemiesPerWave(10);
-		const c50 = enemiesPerWave(50);
-		expect(c10).toBeGreaterThan(c1);
-		expect(c50).toBeGreaterThan(c10);
+describe('Enemy Count & Spawn Tick Pacing', () => {
+	it('should follow correct baseSpawnChancePercent curve', () => {
+		expect(baseSpawnChancePercent(1)).toBeCloseTo(14.9, 1);
+		expect(baseSpawnChancePercent(10)).toBeCloseTo(25.3, 1);
+		expect(baseSpawnChancePercent(100)).toBeCloseTo(43.0, 1);
+		expect(baseSpawnChancePercent(1000)).toBe(56);
+		expect(baseSpawnChancePercent(10000)).toBe(56);
 	});
 
-	it('should not exceed cap', () => {
-		const c200 = enemiesPerWave(200, 150);
-		expect(c200).toBeLessThanOrEqual(150);
+	it('should never exceed spawn chance cap of 56%', () => {
+		for (let w = 1; w <= 20000; w += 333) {
+			expect(baseSpawnChancePercent(w)).toBeLessThanOrEqual(56);
+		}
 	});
 
-	it('boss escorts should increase with wave', () => {
-		const e10 = bossEscortCount(10);
-		const e50 = bossEscortCount(50);
-		expect(e50).toBeGreaterThanOrEqual(e10);
+	it('should follow correct Front 1 expected enemies per wave', () => {
+		expect(expectedEnemiesPerWave(1, 1)).toBe(36);
+		expect(expectedEnemiesPerWave(10, 1)).toBe(61);
+		expect(expectedEnemiesPerWave(100, 1)).toBe(103);
+		expect(expectedEnemiesPerWave(1000, 1)).toBe(134);
+		expect(expectedEnemiesPerWave(10000, 1)).toBe(134);
+	});
+
+	it('should follow correct higher Front expected counts', () => {
+		expect(expectedEnemiesPerWave(100, 5)).toBe(239);
+		expect(expectedEnemiesPerWave(100, 9)).toBe(375);
+		expect(expectedEnemiesPerWave(100, 16)).toBe(614);
+		expect(expectedEnemiesPerWave(1000, 16)).toBe(800);
+	});
+
+	it('should follow monotonic non-decreasing counts on Front 1 until the chance cap', () => {
+		let prevCount = 0;
+		for (let w = 1; w <= 2000; w += 10) {
+			const count = expectedEnemiesPerWave(w, 1);
+			expect(count).toBeGreaterThanOrEqual(prevCount);
+			prevCount = count;
+		}
+	});
+
+	it('should increase expected counts with Front density multiplier', () => {
+		const f1 = expectedEnemiesPerWave(100, 1);
+		const f2 = expectedEnemiesPerWave(100, 2);
+		const f5 = expectedEnemiesPerWave(100, 5);
+		expect(f2).toBeGreaterThan(f1);
+		expect(f5).toBeGreaterThan(f2);
+	});
+
+	it('should respect total-wave safety cap', () => {
+		// Large front multiplier and wave should be capped at safety cap
+		expect(expectedEnemiesPerWave(10000, 200)).toBeLessThanOrEqual(MAX_ENEMIES_PER_WAVE_SAFETY);
 	});
 });
 
@@ -878,10 +915,9 @@ describe('Tower Starting Stats', () => {
 // ─── Wave 1-10 Enemy Stats Tests ───────────────────────────────────────────
 
 describe('Wave 1-10 Enemy Stats', () => {
-	it('Wave 1 enemy count is 20-25', () => {
+	it('Wave 1 expected enemy count is 36', () => {
 		const c = enemiesPerWave(1);
-		expect(c).toBeGreaterThanOrEqual(20);
-		expect(c).toBeLessThanOrEqual(25);
+		expect(c).toBe(36);
 	});
 
 	it('Wave 1 Front 1 enemy HP is around 47-50', () => {
@@ -908,10 +944,9 @@ describe('Wave 1-10 Enemy Stats', () => {
 		expect(dmg).toBeLessThanOrEqual(102);
 	});
 
-	it('Wave 10 enemy count is around 40-50', () => {
+	it('Wave 10 expected enemy count is 61', () => {
 		const c = enemiesPerWave(10);
-		expect(c).toBeGreaterThanOrEqual(38);
-		expect(c).toBeLessThanOrEqual(52);
+		expect(c).toBe(61);
 	});
 });
 

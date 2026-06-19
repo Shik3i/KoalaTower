@@ -192,6 +192,7 @@ describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 		engine.state.wave.enemiesInWave = 99999;
 		engine.state.wave.enemiesInSubWave = 99999;
 		engine.state.wave.spawnInterval = 999;
+		engine.state.wave.currentTickIndex = 240;
 		for (let i = 1; i <= 6; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
 		expect(engine.state.killstreak.count).toBe(6);
 		fastForward(engine, GAME_CONFIG.KILLSTREAK_WINDOW + 1);
@@ -208,6 +209,7 @@ describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 		engine.state.wave.enemiesInWave = 99999;
 		engine.state.wave.enemiesInSubWave = 99999;
 		engine.state.wave.spawnInterval = 999;
+		engine.state.wave.currentTickIndex = 240;
 		// Timeout only ticks with a live enemy on the field.
 		engine.state.enemies.push(makeEnemy({ id: 999, hp: 1_000_000, maxHp: 1_000_000, alive: true }));
 		for (let i = 1; i <= 12; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));

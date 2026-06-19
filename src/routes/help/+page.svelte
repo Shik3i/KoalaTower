@@ -28,12 +28,12 @@
 		{
 			id: 'enemies',
 			q: 'What enemy types exist?',
-			a: 'Five types, each with a unique outline shape: ■ Square = Normal (baseline), ◆ Diamond = Fast (1.8× Normal speed), ⬡ Hexagon = Tank (5× HP, larger, slower), ▶ Triangle = Ranged (stops just inside starter tower range and fires), ⬠ Pentagon = Boss (every 10 waves with escorts, 20× HP, very large). Watch their shapes to identify them instantly.',
+			a: 'Five types, each with a unique outline shape: ■ Square = Normal (baseline), ◆ Diamond = Fast (1.8× Normal speed), ⬡ Hexagon = Tank (5× HP, larger, slower), ▶ Triangle = Ranged (stops just inside starter tower range and fires), ⬠ Pentagon = Boss (every 10 waves, 20× HP, very large). Watch their shapes to identify them instantly.',
 		},
 		{
 			id: 'bosses',
 			q: 'How do boss waves work?',
-			a: 'Every 10th wave is a boss wave. Escort enemies spawn first, then the Prime Shape appears last. Bosses are larger, have a pulsing aura ring, and deal heavy damage. Killing a boss triggers a screen shake and extra particle effects. Boss rewards are significantly higher. The geometric chain of command has been disrupted.',
+			a: 'Every 10th wave is a boss wave. Normal enemies spawn throughout the 30-second wave, and additionally a Boss appears at the end. Bosses are larger, have a pulsing aura ring, and deal heavy damage. Killing a boss triggers a screen shake and extra particle effects. Boss rewards are significantly higher. The geometric chain of command has been disrupted.',
 		},
 		{
 			id: 'battle-upgrades',
@@ -242,7 +242,7 @@
 			<div class="enemy-card">
 				<div class="enemy-shape diamond">◆</div>
 				<h3>Fast</h3>
-				<p>1.8× Normal speed, half HP. Front 1: appears from wave 11. Diamond outline.</p>
+				<p>1.8× Normal speed. Front 1: appears from wave 11. Diamond outline.</p>
 			</div>
 			<div class="enemy-card">
 				<div class="enemy-shape hexagon">⬡</div>
@@ -257,7 +257,7 @@
 			<div class="enemy-card boss">
 				<div class="enemy-shape pentagon">⬠</div>
 				<h3>Boss</h3>
-				<p>20× Normal HP, larger than Tanks, pulsing aura. Every 10 waves with escorts.</p>
+				<p>20× Normal HP, larger than Tanks, pulsing aura. Every 10 waves with normal spawns.</p>
 			</div>
 		</div>
 	</section>

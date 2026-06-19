@@ -8,19 +8,17 @@
 import { ChallengeId, EnemyType, type GameState } from '../engine/gameTypes';
 import {
 	createEnemy,
-	getEnemyTypeForWave,
 	getEnemyCountForWave,
-	getBossWaveEnemyCount,
-	getSpawnIntervalForWave,
 	resetEnemyIdCounter,
-	hasBossEscortsRemaining,
-	consumeBossEscort,
-	getEscortTypeForWave,
-	resetBossEscortCounter,
-	setupBossEscorts,
 } from '../balance/enemies';
+import {
+	SPAWN_TICK_SECONDS,
+	MAX_ACTIVE_ENEMIES,
+	expectedEnemiesPerWave,
+	availableEnemyTypes,
+} from '../balance/balanceMath';
 import { getWaveCompletionBonus, getWaveCoinReward } from './economySystem';
-import { SUB_WAVES, SUB_WAVE_PAUSE, BETWEEN_WAVE_TIME } from '../engine/gameConfig';
+import { BETWEEN_WAVE_TIME } from '../engine/gameConfig';
 
 export function startNewWave(state: GameState): void {
 	// Snapshot the wave we are leaving before the counters reset, so the
@@ -30,36 +28,33 @@ export function startNewWave(state: GameState): void {
 	state.wave.killsByTypeThisWave = {};
 
 	state.wave.currentWave++;
-	resetBossEscortCounter();
+	resetEnemyIdCounter();
 
 	const challenge = state.activeChallenge;
-	const forceBossWave = challenge === ChallengeId.BossRush;
-	const isBossWave = forceBossWave || state.wave.currentWave % 10 === 0;
-
 	const front = state.tier ?? 1;
-	let totalEnemies = isBossWave
-		? getBossWaveEnemyCount(state.wave.currentWave, front)
-		: getEnemyCountForWave(state.wave.currentWave, front);
 
-	// FastSwarm: triple spawn count for non-boss waves
-	if (challenge === ChallengeId.FastSwarm && !isBossWave) totalEnemies *= 3;
+	const totalEnemies = getEnemyCountForWave(state.wave.currentWave, front);
 
 	state.wave.enemiesInWave = totalEnemies;
 	state.wave.enemiesSpawned = 0;
 	state.wave.enemiesKilled = 0;
+
 	state.wave.spawnTimer = 0;
-	state.wave.spawnInterval = getSpawnIntervalForWave(state.wave.currentWave);
+	state.wave.spawnInterval = SPAWN_TICK_SECONDS;
 	state.wave.waveActive = true;
 	state.wave.betweenWaveTimer = 0;
 
-	// Sub-wave init
+	// Spawn-tick model properties
+	state.wave.currentTickIndex = 0;
+	state.wave.spawnBacklog = 0;
+	state.wave.bossPending = false;
+
+	// Sub-wave fallback properties to ensure backward compatibility
 	state.wave.currentSubWave = 0;
-	state.wave.enemiesInSubWave = Math.ceil(totalEnemies / SUB_WAVES);
+	state.wave.enemiesInSubWave = totalEnemies;
 	state.wave.enemiesSpawnedInSubWave = 0;
 	state.wave.subWavePauseTimer = 0;
 	state.wave.subWaveActive = true;
-
-	if (isBossWave) setupBossEscorts(state.wave.currentWave);
 }
 
 export function updateWaveSystem(state: GameState, dt: number): void {
@@ -75,77 +70,87 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 		return;
 	}
 
-	if (!wave.subWaveActive) {
-		wave.subWavePauseTimer += dt;
-		if (wave.subWavePauseTimer >= SUB_WAVE_PAUSE) {
-			wave.currentSubWave++;
-			const remaining = wave.enemiesInWave - wave.enemiesSpawned;
-			wave.enemiesInSubWave = Math.min(remaining, Math.ceil(wave.enemiesInWave / SUB_WAVES));
-			wave.enemiesSpawnedInSubWave = 0;
-			wave.spawnTimer = 0;
-			wave.subWaveActive = true;
-			wave.subWavePauseTimer = 0;
+	const isBossWave = wave.currentWave % 10 === 0 || state.activeChallenge === ChallengeId.BossRush;
+	const front = state.tier ?? 1;
+	const N = expectedEnemiesPerWave(wave.currentWave, front);
+
+	// Tick scheduled spawning
+	if (wave.currentTickIndex !== undefined && wave.currentTickIndex < 240) {
+		wave.spawnTimer += dt;
+		while (wave.spawnTimer >= SPAWN_TICK_SECONDS && wave.currentTickIndex < 240) {
+			wave.spawnTimer -= SPAWN_TICK_SECONDS;
+
+			// Even distribution scheduled spawns for this tick
+			const t = wave.currentTickIndex;
+			const tickSpawns = Math.floor((t + 1) * N / 240) - Math.floor(t * N / 240);
+			wave.spawnBacklog = (wave.spawnBacklog ?? 0) + tickSpawns;
+
+			wave.currentTickIndex++;
+
+			// Spawn the boss at the end of the spawn window (tick 240)
+			if (wave.currentTickIndex === 240 && isBossWave) {
+				wave.bossPending = true;
+			}
 		}
-		return;
 	}
 
-	// Spawn enemies
-	wave.spawnTimer += dt;
-	const canSpawn = wave.enemiesSpawned < wave.enemiesInWave && wave.enemiesSpawnedInSubWave < wave.enemiesInSubWave;
-	if (wave.spawnTimer >= wave.spawnInterval && canSpawn) {
-		wave.spawnTimer = 0;
-		spawnEnemy(state);
+	// Attempt to spawn backlogged normal enemies
+	while ((wave.spawnBacklog ?? 0) > 0 && state.enemies.length < MAX_ACTIVE_ENEMIES) {
+		spawnEnemy(state, false);
+		wave.spawnBacklog = (wave.spawnBacklog ?? 0) - 1;
 	}
 
-	// Sub-wave complete?
-	if (wave.enemiesSpawnedInSubWave >= wave.enemiesInSubWave || wave.enemiesSpawned >= wave.enemiesInWave) {
+	// Try to spawn pending boss when active cap allows
+	if (wave.bossPending && state.enemies.length < MAX_ACTIVE_ENEMIES) {
+		spawnEnemy(state, true);
+		wave.bossPending = false;
+	}
+
+	// Wave completion check
+	const completedSpawning = wave.currentTickIndex !== undefined && wave.currentTickIndex >= 240;
+	const backlogEmpty = (wave.spawnBacklog ?? 0) === 0;
+	const bossDone = !wave.bossPending;
+	const allKilled = wave.enemiesKilled >= wave.enemiesInWave && state.enemies.length === 0;
+
+	if (completedSpawning && backlogEmpty && bossDone && allKilled) {
+		wave.waveActive = false;
 		wave.subWaveActive = false;
-		wave.subWavePauseTimer = 0;
-	}
+		wave.betweenWaveTimer = 0;
 
-		// Whole wave complete
-		if (wave.enemiesKilled >= wave.enemiesInWave && state.enemies.length === 0) {
-			wave.waveActive = false;
-			wave.subWaveActive = false;
-			wave.betweenWaveTimer = 0;
-			// Award wave completion energy
-			const energyBonus = getWaveCompletionBonus(state, state.wave.currentWave);
-			state.cash += energyBonus;
-			state.totalEnergyEarned += energyBonus;
-			// Award wave completion alloy (primary alloy source), doubled for relevant challenges
-			const alloyMult = (state.activeChallenge === ChallengeId.GlassTower || state.activeChallenge === ChallengeId.BossRush) ? 2 : 1;
-			state.coins += Math.floor(getWaveCoinReward(state, state.wave.currentWave) * alloyMult);
-		}
+		// Award wave completion energy
+		const energyBonus = getWaveCompletionBonus(state, wave.currentWave);
+		state.cash += energyBonus;
+		state.totalEnergyEarned += energyBonus;
+		// Award wave completion alloy (primary alloy source), doubled for relevant challenges
+		const alloyMult = (state.activeChallenge === ChallengeId.GlassTower || state.activeChallenge === ChallengeId.BossRush) ? 2 : 1;
+		state.coins += Math.floor(getWaveCoinReward(state, wave.currentWave) * alloyMult);
+	}
 }
 
-function spawnEnemy(state: GameState): void {
+function spawnEnemy(state: GameState, forceBoss: boolean): void {
 	const challenge = state.activeChallenge;
-	const forceBossWave = challenge === ChallengeId.BossRush;
-	const isBossWave = forceBossWave || state.wave.currentWave % 10 === 0;
 	let type: EnemyType;
 
 	const front = state.tier ?? 1;
-	if (isBossWave && hasBossEscortsRemaining()) {
-		consumeBossEscort();
-		type = getEscortTypeForWave(state.wave.currentWave, front);
-		// Escorts spawn faster
-		state.wave.spawnInterval = getSpawnIntervalForWave(state.wave.currentWave) * 0.6;
+	const waveNum = state.wave.currentWave;
+
+	if (forceBoss) {
+		type = EnemyType.Boss;
 	} else {
-		const types = getEnemyTypeForWave(state.wave.currentWave, front);
+		const types = availableEnemyTypes(waveNum, front);
 		// FastSwarm: force all non-boss spawns to Fast type
-		type = (challenge === ChallengeId.FastSwarm && !isBossWave)
+		type = (challenge === ChallengeId.FastSwarm)
 			? EnemyType.Fast
 			: (types.length === 1 ? types[0]! : types[Math.floor(Math.random() * types.length)]!);
-		state.wave.spawnInterval = getSpawnIntervalForWave(state.wave.currentWave);
 	}
 
 	const isBoss = type === EnemyType.Boss;
 	const isShiny = !isBoss && Math.random() < 0.05;
 
 	const { x, y } = getSpawnPosition(state);
-	const enemy = createEnemy(type, state.wave.currentWave, x, y, state.tier ?? 1, isShiny);
+	const enemy = createEnemy(type, waveNum, x, y, state.tier ?? 1, isShiny);
 
-	// Apply challenge modifiers to freshly spawned enemy
+	// Apply challenge modifiers
 	if (challenge === ChallengeId.FastSwarm) {
 		enemy.speed *= 2;
 	} else if (challenge === ChallengeId.GlassTower) {

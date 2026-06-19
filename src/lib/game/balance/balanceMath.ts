@@ -395,15 +395,47 @@ export function bossRewardMultiplier(wave: number): number {
 	return Math.min(30, 5 + wave * 0.05);
 }
 
-// ─── Enemy count formula ───────────────────────────────────────────────────
+// ─── Spawn Pacing Constants & Formulas ──────────────────────────────────────
 
-export function enemiesPerWave(wave: number, cap: number = 200): number {
-	const raw = 22 + (wave - 1) * 1.6 + Math.sqrt(wave) * 1.5;
-	return Math.min(Math.max(Math.floor(raw), 3), cap);
+export const BASE_WAVE_DURATION_SECONDS = 30;
+export const SPAWN_TICK_SECONDS = 0.125; // 1/8 second
+export const SPAWN_TICKS_PER_WAVE = BASE_WAVE_DURATION_SECONDS / SPAWN_TICK_SECONDS; // 240
+export const MAX_BASE_SPAWN_CHANCE_PERCENT = 56;
+export const SPAWN_CHANCE_BASE = 14.9;
+export const SPAWN_CHANCE_EXPONENT = 0.23;
+export const MAX_ACTIVE_ENEMIES = 150;
+export const MAX_ENEMIES_PER_WAVE_SAFETY = 5000;
+
+export function baseSpawnChancePercent(wave: number): number {
+	const safeWave = Math.max(1, Math.floor(wave));
+	return Math.min(
+		MAX_BASE_SPAWN_CHANCE_PERCENT,
+		SPAWN_CHANCE_BASE * Math.pow(safeWave, SPAWN_CHANCE_EXPONENT)
+	);
 }
 
-export function bossEscortCount(wave: number, cap: number = 20): number {
-	return Math.min(Math.floor(2 + wave * 0.15), cap);
+export function spawnDensityMultiplier(front: number): number {
+	return 1 + 0.33 * Math.max(0, front - 1);
+}
+
+export function expectedEnemiesPerWave(wave: number, front: number): number {
+	return Math.min(
+		MAX_ENEMIES_PER_WAVE_SAFETY,
+		Math.round(
+			SPAWN_TICKS_PER_WAVE *
+			(baseSpawnChancePercent(wave) / 100) *
+			spawnDensityMultiplier(front)
+		)
+	);
+}
+
+export function enemiesPerWave(wave: number, front: number = 1): number {
+	return expectedEnemiesPerWave(wave, front);
+}
+
+export function bossEscortCount(wave: number, _cap: number = 20): number {
+	// For backward compatibility in tests
+	return Math.min(MAX_ENEMIES_PER_WAVE_SAFETY, expectedEnemiesPerWave(wave, 1));
 }
 
 // ─── Cost formulas ─────────────────────────────────────────────────────────

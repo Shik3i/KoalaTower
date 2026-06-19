@@ -17,10 +17,10 @@
 
 import { hybridCost, additiveEffect, flatlandBaseDamageAtLevel } from './balanceMath';
 import {
-	computeEnemyConfig, enemiesPerWave, bossEscortCount, availableEnemyTypes,
-	spawnIntervalForWave, frontEnemyArmor, frontHasResistance, STARTING_TOWER_RANGE,
+	computeEnemyConfig, expectedEnemiesPerWave, baseSpawnChancePercent, spawnDensityMultiplier, availableEnemyTypes,
+	frontEnemyArmor, frontHasResistance, STARTING_TOWER_RANGE,
 } from './balanceMath';
-import { scaleCountForFront } from './enemies';
+import { scaleCountForFront, getEnemyCountForWave } from './enemies';
 import { BATTLE_UPGRADE_DEFS, getBattleUpgradeCost, getBattleUpgradeEffect } from './battleUpgrades';
 import { WORKSHOP_UPGRADE_DEFS, getWorkshopUpgradeEffect } from './workshopUpgrades';
 import { getLabEffect } from './labs';
@@ -243,16 +243,13 @@ export function simulateRun(
 	for (let wave = 1; wave <= maxWaves; wave++) {
 		state.wave = wave;
 		const isBossWave = wave % 10 === 0;
-		// Per-Front enemy-count multiplier: higher Fronts spawn denser waves.
-		const count = isBossWave
-			? scaleCountForFront(bossEscortCount(wave), tier) + 1
-			: scaleCountForFront(enemiesPerWave(wave), tier);
-		const spawnInt = spawnIntervalForWave(wave);
+		// Spawn-tick count of enemies
+		const count = getEnemyCountForWave(wave, tier);
 
 		// ── Wave-level combat summary ──────────────────────────────────
 		// Model the battle as a continuous process:
 		// - Tower kills at fireRate/hitsToKill enemies per second
-		// - Enemies arrive at 1/spawnInterval enemies per second
+		// - Enemies arrive at tick-rate (8/s) * chance * density per second
 		// - If kill rate >= arrival rate, tower stays ahead (minimal damage)
 		// - If kill rate < arrival rate, enemies pile up and deal damage
 
@@ -263,9 +260,7 @@ export function simulateRun(
 		const frontTypes = availableEnemyTypes(wave, tier);
 		for (let e = 0; e < count; e++) {
 			let type: EnemyType;
-			if (isBossWave && e < count - 1) {
-				type = frontTypes[Math.floor(rng() * frontTypes.length)]!;
-			} else if (isBossWave && e === count - 1) {
+			if (isBossWave && e === count - 1) {
 				type = EnemyType.Boss;
 			} else {
 				type = frontTypes[Math.floor(rng() * frontTypes.length)]!;
@@ -295,8 +290,8 @@ export function simulateRun(
 			// ── Rate-based contact model ────────────────────────────────
 			// Tower kill rate: enemies killed per second
 			const killRate = state.fireRate / hits;
-			// Enemy arrival rate: enemies spawned per second
-			const arrivalRate = 1 / Math.max(0.06, spawnInt);
+			// Enemy arrival rate: expected enemies spawned per second (8 ticks/s * chance * density)
+			const arrivalRate = 8 * (baseSpawnChancePercent(wave) / 100) * spawnDensityMultiplier(tier);
 
 			// Approach time: seconds for enemy to cross from spawn to range edge
 			const approachDist = 220; // px from viewport edge to tower range (400 - 180)

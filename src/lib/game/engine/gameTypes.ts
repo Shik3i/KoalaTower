@@ -447,6 +447,11 @@ export interface WaveState {
 	/** Per-type kill counts from the most recently completed wave — drives
 	 *  the "Last wave recap" row of the inter-wave announcement. */
 	lastWaveKillsByType: Partial<Record<EnemyType, number>>;
+
+	// Spawn-tick model properties
+	currentTickIndex?: number;
+	spawnBacklog?: number;
+	bossPending?: boolean;
 }
 
 export interface GameState {
