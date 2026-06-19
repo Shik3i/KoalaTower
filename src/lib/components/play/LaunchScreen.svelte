@@ -50,6 +50,26 @@
 		bandRail?.children[activeBandIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 	}
 
+	function onBandTabKeydown(e: KeyboardEvent, index: number) {
+		let nextIndex = index;
+		if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+			nextIndex = (index + 1) % frontBandPanels.length;
+		} else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+			nextIndex = (index - 1 + frontBandPanels.length) % frontBandPanels.length;
+		} else if (e.key === 'Home') {
+			nextIndex = 0;
+		} else if (e.key === 'End') {
+			nextIndex = frontBandPanels.length - 1;
+		} else {
+			return;
+		}
+		e.preventDefault();
+		selectBand(nextIndex);
+		requestAnimationFrame(() => {
+			document.getElementById('front-band-tab-' + nextIndex)?.focus();
+		});
+	}
+
 	function selectFront(id: TierId) {
 		selectedFront = id;
 		selectedChallenge = null;
@@ -118,12 +138,15 @@
 				<div class="band-tabs" role="tablist" aria-label="Front bands">
 					{#each frontBandPanels as group, index}
 						<button
+							id={'front-band-tab-' + index}
 							class="band-tab"
 							class:on={activeBandIndex === index}
 							style="--band:{group.def.color};--accent:{group.def.accent}"
 							role="tab"
 							aria-selected={activeBandIndex === index}
+							tabindex={activeBandIndex === index ? 0 : -1}
 							onclick={() => selectBand(index)}
+							onkeydown={(e) => onBandTabKeydown(e, index)}
 						>
 							{group.def.label}
 						</button>
