@@ -117,7 +117,9 @@
 		{ title: 'Research Deck', desc: 'Research projects finish in real time, even while you are away. Start one, deploy, and collect the result when you return.', target: '[data-section="lab"]', placement: 'right' },
 		{ title: 'Schematics Later', desc: 'After you recover Schematics from a Front, this tab reconstructs new upgrade paths. If it is empty now, that is normal.', target: '[data-section="blueprints"]', placement: 'right' },
 		{ title: 'Fronts', desc: 'Front 1 is always open. Push deeper to unlock harder Fronts with better rewards; Special Ops appear after campaign milestones.', target: '[data-section="tiers"]', placement: 'right' },
-		{ title: 'Archives & Systems', desc: 'Archives track campaign stats. Systems holds audio, visual, save, and notification settings. Saves stay local in this browser.', target: '[data-section="stats"]', placement: 'right' },
+		{ title: 'Archives', desc: 'Archives track campaign stats, enemy mastery achievements, and telemetry from previous deployments.', target: '[data-section="stats"]', placement: 'right' },
+		{ title: 'Profile', desc: 'Set your display name, register an account, and manage cloud backups to protect your progress.', target: '[data-section="profile"]', placement: 'right' },
+		{ title: 'Systems', desc: 'Systems holds visual and audio preferences, along with tools to manually export, import, or reset your local save.', target: '[data-section="settings"]', placement: 'right' },
 		{ title: 'Deploy Again', desc: 'Spend Alloy, start research, then return to the fight. Field upgrades reset each run; Orbital upgrades do not.', target: '.hub-deploy', placement: 'bottom' },
 	];
 
