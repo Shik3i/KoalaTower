@@ -36,6 +36,7 @@
 		lastFailureAt: null,
 	});
 	let clientErrorMessage = $state('');
+	let pwaUpdateAvailable = $state(false);
 	let labInterval: ReturnType<typeof setInterval> | null = null;
 	let visibilityHandler: (() => void) | null = null;
 	let clientErrorHandler: ((event: ErrorEvent) => void) | null = null;
@@ -90,7 +91,12 @@
 		}
 		loaded = true;
 		loadedStore.set(true);
-		registerFlatlandServiceWorker().catch((e) => console.warn('Service worker registration failed:', e));
+		registerFlatlandServiceWorker(import.meta.env.PROD, {
+			onUpdateAvailable: () => {
+				pwaUpdateAvailable = true;
+				toast('Update available. Reload to use the newest build.', 'info', 7000);
+			},
+		}).catch((e) => console.warn('Service worker registration failed:', e));
 
 		document.addEventListener('visibilitychange', visibilityHandler = async () => {
 			if (document.visibilityState === 'hidden') {
@@ -187,6 +193,14 @@ onDestroy(() => {
 	</div>
 {/if}
 
+{#if pwaUpdateAvailable}
+	<div class="update-alert" role="status">
+		<strong>Update ready</strong>
+		<span>A newer Flatland TD build is available.</span>
+		<button type="button" onclick={() => location.reload()}>Reload</button>
+	</div>
+{/if}
+
 {#if loaded}
 	<WhatsNewModal suppressFirstRun={suppressWhatsNewFirstRun} />
 {/if}
@@ -241,6 +255,9 @@ onDestroy(() => {
 	.client-error-alert { position:fixed; left:1rem; right:1rem; bottom:1rem; z-index:650; display:flex; align-items:center; justify-content:center; gap:.65rem; padding:.6rem .9rem; border:1px solid rgba(255,221,68,.5); border-radius:var(--radius-sm); background:rgba(33,26,6,.94); color:var(--text-primary); box-shadow:0 0 24px rgba(255,221,68,.16); font-size:var(--fs-body-sm); text-align:center; }
 	.client-error-alert strong { color:var(--yellow); font-family:var(--font-display); text-transform:uppercase; letter-spacing:.04em; }
 	.client-error-alert button { padding:.25rem .65rem; border:1px solid rgba(255,221,68,.45); border-radius:var(--radius-sm); color:var(--yellow); cursor:pointer; }
+	.update-alert { position:fixed; left:1rem; right:1rem; bottom:1rem; z-index:640; display:flex; align-items:center; justify-content:center; gap:.65rem; padding:.6rem .9rem; border:1px solid rgba(0,255,255,.45); border-radius:var(--radius-sm); background:rgba(6,26,33,.94); color:var(--text-primary); box-shadow:0 0 24px rgba(0,255,255,.16); font-size:var(--fs-body-sm); text-align:center; }
+	.update-alert strong { color:var(--cyan); font-family:var(--font-display); text-transform:uppercase; letter-spacing:.04em; }
+	.update-alert button { padding:.25rem .65rem; border:1px solid rgba(0,255,255,.45); border-radius:var(--radius-sm); color:var(--cyan); cursor:pointer; }
 	.lf-tagline { color:var(--text-dim); font-size:var(--fs-caption-sm); text-align:center; margin:0; max-width:40rem; line-height:1.5; }
 	.lf-nav { display:flex; gap:.35rem; align-items:center; flex-wrap:wrap; justify-content:center; }
 	.lf-link { color:var(--text-dim); font-size:var(--fs-caption-sm); text-decoration:none; transition:color var(--transition-fast); }

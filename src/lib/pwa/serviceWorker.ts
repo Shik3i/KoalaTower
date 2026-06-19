@@ -13,7 +13,21 @@ export function canRegisterServiceWorker(prod: boolean, nav: Pick<Navigator, 'se
 	return prod && !!nav && 'serviceWorker' in nav;
 }
 
-export async function registerFlatlandServiceWorker(prod = import.meta.env.PROD): Promise<ServiceWorkerRegistration | null> {
+export interface ServiceWorkerRegistrationOptions {
+	onUpdateAvailable?: () => void;
+}
+
+export async function registerFlatlandServiceWorker(prod = import.meta.env.PROD, options: ServiceWorkerRegistrationOptions = {}): Promise<ServiceWorkerRegistration | null> {
 	if (!canRegisterServiceWorker(prod)) return null;
-	return navigator.serviceWorker.register(FLATLAND_SW_REGISTRATION_PATH);
+	const registration = await navigator.serviceWorker.register(FLATLAND_SW_REGISTRATION_PATH);
+	if (registration.waiting) options.onUpdateAvailable?.();
+	registration.addEventListener('updatefound', () => {
+		const worker = registration.installing;
+		worker?.addEventListener('statechange', () => {
+			if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+				options.onUpdateAvailable?.();
+			}
+		});
+	});
+	return registration;
 }
