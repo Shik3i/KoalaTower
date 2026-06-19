@@ -23,7 +23,10 @@ export function calculateCommunityBuff(events: BuffRow[], now = new Date()): Com
 		return Number.isFinite(expires) && expires > now.getTime() && event.percent > 0;
 	});
 	const total = active.reduce((sum, event) => sum + event.percent, 0);
-	const activePercent = Math.min(COMMUNITY_BUFF_CAP_PERCENT, Math.max(0, Math.floor(total)));
+	// Preserve fractional EUR amounts (e.g. a 3.5 EUR support = 3.5%). Round to
+	// two decimals to shed float noise, then clamp to the global cap.
+	const rounded = Math.round((total + Number.EPSILON) * 100) / 100;
+	const activePercent = Math.min(COMMUNITY_BUFF_CAP_PERCENT, Math.max(0, rounded));
 	const activeUntil = active
 		.map((event) => event.expires_at)
 		.sort()

@@ -2,7 +2,8 @@
 	import { onMount, tick } from 'svelte';
 	import Tutorial, { type TutorialStep } from '$lib/components/Tutorial.svelte';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
-	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
+	import { persistSave, getCachedSave, exportSave, exportSaveFromData, importSave, resetSave } from '$lib/game/save/saveService';
+	import type { SaveData } from '$lib/game/save/saveTypes';
 	import { buildWorkshopUpgradeList, getWorkshopUpgradeCost, getWorkshopUpgradeEffect, FORGE_ECONOMY_WORKSHOP_IDS } from '$lib/game/balance/workshopUpgrades';
 	// Combat Forge stats use the SHARED Field curve (forgeUpgrades.ts). The
 	// Foundry's economy upgrades (Alloy/Energy bonus, Starting Energy) stay as
@@ -78,6 +79,12 @@
 		syncLocalIdentity,
 		type LocalPlayerIdentity
 	} from '$lib/online/localIdentity';
+	import { communityBuffStore, formatCommunityBuffPercent, type CommunityBuffState } from '$lib/online/communityBuffClient';
+	import { accountStore, registerAccount, loginAccount, logoutAccount, type AccountInfo } from '$lib/online/accountClient';
+	import { fetchCloudSaveMeta, fetchCloudSaveFull, uploadCloudSave, type CloudSaveMetadata } from '$lib/online/cloudSaveClient';
+	import { getSupportCode } from '$lib/online/supportCode';
+	import { APP_VERSION } from '$lib/version';
+	import { CURRENT_SCHEMA_VERSION } from '$lib/game/save/saveTypes';
 
 	function formatPlayTime(totalSeconds: number): string {
 		if (totalSeconds <= 0) return '0s';
@@ -369,6 +376,29 @@
 	let localProfile = $state<LocalPlayerIdentity | null>(null);
 	let localProfileName = $state('');
 	let localProfileStatus = $state<'local' | 'synced' | 'offline' | 'rejected'>('local');
+	let communityBuff = $state<CommunityBuffState>({ percent: 0, activeUntil: null, loaded: false });
+
+	// ── Optional account / cloud save / support code ──
+	let account = $state<AccountInfo | null>(null);
+	let accountLoaded = $state(false);
+	let authMode = $state<'login' | 'register'>('login');
+	let authError = $state<string | null>(null);
+	let authBusy = $state(false);
+	let loginUsername = $state('');
+	let loginPassword = $state('');
+	let regUsername = $state('');
+	let regDisplayName = $state('');
+	let regPassword = $state('');
+	let regConfirm = $state('');
+	let supportCode = $state<{ code: string; ownerType: 'local_identity' | 'account' } | null>(null);
+	let supportCodeCopied = $state(false);
+	let cloudMeta = $state<CloudSaveMetadata | null>(null);
+	let cloudExists = $state(false);
+	let cloudChecked = $state(false);
+	let cloudError = $state<string | null>(null);
+	let cloudBusy = $state(false);
+	let showUploadConfirm = $state(false);
+	let showRestoreConfirm = $state(false);
 	const toasts = createToastStore(2500);
 	const toast = toasts.push;
 
@@ -463,11 +493,118 @@
 		toast('Local Profile updated.', 'success');
 	}
 
+	// ── Optional account / cloud save / support code ──
+	async function refreshSupportCode() {
+		supportCode = await getSupportCode();
+	}
+
+	async function handleRegister() {
+		authError = null;
+		if (regPassword !== regConfirm) { authError = 'Passwords do not match.'; return; }
+		authBusy = true;
+		try {
+			const r = await registerAccount(regUsername, regPassword, regDisplayName || undefined);
+			if (r.ok) { regUsername = ''; regDisplayName = ''; regPassword = ''; regConfirm = ''; }
+			else authError = r.message;
+		} finally { authBusy = false; }
+	}
+
+	async function handleLogin() {
+		authError = null;
+		authBusy = true;
+		try {
+			const r = await loginAccount(loginUsername, loginPassword);
+			if (r.ok) { loginUsername = ''; loginPassword = ''; }
+			else authError = r.message;
+		} finally { authBusy = false; }
+	}
+
+	async function handleLogout() {
+		authBusy = true;
+		try { await logoutAccount(); }
+		finally { authBusy = false; }
+		// Local save is untouched; cloud view clears with the account.
+	}
+
+	async function refreshCloudStatus() {
+		cloudBusy = true; cloudError = null;
+		try {
+			const r = await fetchCloudSaveMeta();
+			if (r.ok) { cloudExists = r.exists; cloudMeta = r.metadata; cloudChecked = true; }
+			else { cloudError = r.offline ? 'Cloud status unavailable offline.' : r.message; }
+		} finally { cloudBusy = false; }
+	}
+
+	function confirmUploadCloud() {
+		// Require explicit confirmation only when a cloud save already exists.
+		if (cloudExists) showUploadConfirm = true;
+		else void doUploadCloud();
+	}
+
+	async function doUploadCloud() {
+		showUploadConfirm = false;
+		const save = getCachedSave();
+		if (!save) { toast('No local save to upload.', 'error'); return; }
+		cloudBusy = true; cloudError = null;
+		try {
+			const r = await uploadCloudSave(save as unknown as Record<string, unknown>, CURRENT_SCHEMA_VERSION, APP_VERSION || 'unknown');
+			if (r.ok) { cloudExists = true; cloudMeta = r.metadata; cloudChecked = true; toast('Cloud backup updated.', 'success'); }
+			else cloudError = r.offline ? 'Cloud upload unavailable offline.' : r.message;
+		} finally { cloudBusy = false; }
+	}
+
+	async function doRestoreCloud() {
+		showRestoreConfirm = false;
+		cloudBusy = true; cloudError = null;
+		try {
+			const r = await fetchCloudSaveFull();
+			if (!r.ok) { cloudError = r.offline ? 'Cloud restore unavailable offline.' : r.message; return; }
+			if (!r.exists || !r.saveJson) { cloudError = 'No cloud save to restore.'; return; }
+			// Re-encode and run through the standard import pipeline so the cloud
+			// payload gets migration + validation + newer-schema rejection. A cloud
+			// save can never crash the app this way.
+			const exported = await exportSaveFromData(r.saveJson as SaveData);
+			const result = await importSave(exported);
+			if (!result.success) { cloudError = result.error ?? 'Cloud restore failed.'; return; }
+			toast('Cloud save restored. Reloading…', 'success');
+			// Full local-save replace → reload so every section reinitializes safely.
+			setTimeout(() => location.reload(), 450);
+		} catch {
+			cloudError = 'Cloud restore failed.';
+		} finally { cloudBusy = false; }
+	}
+
+	async function copySupportCode() {
+		if (!supportCode) return;
+		try {
+			await navigator.clipboard?.writeText(supportCode.code);
+			supportCodeCopied = true;
+			setTimeout(() => { supportCodeCopied = false; }, 1500);
+		} catch {
+			// Clipboard blocked — the code stays visible to select/copy manually.
+		}
+	}
+
 	onMount(() => {
 		const u1 = coinsStore.subscribe(c => coins = c);
 		const u2 = settingsStore.subscribe(s => { settings = s; });
 		const u3 = highestWaveStore.subscribe(w => highestWave = w);
 		const u4 = totalRunsStore.subscribe(r => totalRuns = r);
+		const u5 = communityBuffStore.subscribe(b => { communityBuff = b; });
+		void communityBuffStore.refreshIfStale();
+		// Optional account: determine login status via /api/auth/me (httpOnly cookie).
+		const u6 = accountStore.subscribe(s => {
+			const prev = account;
+			account = s.account;
+			accountLoaded = s.loaded;
+			if (prev?.id !== s.account?.id) {
+				void refreshSupportCode();
+				if (s.account) void refreshCloudStatus();
+				else { cloudMeta = null; cloudExists = false; cloudChecked = false; cloudError = null; }
+			}
+		});
+		void accountStore.refresh();
+		void refreshSupportCode();
 		const save = getCachedSave();
 		if (save?.unlockedBlueprints) ownedBlueprints = [...save.unlockedBlueprints];
 		if (save?.discoveredBlueprints) discoveredBlueprints = [...save.discoveredBlueprints];
@@ -508,7 +645,7 @@
 			showBlackMarketIntro = true;
 		}
 
-		return () => { u1(); u2(); u3(); u4(); if (labProgressTimer) clearInterval(labProgressTimer); if (clockTimer) clearInterval(clockTimer); toasts.clear(); };
+		return () => { u1(); u2(); u3(); u4(); u5(); u6(); if (labProgressTimer) clearInterval(labProgressTimer); if (clockTimer) clearInterval(clockTimer); toasts.clear(); };
 	});
 
 	function wLv(id: WorkshopUpgradeId): number { return workshopLevels[id] ?? 0; }
@@ -1244,6 +1381,16 @@
 				</div>
 			{:else if activeSection === 'settings'}
 				<div class="hs"><h2 class="hst">⚙ Systems</h2>
+					{#if communityBuff.loaded && communityBuff.percent > 0}
+						{@const buffRemaining = communityBuff.activeUntil ? Math.max(0, Date.parse(communityBuff.activeUntil) - nowTick) : 0}
+						<div class="community-buff" use:tooltip={'Community Alloy Boost\nFueled by Ko-fi community support. Applies to every player, every deployment.\nOffline? You simply get the base Alloy — nothing breaks.'}>
+							<span class="cb-icon">🛰️</span>
+							<div class="cb-body">
+								<div class="cb-title">Community Alloy Boost <span class="cb-pct">{formatCommunityBuffPercent(communityBuff.percent)}</span></div>
+								<div class="cb-desc">Fueled by Ko-fi support. Applies to all players.{#if buffRemaining > 0} Active for {formatDuration(buffRemaining)}.{/if}</div>
+							</div>
+						</div>
+					{/if}
 					<div class="local-profile">
 						<div class="local-profile-copy">
 							<h3>Local Profile</h3>
@@ -1261,6 +1408,77 @@
 								<span>{localProfileStatus === 'synced' ? 'Optional online sync ready' : localProfileStatus === 'offline' ? 'Offline/local only' : localProfileStatus === 'rejected' ? 'Local only' : 'Not logged in'}</span>
 							</div>
 						</form>
+					</div>
+					<div class="support-code">
+						<h3>Support Code</h3>
+						<p class="sc-desc">Paste this into your Ko-fi message if you want future supporter cosmetics or badges to be linked.</p>
+						<p class="sc-note">The Community Alloy Boost applies to everyone even without a code. Register first if you want future supporter rewards to survive browser data deletion.</p>
+						{#if supportCode}
+							<div class="sc-row">
+								<code class="sc-code">{supportCode.code}</code>
+								<button class="hub-action" onclick={copySupportCode}>{supportCodeCopied ? 'Copied' : 'Copy'}</button>
+							</div>
+							<p class="sc-owner">{supportCode.ownerType === 'account' ? 'Linked to your account.' : 'Local anonymous identity — register to make it account-linked.'}</p>
+						{:else}
+							<p class="sc-owner">Generating…</p>
+						{/if}
+						{#if supportReady}
+							<a class="hub-action" href={SUPPORT_URL} target="_blank" rel="noopener" use:tooltip={'Opens an external support page in a new tab.\nEntirely optional — the game stays free and offline.'}>Support Flatland TD</a>
+						{/if}
+					</div>
+					<div class="account-panel">
+						{#if account}
+							<h3>Account: {account.displayName}</h3>
+							<p class="acct-status">Logged in as <strong>{account.username}</strong>. Cloud saves and future verified features use this account. Local play keeps working if you log out or go offline.</p>
+							<button class="hub-action" onclick={handleLogout} disabled={authBusy}>{authBusy ? 'Working…' : 'Log out'}</button>
+							<div class="cloud-section">
+								<h4>Cloud Save</h4>
+								<p class="cloud-desc">Manual backup/sync. Cloud save never auto-overwrites your local data — you choose when to upload or restore.</p>
+								<div class="cloud-meta">
+									<div class="ir"><span class="il">Local save</span><span class="iv">Schema v{CURRENT_SCHEMA_VERSION} · {APP_VERSION || 'DEV'}</span></div>
+									<div class="ir"><span class="il">Cloud backup</span><span class="iv">{cloudChecked ? (cloudExists ? 'Exists' : 'None') : 'Not checked yet'}</span></div>
+									{#if cloudMeta}
+										<div class="ir"><span class="il">Cloud updated</span><span class="iv">{new Date(cloudMeta.updatedAt).toLocaleString()}</span></div>
+										<div class="ir"><span class="il">Cloud schema</span><span class="iv">v{cloudMeta.schemaVersion} · {cloudMeta.gameVersion}</span></div>
+									{/if}
+									{#if cloudMeta && cloudMeta.schemaVersion > CURRENT_SCHEMA_VERSION}
+										<p class="cloud-warn">Cloud backup is from a newer game version. Update the game before restoring.</p>
+									{/if}
+								</div>
+								{#if cloudError}<p class="cloud-err">{cloudError}</p>{/if}
+								<div class="cloud-actions">
+									<button class="hub-action" onclick={() => void refreshCloudStatus()} disabled={cloudBusy}>{cloudBusy ? 'Working…' : 'Refresh Status'}</button>
+									<button class="hub-action" onclick={confirmUploadCloud} disabled={cloudBusy}>Upload Local Save</button>
+									<button class="hub-action hub-danger" onclick={() => showRestoreConfirm = true} disabled={cloudBusy || !cloudExists}>Restore Cloud Save</button>
+								</div>
+							</div>
+						{:else if accountLoaded}
+							<h3>Account (optional)</h3>
+							<p class="acct-status">Account login is optional. Normal play stays local-first. Use an account for cloud saves and future verified/guild features.</p>
+							<div class="auth-tabs">
+								<button class="auth-tab" class:on={authMode === 'login'} onclick={() => { authMode = 'login'; authError = null; }}>Log in</button>
+								<button class="auth-tab" class:on={authMode === 'register'} onclick={() => { authMode = 'register'; authError = null; }}>Register</button>
+							</div>
+							{#if authMode === 'login'}
+								<form class="auth-form" onsubmit={(e) => { e.preventDefault(); void handleLogin(); }}>
+									<label class="local-profile-label">Username<input bind:value={loginUsername} autocomplete="username" /></label>
+									<label class="local-profile-label">Password<input type="password" bind:value={loginPassword} autocomplete="current-password" /></label>
+									{#if authError}<p class="auth-err">{authError}</p>{/if}
+									<button class="hub-action" type="submit" disabled={authBusy}>{authBusy ? 'Working…' : 'Log in'}</button>
+								</form>
+							{:else}
+								<form class="auth-form" onsubmit={(e) => { e.preventDefault(); void handleRegister(); }}>
+									<label class="local-profile-label">Username<input bind:value={regUsername} autocomplete="username" /></label>
+									<label class="local-profile-label">Display name (optional)<input bind:value={regDisplayName} autocomplete="nickname" maxlength="32" /></label>
+									<label class="local-profile-label">Password<input type="password" bind:value={regPassword} autocomplete="new-password" /></label>
+									<label class="local-profile-label">Confirm password<input type="password" bind:value={regConfirm} autocomplete="new-password" /></label>
+									{#if authError}<p class="auth-err">{authError}</p>{/if}
+									<button class="hub-action" type="submit" disabled={authBusy}>{authBusy ? 'Working…' : 'Register'}</button>
+								</form>
+							{/if}
+						{:else}
+							<p class="acct-status">Checking account status…</p>
+						{/if}
 					</div>
 					<div class="sg">
 						{#each settingsList as s}
@@ -1358,6 +1576,32 @@
 				<div class="dlg-a">
 					<button class="dlg-s" bind:this={resetCancelEl} onclick={() => closeResetDialog()}>Cancel</button>
 					<button class="dlg-dng-btn" onclick={confirmResetDialog}>Reset Save</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if showUploadConfirm}
+		<div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) showUploadConfirm = false; }}>
+			<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="upload-confirm-title" tabindex="-1">
+				<h3 id="upload-confirm-title">Replace cloud backup?</h3>
+				<p class="dlg-d">This will replace your cloud backup with your current local save. Your local save stays intact.</p>
+				<div class="dlg-a">
+					<button class="dlg-s" onclick={() => showUploadConfirm = false}>Cancel</button>
+					<button class="dlg-p" onclick={() => void doUploadCloud()}>Upload</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+	{#if showRestoreConfirm}
+		<div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) showRestoreConfirm = false; }}>
+			<div class="dlg dlg-dng" role="dialog" aria-modal="true" aria-labelledby="restore-confirm-title" tabindex="-1">
+				<h3 id="restore-confirm-title">Restore cloud save?</h3>
+				<p class="dlg-d">This will replace your current local save with the cloud save. Export your local save first if you want a backup.</p>
+				<div class="dlg-a" style="flex-wrap:wrap">
+					<button class="dlg-s" onclick={() => showRestoreConfirm = false}>Cancel</button>
+					<button class="hub-action" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}>Export Local Save First</button>
+					<button class="dlg-dng-btn" onclick={() => void doRestoreCloud()}>Restore Cloud Save</button>
 				</div>
 			</div>
 		</div>
@@ -1517,6 +1761,34 @@
 	.local-profile-row input { min-width:0; flex:1; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.45rem .55rem; font:inherit; }
 	.local-profile-row .hub-action { margin:0; }
 	.local-profile-status { display:flex; justify-content:space-between; gap:.5rem; color:var(--text-dim); font-size:var(--fs-caption-sm); font-family:var(--font-mono); }
+
+	/* Community Alloy Boost widget */
+	.community-buff { display:flex; align-items:center; gap:.6rem; max-width:760px; margin-bottom:1rem; padding:.6rem .8rem; background:linear-gradient(135deg,rgba(0,255,136,.05),rgba(0,0,0,.04)); border:1px solid rgba(0,255,136,.22); border-radius:var(--radius-sm); }
+	.cb-icon { font-size:var(--fs-mono-lg); }
+	.cb-title { font-size:var(--fs-body-sm); color:var(--text-primary); font-family:var(--font-display); }
+	.cb-pct { color:var(--green); font-family:var(--font-mono); margin-left:.25rem; }
+	.cb-desc { font-size:var(--fs-caption-sm); color:var(--text-secondary); margin-top:.1rem; }
+
+	/* Support code + account + cloud save panels */
+	.support-code, .account-panel, .cloud-section { max-width:760px; margin-top:1rem; padding:.85rem 1rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
+	.support-code h3, .account-panel h3, .cloud-section h4 { margin:0 0 .35rem; font-size:var(--fs-body); color:var(--text-primary); font-family:var(--font-display); }
+	.support-code p, .account-panel p, .cloud-section p { margin:.15rem 0; color:var(--text-secondary); font-size:var(--fs-caption); line-height:1.5; }
+	.sc-note, .cloud-desc { color:var(--text-dim); font-size:var(--fs-caption-sm); }
+	.sc-row { display:flex; align-items:center; gap:.5rem; margin:.4rem 0 .2rem; }
+	.sc-code { font-family:var(--font-mono); font-size:var(--fs-mono); color:var(--cyan); background:rgba(0,0,0,.3); padding:.3rem .55rem; border-radius:var(--radius-sm); border:1px solid var(--border-neon); user-select:all; }
+	.sc-owner { color:var(--text-dim); font-size:var(--fs-caption-sm); font-family:var(--font-mono); }
+	.acct-status { color:var(--text-secondary); font-size:var(--fs-caption); }
+	.auth-tabs { display:flex; gap:.25rem; margin:.5rem 0; }
+	.auth-tab { padding:.35rem .9rem; font-size:var(--fs-caption); color:var(--text-secondary); background:transparent; border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; }
+	.auth-tab.on { color:var(--cyan); border-color:var(--cyan); background:rgba(0,255,255,.06); }
+	.auth-form { display:flex; flex-direction:column; gap:.4rem; max-width:340px; }
+	.auth-form .local-profile-label input, .auth-form input { display:block; margin-top:.2rem; width:100%; box-sizing:border-box; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.4rem .55rem; font-family:var(--font-mono); font-size:var(--fs-mono-sm); }
+	.auth-err, .cloud-err { color:var(--red); font-size:var(--fs-caption-sm); margin:.25rem 0; }
+	.cloud-meta { display:grid; gap:3px; margin:.5rem 0; }
+	.cloud-warn { color:var(--yellow); font-size:var(--fs-caption-sm); margin-top:.35rem; }
+	.cloud-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.35rem; }
+	.cloud-actions .hub-action { margin:0; }
+
 	.sr { display:flex; justify-content:space-between; align-items:center; padding:.55rem .55rem; border-radius:var(--radius-sm); cursor:pointer; }
 	.sr:hover { background:rgba(255,255,255,.02); }
 	.si { display:flex; flex-direction:column; gap:.08rem; }

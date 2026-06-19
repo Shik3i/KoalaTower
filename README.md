@@ -139,10 +139,10 @@ Backend environment variables:
 | `DATABASE_PATH` | SQLite path, defaults to `/data/flatland.db` |
 | `SESSION_SECRET` | server-only secret for session-token hashes/fingerprints |
 | `AUTH_PASSWORD_PEPPER` | server-only password pepper, never `PUBLIC_` |
-| `KOFI_WEBHOOK_SECRET` | optional shared secret for the Ko-fi webhook foundation |
+| `KOFI_WEBHOOK_SECRET` | shared secret checked against Ko-fi's `verification_token`; **required in production** or the webhook refuses all events |
 | `PUBLIC_ONLINE_FEATURES_ENABLED` | optional public flag for online feature visibility |
 
-SQLite migrations run on first server DB access and record applied versions in `schema_migrations`. WAL mode is enabled when the environment supports it.
+SQLite migrations run on first server DB access and record applied versions in `schema_migrations`. WAL mode is enabled when the environment supports it. Production requires `DATABASE_PATH`, `SESSION_SECRET`, `AUTH_PASSWORD_PEPPER`, and (for the Ko-fi webhook) `KOFI_WEBHOOK_SECRET`. Docker persists SQLite in the `/data` volume.
 
 Auth foundation notes:
 
@@ -151,14 +151,25 @@ Auth foundation notes:
 - session cookies are `httpOnly`, `SameSite=Lax`, and `Secure` in production
 - only SHA-256 session-token hashes are stored in SQLite
 - login/register have basic in-memory rate limiting and generic login errors
+- no password or session token is ever stored in `localStorage`
 
-Ko-fi support-code design:
+Optional account & cloud save (Systems tab in Orbital Command):
 
-- players can have a local anonymous support code before registering
-- future Ko-fi attribution should parse that support code from the donation message, not assume arbitrary webhook query params
-- raw Ko-fi webhook JSON is stored for audit/debugging, but permanent entitlements are not granted blindly
-- verified EUR Ko-fi events can create a global Alloy buff for everyone: `+1%` Alloy per `€1` for `7 days`, capped at `+100%`; non-EUR events are recorded but do not create a buff until conversion rules exist
-- the community buff is not personal pay-to-win and applies to all players
+- account login is optional; normal play stays local-first and offline-capable
+- cloud save is manual and explicit — upload and restore are both user actions
+- cloud save **never** auto-overwrites local data; on login only metadata is fetched
+- restore runs the cloud payload through the standard migration/import pipeline and reloads the app, so a newer-schema cloud save is refused rather than crashing
+
+Ko-fi community buff & support code:
+
+- the Ko-fi webhook endpoint is `/api/kofi/webhook` (i.e. `https://<domain>/api/kofi/webhook`)
+- Ko-fi posts `application/x-www-form-urlencoded` with a `data=<json>` field; raw JSON is also accepted
+- the webhook verifies Ko-fi's `verification_token` against `KOFI_WEBHOOK_SECRET`; a wrong/missing token is rejected with `403` and creates no event
+- in production a missing `KOFI_WEBHOOK_SECRET` disables the webhook entirely (`503`, no event, no buff); dev/test tolerates a missing secret for local testing
+- `verification_token` is redacted before the raw payload is stored
+- players can have a local anonymous support code before registering (shown in Systems); it is account-linked after login. It is for future supporter attribution only
+- the community buff is global: `+1%` Alloy per `€1` for `7 days`, capped at `+100%` server-side (client clamps `0..100`), and fractional EUR amounts are preserved. It applies to **all** players, is shown in the Systems widget, and boosts Alloy income only — never Energy, Strange Matter, Schematics, or personal power
+- if the API/DB is unavailable the buff is treated as `0%` and gameplay is unaffected
 
 ### Publishing a release
 

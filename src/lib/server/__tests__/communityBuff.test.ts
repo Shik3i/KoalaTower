@@ -26,4 +26,22 @@ describe('community buff calculation', () => {
 		expect(result.activePercent).toBe(100);
 		expect(result.capPercent).toBe(100);
 	});
+
+	it('preserves fractional amounts instead of flooring', () => {
+		const result = calculateCommunityBuff([
+			{ percent: 3.5, expires_at: '2026-06-20T00:00:00.000Z' }
+		], now);
+		expect(result.activePercent).toBe(3.5);
+	});
+
+	it('sums fractional amounts and clamps above the cap', () => {
+		expect(calculateCommunityBuff([
+			{ percent: 3.5, expires_at: '2026-06-20T00:00:00.000Z' },
+			{ percent: 2.25, expires_at: '2026-06-21T00:00:00.000Z' }
+		], now).activePercent).toBe(5.75);
+		expect(calculateCommunityBuff([
+			{ percent: 99.6, expires_at: '2026-06-20T00:00:00.000Z' },
+			{ percent: 0.5, expires_at: '2026-06-21T00:00:00.000Z' }
+		], now).activePercent).toBe(100);
+	});
 });

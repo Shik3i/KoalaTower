@@ -25,3 +25,14 @@ export function onlineFeaturesEnabled(): boolean {
 export function getKofiWebhookSecret(): string | null {
 	return process.env.KOFI_WEBHOOK_SECRET || null;
 }
+
+/**
+ * Whether the Ko-fi webhook is allowed to process at all.
+ *
+ * In production a missing KOFI_WEBHOOK_SECRET must disable the endpoint so it
+ * can never become an open event/buff sink. Only dev/test tolerates a missing
+ * secret, purely for local testing.
+ */
+export function isKofiWebhookEnabled(): boolean {
+	return !!getKofiWebhookSecret() || dev;
+}

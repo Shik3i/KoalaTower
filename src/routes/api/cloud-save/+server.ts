@@ -9,15 +9,46 @@ export const prerender = false;
 
 const MAX_SAVE_BYTES = 750_000;
 
+type CloudSaveRow = {
+	save_json: string;
+	schemaVersion: number;
+	gameVersion: string;
+	saveHash: string;
+	updatedAt: string;
+};
+
+function readCloudSave(accountId: string): CloudSaveRow | null {
+	const row = openDatabase().prepare(`
+SELECT save_json, schema_version AS schemaVersion, game_version AS gameVersion, save_hash AS saveHash, updated_at AS updatedAt
+FROM cloud_saves
+WHERE account_id = ?
+	`).get(accountId) as CloudSaveRow | undefined;
+	return row ?? null;
+}
+
 export function GET(event: RequestEvent): Response {
 	const account = getSessionAccount(event.cookies);
 	if (!account) return fail(401, 'unauthorized', 'Login required');
-	const row = openDatabase().prepare(`
-SELECT schema_version AS schemaVersion, game_version AS gameVersion, save_hash AS saveHash, updated_at AS updatedAt
-FROM cloud_saves
-WHERE account_id = ?
-`).get(account.id) as Record<string, unknown> | undefined;
-	return ok({ cloudSave: row ?? null });
+	const row = readCloudSave(account.id);
+	if (!row) {
+		return ok({ exists: false, metadata: null, saveJson: null });
+	}
+	const metadata = {
+		updatedAt: row.updatedAt,
+		schemaVersion: row.schemaVersion,
+		gameVersion: row.gameVersion,
+		saveHash: row.saveHash
+	};
+	const includeSave = new URL(event.request.url).searchParams.get('includeSave') === '1';
+	let saveJson: unknown = null;
+	if (includeSave) {
+		try {
+			saveJson = JSON.parse(row.save_json);
+		} catch {
+			saveJson = null;
+		}
+	}
+	return ok({ exists: true, metadata, saveJson });
 }
 
 export async function PUT(event: RequestEvent): Promise<Response> {
