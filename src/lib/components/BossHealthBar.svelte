@@ -2,18 +2,10 @@
 	import Icon from './Icon.svelte';
 	import { formatCompact } from '$lib/game/balance/balanceMath';
 
-	let { hp, maxHp, wave, segments = 1 }:
-		{ hp: number; maxHp: number; wave: number; segments?: number } = $props();
+	let { hp, maxHp, wave }:
+		{ hp: number; maxHp: number; wave: number } = $props();
 
-	// Layered health: each segment is one "bar". The current segment fills/empties
-	// and cycles colour as it depletes. With segments=1 this is a plain bar — but
-	// the structure supports very-high-HP bosses later (peel a colour per layer).
-	const LAYER_COLORS = ['#FF44AA', '#FF6644', '#FFAA22', '#FFDD44', '#44FFAA', '#44AAFF'];
-
-	let layerHp = $derived(maxHp > 0 ? maxHp / Math.max(1, segments) : 1);
-	let currentLayer = $derived(Math.max(1, Math.ceil(hp / layerHp)));
-	let withinLayer = $derived(Math.max(0, Math.min(1, (hp - (currentLayer - 1) * layerHp) / layerHp)));
-	let color = $derived(LAYER_COLORS[(currentLayer - 1) % LAYER_COLORS.length]);
+	const color = '#FF44AA';
 	let pct = $derived(Math.max(0, Math.min(100, (hp / maxHp) * 100)));
 </script>
 
@@ -30,18 +22,8 @@
 		aria-valuemax={100}
 		aria-label="Boss health: {Math.round(pct)}%"
 	>
-		<!-- Ghost of total HP across all layers -->
-		<div class="boss-total" style="width:{pct}%"></div>
-		<!-- Current layer fill (sits on top) — presentational only -->
-		<div class="boss-fill" style="width:{withinLayer * 100}%" aria-hidden="true"></div>
+		<div class="boss-fill" style="width:{pct}%" aria-hidden="true"></div>
 	</div>
-	{#if segments > 1}
-		<div class="boss-pips">
-			{#each Array(segments) as _, i}
-				<span class="pip" class:spent={i + 1 > currentLayer} class:active={i + 1 === currentLayer}></span>
-			{/each}
-		</div>
-	{/if}
 </div>
 
 <style>
@@ -65,19 +47,10 @@
 		position: relative; height: 12px; border-radius: 6px; overflow: hidden;
 		background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08);
 	}
-	.boss-total {
-		position: absolute; inset: 0 auto 0 0; height: 100%;
-		background: color-mix(in srgb, var(--bc) 22%, transparent);
-		transition: width .25s ease;
-	}
 	.boss-fill {
 		position: absolute; inset: 0 auto 0 0; height: 100%; border-radius: 6px;
 		background: linear-gradient(90deg, color-mix(in srgb, var(--bc) 60%, #000), var(--bc));
 		box-shadow: 0 0 12px var(--bc); transition: width .15s ease;
 	}
-	.boss-pips { display: flex; gap: 3px; margin-top: .35rem; }
-	.pip { flex: 1; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--bc) 70%, transparent); }
-	.pip.spent { background: rgba(255,255,255,.1); }
-	.pip.active { box-shadow: 0 0 6px var(--bc); }
 	@keyframes bb-in { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 </style>
