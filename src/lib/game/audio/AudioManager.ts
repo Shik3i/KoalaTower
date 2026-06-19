@@ -34,6 +34,7 @@ class AudioManagerImpl {
 	private sfxEnabled = true;
 	private musicEnabled = false;
 	private unlocked = false;
+	private lastError: string | null = null;
 
 	private lastShoot = 0;          // ctx time of last shoot blip (throttle)
 	private musicNodes: AudioScheduledSourceNode[] = [];
@@ -44,7 +45,10 @@ class AudioManagerImpl {
 		if (this.ctx) return this.ctx;
 		if (typeof window === 'undefined') return null;
 		const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-		if (!Ctor) return null;
+		if (!Ctor) {
+			this.lastError = 'Web Audio is not available in this browser.';
+			return null;
+		}
 		try {
 			this.ctx = new Ctor();
 			this.master = this.ctx.createGain();
@@ -58,19 +62,25 @@ class AudioManagerImpl {
 			this.musicBus = this.ctx.createGain();
 			this.musicBus.gain.value = 0.35;
 			this.musicBus.connect(this.master);
+			this.lastError = null;
 		} catch {
 			this.ctx = null;
+			this.lastError = 'Audio could not be initialized. Browser or device audio policy refused the audio context.';
 		}
 		return this.ctx;
 	}
 
 	/** Call from a user gesture (click/keydown) to satisfy autoplay policies. */
-	unlock(): void {
+	unlock(): boolean {
 		const ctx = this.ensureCtx();
-		if (!ctx) return;
-		if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+		if (!ctx) return false;
+		if (ctx.state === 'suspended') ctx.resume().catch(() => {
+			this.lastError = 'Audio is blocked by the browser until a user gesture is accepted.';
+		});
 		this.unlocked = true;
 		if (this.musicEnabled) this.startMusic();
+		this.lastError = null;
+		return true;
 	}
 
 	setSfxEnabled(on: boolean): void {
@@ -88,6 +98,7 @@ class AudioManagerImpl {
 
 	isSfxEnabled(): boolean { return this.sfxEnabled; }
 	isMusicEnabled(): boolean { return this.musicEnabled; }
+	getLastError(): string | null { return this.lastError; }
 
 	// ─── Synthesis helpers ──────────────────────────────────────────────────
 

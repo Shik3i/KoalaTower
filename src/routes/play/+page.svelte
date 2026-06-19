@@ -322,8 +322,29 @@
 	}
 
 	/** Quick toggle from the top bar; persists like any other setting. */
-	function toggleSfx() { audio.unlock(); updateSetting('sfx', !settings.sfx); }
-	function toggleMusic() { audio.unlock(); updateSetting('music', !settings.music); }
+	function warnIfAudioBlocked(): boolean {
+		if (audio.unlock()) return false;
+		toast(audio.getLastError() ?? 'Audio is unavailable in this browser.', 'warning', 5000);
+		return true;
+	}
+
+	function toggleSfx() {
+		const blocked = warnIfAudioBlocked();
+		updateSetting('sfx', !blocked && !settings.sfx);
+	}
+
+	function toggleMusic() {
+		const blocked = warnIfAudioBlocked();
+		updateSetting('music', !blocked && !settings.music);
+	}
+
+	function setSfx(on: boolean) {
+		updateSetting('sfx', on && !warnIfAudioBlocked());
+	}
+
+	function setMusic(on: boolean) {
+		updateSetting('music', on && !warnIfAudioBlocked());
+	}
 
 	function wireEngineCallbacks(): void {
 		if (!engine) return;
@@ -855,11 +876,11 @@
 						</label>
 						<label class="set-row" title="Combat & UI sounds">
 							<span>Sound Effects</span>
-							<input type="checkbox" checked={settings.sfx} onchange={(e) => { audio.unlock(); updateSetting('sfx', (e.target as HTMLInputElement).checked); }} />
+							<input type="checkbox" checked={settings.sfx} onchange={(e) => setSfx((e.target as HTMLInputElement).checked)} />
 						</label>
 						<label class="set-row" title="Ambient background loop">
 							<span>Music</span>
-							<input type="checkbox" checked={settings.music} onchange={(e) => { audio.unlock(); updateSetting('music', (e.target as HTMLInputElement).checked); }} />
+							<input type="checkbox" checked={settings.music} onchange={(e) => setMusic((e.target as HTMLInputElement).checked)} />
 						</label>
 					</div>
 				{/if}
