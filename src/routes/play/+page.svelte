@@ -115,6 +115,7 @@
 
 	let showSaveMenu = $state(false);
 	let showSaveIndicator = $state(false);
+	let tutorialReplayKey = $state(0);
 	let showSettings = $state(false);
 	let importText = $state('');
 	let showImportDialog = $state(false);
@@ -800,6 +801,16 @@
 		});
 	}
 
+	function replayDeploymentTutorial() {
+		try {
+			localStorage.removeItem(PLAY_TUTORIAL_KEY);
+		} catch {
+			// Storage may be blocked; remounting still replays this session.
+		}
+		tutorialReplayKey++;
+		toast('Deployment tutorial restarted.', 'info');
+	}
+
 	function updateSetting(key: keyof GameSettings, value: boolean) {
 		const save = getCachedSave();
 		if (!save) return;
@@ -885,6 +896,7 @@
 			{/if}
 			<button class="ibtn" class:off={!settings.sfx} onclick={toggleSfx} aria-label="Toggle sound effects" use:tooltip={`Sound effects: ${settings.sfx ? 'ON' : 'OFF'}\nCombat & UI sounds. Click to toggle.`}><Icon name={settings.sfx ? 'soundOn' : 'soundOff'} size={17} /></button>
 			<button class="ibtn" class:off={!settings.music} onclick={toggleMusic} aria-label="Toggle music" use:tooltip={`Music: ${settings.music ? 'ON' : 'OFF'}\nAmbient background loop. Click to toggle.`}><Icon name={settings.music ? 'musicOn' : 'musicOff'} size={17} /></button>
+			<button class="ibtn" onclick={replayDeploymentTutorial} aria-label="Replay deployment tutorial" use:tooltip={'Replay the deployment tutorial on this page.'}><Icon name="help" size={17} /></button>
 			<div class="save-indicator" class:saving={showSaveIndicator} class:failed={saveStatus.writeFailed} role="status" aria-label={saveIndicatorText()} title={saveIndicatorText()}></div>
 			<div class="sv-wrap">
 				<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu" title="Export / Import / Reset save data"><Icon name="save" size={17} /></button>
@@ -942,7 +954,9 @@
 	</header>
 
 	<!-- ===== Tutorial ===== -->
-	<Tutorial steps={playTutorialSteps} tutorialKey={PLAY_TUTORIAL_KEY} />
+	{#key tutorialReplayKey}
+		<Tutorial steps={playTutorialSteps} tutorialKey={PLAY_TUTORIAL_KEY} />
+	{/key}
 
 	<!-- Mobile Speed Bar -->
 	{#if isMobile && snap?.runActive}
