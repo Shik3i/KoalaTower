@@ -1,31 +1,89 @@
-# KoalaTower behind an existing Caddy reverse proxy
+# Flatland TD — optional online foundation deployment
 #
-# Usage:
-#   docker compose -f docker-compose.example.yml up -d
+# Two usage modes are documented below.  Pick one.
 #
-# This example assumes you have a Caddy reverse proxy running on docker
-# network "caddy_net" that handles TLS termination and domain routing.
+# ── Mode 1: Standalone (uncomment the `ports` block and comment `networks`) ──
+# ── Mode 2: Behind Caddy reverse proxy (default) ────────────────────────────
+#
+# ## Mode 2: Caddy reverse proxy
+#
+# This example assumes you have a Caddy reverse proxy running on the Docker
+# network `caddy_net` that handles TLS termination and domain routing.
 #
 # Example Caddyfile snippet:
-#   koalatower.example.com {
-#       reverse_proxy koala-tower:8080
-#   }
+#     tower.example.com {
+#         reverse_proxy koala-tower:8080
+#     }
+#
+# The Ko-fi webhook URL is then:  https://tower.example.com/api/kofi/webhook
+#
+# ## Persistence
+#
+# SQLite lives in the `/data` volume.  Back it up periodically.  The
+# `read_only: true` flag only affects the root filesystem; the mounted
+# volume remains writable.
 
 services:
   koala-tower:
-    image: ghcr.io/shik3i/koalatower:latest
+    # When the image is published to a registry, switch to `image:`.
+    # For local / branch development build from source:
+    build:
+      context: .
+    #   dockerfile: Dockerfile
+    # image: ghcr.io/shik3i/koalatower:latest
     container_name: koala-tower
     restart: unless-stopped
+
+    # ── Secrets — replace every value before deploying! ──────────────
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DATABASE_PATH: /data/flatland.db
+
+      # Generate with:  node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+      SESSION_SECRET: replace-with-long-random-secret
+
+      # Generate with:  node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+      AUTH_PASSWORD_PEPPER: replace-with-long-random-pepper
+
+      # Must match the Ko-fi verification_token.  Leave empty to disable the webhook.
+      KOFI_WEBHOOK_SECRET: replace-with-your-kofi-verification-token
+
+      # Set to "false" to hide online-feature UI
+      PUBLIC_ONLINE_FEATURES_ENABLED: "true"
+
+    # ── Standalone mode: uncomment these two lines ───────────────────
+    # ports:
+    #   - "3000:8080"
+
+    # ── Behind Caddy: expose internally only ─────────────────────────
     expose:
       - "8080"
-    networks:
-      - caddy_net
+
+    volumes:
+      - koala-tower-data:/data
+
+    # ── Security hardening (optional) ─────────────────────────────────
     read_only: true
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
 
+    # ── Health check (optional, low-risk) ────────────────────────────
+    healthcheck:
+      test: ["CMD-SHELL", "node -e 'fetch(\"http://localhost:8080/api/health\").then(r => { if (r.status !== 200) process.exit(1); }).catch(() => process.exit(1))'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+# ── Caddy network (external or created automatically) ──────────────
 networks:
   caddy_net:
+    # Use `external: true` if Caddy is managed separately.
+    # Remove `external` to let Compose create the network.
     external: true
+
+volumes:
+  koala-tower-data:

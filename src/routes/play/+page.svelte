@@ -26,6 +26,7 @@
 	import { isChallengeUnlocked } from '$lib/game/balance/challenges';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
+	import { applyCommunityBuff, communityBuffStore } from '$lib/online/communityBuffClient';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
 	import { checkAchievements } from '$lib/game/balance/achievements';
 	import { engineStore } from '$lib/stores/gameStore';
@@ -106,6 +107,8 @@
 	let showImportDialog = $state(false);
 	let showResetConfirm = $state(false);
 	let coinsAtRunStart = $state(0);
+	// Community Alloy Boost — cached from /api/community-buff. 0 when offline.
+	let currentBuffPercent = $state(0);
 	let autoDeploymentArmed = $state(false);
 	let autoDeploymentCountdown = $state(0);
 	let autoDeploymentTimer: ReturnType<typeof setInterval> | null = null;
@@ -132,6 +135,9 @@
 		const u2 = settingsStore.subscribe(s => { settings = s; syncSettingsToEngine(s); });
 		const u3 = highestWaveStore.subscribe(w => highestWave = w);
 		const u4 = totalRunsStore.subscribe(r => totalRuns = r);
+		// Community buff: subscribe for the live percent and refresh the cache if stale.
+		const u5 = communityBuffStore.subscribe(s => { currentBuffPercent = s.percent; });
+		void communityBuffStore.refreshIfStale();
 		const cachedSave = getCachedSave();
 		if (cachedSave?.selectedFront) selectedFront = cachedSave.selectedFront;
 		if (cachedSave?.frontBestWave) frontBestWave = { ...cachedSave.frontBestWave };
@@ -169,7 +175,7 @@
 			window.removeEventListener('resize', cm);
 			window.removeEventListener('keydown', onKey);
 			window.removeEventListener('keyup', onKeyUp);
-			u1(); u2(); u3(); u4(); unsubEngine();
+			u1(); u2(); u3(); u4(); u5(); unsubEngine();
 		};
 	});
 
@@ -313,15 +319,28 @@
 					const isNewBest = engine.state.highestWave > save.highestWave;
 					const runCoinsEarned = Math.max(0, engine.state.coins - coinsAtRunStart);
 
-					save.totalCoins = engine.state.coins;
+					// ── Community Alloy Boost (Ko-fi community buff) ──
+					// Applies additively to THIS run's Alloy income only, as a global
+					// multiplier. Clamped to 0..100 on the client; server caps at +100%.
+					// Energy / Strange Matter / Schematics / Command Orders are untouched.
+					const buffedEarned = applyCommunityBuff(runCoinsEarned, currentBuffPercent);
+					const communityBuffBonus = buffedEarned - runCoinsEarned;
+
+					save.totalCoins = engine.state.coins + communityBuffBonus;
 					save.totalRuns = engine.state.totalRuns;
 					save.highestWave = Math.max(save.highestWave, engine.state.highestWave);
 
 					save.totalKills += engine.state.killCount;
 					save.totalBossesDefeated += engine.state.bossesDefeated;
 					save.totalShiniesKilled += engine.state.shiniesKilled;
-					save.totalAlloyEarned += runCoinsEarned;
+					save.totalAlloyEarned += buffedEarned;
 					save.bestKillstreak = Math.max(save.bestKillstreak ?? 0, engine.state.killstreak?.best ?? 0);
+
+					if (communityBuffBonus > 0) {
+						gameOverCoins += communityBuffBonus;
+						coinsStore.set(save.totalCoins);
+						toast('🛰️ Community Alloy Boost — +' + communityBuffBonus.toLocaleString() + ' Alloy', 'success');
+					}
 
 					// Aggregate per-run kill counts into lifetime save stats
 					if (engine.state.killsByType) {

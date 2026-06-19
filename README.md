@@ -4,7 +4,7 @@
 
 > *"Deploy towers. Question nothing. Refine Alloy."*
 
-A beautiful, fully playable idle tower defense game built with **Svelte 5 + TypeScript + PixiJS v8 (WebGL)**. No backend, no tracking, no cookies — entirely self-contained static web app.
+A beautiful, fully playable idle tower defense game built with **Svelte 5 + TypeScript + PixiJS v8 (WebGL)**. Flatland TD is local-first: normal play works without login, analytics, payment checks, or backend availability after the app is loaded/cached. Optional online features can be enabled by the same Node server that serves the app.
 
 **▶ [Play now at tower.koalastuff.net](https://tower.koalastuff.net)**
 
@@ -63,8 +63,8 @@ npm test            # run the Vitest suite
 | Storage | **IndexedDB** via idb-keyval |
 | Audio | Procedural **Web Audio API** (no asset files) |
 | Testing | **Vitest** (400+ tests across 20+ files) |
-| Build | **Vite** + @sveltejs/adapter-static (Brotli + Gzip precompression) |
-| Container | Multi-arch **Docker** (amd64 + arm64) |
+| Build | **Vite** + @sveltejs/adapter-node |
+| Container | Single-container **Docker** Node server |
 | PWA | Installable + offline-ready via SvelteKit service worker |
 
 ---
@@ -97,7 +97,7 @@ src/
     ├── hub/+page.svelte     # Forge · Research Deck · Schematics · Fronts · Black Market · Simulation · Archives
     ├── help/+page.svelte    # FAQ (12 questions) · Lore · Controls · Tutorial replay
     ├── imprint/+page.svelte # Legal notice
-    ├── privacy/+page.svelte # Privacy policy (100% local data)
+    ├── privacy/+page.svelte # Privacy policy (local-first + optional online)
     └── sitemap.xml/         # Dynamic XML sitemap
 ```
 
@@ -105,15 +105,114 @@ src/
 
 ## 🐳 Docker
 
-Multi-arch images published automatically on Git tags.
+**One container, one process.** The Node/SvelteKit server serves the frontend (prerendered HTML + client assets) **and** every `/api/*` route. SQLite stores all server-side data in a persistent `/data` volume. No Postgres, Redis, or second container is needed.
+
+### Build
 
 ```bash
-docker pull ghcr.io/shik3i/koalatower:latest
-docker run -p 8080:8080 ghcr.io/shik3i/koalatower:latest
-# → http://localhost:8080
+# Local / branch build
+docker build -t flatland-td .
+
+# With a version label
+docker build --build-arg VITE_APP_VERSION=v0.5.7 -t flatland-td:v0.5.7 .
 ```
 
-Docker Compose + Caddy reverse proxy examples in `examples/` and `docker-compose.example.yml`.
+### Run
+
+```bash
+docker run --rm -p 3000:8080 \
+  -v flatland-data:/data \
+  -e NODE_ENV=production \
+  -e PORT=8080 \
+  -e DATABASE_PATH=/data/flatland.db \
+  -e SESSION_SECRET="replace-with-long-random-secret" \
+  -e AUTH_PASSWORD_PEPPER="replace-with-long-random-pepper" \
+  -e KOFI_WEBHOOK_SECRET="replace-with-your-kofi-verification-token" \
+  flatland-td
+# → http://localhost:3000
+```
+
+### Docker Compose
+
+See `docker-compose.example.yml` for a production-ready deployment with Caddy reverse proxy.  The example covers:
+
+- persistent `/data` volume for SQLite
+- healthcheck hitting `/api/health`
+- optional read-only root filesystem
+- standalone (port-mapped) vs reverse-proxy (Caddy) modes
+- security hardening (`cap_drop`, `no-new-privileges`)
+
+### Caddy / reverse proxy
+
+One container serves everything.  Point your reverse proxy at the app container's internal port (default `8080`).  The Ko-fi webhook URL is then:
+
+```
+https://<your-domain>/api/kofi/webhook
+```
+
+Example Caddyfile for `docker-compose.example.yml`:
+
+```
+tower.example.com {
+    reverse_proxy koala-tower:8080
+}
+```
+
+### `/data` volume
+
+SQLite lives at `DATABASE_PATH` (default `/data/flatland.db`).  This path **must** be on a persistent Docker volume or bind mount.  SQLite uses WAL mode — back up the `.db`, `.db-wal`, and `.db-shm` files together.
+
+### Optional Online Features
+
+Flatland TD keeps **local-first gameplay** as a hard rule:
+
+- **No login required for normal play**
+- local saves remain primary and are not overwritten automatically
+- API failures are treated as offline state, not gameplay failures
+- the service worker bypasses `/api/`, while cached gameplay assets remain available offline
+- unverified leaderboard scores are community/fun only
+- verified challenge leaderboard will require login and stricter validation later
+
+Backend environment variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `NODE_ENV` | `production` enables secure session cookies |
+| `PORT` | Node server port, defaults to `8080` in Docker |
+| `DATABASE_PATH` | SQLite path, defaults to `/data/flatland.db` |
+| `SESSION_SECRET` | **required in production** — server-only secret for session-token hashes/fingerprints |
+| `AUTH_PASSWORD_PEPPER` | **required in production** — server-only password pepper, never `PUBLIC_` |
+| `KOFI_WEBHOOK_SECRET` | shared secret checked against Ko-fi's `verification_token`; **required in production** or the webhook refuses all events (`503`) |
+| `PUBLIC_ONLINE_FEATURES_ENABLED` | optional public flag for online feature visibility |
+
+SQLite migrations run on first server DB access and record applied versions in `schema_migrations`. WAL mode is enabled when the environment supports it. Production requires `DATABASE_PATH`, `SESSION_SECRET`, `AUTH_PASSWORD_PEPPER`, and (for the Ko-fi webhook) `KOFI_WEBHOOK_SECRET`. Docker persists SQLite in the `/data` volume.
+
+Auth foundation notes:
+
+- username/password auth uses bcrypt-compatible hashes with cost `12`
+- password hashes are based on `password + AUTH_PASSWORD_PEPPER`
+- session cookies are `httpOnly`, `SameSite=Lax`, and `Secure` in production
+- only SHA-256 session-token hashes are stored in SQLite
+- login/register have basic in-memory rate limiting and generic login errors
+- no password or session token is ever stored in `localStorage`
+
+Optional account & cloud save (Systems tab in Orbital Command):
+
+- account login is optional; normal play stays local-first and offline-capable
+- cloud save is manual and explicit — upload and restore are both user actions
+- cloud save **never** auto-overwrites local data; on login only metadata is fetched
+- restore runs the cloud payload through the standard migration/import pipeline and reloads the app, so a newer-schema cloud save is refused rather than crashing
+
+Ko-fi community buff & support code:
+
+- the Ko-fi webhook endpoint is `/api/kofi/webhook` (i.e. `https://<domain>/api/kofi/webhook`)
+- Ko-fi posts `application/x-www-form-urlencoded` with a `data=<json>` field; raw JSON is also accepted
+- the webhook verifies Ko-fi's `verification_token` against `KOFI_WEBHOOK_SECRET`; a wrong/missing token is rejected with `403` and creates no event
+- in production a missing `KOFI_WEBHOOK_SECRET` disables the webhook entirely (`503`, no event, no buff); dev/test tolerates a missing secret for local testing
+- `verification_token` is redacted before the raw payload is stored
+- players can have a local anonymous support code before registering (shown in Systems); it is account-linked after login. It is for future supporter attribution only
+- the community buff is global: `+1%` Alloy per `€1` for `7 days`, capped at `+100%` server-side (client clamps `0..100`), and fractional EUR amounts are preserved. It applies to **all** players, is shown in the Systems widget, and boosts Alloy income only — never Energy, Strange Matter, Schematics, or personal power
+- if the API/DB is unavailable the buff is treated as `0%` and gameplay is unaffected
 
 ### Publishing a release
 
@@ -127,9 +226,9 @@ git push origin v0.5.0
 
 ## 🔒 Privacy
 
-- **100% local** — all data stored in your browser (IndexedDB)
-- **No backend** — fully static, no servers, no accounts, no login
-- **No tracking** — zero analytics, zero cookies, zero external requests
+- **Local-first** — normal saves stay in your browser (IndexedDB)
+- **Optional online features** — accounts, sessions, cloud-save scaffolding, and community APIs are not required for normal play
+- **No tracking** — zero analytics; an `httpOnly` session cookie is used only if you log in
 - **No CDN** — fonts and assets are self-hosted
 - Export/Import save as JSON with encoding + checksums
 - Reset save with confirmation dialog

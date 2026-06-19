@@ -4,7 +4,7 @@
 
 <svelte:head>
 	<title>Privacy Policy — Flatland TD · FLTD</title>
-	<meta name="description" content="Flatland TD privacy policy: all data stored locally in your browser. No cookies, no tracking, no backend. Server logs deleted after 7 days." />
+	<meta name="description" content="Flatland TD privacy policy: local-first gameplay, optional online features, no tracking, and short-lived server logs." />
 	<meta name="robots" content="index, follow" />
 </svelte:head>
 
@@ -20,9 +20,10 @@
 		<section>
 			<h2>🔒 Overview</h2>
 			<p>
-				Flatland TD is a static web application. It does <strong>not</strong> operate any backend servers,
-				databases, or user accounts. All game data is processed and stored exclusively
-				in your browser. No personal data is transmitted to us or to any third party.
+				Flatland TD is a <strong>local-first</strong> game. Normal gameplay, local saves,
+				settings, and progression are processed and stored in your browser. No login is
+				required for normal play, and the game remains playable when optional online
+				APIs are unavailable after the app has loaded.
 			</p>
 		</section>
 
@@ -42,6 +43,22 @@
 				import previously exported saves, or reset all data at any time from the
 				in-game settings menu or the Hub.
 			</p>
+		</section>
+
+		<section>
+			<h2>🛰 Optional Online Features</h2>
+			<p>
+				Optional online features may include accounts, session cookies, anonymous local
+				profile sync, unverified leaderboards, cloud-save scaffolding, and community
+				buff APIs. These features are not required for normal play and are designed to
+				fail closed into local/offline behavior.
+			</p>
+			<ul>
+				<li>No login is required for normal gameplay</li>
+				<li>Local saves are not overwritten automatically</li>
+				<li>Unverified leaderboard scores are community/fun only</li>
+				<li>Verified challenge leaderboards will require stricter validation later</li>
+			</ul>
 		</section>
 
 		<section>
@@ -70,9 +87,10 @@
 		<section>
 			<h2>🍪 Cookies</h2>
 			<p>
-				Flatland TD does <strong>not</strong> use cookies. No tracking cookies, no
-				session cookies, no analytics cookies. The application is fully functional
-				without any cookies.
+				Flatland TD does <strong>not</strong> use tracking or analytics cookies. If you
+				register or log in for optional online features, the server uses an
+				<strong>httpOnly</strong> session cookie. The application is fully functional
+				for normal play without logging in.
 			</p>
 		</section>
 
@@ -95,10 +113,11 @@
 		<section>
 			<h2>📤 No Network Requests</h2>
 			<p>
-				During normal gameplay, Flatland TD makes <strong>zero</strong> network requests.
-				There is no telemetry, no error reporting, no update checks, and no analytics
-				pings. The application is fully self-contained and works offline after the
-				initial page load (except for the initial load of the static files).
+				During normal gameplay, Flatland TD does <strong>not</strong> send telemetry,
+				error reports, analytics pings, or tracking beacons. Optional online API
+				requests are limited to explicit online features and are not required for
+				local play. The application works offline after the initial page load and
+				cache, except for optional online features.
 			</p>
 		</section>
 
@@ -114,10 +133,10 @@
 		<section>
 			<h2>🔐 Data Security</h2>
 			<p>
-				Since all data resides exclusively in your browser's IndexedDB, data security
-				is handled by your browser's built-in security model. No data is transmitted
-				over the network, eliminating common attack vectors such as man-in-the-middle
-				interception or server-side breaches.
+				Local save data resides in your browser's IndexedDB and is protected by your
+				browser's security model. Optional account passwords are hashed server-side
+				with bcrypt-compatible hashing and a server-only pepper. Session tokens are
+				stored as hashes, never as raw tokens.
 			</p>
 		</section>
 
