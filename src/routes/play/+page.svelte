@@ -114,6 +114,7 @@
 	let autoDeploymentArmed = $state(false);
 	let autoDeploymentCountdown = $state(0);
 	let autoDeploymentTimer: ReturnType<typeof setInterval> | null = null;
+	let pageVisibilityHandler: (() => void) | null = null;
 
 	// Cosmetic killstreak state — purely visual HUD chip, no economy / combat tie-in.
 	let killstreakCount = $state(0);
@@ -147,6 +148,12 @@
 		if (cachedSave?.challengeHighScores) challengeHighScores = { ...cachedSave.challengeHighScores };
 		window.addEventListener('keydown', onKey);
 		window.addEventListener('keyup', onKeyUp);
+		document.addEventListener('visibilitychange', pageVisibilityHandler = () => {
+			if (document.visibilityState === 'hidden' && engine?.state.runActive && !engine.isPaused()) {
+				engine.togglePause();
+				refreshSnap();
+			}
+		});
 
 		// Restore engine if it exists in the store (from previous visit)
 		const unsubEngine = engineStore.subscribe(e => {
@@ -183,6 +190,7 @@
 
 	onDestroy(() => {
 		clearAutoDeployment();
+		if (pageVisibilityHandler) document.removeEventListener('visibilitychange', pageVisibilityHandler);
 		if (engine) {
 			engine.state.paused = true;
 			engine.setCallbacks({});
