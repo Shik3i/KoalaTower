@@ -88,6 +88,7 @@
 	<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} use:tooltip={'Defense — flat damage reduction and Max HP.'}><Icon name="defense" size={13} /> Defense</button>
 	<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} use:tooltip={'Utility — Energy Amp (+% energy per kill).'}><Icon name="utility" size={13} /> Utility</button>
 </div>
+<p class="field-note">This run only. Field levels reset when the tower falls.</p>
 {#if showBuyMultiplier}
 	<div class="buy-mult">
 		<span class="mult-label">Buy</span>
@@ -95,6 +96,7 @@
 			<button class="mult-btn" class:on={buyMultiplier === val} onclick={() => buyMultiplier = val} use:tooltip={val === 'max' ? 'Buy as many levels as you can afford.\nShortcut: hold Ctrl.' : val === 50 ? 'Buy up to 50 levels.\nShortcut: Shift + Ctrl.' : val === 10 ? 'Buy up to 10 levels at once.' : val === 5 ? 'Buy up to 5 levels.\nShortcut: hold Shift.' : 'Buy a single level.'}>{val === 'max' ? 'Max' : '×' + val}</button>
 		{/each}
 	</div>
+	<p class="mult-note">Hold Shift for 5 levels, Ctrl for Max.</p>
 {/if}
 <div class="ug" class:ug-scroll={scrollList}>
 	{#each BATTLE_UPGRADES.filter(u => u.category === upgradeCategory) as u}
@@ -135,7 +137,9 @@
 	.cat-tab { flex:1; padding:.25rem .2rem; font-size:var(--fs-body-sm); color:var(--text-secondary); border-radius:4px; transition:all var(--transition-fast); text-align:center; cursor:pointer; }
 	.cat-tab.on { color:var(--cyan); background:rgba(0,255,255,.08); }
 	.cat-tab:hover:not(.on) { color:var(--text-primary); background:rgba(255,255,255,.02); }
+	.field-note, .mult-note { margin:0 0 .35rem; color:var(--text-dim); font-size:var(--fs-caption-sm); line-height:1.25; }
 	.buy-mult { display:flex; align-items:center; gap:2px; margin-bottom:.35rem; }
+	.mult-note { margin-top:-.2rem; }
 	.mult-label { font-size:var(--fs-caption-sm); color:var(--text-dim); font-family:var(--font-mono); margin-right:.2rem; }
 	.mult-btn { padding:.15rem .35rem; font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); border-radius:4px; background:rgba(0,0,0,.12); border:1px solid transparent; cursor:pointer; transition:all var(--transition-fast); }
 	.mult-btn:hover { color:var(--text-secondary); border-color:var(--border-neon); }
