@@ -19,6 +19,7 @@
  */
 
 import { CURRENT_SCHEMA_VERSION } from './saveTypes';
+import { APP_VERSION } from '$lib/version';
 
 const FLTD_SAVE_FORMAT = 'FLTD_SAVE';
 const FLTD_SAVE_FORMAT_VERSION = 1;
@@ -157,7 +158,7 @@ export async function encodeSaveContainer(saveJson: string): Promise<ExportResul
 			format: FLTD_SAVE_FORMAT,
 			formatVersion: FLTD_SAVE_FORMAT_VERSION,
 			game: 'Flatland TD',
-			gameVersion: (typeof process !== 'undefined' && process.env?.VITE_APP_VERSION) || 'DEV',
+			gameVersion: APP_VERSION,
 			exportedAt: new Date().toISOString(),
 			encoding: 'base64url+sha256',
 			payload,

@@ -95,7 +95,7 @@ src/
     ├── +page.svelte         # Landing page with animated stars + news
     ├── play/+page.svelte    # Game canvas + HUD + vignette + boss intro + killstreak chip
     ├── hub/+page.svelte     # Forge · Research Deck · Schematics · Fronts · Black Market · Simulation · Archives
-    ├── help/+page.svelte    # FAQ (12 questions) · Lore · Controls · Tutorial replay
+    ├── help/+page.svelte    # FAQ · Lore · Controls · Tutorial replay
     ├── imprint/+page.svelte # Legal notice
     ├── privacy/+page.svelte # Privacy policy (local-first + optional online)
     └── sitemap.xml/         # Dynamic XML sitemap
@@ -114,7 +114,7 @@ src/
 docker build -t flatland-td .
 
 # With a version label
-docker build --build-arg VITE_APP_VERSION=v0.5.7 -t flatland-td:v0.5.7 .
+docker build --build-arg VITE_APP_VERSION=v0.8.1 -t flatland-td:v0.8.1 .
 ```
 
 ### Run
@@ -263,7 +263,7 @@ Test coverage includes: enemy scaling formulas, upgrade cost curves, save migrat
 
 ## 🚧 Alpha Notes
 
-Flatland TD v0.5.7 — **Alpha Release Candidate** — is alpha software. It is local-first, offline-friendly, and playable without login, analytics, backend APIs, cloud saves, or payment checks.
+Flatland TD v0.8.1 — **Pre-Release** — is alpha software. It is local-first, offline-friendly, and playable without login, analytics, backend APIs, cloud saves, or payment checks.
 
 Known limits: all 16 Fronts are structurally active, but high-end Blacksite/Anomaly mechanics are still scaffolded and not final balance. The Outsourced Research Lab is visible as Coming Later and is not active. Black Market support links are optional; Daily Pickup and Weekly Shipment rewards are never gated by payment or online checks.
 
