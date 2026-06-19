@@ -35,14 +35,37 @@
 		lastSuccessfulWriteAt: null,
 		lastFailureAt: null,
 	});
+	let clientErrorMessage = $state('');
 	let labInterval: ReturnType<typeof setInterval> | null = null;
 	let visibilityHandler: (() => void) | null = null;
+	let clientErrorHandler: ((event: ErrorEvent) => void) | null = null;
+	let rejectionHandler: ((event: PromiseRejectionEvent) => void) | null = null;
 	let unsubscribeSaveStatus: (() => void) | null = null;
 	let lastSaveStatusToast = '';
+	let lastClientErrorToast = '';
 	const toasts = createToastStore(3000);
 	const toast = toasts.push;
 
 	onMount(async () => {
+		function reportClientError(message: string): void {
+			clientErrorMessage = message;
+			if (message !== lastClientErrorToast) {
+				lastClientErrorToast = message;
+				toast(message, 'error', 7000);
+			}
+		}
+
+		clientErrorHandler = (event) => {
+			console.error('[FlatlandTD] Client error:', event.error ?? event.message);
+			reportClientError('Unexpected client error. Reload if the interface stops responding.');
+		};
+		rejectionHandler = (event) => {
+			console.error('[FlatlandTD] Unhandled promise rejection:', event.reason);
+			reportClientError('Unexpected async error. Reload if the interface stops responding.');
+		};
+		window.addEventListener('error', clientErrorHandler);
+		window.addEventListener('unhandledrejection', rejectionHandler);
+
 		unsubscribeSaveStatus = saveStatusStore.subscribe(status => {
 			saveStatus = status;
 			const msg = status.writeFailed
@@ -135,6 +158,8 @@
 onDestroy(() => {
 		if (labInterval !== null) clearInterval(labInterval);
 		if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
+		if (clientErrorHandler) window.removeEventListener('error', clientErrorHandler);
+		if (rejectionHandler) window.removeEventListener('unhandledrejection', rejectionHandler);
 		unsubscribeSaveStatus?.();
 	});
 </script>
@@ -151,6 +176,14 @@ onDestroy(() => {
 	<div class="save-alert" role="alert">
 		<strong>{saveStatus.writeFailed ? 'Save failed' : 'Save recovery'}</strong>
 		<span>{saveStatus.writeFailed ? (saveStatus.message ?? 'Browser storage is unavailable. Progress may not be saved.') : saveStatus.loadWarning}</span>
+	</div>
+{/if}
+
+{#if clientErrorMessage}
+	<div class="client-error-alert" role="alert">
+		<strong>Client error</strong>
+		<span>{clientErrorMessage}</span>
+		<button type="button" onclick={() => location.reload()}>Reload</button>
 	</div>
 {/if}
 
@@ -205,6 +238,9 @@ onDestroy(() => {
 	#main-content:focus { outline:none; }
 	.save-alert { position:fixed; left:1rem; right:1rem; top:1rem; z-index:650; display:flex; align-items:center; justify-content:center; gap:.6rem; padding:.6rem .9rem; border:1px solid rgba(255,68,68,.55); border-radius:var(--radius-sm); background:rgba(38,8,12,.94); color:var(--text-primary); box-shadow:0 0 24px rgba(255,68,68,.18); font-size:var(--fs-body-sm); text-align:center; }
 	.save-alert strong { color:var(--red); font-family:var(--font-display); text-transform:uppercase; letter-spacing:.04em; }
+	.client-error-alert { position:fixed; left:1rem; right:1rem; bottom:1rem; z-index:650; display:flex; align-items:center; justify-content:center; gap:.65rem; padding:.6rem .9rem; border:1px solid rgba(255,221,68,.5); border-radius:var(--radius-sm); background:rgba(33,26,6,.94); color:var(--text-primary); box-shadow:0 0 24px rgba(255,221,68,.16); font-size:var(--fs-body-sm); text-align:center; }
+	.client-error-alert strong { color:var(--yellow); font-family:var(--font-display); text-transform:uppercase; letter-spacing:.04em; }
+	.client-error-alert button { padding:.25rem .65rem; border:1px solid rgba(255,221,68,.45); border-radius:var(--radius-sm); color:var(--yellow); cursor:pointer; }
 	.lf-tagline { color:var(--text-dim); font-size:var(--fs-caption-sm); text-align:center; margin:0; max-width:40rem; line-height:1.5; }
 	.lf-nav { display:flex; gap:.35rem; align-items:center; flex-wrap:wrap; justify-content:center; }
 	.lf-link { color:var(--text-dim); font-size:var(--fs-caption-sm); text-decoration:none; transition:color var(--transition-fast); }
