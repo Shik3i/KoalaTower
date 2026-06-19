@@ -155,6 +155,8 @@
 	let blackMarketIntroSeen = $state(false);
 	let showBlackMarketIntro = $state(false);
 	let showShipmentModal = $state(false);
+	let blackMarketIntroDialogEl = $state<HTMLDivElement | null>(null);
+	let shipmentDialogEl = $state<HTMLDivElement | null>(null);
 	let bmSignalText = $state(blackMarketCopy.signalStatus());
 	let bmShipmentFlavour = $state(blackMarketCopy.shipmentFlavour());
 	let bmDailyFlavour = $state(blackMarketCopy.dailyPickup());
@@ -401,6 +403,8 @@
 	let cloudBusy = $state(false);
 	let showUploadConfirm = $state(false);
 	let showRestoreConfirm = $state(false);
+	let uploadConfirmDialogEl = $state<HTMLDivElement | null>(null);
+	let restoreConfirmDialogEl = $state<HTMLDivElement | null>(null);
 	const toasts = createToastStore(2500);
 	const toast = toasts.push;
 
@@ -867,6 +871,13 @@
 		activeSection = id;
 		if (id === 'orders') refreshCommandOrders();
 	}
+
+	$effect(() => {
+		if (showBlackMarketIntro) tick().then(() => blackMarketIntroDialogEl?.focus());
+		if (showShipmentModal) tick().then(() => shipmentDialogEl?.focus());
+		if (showUploadConfirm) tick().then(() => uploadConfirmDialogEl?.focus());
+		if (showRestoreConfirm) tick().then(() => restoreConfirmDialogEl?.focus());
+	});
 
 	function getChallengeName(id: string): string {
 		return CHALLENGES.find(c => c.id === id)?.name ?? id;
@@ -1500,8 +1511,8 @@
 
 	<!-- Black Market Discovery Modal -->
 	{#if showBlackMarketIntro}
-		<div class="overlay" role="dialog" aria-modal="true" aria-label="Unauthorized channel detected">
-			<div class="dlg dlg-bm-intro">
+		<div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) dismissBlackMarketIntro(); }}>
+			<div bind:this={blackMarketIntroDialogEl} class="dlg dlg-bm-intro" role="dialog" aria-modal="true" aria-label="Unauthorized channel detected" tabindex="-1" onkeydown={(e) => onModalKeydown(e, blackMarketIntroDialogEl, dismissBlackMarketIntro)}>
 				<h3 class="bm-intro-title">UNAUTHORIZED CHANNEL DETECTED</h3>
 				<p class="bm-intro-body">{bmChannelIntro[0]}</p>
 				<p class="bm-intro-body">{bmChannelIntro[1]}</p>
@@ -1517,8 +1528,8 @@
 
 	<!-- Weekly Shipment Storylet Modal -->
 	{#if showShipmentModal}
-		<div class="overlay" role="dialog" aria-modal="true" aria-label="Unmarked shipment available">
-			<div class="dlg dlg-bm-shipment">
+		<div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) showShipmentModal = false; }}>
+			<div bind:this={shipmentDialogEl} class="dlg dlg-bm-shipment" role="dialog" aria-modal="true" aria-label="Unmarked shipment available" tabindex="-1" onkeydown={(e) => onModalKeydown(e, shipmentDialogEl, () => showShipmentModal = false)}>
 				<h3 class="bm-intro-title">UNMARKED SHIPMENT AVAILABLE</h3>
 				<p class="bm-intro-body">{bmShipmentFlavour}</p>
 				<p class="bm-intro-body">It is addressed to someone using your clearance code. It may or may not be humming. The legal status remains unexplored.</p>
@@ -1595,7 +1606,7 @@
 
 	{#if showUploadConfirm}
 		<div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) showUploadConfirm = false; }}>
-			<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="upload-confirm-title" tabindex="-1">
+			<div bind:this={uploadConfirmDialogEl} class="dlg" role="dialog" aria-modal="true" aria-labelledby="upload-confirm-title" tabindex="-1" onkeydown={(e) => onModalKeydown(e, uploadConfirmDialogEl, () => showUploadConfirm = false)}>
 				<h3 id="upload-confirm-title">Replace cloud backup?</h3>
 				<p class="dlg-d">This will replace your cloud backup with your current local save. Your local save stays intact.</p>
 				<div class="dlg-a">
@@ -1607,7 +1618,7 @@
 	{/if}
 	{#if showRestoreConfirm}
 		<div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) showRestoreConfirm = false; }}>
-			<div class="dlg dlg-dng" role="dialog" aria-modal="true" aria-labelledby="restore-confirm-title" tabindex="-1">
+			<div bind:this={restoreConfirmDialogEl} class="dlg dlg-dng" role="dialog" aria-modal="true" aria-labelledby="restore-confirm-title" tabindex="-1" onkeydown={(e) => onModalKeydown(e, restoreConfirmDialogEl, () => showRestoreConfirm = false)}>
 				<h3 id="restore-confirm-title">Restore cloud save?</h3>
 				<p class="dlg-d">This will replace your current local save with the cloud save. Export your local save first if you want a backup.</p>
 				<div class="dlg-a" style="flex-wrap:wrap">
