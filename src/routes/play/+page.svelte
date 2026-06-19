@@ -89,6 +89,7 @@
 	let snap = $state<GameSnapshot | null>(null);
 	let coins = $state(0);
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
+	let systemReducedMotion = $state(false);
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
 	let speed = $state(1);
@@ -117,6 +118,8 @@
 	let autoDeploymentCountdown = $state(0);
 	let autoDeploymentTimer: ReturnType<typeof setInterval> | null = null;
 	let pageVisibilityHandler: (() => void) | null = null;
+	let reducedMotionQuery: MediaQueryList | null = null;
+	let reducedMotionHandler: ((event: MediaQueryListEvent) => void) | null = null;
 
 	// Cosmetic killstreak state — purely visual HUD chip, no economy / combat tie-in.
 	let killstreakCount = $state(0);
@@ -136,6 +139,13 @@
 	onMount(() => {
 		const cm = () => { isMobile = window.innerWidth < 900; };
 		cm(); window.addEventListener('resize', cm);
+		reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		systemReducedMotion = reducedMotionQuery.matches;
+		reducedMotionHandler = (event) => {
+			systemReducedMotion = event.matches;
+			syncSettingsToEngine(settings);
+		};
+		reducedMotionQuery.addEventListener('change', reducedMotionHandler);
 		const u1 = coinsStore.subscribe(c => coins = c);
 		const u2 = settingsStore.subscribe(s => { settings = s; syncSettingsToEngine(s); });
 		const u3 = highestWaveStore.subscribe(w => highestWave = w);
@@ -199,6 +209,7 @@
 	onDestroy(() => {
 		clearAutoDeployment();
 		if (pageVisibilityHandler) document.removeEventListener('visibilitychange', pageVisibilityHandler);
+		if (reducedMotionQuery && reducedMotionHandler) reducedMotionQuery.removeEventListener('change', reducedMotionHandler);
 		if (engine) {
 			engine.state.paused = true;
 			engine.setCallbacks({});
@@ -306,7 +317,7 @@
 		audio.setMusicEnabled(s.music);
 		if (!engine) return;
 		const stateSettings = engine.state.settings;
-		stateSettings.reducedMotion = s.reducedMotion;
+		stateSettings.reducedMotion = s.reducedMotion || systemReducedMotion;
 		stateSettings.screenShake = s.screenShake;
 		stateSettings.particles = s.particles;
 		stateSettings.damageNumbers = s.damageNumbers;
