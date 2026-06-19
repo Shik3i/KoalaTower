@@ -134,7 +134,7 @@ docker run --rm -p 3000:8080 \
 
 ### Docker Compose
 
-See `docker-compose.example.yml` for a production-ready deployment with Caddy reverse proxy.  The example covers:
+See `examples/docker-compose.example.yml` for a production-ready deployment with Caddy reverse proxy.  The example covers:
 
 - persistent `/data` volume for SQLite
 - healthcheck hitting `/api/health`
@@ -150,7 +150,7 @@ One container serves everything.  Point your reverse proxy at the app container'
 https://<your-domain>/api/kofi/webhook
 ```
 
-Example Caddyfile for `docker-compose.example.yml`:
+Example Caddyfile for `examples/docker-compose.example.yml` (see also `examples/Caddyfile`):
 
 ```
 tower.example.com {

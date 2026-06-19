@@ -42,9 +42,11 @@
 services:
   koalatower:
     image: ghcr.io/shik3i/koalatower:latest
-    # For local / branch development, build from source instead:
+    # For local / branch development, build from source instead.
+    # NB: this file lives in examples/, so the build context must point at the
+    # repo root one level up:
     # build:
-    #   context: .
+    #   context: ..
     container_name: koalatower
     restart: unless-stopped
 

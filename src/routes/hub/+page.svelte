@@ -100,7 +100,7 @@
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
-	let activeSection = $state<'workshop' | 'orders' | 'lab' | 'blueprints' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings'>('workshop');
+	let activeSection = $state<'workshop' | 'orders' | 'lab' | 'blueprints' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings' | 'profile'>('workshop');
 	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
 	let workshopLevels = $state<Partial<Record<WorkshopUpgradeId, number>>>({});
 	let forgeLevels = $state<Partial<Record<UpgradeId, number>>>({});
@@ -850,6 +850,7 @@
 		{ id: 'challenges' as const, label: 'Special Ops', icon: '⚡' },
 		{ id: 'simulation' as const, label: 'Simulation', icon: '🧪' },
 		{ id: 'stats' as const, label: 'Archives', icon: '📊' },
+		{ id: 'profile' as const, label: 'Profile', icon: '👤' },
 		{ id: 'settings' as const, label: 'Systems', icon: '⚙' },
 	];
 	let visibleSections = $derived(allSections.filter(s => !s.requiresUnlock || bmUnlocked));
@@ -1379,8 +1380,8 @@
 					</div>
 					{/if}
 				</div>
-			{:else if activeSection === 'settings'}
-				<div class="hs"><h2 class="hst">⚙ Systems</h2>
+			{:else if activeSection === 'profile'}
+				<div class="hs"><h2 class="hst">👤 Profile</h2>
 					{#if communityBuff.loaded && communityBuff.percent > 0}
 						{@const buffRemaining = communityBuff.activeUntil ? Math.max(0, Date.parse(communityBuff.activeUntil) - nowTick) : 0}
 						<div class="community-buff" use:tooltip={'Community Alloy Boost\nFueled by Ko-fi community support. Applies to every player, every deployment.\nOffline? You simply get the base Alloy — nothing breaks.'}>
@@ -1408,23 +1409,6 @@
 								<span>{localProfileStatus === 'synced' ? 'Optional online sync ready' : localProfileStatus === 'offline' ? 'Offline/local only' : localProfileStatus === 'rejected' ? 'Local only' : 'Not logged in'}</span>
 							</div>
 						</form>
-					</div>
-					<div class="support-code">
-						<h3>Support Code</h3>
-						<p class="sc-desc">Paste this into your Ko-fi message if you want future supporter cosmetics or badges to be linked.</p>
-						<p class="sc-note">The Community Alloy Boost applies to everyone even without a code. Register first if you want future supporter rewards to survive browser data deletion.</p>
-						{#if supportCode}
-							<div class="sc-row">
-								<code class="sc-code">{supportCode.code}</code>
-								<button class="hub-action" onclick={copySupportCode}>{supportCodeCopied ? 'Copied' : 'Copy'}</button>
-							</div>
-							<p class="sc-owner">{supportCode.ownerType === 'account' ? 'Linked to your account.' : 'Local anonymous identity — register to make it account-linked.'}</p>
-						{:else}
-							<p class="sc-owner">Generating…</p>
-						{/if}
-						{#if supportReady}
-							<a class="hub-action" href={SUPPORT_URL} target="_blank" rel="noopener" use:tooltip={'Opens an external support page in a new tab.\nEntirely optional — the game stays free and offline.'}>Support Flatland TD</a>
-						{/if}
 					</div>
 					<div class="account-panel">
 						{#if account}
@@ -1483,6 +1467,9 @@
 							<p class="acct-status">Checking account status…</p>
 						{/if}
 					</div>
+				</div>
+			{:else if activeSection === 'settings'}
+				<div class="hs"><h2 class="hst">⚙ Systems</h2>
 					<div class="sg">
 						{#each settingsList as s}
 							<div class="sr" role="group" aria-label={s.label}><div class="si"><span class="sl">{s.label}</span><span class="sd">{s.desc}</span></div>
@@ -1531,6 +1518,22 @@
 				<p class="bm-intro-body">It is addressed to someone using your clearance code. It may or may not be humming. The legal status remains unexplored.</p>
 				<p class="bm-intro-body bm-intro-support">Flatland TD is free, local-first, and open source. If you want to support development and hosting, you can fund the next shipment.</p>
 				<p class="bm-intro-body bm-intro-support">Support is appreciated, never required. Payment is never checked. The shipment is yours either way.</p>
+				
+				<div class="support-code" style="margin: 0.75rem 0; text-align: left; width: 100%;">
+					<h3>Support Code</h3>
+					<p class="sc-desc">Paste this into your Ko-fi message if you want future supporter cosmetics or badges to be linked.</p>
+					<p class="sc-note">The Community Alloy Boost applies to everyone even without a code. Register first if you want future supporter rewards to survive browser data deletion.</p>
+					{#if supportCode}
+						<div class="sc-row">
+							<code class="sc-code">{supportCode.code}</code>
+							<button class="hub-action" onclick={copySupportCode}>{supportCodeCopied ? 'Copied' : 'Copy'}</button>
+						</div>
+						<p class="sc-owner">{supportCode.ownerType === 'account' ? 'Linked to your account.' : 'Local anonymous identity — register to make it account-linked.'}</p>
+					{:else}
+						<p class="sc-owner">Generating…</p>
+					{/if}
+				</div>
+
 				<div class="dlg-a" style="gap:1rem;flex-wrap:wrap">
 					{#if supportReady}
 						<a class="hub-action" href={SUPPORT_URL} target="_blank" rel="noopener" use:tooltip={'Opens an external support page in a new tab.\nEntirely optional — the game stays free and offline.'}>Fund the next shipment</a>
