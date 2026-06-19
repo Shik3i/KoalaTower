@@ -301,12 +301,11 @@ describe('Enemy Config', () => {
 		expect(tank.speed / normal.speed).toBeCloseTo(0.55, 2);
 	});
 
-	it('boss identity is 20x-25x HP and larger than tank', () => {
+	it('boss identity is 20x HP and larger than tank', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 10);
 		const tank = computeEnemyConfig(EnemyType.Tank, 10);
 		const boss = computeEnemyConfig(EnemyType.Boss, 10);
-		expect(boss.hp / normal.hp).toBeGreaterThanOrEqual(20);
-		expect(boss.hp / normal.hp).toBeLessThanOrEqual(25);
+		expect(boss.hp / normal.hp).toBeCloseTo(20, 1);
 		expect(boss.size).toBeGreaterThan(tank.size);
 	});
 

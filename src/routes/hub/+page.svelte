@@ -1294,7 +1294,7 @@
 							</tbody>
 						</table>
 					</div>
-					<p class="sim-note">Values computed using deterministic piecewise power interpolation. Front multipliers: 1× / 20× / 60×. Boss values include boss multipliers (capped at 25× HP, 8× ATK).</p>
+					<p class="sim-note">Values computed using deterministic piecewise power interpolation. Boss values include boss multipliers (20× HP, up to 8× ATK).</p>
 				</div>
 			{:else if activeSection === 'stats'}
 				{@const enemyTypes = [EnemyType.Normal, EnemyType.Fast, EnemyType.Tank, EnemyType.Ranged, EnemyType.Boss]}
