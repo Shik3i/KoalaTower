@@ -145,7 +145,6 @@
 		border-radius: var(--radius-sm);
 		backdrop-filter: blur(6px);
 		-webkit-backdrop-filter: blur(6px);
-		transition: all var(--transition-normal);
 		position: relative;
 		overflow: hidden;
 		cursor: default;
@@ -160,11 +159,6 @@
 		height: 1px;
 		background: linear-gradient(90deg, transparent, var(--cyan), transparent);
 		opacity: 0.2;
-	}
-
-	.news-card:hover {
-		border-color: var(--border-neon-strong);
-		box-shadow: var(--shadow-neon-sm);
 	}
 
 	.nc-thumb {

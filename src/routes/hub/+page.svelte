@@ -406,7 +406,7 @@
 	let showRestoreConfirm = $state(false);
 	let uploadConfirmDialogEl = $state<HTMLDivElement | null>(null);
 	let restoreConfirmDialogEl = $state<HTMLDivElement | null>(null);
-	const toasts = createToastStore(2500);
+	const toasts = createToastStore(3000);
 	const toast = toasts.push;
 
 	async function openImportDialog() {
