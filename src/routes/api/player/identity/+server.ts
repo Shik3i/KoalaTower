@@ -2,12 +2,14 @@ import { randomUUID } from 'node:crypto';
 import type { RequestEvent } from './$types';
 import { fail, ok, readJsonObject } from '$lib/server/api';
 import { openDatabase } from '$lib/server/db';
+import { isRateLimited } from '$lib/server/rateLimit';
 import { createSupportCode } from '$lib/server/supportCode';
 import { validateDisplayName, validateLocalPlayerId } from '$lib/server/validation';
 
 export const prerender = false;
 
 export async function POST(event: RequestEvent): Promise<Response> {
+	if (isRateLimited(`identity:${event.getClientAddress()}`)) return fail(429, 'rate_limited', 'Please wait before trying again');
 	const body = await readJsonObject(event, 4 * 1024);
 	if (!body) return fail(400, 'bad_request', 'Invalid request body');
 	const localPlayerId = validateLocalPlayerId(body.localPlayerId);
