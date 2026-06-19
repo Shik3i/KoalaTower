@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.2 — CI test-job Node fix
+
+- Fixed the CI test job, which failed with "navigator is not defined" after the test job was pinned to Node 20: the renderer tests import pixi.js, which reads a global `navigator` at module load — a global that only exists on Node 21+. The test job now runs on Node 22; the build job stays on Node 20 to mirror the Docker runtime. First release tag built on fully green CI (the v0.6.1 image is functionally identical).
+
 ## v0.6.1 — Online hardening & native-runner Docker build
 
 - **Fixed the stuck release build** — the multi-arch Docker build ran arm64 under QEMU emulation, where `npm ci` (now compiling the native `better-sqlite3` addon) plus the Vite prerender/`sharp` build effectively hung (v0.6.0 was cancelled at 15m). The release workflow now builds each architecture on its own native runner (amd64 on `ubuntu-latest`, arm64 on `ubuntu-24.04-arm`), pushes by digest, and merges them into one multi-arch manifest with a provenance attestation.
