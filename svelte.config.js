@@ -13,6 +13,10 @@ const config = {
 		// which SvelteKit 2's default CSRF blocks. All other API POST routes use
 		// application/json (CSRF-exempt), and the webhook verifies its own token
 		// via verification_token, so disabling the origin check is harmless here.
+		//
+		// NOTE: `checkOrigin` is deprecated in favour of `trustedOrigins`.
+		// When a future SvelteKit version removes it, migrate to trustedOrigins
+		// or a hooks.server.ts-based CSRF bypass for /api/kofi/webhook.
 		csrf: { checkOrigin: false }
 	}
 };

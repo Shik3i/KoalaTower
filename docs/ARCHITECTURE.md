@@ -151,7 +151,38 @@ Implemented online features:
 - **Ko-fi webhook** (`/api/kofi/webhook`) — accepts the Ko-fi `data=<json>` form payload (and raw JSON), verifies the payload's `verification_token` against `KOFI_WEBHOOK_SECRET`, redacts the token before storing, is idempotent on `message_id`, and only verified EUR events create a community buff. In production a missing `KOFI_WEBHOOK_SECRET` disables the endpoint entirely (no event, no buff).
 - Scaffolds (schema-only, no UI this pass): unverified leaderboard entries, challenge config, entitlements.
 
+**Known technical debt:**
+- **`serve_prerendered()` workaround:** `@sveltejs/adapter-node` 5.5.5 sirv-based streaming deadlocks on Node 20+ on some hosts. The `Dockerfile` uses a `sed` patch to remove the middleware from the Polka chain, and `src/hooks.server.ts` serves prerendered files via `readFileSync`. When adapter-node is upgraded, re-evaluate whether the sed and hook can be removed.
+- **CSRF `checkOrigin` deprecation:** `svelte.config.js` uses `csrf: { checkOrigin: false }`, which is deprecated in favour of `trustedOrigins`. The Ko-fi webhook needs `application/x-www-form-urlencoded` POSTs. Future SvelteKit versions may require a hook-based bypass.
+- **Cloud restore reload:** Cloud save restore currently calls `location.reload()` after import. A proper state-reinitialization (without a full page reload) would be preferable.
+- **Node 22:** The Dockerfile locks to Node 20 LTS until the streaming deadlock is confirmed fixed on Node 22+.
+
 Intentionally out of scope / not implemented: leaderboard frontend, automatic leaderboard submission, verified challenge leaderboard, guilds, challenge run UI, account deletion UI, payment/shop UI, personal paid power, supporter badge/skin entitlement UI, OAuth, email/password reset, and automatic cloud-save overwrite. Ko-fi support never grants personal power.
+
+## Deployment
+
+### One container, one process
+The `Dockerfile` produces a single Node image that serves both the frontend (prerendered HTML + client assets) and all `/api/*` routes. No Nginx, no second container, no separate API tier.
+
+```
+Browser → Reverse Proxy (Caddy/Traefik/Nginx) → Node :8080
+                                                  ├─ /            (prerendered HTML)
+                                                  ├─ /play/       (prerendered HTML)
+                                                  ├─ /_app/*      (client JS/CSS/assets)
+                                                  └─ /api/*       (Node handlers → SQLite)
+```
+
+### SQLite
+Server-side data (accounts, sessions, cloud saves, Ko-fi events, community buff events) lives in SQLite at `DATABASE_PATH` (default `/data/flatland.db`). Migrations run automatically on first access and record versions in `schema_migrations`. WAL mode is enabled when the filesystem supports it. Back up the `.db`, `.db-wal`, and `.db-shm` files together.
+
+### Environment variables
+Required in production: `SESSION_SECRET`, `AUTH_PASSWORD_PEPPER`, `KOFI_WEBHOOK_SECRET`, `DATABASE_PATH`. See `README.md` and `.env.example` for the full list. No `PUBLIC_` prefix for secrets — all secret env vars are server-only.
+
+### Docker Compose
+`docker-compose.example.yml` provides a production-ready Caddy reverse-proxy setup with persistent volume, optional read-only root filesystem, security hardening, and a healthcheck.
+
+### Ko-fi webhook
+Paste `https://<your-domain>/api/kofi/webhook` into Ko-fi. Ko-fi sends `application/x-www-form-urlencoded` with a `data=<json>` field. The server verifies the `verification_token` from the payload against `KOFI_WEBHOOK_SECRET`. Only verified EUR payments create community buffs.
 
 ## Render Feedback Systems
 

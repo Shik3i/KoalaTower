@@ -105,19 +105,62 @@ src/
 
 ## 🐳 Docker
 
-Multi-arch images are published automatically on Git tags. The container runs one Node/SvelteKit server that serves both the frontend and `/api/*`. SQLite is stored in a persistent `/data` volume; no Postgres, Redis, or second container is required.
+**One container, one process.** The Node/SvelteKit server serves the frontend (prerendered HTML + client assets) **and** every `/api/*` route. SQLite stores all server-side data in a persistent `/data` volume. No Postgres, Redis, or second container is needed.
+
+### Build
 
 ```bash
-docker pull ghcr.io/shik3i/koalatower:latest
-docker run -p 8080:8080 \
-  -v flatland-data:/data \
-  -e SESSION_SECRET="change-this-long-random-session-secret" \
-  -e AUTH_PASSWORD_PEPPER="change-this-long-random-password-pepper" \
-  ghcr.io/shik3i/koalatower:latest
-# → http://localhost:8080
+# Local / branch build
+docker build -t flatland-td .
+
+# With a version label
+docker build --build-arg VITE_APP_VERSION=v0.5.7 -t flatland-td:v0.5.7 .
 ```
 
-Docker Compose + Caddy reverse proxy examples in `examples/` and `docker-compose.example.yml`.
+### Run
+
+```bash
+docker run --rm -p 3000:8080 \
+  -v flatland-data:/data \
+  -e NODE_ENV=production \
+  -e PORT=8080 \
+  -e DATABASE_PATH=/data/flatland.db \
+  -e SESSION_SECRET="replace-with-long-random-secret" \
+  -e AUTH_PASSWORD_PEPPER="replace-with-long-random-pepper" \
+  -e KOFI_WEBHOOK_SECRET="replace-with-your-kofi-verification-token" \
+  flatland-td
+# → http://localhost:3000
+```
+
+### Docker Compose
+
+See `docker-compose.example.yml` for a production-ready deployment with Caddy reverse proxy.  The example covers:
+
+- persistent `/data` volume for SQLite
+- healthcheck hitting `/api/health`
+- optional read-only root filesystem
+- standalone (port-mapped) vs reverse-proxy (Caddy) modes
+- security hardening (`cap_drop`, `no-new-privileges`)
+
+### Caddy / reverse proxy
+
+One container serves everything.  Point your reverse proxy at the app container's internal port (default `8080`).  The Ko-fi webhook URL is then:
+
+```
+https://<your-domain>/api/kofi/webhook
+```
+
+Example Caddyfile for `docker-compose.example.yml`:
+
+```
+tower.example.com {
+    reverse_proxy koala-tower:8080
+}
+```
+
+### `/data` volume
+
+SQLite lives at `DATABASE_PATH` (default `/data/flatland.db`).  This path **must** be on a persistent Docker volume or bind mount.  SQLite uses WAL mode — back up the `.db`, `.db-wal`, and `.db-shm` files together.
 
 ### Optional Online Features
 
@@ -137,9 +180,9 @@ Backend environment variables:
 | `NODE_ENV` | `production` enables secure session cookies |
 | `PORT` | Node server port, defaults to `8080` in Docker |
 | `DATABASE_PATH` | SQLite path, defaults to `/data/flatland.db` |
-| `SESSION_SECRET` | server-only secret for session-token hashes/fingerprints |
-| `AUTH_PASSWORD_PEPPER` | server-only password pepper, never `PUBLIC_` |
-| `KOFI_WEBHOOK_SECRET` | shared secret checked against Ko-fi's `verification_token`; **required in production** or the webhook refuses all events |
+| `SESSION_SECRET` | **required in production** — server-only secret for session-token hashes/fingerprints |
+| `AUTH_PASSWORD_PEPPER` | **required in production** — server-only password pepper, never `PUBLIC_` |
+| `KOFI_WEBHOOK_SECRET` | shared secret checked against Ko-fi's `verification_token`; **required in production** or the webhook refuses all events (`503`) |
 | `PUBLIC_ONLINE_FEATURES_ENABLED` | optional public flag for online feature visibility |
 
 SQLite migrations run on first server DB access and record applied versions in `schema_migrations`. WAL mode is enabled when the environment supports it. Production requires `DATABASE_PATH`, `SESSION_SECRET`, `AUTH_PASSWORD_PEPPER`, and (for the Ko-fi webhook) `KOFI_WEBHOOK_SECRET`. Docker persists SQLite in the `/data` volume.
