@@ -1,5 +1,5 @@
 # ── Build stage ─────────────────────────────────────────────────────
-FROM node:22-alpine AS build
+FROM node:22-bookworm-slim AS build
 
 ARG VITE_APP_VERSION=DEV
 ENV VITE_APP_VERSION=${VITE_APP_VERSION}
@@ -14,13 +14,22 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ── Runtime stage (~8 MB total) ─────────────────────────────────────
-FROM ghcr.io/static-web-server/static-web-server:2-alpine
+# ── Runtime stage ───────────────────────────────────────────────────
+FROM node:22-bookworm-slim AS runtime
 
-COPY --from=build /app/build /public
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV DATABASE_PATH=/data/flatland.db
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=build /app/build ./build
+
+RUN mkdir -p /data
 
 EXPOSE 8080
 
-ENV SERVER_PORT=8080
-ENV SERVER_ROOT=/public
-ENV SERVER_SPA_FALLBACK=/index.html
+CMD ["node", "build"]

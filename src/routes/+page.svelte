@@ -22,7 +22,7 @@
 		'@type': 'WebSite',
 		name: 'Flatland TD',
 		url: SITE_URL,
-		description: 'Open source neon cyber idle tower defense. No tracking, no cookies, no backend.',
+		description: 'Open source neon cyber idle tower defense. Local-first, offline-friendly, and no tracking.',
 		potentialAction: {
 			'@type': 'SearchAction',
 			target: { '@type': 'EntryPoint', urlTemplate: SITE_URL + '/help/?q={search_term_string}' },

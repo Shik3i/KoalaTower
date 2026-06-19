@@ -4,7 +4,7 @@
 
 > *"Deploy towers. Question nothing. Refine Alloy."*
 
-A beautiful, fully playable idle tower defense game built with **Svelte 5 + TypeScript + PixiJS v8 (WebGL)**. No backend, no tracking, no cookies — entirely self-contained static web app.
+A beautiful, fully playable idle tower defense game built with **Svelte 5 + TypeScript + PixiJS v8 (WebGL)**. Flatland TD is local-first: normal play works without login, analytics, payment checks, or backend availability after the app is loaded/cached. Optional online features can be enabled by the same Node server that serves the app.
 
 **▶ [Play now at tower.koalastuff.net](https://tower.koalastuff.net)**
 
@@ -63,8 +63,8 @@ npm test            # run the Vitest suite
 | Storage | **IndexedDB** via idb-keyval |
 | Audio | Procedural **Web Audio API** (no asset files) |
 | Testing | **Vitest** (400+ tests across 20+ files) |
-| Build | **Vite** + @sveltejs/adapter-static (Brotli + Gzip precompression) |
-| Container | Multi-arch **Docker** (amd64 + arm64) |
+| Build | **Vite** + @sveltejs/adapter-node |
+| Container | Single-container **Docker** Node server |
 | PWA | Installable + offline-ready via SvelteKit service worker |
 
 ---
@@ -97,7 +97,7 @@ src/
     ├── hub/+page.svelte     # Forge · Research Deck · Schematics · Fronts · Black Market · Simulation · Archives
     ├── help/+page.svelte    # FAQ (12 questions) · Lore · Controls · Tutorial replay
     ├── imprint/+page.svelte # Legal notice
-    ├── privacy/+page.svelte # Privacy policy (100% local data)
+    ├── privacy/+page.svelte # Privacy policy (local-first + optional online)
     └── sitemap.xml/         # Dynamic XML sitemap
 ```
 
@@ -105,15 +105,60 @@ src/
 
 ## 🐳 Docker
 
-Multi-arch images published automatically on Git tags.
+Multi-arch images are published automatically on Git tags. The container runs one Node/SvelteKit server that serves both the frontend and `/api/*`. SQLite is stored in a persistent `/data` volume; no Postgres, Redis, or second container is required.
 
 ```bash
 docker pull ghcr.io/shik3i/koalatower:latest
-docker run -p 8080:8080 ghcr.io/shik3i/koalatower:latest
+docker run -p 8080:8080 \
+  -v flatland-data:/data \
+  -e SESSION_SECRET="change-this-long-random-session-secret" \
+  -e AUTH_PASSWORD_PEPPER="change-this-long-random-password-pepper" \
+  ghcr.io/shik3i/koalatower:latest
 # → http://localhost:8080
 ```
 
 Docker Compose + Caddy reverse proxy examples in `examples/` and `docker-compose.example.yml`.
+
+### Optional Online Features
+
+Flatland TD keeps **local-first gameplay** as a hard rule:
+
+- **No login required for normal play**
+- local saves remain primary and are not overwritten automatically
+- API failures are treated as offline state, not gameplay failures
+- the service worker bypasses `/api/`, while cached gameplay assets remain available offline
+- unverified leaderboard scores are community/fun only
+- verified challenge leaderboard will require login and stricter validation later
+
+Backend environment variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `NODE_ENV` | `production` enables secure session cookies |
+| `PORT` | Node server port, defaults to `8080` in Docker |
+| `DATABASE_PATH` | SQLite path, defaults to `/data/flatland.db` |
+| `SESSION_SECRET` | server-only secret for session-token hashes/fingerprints |
+| `AUTH_PASSWORD_PEPPER` | server-only password pepper, never `PUBLIC_` |
+| `KOFI_WEBHOOK_SECRET` | optional shared secret for the Ko-fi webhook foundation |
+| `PUBLIC_ONLINE_FEATURES_ENABLED` | optional public flag for online feature visibility |
+
+SQLite migrations run on first server DB access and record applied versions in `schema_migrations`. WAL mode is enabled when the environment supports it.
+
+Auth foundation notes:
+
+- username/password auth uses bcrypt-compatible hashes with cost `12`
+- password hashes are based on `password + AUTH_PASSWORD_PEPPER`
+- session cookies are `httpOnly`, `SameSite=Lax`, and `Secure` in production
+- only SHA-256 session-token hashes are stored in SQLite
+- login/register have basic in-memory rate limiting and generic login errors
+
+Ko-fi support-code design:
+
+- players can have a local anonymous support code before registering
+- future Ko-fi attribution should parse that support code from the donation message, not assume arbitrary webhook query params
+- raw Ko-fi webhook JSON is stored for audit/debugging, but permanent entitlements are not granted blindly
+- community support can create a global Alloy buff for everyone: `+1%` Alloy per `€1` equivalent for `7 days`, capped at `+100%`
+- the community buff is not personal pay-to-win and applies to all players
 
 ### Publishing a release
 
@@ -127,9 +172,9 @@ git push origin v0.5.0
 
 ## 🔒 Privacy
 
-- **100% local** — all data stored in your browser (IndexedDB)
-- **No backend** — fully static, no servers, no accounts, no login
-- **No tracking** — zero analytics, zero cookies, zero external requests
+- **Local-first** — normal saves stay in your browser (IndexedDB)
+- **Optional online features** — accounts, sessions, cloud-save scaffolding, and community APIs are not required for normal play
+- **No tracking** — zero analytics; an `httpOnly` session cookie is used only if you log in
 - **No CDN** — fonts and assets are self-hosted
 - Export/Import save as JSON with encoding + checksums
 - Reset save with confirmation dialog

@@ -140,6 +140,11 @@ Hidden local-first Strange Matter system. Supports weekly shipments, daily picku
 ### Command Orders
 Weekly official Alloy assignments issued by Orbital Command. Up to 25 orders per local week with 5 visible at a time on a board that refreshes every 4 hours. Every 5 completed orders unlocks a Command Gift Box. Rewards are Alloy only — no Strange Matter, no premium currency. No streaks or login punishment.
 
+### Optional Online Foundation
+Optional online features run in the same SvelteKit Node server that serves the frontend. SQLite lives at `DATABASE_PATH` (Docker default: `/data/flatland.db`) and is initialized by source-controlled migrations. Normal gameplay remains local-first: no login, backend, or network access is required after the app is loaded/cached. The service worker bypasses `/api/`, and frontend helpers treat API failures as offline state.
+
+Implemented scaffolds include username/password auth, hashed session tokens, anonymous local player identity sync, cloud-save storage, unverified leaderboard entries, Ko-fi webhook records, challenge config schema, entitlement schema, and community-wide Alloy buff events. Verified challenge leaderboards, guilds, conflict-resolution UI, and permanent Ko-fi rewards are intentionally not implemented here.
+
 ## Render Feedback Systems
 
 - **Death proxies**: Render-only corpses (capped at 60, 200ms lifetime) that scale-out + spin + fade — never enter combat state

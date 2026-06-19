@@ -72,6 +72,12 @@
 	import { tooltip } from '$lib/components/tooltip';
 	import { notifications } from '$lib/stores/notificationStore';
 	import NotificationCenter from '$lib/components/NotificationCenter.svelte';
+	import {
+		loadLocalIdentity,
+		saveLocalDisplayName,
+		syncLocalIdentity,
+		type LocalPlayerIdentity
+	} from '$lib/online/localIdentity';
 
 	function formatPlayTime(totalSeconds: number): string {
 		if (totalSeconds <= 0) return '0s';
@@ -360,6 +366,9 @@
 	let resetDialogEl = $state<HTMLDivElement | null>(null);
 	let importTextareaEl = $state<HTMLTextAreaElement | null>(null);
 	let resetCancelEl = $state<HTMLButtonElement | null>(null);
+	let localProfile = $state<LocalPlayerIdentity | null>(null);
+	let localProfileName = $state('');
+	let localProfileStatus = $state<'local' | 'synced' | 'offline' | 'rejected'>('local');
 	const toasts = createToastStore(2500);
 	const toast = toasts.push;
 
@@ -440,6 +449,20 @@
 		}
 	}
 
+	async function refreshLocalProfileSync(identity: LocalPlayerIdentity) {
+		const status = await syncLocalIdentity(identity);
+		localProfileStatus = status;
+	}
+
+	function saveLocalProfile() {
+		const updated = saveLocalDisplayName(localProfileName);
+		localProfile = updated;
+		localProfileName = updated.displayName;
+		localProfileStatus = 'local';
+		void refreshLocalProfileSync(updated);
+		toast('Local Profile updated.', 'success');
+	}
+
 	onMount(() => {
 		const u1 = coinsStore.subscribe(c => coins = c);
 		const u2 = settingsStore.subscribe(s => { settings = s; });
@@ -476,6 +499,9 @@
 		refreshLabProgress();
 		labProgressTimer = setInterval(refreshLabProgress, 1000);
 		clockTimer = setInterval(() => { nowTick = Date.now(); }, 30000);
+		localProfile = loadLocalIdentity();
+		localProfileName = localProfile.displayName;
+		void refreshLocalProfileSync(localProfile);
 
 		const introSave = getCachedSave();
 		if (introSave && isBlackMarketUnlocked(introSave.frontBestWave ?? {}) && !introSave.blackMarketIntroSeen) {
@@ -1218,6 +1244,24 @@
 				</div>
 			{:else if activeSection === 'settings'}
 				<div class="hs"><h2 class="hst">⚙ Systems</h2>
+					<div class="local-profile">
+						<div class="local-profile-copy">
+							<h3>Local Profile</h3>
+							<p>Used for local play and unverified online features.</p>
+							<p>Register later to keep badges, cloud saves, guilds, and verified challenge scores across devices.</p>
+						</div>
+						<form class="local-profile-form" onsubmit={(e) => { e.preventDefault(); saveLocalProfile(); }}>
+							<label class="local-profile-label" for="local-profile-name">Display name</label>
+							<div class="local-profile-row">
+								<input id="local-profile-name" bind:value={localProfileName} maxlength="32" autocomplete="nickname" />
+								<button class="hub-action" type="submit">Save</button>
+							</div>
+							<div class="local-profile-status">
+								<span>{localProfile?.displayName ?? 'Flatland Player'}</span>
+								<span>{localProfileStatus === 'synced' ? 'Optional online sync ready' : localProfileStatus === 'offline' ? 'Offline/local only' : localProfileStatus === 'rejected' ? 'Local only' : 'Not logged in'}</span>
+							</div>
+						</form>
+					</div>
 					<div class="sg">
 						{#each settingsList as s}
 							<div class="sr" role="group" aria-label={s.label}><div class="si"><span class="sl">{s.label}</span><span class="sd">{s.desc}</span></div>
@@ -1464,6 +1508,15 @@
 	.ir:nth-child(odd) { background:rgba(0,0,0,.1); }
 	.il { color:var(--text-secondary); } .iv { color:var(--text-primary); font-family:var(--font-mono); font-weight:500; }
 	.sg { display:flex; flex-direction:column; gap:2px; max-width:600px; }
+	.local-profile { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,320px); gap:1rem; max-width:800px; margin-bottom:1rem; padding:.85rem; background:rgba(0,0,0,.14); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
+	.local-profile h3 { margin:0 0 .25rem; font-size:var(--fs-body); color:var(--text-primary); font-family:var(--font-display); }
+	.local-profile p { margin:.15rem 0; color:var(--text-secondary); font-size:var(--fs-caption); line-height:1.35; }
+	.local-profile-form { display:flex; flex-direction:column; gap:.35rem; }
+	.local-profile-label { color:var(--text-secondary); font-size:var(--fs-caption); font-family:var(--font-mono); }
+	.local-profile-row { display:flex; gap:.45rem; align-items:center; }
+	.local-profile-row input { min-width:0; flex:1; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.45rem .55rem; font:inherit; }
+	.local-profile-row .hub-action { margin:0; }
+	.local-profile-status { display:flex; justify-content:space-between; gap:.5rem; color:var(--text-dim); font-size:var(--fs-caption-sm); font-family:var(--font-mono); }
 	.sr { display:flex; justify-content:space-between; align-items:center; padding:.55rem .55rem; border-radius:var(--radius-sm); cursor:pointer; }
 	.sr:hover { background:rgba(255,255,255,.02); }
 	.si { display:flex; flex-direction:column; gap:.08rem; }
@@ -1486,7 +1539,7 @@
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	.save-note { margin-top:1.25rem; padding:.75rem 1rem; background:rgba(255,221,68,.04); border:1px solid rgba(255,221,68,.12); border-radius:var(--radius-sm); max-width:800px; }
 	.save-note-flavor { font-size:var(--fs-caption-sm); color:rgba(255,221,68,.45); font-style:italic; line-height:1.4; margin:0; }
-	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:flex;flex-direction:row;align-items:center;overflow-x:auto;gap:.4rem;width:auto;padding-bottom:.25rem;scrollbar-width:thin;scrollbar-color:rgba(0,255,255,.35) transparent} .hub-nav-btn{flex-shrink:0;width:auto;white-space:nowrap;text-align:center;padding:.55rem .75rem;font-size:var(--fs-body-sm)} .hub-nav .bm-locked-teaser{flex-shrink:0;white-space:nowrap} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.bm-grid{grid-template-columns:1fr}.hub-coins{font-size:var(--fs-mono)} }
+	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:flex;flex-direction:row;align-items:center;overflow-x:auto;gap:.4rem;width:auto;padding-bottom:.25rem;scrollbar-width:thin;scrollbar-color:rgba(0,255,255,.35) transparent} .hub-nav-btn{flex-shrink:0;width:auto;white-space:nowrap;text-align:center;padding:.55rem .75rem;font-size:var(--fs-body-sm)} .hub-nav .bm-locked-teaser{flex-shrink:0;white-space:nowrap} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.bm-grid{grid-template-columns:1fr}.hub-coins{font-size:var(--fs-mono)} .local-profile{grid-template-columns:1fr}.local-profile-status{flex-direction:column} }
 	@media(max-width:380px){ .hub-nav-btn{font-size:var(--fs-caption);padding:.5rem .6rem} }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:var(--fs-caption); display:flex; flex-direction:column; gap:.4rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
 	.hub-footer-flavor { font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:0.35; margin:0; }

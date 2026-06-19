@@ -131,7 +131,7 @@
 {@render children()}
 
 <footer class="layout-footer">
-	<p class="lf-tagline">All data stored locally in your browser. No tracking, no cookies. The Shapes remain hostile, flat, and statistically inconvenient.</p>
+	<p class="lf-tagline">Normal play stays local in your browser. No tracking. The Shapes remain hostile, flat, and statistically inconvenient.</p>
 	<nav class="lf-nav" aria-label="Site navigation">
 		<a href="/" class="lf-link">Home</a>
 		<span class="lf-sep" aria-hidden="true">·</span>

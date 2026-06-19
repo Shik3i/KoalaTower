@@ -73,12 +73,12 @@
 		{
 			id: 'save',
 			q: 'How do I save my progress?',
-			a: 'Auto-saved to your browser (IndexedDB). You can also export/import your save as JSON from the 💾 menu. All data is stored locally — no cloud, no backend, no account needed. Editing saves is technically possible. Orbital Command cannot stop you from rewriting reality. It can only confirm that doing so makes the war considerably less interesting.',
+			a: 'Auto-saved to your browser (IndexedDB). You can also export/import your save as JSON from the 💾 menu. Local saves are primary: no cloud, backend, or account is needed for normal play. Editing saves is technically possible. Orbital Command cannot stop you from rewriting reality. It can only confirm that doing so makes the war considerably less interesting.',
 		},
 		{
 			id: 'privacy',
 			q: 'Is my data private?',
-			a: 'Yes. Flatland TD is a static app with no backend. All data is in your browser. No analytics, no cookies, no tracking, no external network calls during gameplay. Not even the Shapes know your high score. See the Privacy page for full details.',
+			a: 'Yes. Flatland TD is local-first. Normal gameplay data lives in your browser, with no analytics, tracking, or external network calls during gameplay. Optional online features may use a session cookie only if you register or log in. Not even the Shapes know your high score. See the Privacy page for full details.',
 		},
 	];
 

@@ -16,8 +16,18 @@ services:
     image: ghcr.io/shik3i/koalatower:latest
     container_name: koala-tower
     restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DATABASE_PATH: /data/flatland.db
+      SESSION_SECRET: change-this-long-random-session-secret
+      AUTH_PASSWORD_PEPPER: change-this-long-random-password-pepper
+      KOFI_WEBHOOK_SECRET: change-this-if-kofi-webhook-is-enabled
+      PUBLIC_ONLINE_FEATURES_ENABLED: "true"
     expose:
       - "8080"
+    volumes:
+      - koala-tower-data:/data
     networks:
       - caddy_net
     read_only: true
@@ -29,3 +39,6 @@ services:
 networks:
   caddy_net:
     external: true
+
+volumes:
+  koala-tower-data:
