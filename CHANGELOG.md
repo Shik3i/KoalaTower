@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.1 — Online hardening & native-runner Docker build
+
+- **Fixed the stuck release build** — the multi-arch Docker build ran arm64 under QEMU emulation, where `npm ci` (now compiling the native `better-sqlite3` addon) plus the Vite prerender/`sharp` build effectively hung (v0.6.0 was cancelled at 15m). The release workflow now builds each architecture on its own native runner (amd64 on `ubuntu-latest`, arm64 on `ubuntu-24.04-arm`), pushes by digest, and merges them into one multi-arch manifest with a provenance attestation.
+- **Rate-limited the unauthenticated write endpoints** — unverified leaderboard submissions and player-identity upserts now share the same per-IP limit as login/register, closing an unbounded-insert / disk-fill abuse vector.
+- **Expired sessions are purged** on each new session so the `sessions` table cannot grow without bound.
+- **Security headers** (`x-content-type-options`, `x-frame-options`, `referrer-policy`, `permissions-policy`) are now applied to every response.
+- CI now tests and builds on Node 20 to match the Docker runtime.
+
 ## v0.6.0 — Optional Online Foundation
 
 - **One-container Docker deployment** — Node 20 + adapter-node serves frontend, client assets, and all /api/\* routes from a single process. SQLite persists in a \`/data\` volume. No Postgres, Redis, or second container.
