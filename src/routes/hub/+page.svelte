@@ -872,6 +872,31 @@
 		if (id === 'orders') refreshCommandOrders();
 	}
 
+	async function onHubNavKeydown(e: KeyboardEvent, id: typeof activeSection) {
+		const currentIndex = visibleSections.findIndex(s => s.id === id);
+		if (currentIndex < 0) return;
+
+		let nextIndex = currentIndex;
+		if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+			nextIndex = (currentIndex + 1) % visibleSections.length;
+		} else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+			nextIndex = (currentIndex - 1 + visibleSections.length) % visibleSections.length;
+		} else if (e.key === 'Home') {
+			nextIndex = 0;
+		} else if (e.key === 'End') {
+			nextIndex = visibleSections.length - 1;
+		} else {
+			return;
+		}
+
+		e.preventDefault();
+		const nextSection = visibleSections[nextIndex]?.id;
+		if (!nextSection) return;
+		switchSection(nextSection);
+		await tick();
+		document.getElementById('hub-tab-' + nextSection)?.focus();
+	}
+
 	$effect(() => {
 		if (showBlackMarketIntro) tick().then(() => blackMarketIntroDialogEl?.focus());
 		if (showShipmentModal) tick().then(() => shipmentDialogEl?.focus());
@@ -931,9 +956,20 @@
 	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. Forge, Command Orders, Research, Schematics, Fronts, Special Operations, Simulation, Archives, Profile, and Systems all live here.</p>
 
 	<div class="hub-body">
-		<nav class="hub-nav" aria-label="Orbital Command sections">
+		<nav class="hub-nav" role="tablist" aria-label="Orbital Command sections">
 			{#each visibleSections as s}
-				<button class="hub-nav-btn" class:on={activeSection === s.id} data-section={s.id} aria-current={activeSection === s.id ? 'page' : undefined} onclick={() => switchSection(s.id)}>
+				<button
+					id={'hub-tab-' + s.id}
+					class="hub-nav-btn"
+					class:on={activeSection === s.id}
+					data-section={s.id}
+					role="tab"
+					aria-selected={activeSection === s.id}
+					aria-controls="hub-section-panel"
+					tabindex={activeSection === s.id ? 0 : -1}
+					onclick={() => switchSection(s.id)}
+					onkeydown={(e) => onHubNavKeydown(e, s.id)}
+				>
 					{s.icon} {s.label}
 				</button>
 			{/each}
@@ -945,7 +981,7 @@
 			{/if}
 		</nav>
 
-		<div class="hub-content">
+		<div class="hub-content" id="hub-section-panel" role="tabpanel" aria-labelledby={'hub-tab-' + activeSection}>
 			{#if activeSection === 'workshop'}
 				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed tower upgrades. Each Forge level sets the <strong>starting level</strong> of the matching Field Upgrade — the same curve continues in deployment, where you buy the next levels with Energy. Locked paths require Schematic reconstruction. The Forge never stops. Neither does the paperwork.</p>
 					<div class="buy-mult">
