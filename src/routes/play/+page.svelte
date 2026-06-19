@@ -34,6 +34,7 @@
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
 	import { notifications } from '$lib/stores/notificationStore';
+	import { saveStatusStore, type SaveStatus } from '$lib/stores/saveStatusStore';
 	import { playForNotification } from '$lib/game/audio/uiSounds';
 	import NotificationCenter from '$lib/components/NotificationCenter.svelte';
 	import FieldUpgrades from '$lib/components/play/FieldUpgrades.svelte';
@@ -90,6 +91,14 @@
 	let saveLoaded = $state(false);
 	let coins = $state(0);
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
+	let saveStatus = $state<SaveStatus>({
+		writeFailed: false,
+		message: null,
+		loadWarning: null,
+		lastSuccessfulWriteAt: null,
+		lastFailureAt: null,
+	});
+	let saveStatusNow = $state(Date.now());
 	let systemReducedMotion = $state(false);
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
@@ -118,6 +127,7 @@
 	let autoDeploymentArmed = $state(false);
 	let autoDeploymentCountdown = $state(0);
 	let autoDeploymentTimer: ReturnType<typeof setInterval> | null = null;
+	let saveStatusTimer: ReturnType<typeof setInterval> | null = null;
 	let pageVisibilityHandler: (() => void) | null = null;
 	let reducedMotionQuery: MediaQueryList | null = null;
 	let reducedMotionHandler: ((event: MediaQueryListEvent) => void) | null = null;
@@ -152,9 +162,11 @@
 		const u3 = highestWaveStore.subscribe(w => highestWave = w);
 		const u4 = totalRunsStore.subscribe(r => totalRuns = r);
 		const u6 = loadedStore.subscribe(l => saveLoaded = l);
+		const u7 = saveStatusStore.subscribe(status => saveStatus = status);
 		// Community buff: subscribe for the live percent and refresh the cache if stale.
 		const u5 = communityBuffStore.subscribe(s => { currentBuffPercent = s.percent; });
 		void communityBuffStore.refreshIfStale();
+		saveStatusTimer = setInterval(() => { saveStatusNow = Date.now(); }, 30000);
 		const cachedSave = getCachedSave();
 		if (cachedSave?.selectedFront) selectedFront = cachedSave.selectedFront;
 		if (cachedSave?.frontBestWave) frontBestWave = { ...cachedSave.frontBestWave };
@@ -204,12 +216,13 @@
 			window.removeEventListener('resize', cm);
 			window.removeEventListener('keydown', onKey);
 			window.removeEventListener('keyup', onKeyUp);
-			u1(); u2(); u3(); u4(); u5(); u6(); unsubEngine();
+			u1(); u2(); u3(); u4(); u5(); u6(); u7(); unsubEngine();
 		};
 	});
 
 	onDestroy(() => {
 		clearAutoDeployment();
+		if (saveStatusTimer) clearInterval(saveStatusTimer);
 		if (pageVisibilityHandler) document.removeEventListener('visibilitychange', pageVisibilityHandler);
 		if (reducedMotionQuery && reducedMotionHandler) reducedMotionQuery.removeEventListener('change', reducedMotionHandler);
 		if (engine) {
@@ -801,6 +814,27 @@
 		const s = Math.floor(t % 60);
 		return m + ':' + (s < 10 ? '0' : '') + s;
 	}
+
+	function formatRelativeTime(timestamp: number | null): string {
+		if (!timestamp) return 'not saved yet';
+		const seconds = Math.max(0, Math.floor((saveStatusNow - timestamp) / 1000));
+		if (seconds < 5) return 'just now';
+		if (seconds < 60) return seconds + 's ago';
+		const minutes = Math.floor(seconds / 60);
+		if (minutes < 60) return minutes + 'm ago';
+		const hours = Math.floor(minutes / 60);
+		return hours + 'h ago';
+	}
+
+	function saveIndicatorText(): string {
+		if (saveStatus.writeFailed) {
+			return saveStatus.message ?? 'Save failed. Progress may not be stored.';
+		}
+		if (saveStatus.lastSuccessfulWriteAt) {
+			return 'Last saved ' + formatRelativeTime(saveStatus.lastSuccessfulWriteAt);
+		}
+		return saveLoaded ? 'Save ready' : 'Save loading';
+	}
 </script>
 
 <svelte:head>
@@ -851,7 +885,7 @@
 			{/if}
 			<button class="ibtn" class:off={!settings.sfx} onclick={toggleSfx} aria-label="Toggle sound effects" use:tooltip={`Sound effects: ${settings.sfx ? 'ON' : 'OFF'}\nCombat & UI sounds. Click to toggle.`}><Icon name={settings.sfx ? 'soundOn' : 'soundOff'} size={17} /></button>
 			<button class="ibtn" class:off={!settings.music} onclick={toggleMusic} aria-label="Toggle music" use:tooltip={`Music: ${settings.music ? 'ON' : 'OFF'}\nAmbient background loop. Click to toggle.`}><Icon name={settings.music ? 'musicOn' : 'musicOff'} size={17} /></button>
-			<div class="save-indicator" class:saving={showSaveIndicator} title="Auto-save indicator"></div>
+			<div class="save-indicator" class:saving={showSaveIndicator} class:failed={saveStatus.writeFailed} role="status" aria-label={saveIndicatorText()} title={saveIndicatorText()}></div>
 			<div class="sv-wrap">
 				<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu" title="Export / Import / Reset save data"><Icon name="save" size={17} /></button>
 				{#if showSaveMenu}
@@ -1186,6 +1220,7 @@
 	.spd-status.paused { color:var(--yellow); }
 	.save-indicator { width:8px; height:8px; border-radius:50%; background:rgba(68,255,136,0); transition:all .3s ease; flex-shrink:0; }
 	.save-indicator.saving { background:rgba(68,255,136,0.6); box-shadow:0 0 6px rgba(68,255,136,0.4); }
+	.save-indicator.failed { background:rgba(255,68,68,.75); box-shadow:0 0 8px rgba(255,68,68,.55); }
 	.spd-btn { padding:.15rem .4rem; font-size:var(--fs-body-sm); font-family:var(--font-mono); color:var(--text-dim); border-radius:100px; transition:all var(--transition-fast); line-height:1; cursor:pointer; }
 	.spd-btn:hover { color:var(--text-secondary); background:rgba(255,255,255,.04); }
 	.spd-btn.on { color:var(--cyan); background:rgba(0,255,255,.1); }
