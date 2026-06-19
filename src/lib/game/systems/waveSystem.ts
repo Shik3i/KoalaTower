@@ -2,7 +2,7 @@
  * waveSystem.ts — Wave lifecycle management.
  *
  * Handles: starting waves, spawning enemies over time, sub-wave pacing,
- * boss escort spawning, wave-completion gold bonus.
+ * boss spawning, wave-completion gold bonus.
  */
 
 import { ChallengeId, EnemyType, type GameState } from '../engine/gameTypes';

@@ -433,11 +433,6 @@ export function enemiesPerWave(wave: number, front: number = 1): number {
 	return expectedEnemiesPerWave(wave, front);
 }
 
-export function bossEscortCount(wave: number, _cap: number = 20): number {
-	// For backward compatibility in tests
-	return Math.min(MAX_ENEMIES_PER_WAVE_SAFETY, expectedEnemiesPerWave(wave, 1));
-}
-
 // ─── Cost formulas ─────────────────────────────────────────────────────────
 
 /**

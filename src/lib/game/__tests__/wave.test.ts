@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getEnemyCountForWave, getSpawnIntervalForWave, getEnemyTypeForWave, createEnemy } from '../balance/enemies';
 import { EnemyType } from '../engine/gameTypes';
-import { enemiesPerWave, bossEscortCount, spawnIntervalForWave, expectedEnemiesPerWave } from '../balance/balanceMath';
+import { expectedEnemiesPerWave } from '../balance/balanceMath';
 
 describe('Wave Scaling', () => {
 	it('should have increasing enemy counts per wave', () => {

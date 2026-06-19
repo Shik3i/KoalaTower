@@ -4,14 +4,13 @@
  * Uses balanceMath for all stat formulas. This file handles:
  * - Converting balance data into in-game Enemy objects
  * - Wave composition (which types, how many, spawn timing)
- * - Boss escort spawning logic
+ * - Boss spawning logic
  */
 
 import { EnemyType, type Enemy, type EnemyConfig } from '../engine/gameTypes';
 import {
 	computeEnemyConfig,
 	enemiesPerWave,
-	bossEscortCount,
 	availableEnemyTypes,
 	spawnIntervalForWave,
 	enemyCountMultiplier,
@@ -58,49 +57,13 @@ export function getSpawnIntervalForWave(wave: number): number {
 
 /**
  * Pick enemy types available for random spawn in a wave.
- * On boss waves, returns only Boss type (escorts handled separately).
+ * On boss waves, returns only Boss type.
  */
 export function getEnemyTypeForWave(wave: number, front: number = 1): EnemyType[] {
 	if (wave % 10 === 0) {
 		return [EnemyType.Boss];
 	}
 	return availableEnemyTypes(wave, front);
-}
-
-/**
- * Pick an escort type for the pre-boss phase of a boss wave.
- */
-export function getEscortTypeForWave(wave: number, front: number = 1): EnemyType {
-	const types = availableEnemyTypes(wave, front);
-	return types[Math.floor(Math.random() * types.length)]!;
-}
-
-// ─── Boss escort counter ────────────────────────────────────────────────────
-
-let _bossEscortRemaining = 0;
-
-export function resetBossEscortCounter(): void {
-	_bossEscortRemaining = 0;
-}
-
-export function getBossEscortCount(wave: number): number {
-	return bossEscortCount(wave);
-}
-
-export function setupBossEscorts(wave: number): void {
-	_bossEscortRemaining = bossEscortCount(wave);
-}
-
-export function hasBossEscortsRemaining(): boolean {
-	return _bossEscortRemaining > 0;
-}
-
-export function consumeBossEscort(): boolean {
-	if (_bossEscortRemaining > 0) {
-		_bossEscortRemaining--;
-		return true;
-	}
-	return false;
 }
 
 // ─── Enemy creation ─────────────────────────────────────────────────────────

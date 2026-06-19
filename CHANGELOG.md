@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.3 — Tower-like Spawn Rework
+
+- **Tower-like Spawn Tick Pacing**: Replaced the direct enemy-count wave model with a spawn-tick based model. Spawns are evaluated every 1/8 second (0.125s) of simulation time over a fixed 30-second wave spawn window (240 ticks total).
+- **Spawn Rate Curve**: The base spawn chance per tick is calculated using the formula `min(56, 14.9 * wave^0.23)` percent, peaking at a maximum chance of 56%.
+- **Deterministic Even Distribution**: Scheduled wave spawns are distributed evenly across the simulation window, ensuring consistent and predictable wave composition.
+- **Active Enemy Cap & Spawning Backlog**: Screen density is capped at 150 alive enemies on screen. Excess scheduled spawns are backlogged rather than deleted, and will automatically deploy as soon as active capacity frees up.
+- **Boss Wave Flow**: Boss waves now feature normal enemy spawns spread throughout the 30-second window, with a Boss spawning at the end of the spawn window (tick 240).
+- **Shorter Wave Transitions**: Cleaned up the wave pacing by reducing the inter-wave delay to 0.75 seconds and removing sub-wave pause delays.
+
 ## v0.6.2 — CI test-job Node fix
 
 - Fixed the CI test job, which failed with "navigator is not defined" after the test job was pinned to Node 20: the renderer tests import pixi.js, which reads a global `navigator` at module load — a global that only exists on Node 21+. The test job now runs on Node 22; the build job stays on Node 20 to mirror the Docker runtime. First release tag built on fully green CI (the v0.6.1 image is functionally identical).

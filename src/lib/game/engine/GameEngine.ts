@@ -556,7 +556,7 @@ export class GameEngine {
 	 *   • inter-wave downtime (waveActive/subWaveActive false) — chain survives
 	 *     the full between-wave gap and any sub-wave pause.
 	 *   • no live enemies on the field — chain survives natural spawn lulls
-	 *     so a slow spawn rate or a long escort break can't break the combo.
+	 *     so a slow spawn rate or a long boss spawn delay can't break the combo.
 	 * The chain ONLY decays while there are enemies to fight and you stop
 	 * killing them. Tower damage always resets it immediately (see towerSystem).
 	 */
@@ -566,7 +566,7 @@ export class GameEngine {
 		// Suspend timeout during inter-wave / sub-wave pauses.
 		if (!this.state.wave.waveActive || !this.state.wave.subWaveActive) return;
 		// Suspend timeout when there is nothing on the field to kill — the
-		// chain must not bleed out during a spawn lull or escort gap.
+		// chain must not bleed out during a spawn lull or boss spawn gap.
 		if (this.state.enemies.length === 0) return;
 		ks.timer -= dt;
 		if (ks.timer <= 0) {

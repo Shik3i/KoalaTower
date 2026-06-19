@@ -25,7 +25,6 @@ import {
 	bossAttackMultiplier,
 	bossRewardMultiplier,
 	enemiesPerWave,
-	bossEscortCount,
 	computeEnemyConfig,
 	piecewisePowerStat,
 	front1EnemyDamage,
