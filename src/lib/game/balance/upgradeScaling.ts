@@ -1,9 +1,5 @@
-/**
- * upgradeScaling.ts — Shared helpers for upgrade cost and effect display.
- */
-
 import { UpgradeId } from '../engine/gameTypes';
-import { hybridCost, additiveEffect, roundedCost } from './balanceMath';
+import { hybridCost, additiveEffect, roundedCost, formatCompact } from './balanceMath';
 export { hybridCost, additiveEffect, roundedCost };
 
 /**
@@ -12,7 +8,7 @@ export { hybridCost, additiveEffect, roundedCost };
  */
 export function formatBattleEffect(id: UpgradeId, value: number): string {
 	switch (id) {
-		case UpgradeId.Damage: return (50 + value).toFixed(1) + ' DMG';
+		case UpgradeId.Damage: return formatCompact(value) + ' DMG';
 		case UpgradeId.FireRate: return (1.0 + value).toFixed(3) + ' /s';
 		case UpgradeId.Range: return 'Range ' + (180 + value).toFixed(0);
 		case UpgradeId.Multishot: return (value * 100).toFixed(1) + '%';
@@ -36,7 +32,7 @@ export function formatBattleEffect(id: UpgradeId, value: number): string {
  */
 export function formatBattleEffectNext(id: UpgradeId, value: number): string {
 	switch (id) {
-		case UpgradeId.Damage: return '+' + value.toFixed(1) + ' DMG';
+		case UpgradeId.Damage: return '+' + formatCompact(value) + ' DMG';
 		case UpgradeId.FireRate: return '+' + value.toFixed(3) + ' /s';
 		case UpgradeId.Range: return '+' + value.toFixed(0) + ' range';
 		case UpgradeId.Multishot: return '+' + (value * 100).toFixed(1) + '%';

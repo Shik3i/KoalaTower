@@ -36,7 +36,7 @@ function computeTowerStats(state: GameState, lab: LabMultipliers): { stats: Towe
 	const fx = (id: UpgradeId) => getBattleUpgradeEffect(id, b(id));
 
 	const stats: TowerStats = {
-		damage: (50 + fx(UpgradeId.Damage)) * lab.dmg,
+		damage: fx(UpgradeId.Damage) * lab.dmg,
 		fireRate: (1.0 + fx(UpgradeId.FireRate)) * lab.fireRate,
 		range: STARTING_TOWER_RANGE + fx(UpgradeId.Range),
 		multishotChance: fx(UpgradeId.Multishot),

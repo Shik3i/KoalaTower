@@ -40,10 +40,12 @@
 	}
 
 	/** Readable per-level delta for the next purchase (secondary info only). */
-	function upgradeNextDelta(id: UpgradeId): string {
+	function upgradeNextDelta(id: UpgradeId, lv: number): string {
 		const def = BATTLE_UPGRADES.find(u => u.id === id);
 		if (!def) return '';
-		return formatBattleEffectNext(id, getBattleUpgradeEffect(id, 1));
+		const current = getBattleUpgradeEffect(id, lv);
+		const nextVal = getBattleUpgradeEffect(id, lv + 1);
+		return formatBattleEffectNext(id, nextVal - current);
 	}
 
 	function lvOf(id: UpgradeId): number {
@@ -114,13 +116,13 @@
 				? `🔒 ${u.name}\nLocked — reconstruct the ${getLockBlueprintName(u.id)} Schematic in Orbital Command.`
 				: mx
 					? `${u.name} — MAXED\nCurrent: ${upgradeCurrentValue(u.id, lv)}`
-					: `${u.name}\nCurrent: ${upgradeCurrentValue(u.id, lv)}\nNext: ${upgradeNextDelta(u.id)}\nCost: ${cost} Energy${aff ? '' : ' — not enough Energy'}`}
+					: `${u.name}\nCurrent: ${upgradeCurrentValue(u.id, lv)}\nNext: ${upgradeNextDelta(u.id, lv)}\nCost: ${cost} Energy${aff ? '' : ' — not enough Energy'}`}
 		>
 			<div class="uc-t"><span class="uci">{locked ? '🔒' : u.icon}</span><span class="ucn">{u.name}</span><span class="ucl">{locked ? 'LOCKED' : 'Lv.' + lv}</span></div>
 			{#if !locked}
 				<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / u.maxLevel) * 100)}%"></div></div>
 				<div class="uc-val">{upgradeCurrentValue(u.id, lv)}</div>
-				<div class="uc-b"><span class="ucc">⚡{cost.toLocaleString()}</span><span class="ucnx">{mx ? 'MAXED' : upgradeNextDelta(u.id)}</span></div>
+				<div class="uc-b"><span class="ucc">⚡{cost.toLocaleString()}</span><span class="ucnx">{mx ? 'MAXED' : upgradeNextDelta(u.id, lv)}</span></div>
 			{:else}
 				<div class="uc-val" style="color:var(--text-dim)">🔒 Requires {getLockBlueprintName(u.id)}</div>
 			{/if}

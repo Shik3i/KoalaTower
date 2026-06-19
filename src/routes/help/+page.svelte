@@ -28,7 +28,7 @@
 		{
 			id: 'enemies',
 			q: 'What enemy types exist?',
-			a: 'Five types, each with a unique outline shape: ■ Square = Normal (baseline), ◆ Diamond = Fast (1.8× Normal speed, half HP), ⬡ Hexagon = Tank (8× HP, larger, slower), ▶ Triangle = Ranged (stops just inside starter tower range and fires), ⬠ Pentagon = Boss (every 10 waves with escorts, 22.5× HP, very large). Watch their shapes to identify them instantly.',
+			a: 'Five types, each with a unique outline shape: ■ Square = Normal (baseline), ◆ Diamond = Fast (1.8× Normal speed), ⬡ Hexagon = Tank (5× HP, larger, slower), ▶ Triangle = Ranged (stops just inside starter tower range and fires), ⬠ Pentagon = Boss (every 10 waves with escorts, 20× HP, very large). Watch their shapes to identify them instantly.',
 		},
 		{
 			id: 'bosses',
@@ -247,7 +247,7 @@
 			<div class="enemy-card">
 				<div class="enemy-shape hexagon">⬡</div>
 				<h3>Tank</h3>
-				<p>8× Normal HP, larger, 0.55× Normal speed. Front 1: appears from wave 50.</p>
+				<p>5× Normal HP, larger, 0.55× Normal speed. Front 1: appears from wave 50.</p>
 			</div>
 			<div class="enemy-card">
 				<div class="enemy-shape triangle">▶</div>
@@ -257,7 +257,7 @@
 			<div class="enemy-card boss">
 				<div class="enemy-shape pentagon">⬠</div>
 				<h3>Boss</h3>
-				<p>22.5× Normal HP, larger than Tanks, pulsing aura. Every 10 waves with escorts.</p>
+				<p>20× Normal HP, larger than Tanks, pulsing aura. Every 10 waves with escorts.</p>
 			</div>
 		</div>
 	</section>
@@ -271,7 +271,7 @@
 			<div class="help-card ws">
 				<div class="help-card-icon">⚡</div>
 				<h3>Damage</h3>
-				<p>+25 damage per level — the same as one in-run Damage Field Upgrade. Forge Lv.1 starts deployment at 75 DMG.</p>
+				<p>Seeds permanent starting level for in-run Damage Field Upgrade. Follows a Tower-like progression curve.</p>
 				<span class="card-tag">Shared curve</span>
 			</div>
 			<div class="help-card ws">

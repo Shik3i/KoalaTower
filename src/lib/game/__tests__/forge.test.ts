@@ -39,7 +39,7 @@ describe('Forge sets the starting level of the shared Field curve', () => {
 
 	it('Damage: Forge level 1 == one in-run Damage purchase', () => {
 		const forge = engineWithForge({ [UpgradeId.Damage]: 1 });
-		expect(forge.state.tower.stats.damage).toBeCloseTo(75, 5);
+		expect(forge.state.tower.stats.damage).toBeCloseTo(120, 5);
 
 		const run = engineFresh();
 		expect(run.state.tower.stats.damage).toBeCloseTo(50, 5);

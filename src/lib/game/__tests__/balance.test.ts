@@ -38,6 +38,7 @@ import {
 	TIER_MULTIPLIERS,
 	STARTING_TOWER_RANGE,
 	RANGED_ATTACK_RANGE,
+	ENEMY_TYPE_MODIFIERS,
 } from '../balance/balanceMath';
 import { UpgradeId, WorkshopUpgradeId, EnemyType, BlueprintId, LabId } from '../engine/gameTypes';
 import { simulateRun, SCENARIOS } from '../balance/balanceSimulator';
@@ -112,7 +113,11 @@ describe('Battle Upgrades', () => {
 			const eff0 = getBattleUpgradeEffect(def.id, 0);
 			const eff10 = getBattleUpgradeEffect(def.id, 10);
 			const eff50 = getBattleUpgradeEffect(def.id, 50);
-			expect(eff0).toBe(0);
+			if (def.id === UpgradeId.Damage) {
+				expect(eff0).toBe(50);
+			} else {
+				expect(eff0).toBe(0);
+			}
 			expect(eff10).toBeGreaterThanOrEqual(eff0);
 			expect(eff50).toBeGreaterThanOrEqual(eff10);
 		}
@@ -268,10 +273,10 @@ describe('Enemy Config', () => {
 		expect(boss.hp / normal.hp).toBeLessThanOrEqual(25);
 	});
 
-	it('fast enemy should have lower HP than normal', () => {
+	it('fast enemy should have same HP as normal', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 10);
 		const fast = computeEnemyConfig(EnemyType.Fast, 10);
-		expect(fast.hp).toBeLessThan(normal.hp);
+		expect(fast.hp).toBe(normal.hp);
 	});
 
 	it('tank should have higher HP than normal', () => {
@@ -280,18 +285,18 @@ describe('Enemy Config', () => {
 		expect(tank.hp).toBeGreaterThan(normal.hp);
 	});
 
-	it('fast identity is faster than normal but keeps low HP', () => {
+	it('fast identity is faster than normal but keeps normal HP', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 20);
 		const fast = computeEnemyConfig(EnemyType.Fast, 20);
 		expect(fast.speed / normal.speed).toBeGreaterThan(1.6);
 		expect(fast.speed / normal.speed).toBeLessThanOrEqual(2.0);
-		expect(fast.hp).toBeLessThan(normal.hp);
+		expect(fast.hp).toBe(normal.hp);
 	});
 
-	it('tank identity is 8x HP, larger, and slower than normal', () => {
+	it('tank identity is 5x HP, larger, and slower than normal', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 60);
 		const tank = computeEnemyConfig(EnemyType.Tank, 60);
-		expect(tank.hp / normal.hp).toBeCloseTo(8, 2);
+		expect(tank.hp / normal.hp).toBeCloseTo(5, 2);
 		expect(tank.size).toBeGreaterThan(normal.size);
 		expect(tank.speed / normal.speed).toBeCloseTo(0.55, 2);
 	});
@@ -339,9 +344,9 @@ describe('Boss Waves', () => {
 		const bm10 = bossHpMultiplier(10);
 		const bm50 = bossHpMultiplier(50);
 		const bm500 = bossHpMultiplier(500);
-		expect(bm10).toBe(22.5);
-		expect(bm50).toBe(22.5);
-		expect(bm500).toBe(22.5);
+		expect(bm10).toBe(20);
+		expect(bm50).toBe(20);
+		expect(bm500).toBe(20);
 	});
 
 	it('boss attack multiplier should scale and cap', () => {
@@ -1048,24 +1053,23 @@ describe('Forge Impact', () => {
 // ─── Field Damage Upgrade Correction Tests ────────────────────────────────
 
 describe('Field Damage Upgrade Correction', () => {
-	it('first Field Damage upgrade gives +25, not +50', () => {
+	it('first Field Damage upgrade gives 120 total damage', () => {
 		const dmg1 = getBattleUpgradeEffect(UpgradeId.Damage, 1);
-		expect(dmg1).toBe(25);
+		expect(dmg1).toBe(120);
 	});
 
-	it('first Field Damage purchase results in 75 damage (50 + 25)', () => {
-		const baseDamage = 50;
+	it('first Field Damage purchase results in 120 damage', () => {
 		const firstUpgrade = getBattleUpgradeEffect(UpgradeId.Damage, 1);
-		expect(baseDamage + firstUpgrade).toBe(75);
+		expect(firstUpgrade).toBe(120);
 	});
 
-	it('first 5 Field Damage levels: 50→75→100→125→150→175', () => {
-		const base = 50;
-		expect(base + getBattleUpgradeEffect(UpgradeId.Damage, 1)).toBe(75);
-		expect(base + getBattleUpgradeEffect(UpgradeId.Damage, 2)).toBe(100);
-		expect(base + getBattleUpgradeEffect(UpgradeId.Damage, 3)).toBe(125);
-		expect(base + getBattleUpgradeEffect(UpgradeId.Damage, 4)).toBe(150);
-		expect(base + getBattleUpgradeEffect(UpgradeId.Damage, 5)).toBe(175);
+	it('first 5 Field Damage levels: 50→120→253→384→514→643', () => {
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 0)).toBe(50);
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 1)).toBe(120);
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 2)).toBeCloseTo(253.3, 1);
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 3)).toBeCloseTo(384.3, 1);
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 4)).toBeCloseTo(514.2, 1);
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 5)).toBeCloseTo(643.9, 1);
 	});
 
 	it('Field Damage costs increase reasonably: 13→16→19→22→27', () => {
@@ -1321,12 +1325,12 @@ describe('Lab duration/effect overflow regression', () => {
 // ─── v0.5.3 Display Format Tests ──────────────────────────────────────────
 
 describe('Field Upgrade card display values (current, not next delta)', () => {
-	it('Damage at level 0 shows "50.0 DMG", not "+25 DMG"', () => {
-		expect(formatBattleEffect(UpgradeId.Damage, 0)).toBe('50.0 DMG');
+	it('Damage at level 0 shows "50 DMG"', () => {
+		expect(formatBattleEffect(UpgradeId.Damage, 50)).toBe('50 DMG');
 	});
 
-	it('Damage at level 1 shows "75.0 DMG"', () => {
-		expect(formatBattleEffect(UpgradeId.Damage, 25)).toBe('75.0 DMG');
+	it('Damage at level 1 shows "120 DMG"', () => {
+		expect(formatBattleEffect(UpgradeId.Damage, 120)).toBe('120 DMG');
 	});
 
 	it('Attack Speed at level 0 shows "1.000 /s", not "+0.050 /s"', () => {
@@ -1358,7 +1362,7 @@ describe('Field Upgrade card display values (current, not next delta)', () => {
 	});
 
 	it('next-delta format shows + prefix (secondary info only)', () => {
-		expect(formatBattleEffectNext(UpgradeId.Damage, 25)).toBe('+25.0 DMG');
+		expect(formatBattleEffectNext(UpgradeId.Damage, 70)).toBe('+70 DMG');
 		expect(formatBattleEffectNext(UpgradeId.FireRate, 0.1)).toBe('+0.100 /s');
 		expect(formatBattleEffectNext(UpgradeId.CritMultiplier, 0.10)).toBe('+0.10×');
 	});
@@ -1402,6 +1406,78 @@ describe('Crit Multiplier base value correction (v0.5.3)', () => {
 	it('CritMultiplier effectPerLevel is 0.10', () => {
 		const def = BATTLE_UPGRADE_DEFS.find(d => d.id === UpgradeId.CritMultiplier)!;
 		expect(def.effectPerLevel).toBe(0.10);
+	});
+});
+
+// ─── Balance Snapshot Ratios (Shots-to-kill verification) ────────────────────
+
+describe('Balance Snapshot Ratios (shots-to-kill)', () => {
+	const waves = [1, 10, 100, 1000, 10000];
+	const types = [EnemyType.Normal, EnemyType.Boss, EnemyType.Tank, EnemyType.Fast, EnemyType.Ranged];
+
+	it('should calculate shots-to-kill within Tower-like ratios', () => {
+		for (const w of waves) {
+			const damageLevel = Math.floor(w / 2);
+			const damage = getBattleUpgradeEffect(UpgradeId.Damage, damageLevel);
+
+			// Under simplified assumptions:
+			// Basic enemy HP = Front 1 enemy HP
+			const basicHP = front1EnemyHp(w);
+
+			expect(Number.isFinite(basicHP)).toBe(true);
+			expect(basicHP).toBeGreaterThan(0);
+			expect(damage).toBeGreaterThan(0);
+
+			const basicShots = Math.ceil(basicHP / damage);
+
+			// Assertions for each type
+			for (const t of types) {
+				let hp = 0;
+				if (t === EnemyType.Boss) {
+					hp = Math.floor(basicHP * bossHpMultiplier(w));
+				} else {
+					const mod = ENEMY_TYPE_MODIFIERS[t]!;
+					hp = Math.floor(basicHP * mod.hp);
+				}
+
+				const shots = Math.ceil(hp / damage);
+
+				// Verify outputs are finite and valid
+				expect(Number.isFinite(hp)).toBe(true);
+				expect(hp).toBeGreaterThan(0);
+				expect(Number.isFinite(shots)).toBe(true);
+				expect(shots).toBeGreaterThan(0);
+
+				// Check approximate ratios relative to basicShots using strict ceiling bounds
+				if (t === EnemyType.Normal) {
+					expect(shots).toBe(basicShots);
+				} else if (t === EnemyType.Boss) {
+					// bossShots is bounded between 20 * basicShots - 19 and 20 * basicShots
+					expect(shots).toBeLessThanOrEqual(basicShots * 20);
+					expect(shots).toBeGreaterThanOrEqual(basicShots * 20 - 19);
+				} else if (t === EnemyType.Tank) {
+					// tankShots is bounded between 5 * basicShots - 4 and 5 * basicShots
+					expect(shots).toBeLessThanOrEqual(basicShots * 5);
+					expect(shots).toBeGreaterThanOrEqual(basicShots * 5 - 4);
+				} else if (t === EnemyType.Fast || t === EnemyType.Ranged) {
+					expect(shots).toBe(basicShots);
+				}
+			}
+		}
+	});
+
+	it('should verify monotonic progression of shots-to-kill', () => {
+		// As wave increases, shots-to-kill for basic enemies should grow,
+		// because HP curve grows faster than the damage curve.
+		let prevShots = 0;
+		for (const w of waves) {
+			const damageLevel = Math.floor(w / 2);
+			const damage = getBattleUpgradeEffect(UpgradeId.Damage, damageLevel);
+			const basicHP = front1EnemyHp(w);
+			const shots = Math.ceil(basicHP / damage);
+			expect(shots).toBeGreaterThanOrEqual(prevShots);
+			prevShots = shots;
+		}
 	});
 });
 

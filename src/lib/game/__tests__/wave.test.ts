@@ -72,10 +72,10 @@ describe('Enemy Config', () => {
 		expect(boss.hp).toBeGreaterThan(normal.hp);
 	});
 
-	it('fast enemy should have lower HP than normal', () => {
+	it('fast enemy should have same HP as normal', () => {
 		const normal = createEnemy(EnemyType.Normal, 10, 0, 0);
 		const fast = createEnemy(EnemyType.Fast, 10, 0, 0);
-		expect(fast.hp).toBeLessThan(normal.hp);
+		expect(fast.hp).toBe(normal.hp);
 	});
 
 	it('should have correct shape assignments', () => {

@@ -49,7 +49,7 @@ export const FORGE_UPGRADE_DEFS: ForgeUpgradeDef[] = [
 	{
 		id: UpgradeId.Damage,
 		name: 'Damage',
-		description: 'Permanent starting Damage level. Each level = one Field Damage level (+25 DMG).',
+		description: 'Permanent starting Damage level. Seeds in-run Field upgrade starting level.',
 		icon: '⚡', category: 'offense', maxLevel: 60, baseCost: 40, costGrowth: 1.23,
 	},
 	{

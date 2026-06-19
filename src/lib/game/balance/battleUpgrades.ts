@@ -1,6 +1,7 @@
 import type { UpgradeCategory, BlueprintId } from '../engine/gameTypes';
 import { UpgradeId, BlueprintId as BP } from '../engine/gameTypes';
 import { hybridCost, additiveEffect, roundedCost, formatBattleEffect as fmtEffect } from './upgradeScaling';
+import { flatlandBaseDamageAtLevel } from './balanceMath';
 
 export interface BattleUpgradeDef {
 	id: UpgradeId;
@@ -21,7 +22,7 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 	{
 		id: UpgradeId.Damage,
 		name: 'Damage',
-		description: '+25 damage per level. First purchase takes you from 50 to 75.',
+		description: 'Increases player base Damage following a smooth progression curve.',
 		icon: '⚡',
 		category: 'offense',
 		maxLevel: 999,
@@ -233,6 +234,9 @@ export function getBattleUpgradeCost(id: UpgradeId, level: number): number {
 }
 
 export function getBattleUpgradeEffect(id: UpgradeId, level: number): number {
+	if (id === UpgradeId.Damage) {
+		return flatlandBaseDamageAtLevel(level);
+	}
 	const def = defMap.get(id);
 	if (!def) return 0;
 	return additiveEffect(def.effectPerLevel, level, def.effectCap);

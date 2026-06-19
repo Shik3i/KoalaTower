@@ -15,7 +15,7 @@
  * progression after unlocking specific paths.
  */
 
-import { hybridCost, additiveEffect } from './balanceMath';
+import { hybridCost, additiveEffect, flatlandBaseDamageAtLevel } from './balanceMath';
 import {
 	computeEnemyConfig, enemiesPerWave, bossEscortCount, availableEnemyTypes,
 	spawnIntervalForWave, frontEnemyArmor, frontHasResistance, STARTING_TOWER_RANGE,
@@ -74,7 +74,7 @@ function computeBaseline(ws: Record<string, number>, lab: Record<string, number>
 	const lCoin = 1 + getLabEffect('alloyEfficiency' as any, l('alloyEfficiency'));
 	const lCash = 1 + getLabEffect('energyEfficiency' as any, l('energyEfficiency'));
 	return {
-		damage: (50 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseDamage, g(WorkshopUpgradeId.BaseDamage))) * lDmg,
+		damage: flatlandBaseDamageAtLevel(g(WorkshopUpgradeId.BaseDamage)) * lDmg,
 		fireRate: (1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, g(WorkshopUpgradeId.BaseFireRate))) * lFR,
 		range: STARTING_TOWER_RANGE + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseRange, g(WorkshopUpgradeId.BaseRange)),
 		hp: Math.floor((100 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingHp, g(WorkshopUpgradeId.StartingHp))) * lHP),
@@ -119,9 +119,13 @@ function tryBuyUpgrades(state: SimState, priority: UpgradeId[], threshold: numbe
 	}
 }
 
-function recompute(state: SimState, ws: ReturnType<typeof computeBaseline>): void {
+function recompute(state: SimState, ws: ReturnType<typeof computeBaseline>, workshopLevels: Record<string, number>): void {
 	const bl = (id: UpgradeId) => state.battleLevels[id] ?? 0;
-	state.damage = ws.damage + getBattleUpgradeEffect(UpgradeId.Damage, bl(UpgradeId.Damage));
+	const g = (id: WorkshopUpgradeId) => workshopLevels[id] ?? 0;
+	const l = (id: string) => state.labLevels[id] ?? 0;
+	const lDmg = 1 + getLabEffect('damageResearch' as any, l('damageResearch'));
+
+	state.damage = flatlandBaseDamageAtLevel(g(WorkshopUpgradeId.BaseDamage) + bl(UpgradeId.Damage)) * lDmg;
 	state.fireRate = ws.fireRate + getBattleUpgradeEffect(UpgradeId.FireRate, bl(UpgradeId.FireRate));
 	state.range = ws.range + getBattleUpgradeEffect(UpgradeId.Range, bl(UpgradeId.Range));
 	state.multishotChance = getBattleUpgradeEffect(UpgradeId.Multishot, bl(UpgradeId.Multishot));
@@ -229,7 +233,7 @@ export function simulateRun(
 	}
 
 	tryBuyUpgrades(state, priority, threshold);
-	recompute(state, ws);
+	recompute(state, ws, workshopLevels);
 	// Tower starts each run at full HP — the +30 heal in recompute is for mid-run purchases
 	state.hp = state.maxHp;
 	let diedTo = 'unknown';
@@ -376,7 +380,7 @@ export function simulateRun(
 		// Re-check blueprint unlocks
 		tryUnlockBlueprints(state, totalBossesDefeated);
 		tryBuyUpgrades(state, priority, threshold);
-		recompute(state, ws);
+		recompute(state, ws, workshopLevels);
 	}
 
 	const dps = estimateDps(state);
