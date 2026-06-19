@@ -22,7 +22,7 @@
 
 <main class="err">
 	<div class="err-panel glass-panel">
-		<div class="err-status" aria-live="polite">{status}</div>
+		<h1 class="err-status" aria-live="polite">{status}</h1>
 		<div class="err-divider"></div>
 		<p class="err-msg">{message}</p>
 		<p class="err-sub">{sub}</p>

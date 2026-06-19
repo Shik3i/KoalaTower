@@ -99,7 +99,7 @@
 	<script type="application/ld+json">{JSON.stringify(jsonLdFaq)}</script>
 </svelte:head>
 
-<div class="help-page">
+<main class="help-page">
 	<div class="bg-grid"></div>
 	<a href="/" class="back-link">← Back to Home</a>
 
@@ -375,7 +375,7 @@
 			<div class="help-card tier">
 				<div class="help-card-icon">🛡️</div>
 				<h3>Perimeter · Fronts 1–4</h3>
-				<p>Entry combat zone — clean military blue/cyan. Mechanics arrive slowly: Basic only through Wave 9, then Runner, Bulwark, Needle. No Armor, no Resistance.</p>
+				<p>Entry combat zone — clean military blue/cyan. Mechanics arrive slowly: Normal squares through Wave 9, then Fast diamonds, Tank hexagons, and Ranged triangles. No Armor, no Resistance.</p>
 				<span class="card-tag">★ 0–3</span>
 			</div>
 			<div class="help-card tier">
@@ -402,7 +402,7 @@
 	<!-- Special Operations -->
 	<section class="help-section">
 		<h2>⚡ Special Operations</h2>
-		<p class="section-desc">Tactical exercises with modified engagement rules. Unlock them by reaching Tier 2 (wave 100). Each operation has its own high score.</p>
+		<p class="section-desc">Tactical exercises with modified engagement rules. Fast Swarm unlocks at Tier 2 Wave 100, Glass Tower at Tier 3 Wave 50, and Boss Rush at Tier 3 Wave 100. Each operation has its own high score.</p>
 		<div class="card-grid">
 			<div class="help-card challenge">
 				<div class="help-card-icon">🌪️</div>
@@ -443,6 +443,8 @@
 			<div class="control-item"><kbd>2</kbd><span>🏃 Speed 2×</span></div>
 			<div class="control-item"><kbd>3</kbd><span>🚀 Speed 3×</span></div>
 			<div class="control-item"><kbd>4</kbd><span>⚡ Speed 5×</span></div>
+			<div class="control-item"><kbd>Shift</kbd><span>Buy 5 levels at once</span></div>
+			<div class="control-item"><kbd>Ctrl</kbd><span>Buy as many levels as you can afford</span></div>
 		</div>
 		<button class="replay-tutorial-btn" onclick={() => replayTutorial('flatland-td-tutorial-done', 'Deployment')}>🔄 Replay Deployment Tutorial</button>
 		<button class="replay-tutorial-btn" onclick={() => replayTutorial('flatland-td-hub-tutorial-done', 'Orbital Command')}>🛰️ Replay Hub Tutorial</button>
@@ -491,7 +493,7 @@
 	<footer class="help-footer">
 		<p>Still have questions? Open an issue on <a href={GITHUB_ISSUES_URL} target="_blank" rel="noopener">GitHub</a>.</p>
 	</footer>
-</div>
+</main>
 
 <style>
 	.help-page { min-height:100vh; padding:2rem 1.5rem; max-width:860px; margin:0 auto; overflow-y:auto; position:relative; }

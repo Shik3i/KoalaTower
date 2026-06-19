@@ -16,7 +16,7 @@
 	import { LAB_DEFS, getLabCost, getLabEffect, isLabUnlocked, getLabDuration, formatLabDuration } from '$lib/game/balance/labs';
 	import { TIERS, FRONT_META, getUnlockedFronts, getFrontName, describeFrontUnlock, getFrontBandDef } from '$lib/game/balance/tiers';
 	import FrontIcon from '$lib/components/FrontIcon.svelte';
-	import { CHALLENGES } from '$lib/game/balance/challenges';
+	import { CHALLENGES, CHALLENGE_UNLOCK_REQS, isChallengeUnlocked } from '$lib/game/balance/challenges';
 	import { formatCompact, front1EnemyDamage, front1EnemyHp, TIER_MULTIPLIERS } from '$lib/game/balance/balanceMath';
 	import { getSchematics, getPathSchematicCost, tryUnlockPathWithSchematics, normalizeSchematics, SCHEMATICS_FLAVOR } from '$lib/game/balance/schematics';
 	import {
@@ -432,7 +432,7 @@
 		if (r.success) {
 			toast(getOpLogMessage('saveImported'), 'success');
 		} else {
-			toast(getOpLogMessage('saveImportFailed'), 'error');
+			toast(r.error ?? getOpLogMessage('saveImportFailed'), 'error', 6000);
 		}
 		closeImportDialog();
 		if (r.success) {
@@ -868,6 +868,10 @@
 		if (id === 'orders') refreshCommandOrders();
 	}
 
+	function getChallengeName(id: string): string {
+		return CHALLENGES.find(c => c.id === id)?.name ?? id;
+	}
+
 	$effect(() => {
 		if (!bmUnlocked && activeSection === 'blackMarket') {
 			activeSection = 'workshop';
@@ -888,7 +892,7 @@
 
 	<Tutorial steps={hubTutorialSteps} tutorialKey={HUB_TUTORIAL_KEY} />
 
-	<Toasts controller={toasts} vertical="top" offsetRem={1} />
+	<Toasts controller={toasts} vertical="top" offsetRem={5} />
 
 
 	<header class="hub-top">
@@ -916,9 +920,9 @@
 	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. The Forge pre-installs permanent tower upgrades, the Research Deck runs orbital projects, and Schematics reconstruct new capabilities. Archives track campaign telemetry.</p>
 
 	<div class="hub-body">
-		<nav class="hub-nav">
+		<nav class="hub-nav" aria-label="Orbital Command sections">
 			{#each visibleSections as s}
-				<button class="hub-nav-btn" class:on={activeSection === s.id} data-section={s.id} onclick={() => switchSection(s.id)}>
+				<button class="hub-nav-btn" class:on={activeSection === s.id} data-section={s.id} aria-current={activeSection === s.id ? 'page' : undefined} onclick={() => switchSection(s.id)}>
 					{s.icon} {s.label}
 				</button>
 			{/each}
@@ -1242,11 +1246,11 @@
 				</div>
 			{:else if activeSection === 'tiers'}
 				<div class="hs"><h2 class="hst">🌍 Fronts</h2><p class="hsd">Sixteen Fronts across four bands — Perimeter, Redline, Blacksite, Anomaly. Each Front spawns denser waves and drops its own Schematics. Most Fronts unlock at Wave 100 on the previous one; crossing into a new band is the hard wall. Remember: the enemy is also fighting a war. They are losing. Please continue to help them lose.</p>
-					<div class="cl">{#each TIERS as t}{@const unl = unlockedFronts.includes(t.id)}{@const band = getFrontBandDef(t.id)}{@const schem = getSchematics(schematicsByFront, FRONT_META.findIndex(m => m.id === t.id) + 1)}<div class="tc" class:unl={unl} style="--band:{band.color}"><div class="tc-h"><FrontIcon front={t.id} size={30} locked={!unl} /><div><div class="tcn">{t.name}</div><div class="tcd">{t.description}</div></div></div><div class="tcr" class:tcr-ok={unl}>{unl ? '✓ Unlocked · Best Wave ' + (frontBestWave[t.id] ?? 0) + (schem > 0 ? ' · 📐' + schem : '') : '🔒 ' + describeFrontUnlock(t.id)}</div></div>{/each}</div>
+					<div class="cl">{#each TIERS as t}{@const unl = unlockedFronts.includes(t.id)}{@const band = getFrontBandDef(t.id)}{@const schem = getSchematics(schematicsByFront, FRONT_META.findIndex(m => m.id === t.id) + 1)}<div class="tc" class:unl={unl} style="--band:{band.color}"><div class="tc-h"><FrontIcon front={t.id} size={30} locked={!unl} /><div><div class="tcn">{t.name}</div><div class="tcd">{t.description}</div></div></div><div class="tcr" class:tcr-ok={unl}>{unl ? '✓ Unlocked · Best Wave ' + (frontBestWave[t.id] ?? 0) + ' · Alloy x' + TIER_MULTIPLIERS[t.id].coin.toFixed(2) + (schem > 0 ? ' · 📐' + schem : '') : '🔒 ' + describeFrontUnlock(t.id)}</div></div>{/each}</div>
 				</div>
 			{:else if activeSection === 'challenges'}
 				<div class="hs"><h2 class="hst">⚡ Special Operations</h2><p class="hsd">Tactical exercises with modified engagement rules. Each operation tests different combat scenarios under special conditions. \'Special conditions\' is military code for \'we broke something and called it a feature.\'</p>
-					<div class="cl">{#each CHALLENGES as c}<div class="cc" class:lck={c.locked}><div class="cc-h"><span class="cci">{c.icon}</span><div><div class="ccn">{c.name}</div><div class="ccd">{c.description}</div></div></div>{#if c.highScore > 0}<div class="ccs">Best: Wave {c.highScore}</div>{:else if c.locked}<div class="ccl">🔒 Unlocks at higher waves</div>{/if}</div>{/each}</div>
+					<div class="cl">{#each CHALLENGES as c}{@const unlocked = isChallengeUnlocked(c.id, frontBestWave)}{@const highScore = challengeHighScores[c.id] ?? 0}<div class="cc" class:lck={!unlocked}><div class="cc-h"><span class="cci">{c.icon}</span><div><div class="ccn">{c.name}</div><div class="ccd">{c.description}</div></div></div>{#if highScore > 0}<div class="ccs">Best: Wave {highScore}</div>{:else if !unlocked}<div class="ccl">🔒 {CHALLENGE_UNLOCK_REQS[c.id].label}</div>{/if}</div>{/each}</div>
 				</div>
 			{:else if activeSection === 'simulation'}
 				{@const enemyTypes = [EnemyType.Normal, EnemyType.Fast, EnemyType.Tank, EnemyType.Ranged, EnemyType.Boss]}
@@ -1326,7 +1330,7 @@
 					</div>
 
 					<h3 class="stats-sub" style="margin-top:1.5rem">Enemy Mastery</h3>
-					<p class="hsd" style="margin-bottom:.75rem">Defeat enemies to earn mastery levels. Each mastery level grants +1% damage against that enemy type. Claim rewards as you cross thresholds.</p>
+					<p class="hsd" style="margin-bottom:.75rem">Defeat enemies to earn mastery levels. Each mastery level grants +1% damage against that enemy type, and Alloy bonuses are awarded automatically when thresholds are crossed.</p>
 					<div class="mastery-list">
 						{#each enemyTypes as et}
 							{@const kills = killsByType[et] ?? 0}
@@ -1364,7 +1368,7 @@
 					<h3 class="stats-sub" style="margin-top:1.5rem">Front Progress</h3>
 					<div class="ig" style="max-width:600px">
 						{#each Object.entries(frontBestWave) as [front, wave]}
-							<div class="ir"><span class="il">{front}</span><span class="iv">Wave {wave}</span></div>
+							<div class="ir"><span class="il">{getFrontName(front as TierId)}</span><span class="iv">Wave {wave}</span></div>
 						{/each}
 						{#if Object.keys(frontBestWave).length === 0}
 							<div class="ir"><span class="il" style="color:var(--text-dim)">No front data yet — complete a deployment.</span></div>
@@ -1374,7 +1378,7 @@
 					<h3 class="stats-sub" style="margin-top:1.5rem">Special Ops Records</h3>
 					<div class="ig" style="max-width:600px">
 						{#each Object.entries(challengeHighScores) as [challenge, score]}
-							<div class="ir"><span class="il">{challenge}</span><span class="iv">Wave {score}</span></div>
+							<div class="ir"><span class="il">{getChallengeName(challenge)}</span><span class="iv">Wave {score}</span></div>
 						{/each}
 						{#if Object.keys(challengeHighScores).length === 0}
 							<div class="ir"><span class="il" style="color:var(--text-dim)">No Special Ops records yet.</span></div>
@@ -1802,6 +1806,7 @@
 	.si { display:flex; flex-direction:column; gap:.08rem; }
 	.sl { font-size:var(--fs-body-sm); color:var(--text-primary); } .sd { font-size:var(--fs-caption); color:var(--text-secondary); }
 	.tg { width:38px; height:22px; border-radius:11px; background:var(--bg-tertiary); border:1px solid var(--border-neon); position:relative; transition:all var(--transition-fast); flex-shrink:0; cursor:pointer; }
+	.tg:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; }
 	.tg.on { background:rgba(0,255,255,.12); border-color:var(--cyan); }
 	.tgk { position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--text-dim); transition:all var(--transition-fast); }
 	.tg.on .tgk { left:18px; background:var(--cyan); box-shadow:0 0 6px rgba(0,255,255,.4); }

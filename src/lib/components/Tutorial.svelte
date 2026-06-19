@@ -26,13 +26,16 @@
 	let isMobile = $state(false);
 
 	const MARGIN = 14;
-	const MOBILE_BREAKPOINT = 768;
+	const MOBILE_BREAKPOINT = 900;
 
 	function findTarget(selector: string): HTMLElement | null {
 		if (!selector) return null;
 		for (const sel of selector.split(',').map(s => s.trim())) {
 			const el = document.querySelector(sel);
-			if (el instanceof HTMLElement) return el;
+			if (!(el instanceof HTMLElement)) continue;
+			const rect = el.getBoundingClientRect();
+			const style = window.getComputedStyle(el);
+			if (rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden') return el;
 		}
 		return null;
 	}
@@ -46,6 +49,7 @@
 		}
 		const el = findTarget(s.target);
 		if (el) {
+			el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
 			highlightEl = el;
 			highlightRect = el.getBoundingClientRect();
 		} else {
@@ -103,7 +107,11 @@
 	}
 
 	function finish() {
-		localStorage.setItem(tutorialKey, 'true');
+		try {
+			localStorage.setItem(tutorialKey, 'true');
+		} catch (e) {
+			console.warn('Could not persist tutorial completion:', e);
+		}
 		visible = false;
 		onComplete?.();
 	}
@@ -113,7 +121,26 @@
 	}
 
 	function onKey(e: KeyboardEvent) {
-		if (e.key === 'Escape') { skip(); }
+		if (!visible) return;
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			visible = false;
+			return;
+		}
+		if (e.key !== 'Tab') return;
+		const focusable = Array.from(tooltipEl?.querySelectorAll<HTMLElement>(
+			'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+		) ?? []).filter(el => el.offsetParent !== null);
+		if (focusable.length === 0) return;
+		const first = focusable[0]!;
+		const last = focusable[focusable.length - 1]!;
+		if (e.shiftKey && document.activeElement === first) {
+			e.preventDefault();
+			last.focus();
+		} else if (!e.shiftKey && document.activeElement === last) {
+			e.preventDefault();
+			first.focus();
+		}
 	}
 
 	function focusTooltip() {
@@ -124,7 +151,12 @@
 	}
 
 	onMount(() => {
-		const done = localStorage.getItem(tutorialKey);
+		let done: string | null = null;
+		try {
+			done = localStorage.getItem(tutorialKey);
+		} catch (e) {
+			console.warn('Could not read tutorial completion:', e);
+		}
 		if (!done) {
 			visible = true;
 			requestAnimationFrame(() => {
@@ -156,7 +188,7 @@
 
 {#if visible}
 	<div class="tutorial-overlay" role="dialog" aria-modal="true" aria-label="Tutorial">
-		<div class="tutorial-backdrop" role="button" tabindex="0" aria-label="Skip tutorial" onclick={skip} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') skip(); }}></div>
+		<div class="tutorial-backdrop" role="button" tabindex="0" aria-label="Skip tutorial" onclick={skip} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); skip(); } }}></div>
 
 		{#if highlightRect && currentStep?.target}
 			<div

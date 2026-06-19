@@ -124,26 +124,30 @@
 
 <Toasts controller={toasts} vertical="bottom" offsetRem={3} zIndex={500} />
 
+<a href="#main-content" class="skip-link">Skip to content</a>
+
 {#if loaded}
 	<WhatsNewModal suppressFirstRun={suppressWhatsNewFirstRun} />
 {/if}
 
-{@render children()}
+<div id="main-content" tabindex="-1">
+	{@render children()}
+</div>
 
 <footer class="layout-footer">
 	<p class="lf-tagline">Normal play stays local in your browser. No tracking. The Shapes remain hostile, flat, and statistically inconvenient.</p>
 	<nav class="lf-nav" aria-label="Site navigation">
-		<a href="/" class="lf-link">Home</a>
+		<a href="/" class="lf-link" aria-current={page.url.pathname === '/' ? 'page' : undefined}>Home</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
-		<a href="/play" class="lf-link">Deploy</a>
+		<a href="/play" class="lf-link" aria-current={page.url.pathname === '/play' ? 'page' : undefined}>Deploy</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
-		<a href="/hub" class="lf-link">Orbital Command</a>
+		<a href="/hub" class="lf-link" aria-current={page.url.pathname === '/hub' ? 'page' : undefined}>Orbital Command</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
-		<a href="/help" class="lf-link">Help</a>
+		<a href="/help" class="lf-link" aria-current={page.url.pathname === '/help' ? 'page' : undefined}>Help</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
-		<a href="/privacy" class="lf-link">Privacy</a>
+		<a href="/privacy" class="lf-link" aria-current={page.url.pathname === '/privacy' ? 'page' : undefined}>Privacy</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
-		<a href="/imprint" class="lf-link">Imprint</a>
+		<a href="/imprint" class="lf-link" aria-current={page.url.pathname === '/imprint' ? 'page' : undefined}>Imprint</a>
 	</nav>
 	<div class="lf-bottom">
 		{#if isSupportUrlConfigured(SUPPORT_URL)}
@@ -168,6 +172,9 @@
 
 <style>
 	.layout-footer { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.5rem; padding:.8rem 1rem 1rem; border-top:1px solid var(--border-neon); background:var(--bg-primary); position:relative; z-index:1; }
+	.skip-link { position:fixed; left:1rem; top:1rem; z-index:1000; transform:translateY(-160%); padding:.55rem .8rem; border-radius:var(--radius-sm); background:var(--bg-secondary); border:1px solid var(--cyan); color:var(--cyan); text-decoration:none; font-weight:700; transition:transform var(--transition-fast); }
+	.skip-link:focus { transform:translateY(0); }
+	#main-content:focus { outline:none; }
 	.lf-tagline { color:var(--text-dim); font-size:var(--fs-caption-sm); text-align:center; margin:0; max-width:40rem; line-height:1.5; }
 	.lf-nav { display:flex; gap:.35rem; align-items:center; flex-wrap:wrap; justify-content:center; }
 	.lf-link { color:var(--text-dim); font-size:var(--fs-caption-sm); text-decoration:none; transition:color var(--transition-fast); }

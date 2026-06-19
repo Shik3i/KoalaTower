@@ -69,10 +69,10 @@
 
 	const PLAY_TUTORIAL_KEY = 'flatland-td-tutorial-done';
 	const playTutorialSteps = [
-		{ title: 'Start a Deployment', desc: 'Pick Front 1 and launch. Your tower fires automatically; your job is choosing upgrades before the shapes overwhelm it.', target: '.sc-btn, .start-btn, .btn-start', placement: 'center' as const },
+		{ title: 'Start a Deployment', desc: 'Pick Front 1 and launch. Your tower fires automatically; your job is choosing upgrades before the shapes overwhelm it.', target: '.sc-btn', placement: 'center' as const },
 		{ title: 'Energy Now, Alloy Later', desc: 'Kills earn Energy for this deployment and Alloy for permanent upgrades. Energy is spent in the fight. Alloy survives the tower.', target: '.tb-stats', placement: 'bottom' as const },
-		{ title: 'Control the Pace', desc: 'Use the speed buttons to accelerate, or Space to pause. Higher speeds are for comfortable runs; pause whenever the upgrade panel gets busy.', target: '.spd-grp', placement: 'bottom' as const },
-		{ title: 'Field Upgrades', desc: 'Spend Energy here on Offense, Defense, and Utility upgrades. These are powerful, but they reset when the tower falls.', target: '.panel.right', placement: 'left' as const },
+		{ title: 'Control the Pace', desc: 'Use the speed buttons to accelerate, or Space to pause. Higher speeds are for comfortable runs; pause whenever the upgrade panel gets busy.', target: '.spd-grp, .mob-spd', placement: 'bottom' as const },
+		{ title: 'Field Upgrades', desc: 'Spend Energy here on Offense, Defense, and Utility upgrades. These are powerful, but they reset when the tower falls.', target: '.panel.right, .mob-upgrade-drawer, [title="Battle Upgrades panel"]', placement: 'left' as const },
 		{ title: 'Permanent Progress', desc: 'After a run, visit Orbital Command. The Forge and Research Deck turn Alloy into upgrades that apply to every future deployment.', target: '.hub-link, [href="/hub"]', placement: 'bottom' as const },
 		{ title: 'Ready', desc: 'That is enough to begin: launch, buy field upgrades, bank Alloy, then improve the next run from Orbital Command.', target: '', placement: 'center' as const },
 	];
@@ -197,13 +197,8 @@
 		if (e.key === 'Shift') { shiftHeld = true; updateBuyMultiplier(); return; }
 		if (e.key === 'Control' || e.key === 'Meta') { ctrlHeld = true; updateBuyMultiplier(); return; }
 		if (!engine) return;
-		// Ignore Space when focused on an input, textarea, or contenteditable element
-		// to avoid toggling pause while typing.
 		if (e.key === ' ') {
-			const tag = (document.activeElement?.tagName ?? '').toLowerCase();
-			const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
-			const isEditable = document.activeElement?.getAttribute('contenteditable') === 'true';
-			if (isInput || isEditable) return;
+			if (shouldIgnoreGameplayShortcut()) return;
 			e.preventDefault();
 			handleSpeed(0);
 		}
@@ -211,6 +206,15 @@
 		if (e.key === '2') handleSpeed(2);
 		if (e.key === '3') handleSpeed(3);
 		if (e.key === '4') handleSpeed(4);
+	}
+
+	function shouldIgnoreGameplayShortcut(): boolean {
+		const el = document.activeElement;
+		if (!(el instanceof HTMLElement)) return false;
+		if (el === document.body) return false;
+		const tag = el.tagName.toLowerCase();
+		return tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button' || tag === 'a'
+			|| el.isContentEditable || el.tabIndex >= 0;
 	}
 
 	function onKeyUp(e: KeyboardEvent) {
@@ -854,7 +858,7 @@
 
 	<!-- Import Dialog -->
 	{#if showImportDialog}
-		<div class="overlay" role="dialog" aria-modal="true" aria-label="Import save"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON below.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(getOpLogMessage('saveImportFailed'), 'error'); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
+		<div class="overlay" role="dialog" aria-modal="true" aria-label="Import save"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON below.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(r.error ?? getOpLogMessage('saveImportFailed'), 'error', 6000); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
 	{/if}
 	{#if showResetConfirm}
 		<div class="overlay" role="dialog" aria-modal="true" aria-label="Reset save"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Schematics, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button><button class="dlg-dng-btn" onclick={handleResetSave}>Reset</button></div></div></div>
@@ -977,6 +981,12 @@
 		{#if snap?.bossActive && snap.bossMaxHp > 0}
 			<BossHealthBar hp={snap.bossHp} maxHp={snap.bossMaxHp} wave={snap.wave} />
 		{/if}
+		{#if paused && snap?.runActive}
+			<div class="pause-overlay" aria-live="polite">
+				<span class="pause-icon">❚❚</span>
+				<span>PAUSED</span>
+			</div>
+		{/if}
 		<TowerStatsPanel {snap} />
 		<EnemyStatsPanel {snap} />
 		{#if showLaunchScreen}
@@ -1026,7 +1036,7 @@
 					<span>⚡ Field Upgrades</span>
 					<button class="mob-ug-close" onclick={() => showMobileUpgrades = false}>✕</button>
 				</div>
-				<FieldUpgrades {snap} bind:upgradeCategory bind:buyMultiplier showBuyMultiplier={false} scrollList purchasedId={purchasedUpgrade} onBuy={buyBattleUpgrade} />
+				<FieldUpgrades {snap} bind:upgradeCategory bind:buyMultiplier scrollList purchasedId={purchasedUpgrade} onBuy={buyBattleUpgrade} />
 			</div>
 		{/if}
 	{/if}
@@ -1060,6 +1070,8 @@
 	.spd-btn.locked,.mob-spd-opt.locked { color:var(--text-dim); opacity:.7; }
 	.spd-n { min-width:1.5rem; text-align:center; }
 	.tb-actions { display:flex; gap:.2rem; align-items:center; }
+	.pause-overlay { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:82; display:flex; align-items:center; gap:.55rem; padding:.7rem 1rem; border:1px solid rgba(255,221,68,.45); border-radius:var(--radius-md); background:rgba(7,8,18,.72); color:var(--yellow); font-family:var(--font-display); font-size:var(--fs-icon-md); font-weight:800; letter-spacing:.08em; box-shadow:0 0 28px rgba(255,221,68,.14); pointer-events:none; }
+	.pause-icon { font-family:var(--font-mono); font-size:var(--fs-icon-lg); line-height:1; }
 	.ibtn { display:inline-flex; align-items:center; justify-content:center; padding:.25rem; border-radius:var(--radius-sm); color:var(--text-secondary); transition:all var(--transition-fast); font-size:var(--fs-icon-md); line-height:1; cursor:pointer; }
 	.ibtn:hover { color:var(--cyan); background:rgba(0,255,255,.08); }
 	.ibtn.off { color:var(--text-dim); opacity:.55; }

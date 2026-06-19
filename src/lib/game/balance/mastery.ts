@@ -2,11 +2,11 @@ import { EnemyType } from '../engine/gameTypes';
 import { getMasteryLevel, MASTERY_THRESHOLDS } from './balanceMath';
 
 export const ENEMY_TYPE_LABELS: Record<EnemyType, string> = {
-	[EnemyType.Normal]: 'Triangle',
-	[EnemyType.Fast]: 'Arrow',
+	[EnemyType.Normal]: 'Square',
+	[EnemyType.Fast]: 'Diamond',
 	[EnemyType.Tank]: 'Hexagon',
-	[EnemyType.Ranged]: 'Diamond',
-	[EnemyType.Boss]: 'Polyhedron',
+	[EnemyType.Ranged]: 'Triangle',
+	[EnemyType.Boss]: 'Pentagon',
 };
 
 export const MASTERY_REWARDS = [100, 500, 2500, 10000, 50000];
