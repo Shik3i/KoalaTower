@@ -167,6 +167,7 @@
 					gameView = new PixiGameView(container, e, {
 						onReady: () => pixiReady = true,
 						onError: (error) => pixiError = error.message,
+						onContextRestored: () => { pixiError = ''; pixiReady = true; },
 					});
 					engine.wireMuzzleFlash(() => gameView?.triggerMuzzleFlash());
 					wireAudio();
@@ -642,6 +643,7 @@
 		gameView = new PixiGameView(container, engine, {
 			onReady: () => pixiReady = true,
 			onError: (error) => pixiError = error.message,
+			onContextRestored: () => { pixiError = ''; pixiReady = true; },
 		});
 		engine.wireMuzzleFlash(() => gameView?.triggerMuzzleFlash());
 		wireAudio();

@@ -17,6 +17,7 @@ export type MuzzleFlashCallback = () => void;
 export interface PixiGameViewCallbacks {
 	onReady?: () => void;
 	onError?: (error: Error) => void;
+	onContextRestored?: () => void;
 }
 
 export class PixiGameView {
@@ -44,6 +45,8 @@ export class PixiGameView {
 	private bloomFilter: AdvancedBloomFilter | null = null;
 	private bloomActive = false;
 	private callbacks: PixiGameViewCallbacks;
+	private handleContextLost: ((event: Event) => void) | null = null;
+	private handleContextRestored: (() => void) | null = null;
 
 	constructor(domContainer: HTMLElement, engine: GameEngine, callbacks: PixiGameViewCallbacks = {}) {
 		this.domContainer = domContainer;
@@ -82,6 +85,19 @@ export class PixiGameView {
 		const canvas = this.app.canvas;
 		canvas.style.display = 'block';
 		canvas.style.imageRendering = 'auto';
+		this.handleContextLost = (event) => {
+			event.preventDefault();
+			this.engine.state.paused = true;
+			const error = new Error('Renderer context lost. The run has been paused; wait for the browser to restore graphics or reload.');
+			this.initError = error;
+			this.callbacks.onError?.(error);
+		};
+		this.handleContextRestored = () => {
+			this.initError = null;
+			this.callbacks.onContextRestored?.();
+		};
+		canvas.addEventListener('webglcontextlost', this.handleContextLost);
+		canvas.addEventListener('webglcontextrestored', this.handleContextRestored);
 
 		this.domContainer.appendChild(canvas);
 
@@ -300,6 +316,9 @@ export class PixiGameView {
 		this.abortInit = true;
 		this.stop();
 		if (this.initialized) {
+			const canvas = this.app.canvas;
+			if (this.handleContextLost) canvas.removeEventListener('webglcontextlost', this.handleContextLost);
+			if (this.handleContextRestored) canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);
 			this.enemy.destroy();
 			this.projectile.destroy();
 			this.effects.destroy();
