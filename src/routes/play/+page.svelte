@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { PixiGameView } from '$lib/game/render/PixiGameView';
 	import { GameEngine } from '$lib/game/engine/GameEngine';
 	import Tutorial from '$lib/components/Tutorial.svelte';
@@ -106,6 +106,8 @@
 	let importText = $state('');
 	let showImportDialog = $state(false);
 	let showResetConfirm = $state(false);
+	let importDialogEl = $state<HTMLDivElement | undefined>(undefined);
+	let resetDialogEl = $state<HTMLDivElement | undefined>(undefined);
 	let coinsAtRunStart = $state(0);
 	// Community Alloy Boost — cached from /api/community-buff. 0 when offline.
 	let currentBuffPercent = $state(0);
@@ -216,6 +218,35 @@
 		return tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button' || tag === 'a'
 			|| el.isContentEditable || el.tabIndex >= 0;
 	}
+
+	function trapDialogKeydown(e: KeyboardEvent, close: () => void) {
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			close();
+			return;
+		}
+		if (e.key !== 'Tab') return;
+		const root = e.currentTarget;
+		if (!(root instanceof HTMLElement)) return;
+		const focusable = Array.from(root.querySelectorAll<HTMLElement>(
+			'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+		)).filter(el => el.offsetParent !== null);
+		if (focusable.length === 0) return;
+		const first = focusable[0]!;
+		const last = focusable[focusable.length - 1]!;
+		if (e.shiftKey && document.activeElement === first) {
+			e.preventDefault();
+			last.focus();
+		} else if (!e.shiftKey && document.activeElement === last) {
+			e.preventDefault();
+			first.focus();
+		}
+	}
+
+	$effect(() => {
+		if (showImportDialog) tick().then(() => importDialogEl?.focus());
+		if (showResetConfirm) tick().then(() => resetDialogEl?.focus());
+	});
 
 	function onKeyUp(e: KeyboardEvent) {
 		if (e.key === 'Shift') { shiftHeld = false; updateBuyMultiplier(); }
@@ -858,10 +889,29 @@
 
 	<!-- Import Dialog -->
 	{#if showImportDialog}
-		<div class="overlay" role="dialog" aria-modal="true" aria-label="Import save"><div class="dlg"><h3>📂 Import Save</h3><p class="dlg-d">Paste your save JSON below.</p><textarea bind:value={importText} rows={5}></textarea><div class="dlg-a"><button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(r.error ?? getOpLogMessage('saveImportFailed'), 'error', 6000); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button><button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button></div></div></div>
+		<div class="overlay">
+			<div bind:this={importDialogEl} class="dlg" role="dialog" aria-modal="true" aria-label="Import save" tabindex="-1" onkeydown={(e) => trapDialogKeydown(e, () => { showImportDialog = false; importText = ''; })}>
+				<h3>📂 Import Save</h3>
+				<p class="dlg-d">Paste your save JSON below.</p>
+				<textarea bind:value={importText} rows={5}></textarea>
+				<div class="dlg-a">
+					<button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(r.error ?? getOpLogMessage('saveImportFailed'), 'error', 6000); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button>
+					<button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button>
+				</div>
+			</div>
+		</div>
 	{/if}
 	{#if showResetConfirm}
-		<div class="overlay" role="dialog" aria-modal="true" aria-label="Reset save"><div class="dlg dlg-dng"><h3>🗑 Reset Save?</h3><p class="dlg-d">This will erase all Alloy, Forge upgrades, Schematics, Research Deck progress, Front progress, and settings. Cannot be undone.</p><div class="dlg-a"><button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button><button class="dlg-dng-btn" onclick={handleResetSave}>Reset</button></div></div></div>
+		<div class="overlay">
+			<div bind:this={resetDialogEl} class="dlg dlg-dng" role="dialog" aria-modal="true" aria-label="Reset save" tabindex="-1" onkeydown={(e) => trapDialogKeydown(e, () => showResetConfirm = false)}>
+				<h3>🗑 Reset Save?</h3>
+				<p class="dlg-d">This will erase all Alloy, Forge upgrades, Schematics, Research Deck progress, Front progress, and settings. Cannot be undone.</p>
+				<div class="dlg-a">
+					<button class="dlg-s" onclick={() => showResetConfirm = false}>Cancel</button>
+					<button class="dlg-dng-btn" onclick={handleResetSave}>Reset</button>
+				</div>
+			</div>
+		</div>
 	{/if}
 
 	<div class="game-body">
