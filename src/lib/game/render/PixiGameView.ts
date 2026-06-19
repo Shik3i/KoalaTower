@@ -14,6 +14,11 @@ import { ChallengeId, EnemyType, type GameState } from '../engine/gameTypes';
 
 export type MuzzleFlashCallback = () => void;
 
+export interface PixiGameViewCallbacks {
+	onReady?: () => void;
+	onError?: (error: Error) => void;
+}
+
 export class PixiGameView {
 	private app!: Application;
 	private domContainer: HTMLElement;
@@ -38,11 +43,17 @@ export class PixiGameView {
 	public initError: Error | null = null;
 	private bloomFilter: AdvancedBloomFilter | null = null;
 	private bloomActive = false;
+	private callbacks: PixiGameViewCallbacks;
 
-	constructor(domContainer: HTMLElement, engine: GameEngine) {
+	constructor(domContainer: HTMLElement, engine: GameEngine, callbacks: PixiGameViewCallbacks = {}) {
 		this.domContainer = domContainer;
 		this.engine = engine;
-		this.initPixi().catch(e => { this.initError = e; console.error('PixiJS init failed:', e); });
+		this.callbacks = callbacks;
+		this.initPixi().catch(e => {
+			this.initError = e instanceof Error ? e : new Error(String(e));
+			this.callbacks.onError?.(this.initError);
+			console.error('PixiJS init failed:', e);
+		});
 	}
 
 	private async initPixi(): Promise<void> {
@@ -85,6 +96,7 @@ export class PixiGameView {
 
 		this.buildScene();
 		this.initialized = true;
+		this.callbacks.onReady?.();
 
 		if (this.running && !this.loopScheduled) {
 			this.loopScheduled = true;

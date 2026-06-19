@@ -43,6 +43,8 @@
 	let container = $state<HTMLDivElement>();
 	let gameView = $state<PixiGameView | null>(null);
 	let engine = $state<GameEngine | null>(null);
+	let pixiReady = $state(false);
+	let pixiError = $state('');
 
 	let isMobile = $state(false);
 	let leftPanelOpen = $state(false);
@@ -160,7 +162,12 @@
 			if (e && !engine) {
 				engine = e;
 				if (container && !gameView) {
-					gameView = new PixiGameView(container, e);
+					pixiReady = false;
+					pixiError = '';
+					gameView = new PixiGameView(container, e, {
+						onReady: () => pixiReady = true,
+						onError: (error) => pixiError = error.message,
+					});
 					engine.wireMuzzleFlash(() => gameView?.triggerMuzzleFlash());
 					wireAudio();
 					gameView.start();
@@ -630,7 +637,12 @@
 			audio.play('milestone');
 		});
 		if (!container) return;
-		gameView = new PixiGameView(container, engine);
+		pixiReady = false;
+		pixiError = '';
+		gameView = new PixiGameView(container, engine, {
+			onReady: () => pixiReady = true,
+			onError: (error) => pixiError = error.message,
+		});
 		engine.wireMuzzleFlash(() => gameView?.triggerMuzzleFlash());
 		wireAudio();
 		gameView.start();
@@ -971,6 +983,17 @@
 
 	<!-- Game Canvas -->
 	<div class="game-canvas" bind:this={container} role="img" aria-label="Flatland TD — game viewport showing Tower defense against hostile geometric shapes">
+		{#if pixiError}
+			<div class="pixi-status pixi-error" role="alert">
+				<strong>Renderer unavailable</strong>
+				<span>{pixiError}</span>
+			</div>
+		{:else if !pixiReady}
+			<div class="pixi-status" role="status" aria-live="polite">
+				<span class="pixi-spinner"></span>
+				<span>Initializing renderer</span>
+			</div>
+		{/if}
 		<!-- Low-HP vignette overlay (CSS — above canvas, below HUD panels). Pulses
 		     red when tower HP < 30%, stronger + faster when < 15%. -->
 		<div
@@ -1153,6 +1176,11 @@
 	.mob-spd-opt:hover { color:var(--text-primary); }
 	.game-body { flex:1; display:flex; overflow:hidden; position:relative; }
 	.game-canvas { flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; background:var(--bg-primary); }
+	.pixi-status { position:absolute; inset:0; z-index:4; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6rem; color:var(--text-secondary); font-family:var(--font-display); background:radial-gradient(circle at center, rgba(0,255,255,.05), transparent 45%); pointer-events:none; text-align:center; padding:1rem; }
+	.pixi-status strong { color:var(--red); text-transform:uppercase; letter-spacing:.06em; }
+	.pixi-error { z-index:90; background:rgba(38,8,12,.86); color:var(--text-primary); }
+	.pixi-spinner { width:28px; height:28px; border:2px solid rgba(0,255,255,.18); border-top-color:var(--cyan); border-radius:50%; animation:pixiSpin .9s linear infinite; }
+	@keyframes pixiSpin { to { transform:rotate(360deg); } }
 	.game-body { --safe-edge-gap: max(.45rem, env(safe-area-inset-left, 0px)); --drawer-handle-offset:.35rem; }
 	.panel { display:flex; flex-direction:column; background:var(--bg-glass); border-left:1px solid var(--border-neon); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); position:relative; transition:width var(--transition-normal); width:265px; flex-shrink:0; overflow:visible; z-index:5; }
 	.panel.coll { width:calc(42px + var(--safe-edge-gap)); }
