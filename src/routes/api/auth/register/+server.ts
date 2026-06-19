@@ -22,11 +22,22 @@ export async function POST(event: RequestEvent): Promise<Response> {
 
 	const db = openDatabase();
 	try {
-		const account = createAccount(db, username.value, displayName.value, password.value);
+		const account = await createAccount(db, username.value, displayName.value, password.value);
 		const token = createSession(db, account.id, event);
 		setSessionCookie(event.cookies, token);
 		return ok({ account: { id: account.id, username: account.username, displayName: account.display_name } }, { status: 201 });
-	} catch {
-		return fail(409, 'conflict', 'Username is not available');
+	} catch (err) {
+		// Only a UNIQUE-constraint violation means the username is taken. Any
+		// other error (DB down, etc.) is unexpected — rethrow so handleError
+		// logs it and the client gets a 500 instead of a misleading 409.
+		if (isUniqueConstraintError(err)) {
+			return fail(409, 'conflict', 'Username is not available');
+		}
+		throw err;
 	}
+}
+
+function isUniqueConstraintError(err: unknown): boolean {
+	const code = (err as { code?: unknown })?.code;
+	return typeof code === 'string' && code.startsWith('SQLITE_CONSTRAINT');
 }

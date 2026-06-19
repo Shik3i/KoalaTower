@@ -184,16 +184,19 @@ Backend environment variables:
 | `AUTH_PASSWORD_PEPPER` | **required in production** — server-only password pepper, never `PUBLIC_` |
 | `KOFI_WEBHOOK_SECRET` | shared secret checked against Ko-fi's `verification_token`; **required in production** or the webhook refuses all events (`503`) |
 | `PUBLIC_ONLINE_FEATURES_ENABLED` | optional public flag for online feature visibility |
+| `ADMIN_USERNAMES` | comma-separated account usernames granted the read-only admin panel; **server-only**, never `PUBLIC_`; empty/missing means no admins |
 
 SQLite migrations run on first server DB access and record applied versions in `schema_migrations`. WAL mode is enabled when the environment supports it. Production requires `DATABASE_PATH`, `SESSION_SECRET`, `AUTH_PASSWORD_PEPPER`, and (for the Ko-fi webhook) `KOFI_WEBHOOK_SECRET`. Docker persists SQLite in the `/data` volume.
 
 Auth foundation notes:
 
-- username/password auth uses bcrypt-compatible hashes with cost `12`
-- password hashes are based on `password + AUTH_PASSWORD_PEPPER`
+- username/password auth uses bcrypt-compatible hashes with cost `12`, run via the async API so the KDF never blocks the event loop
+- passwords are peppered via an HMAC-SHA256 pre-hash keyed by `AUTH_PASSWORD_PEPPER` (base64) before bcrypt — this keeps the whole password in scope (no bcrypt 72-byte/NUL truncation) and makes the server-only pepper a true key over it
+- login always runs one bcrypt compare (against a fixed dummy hash when the user is unknown) so response timing cannot be used to enumerate usernames
 - session cookies are `httpOnly`, `SameSite=Lax`, and `Secure` in production
 - only SHA-256 session-token hashes are stored in SQLite
 - login/register have basic in-memory rate limiting and generic login errors
+- state-changing JSON API routes require `Content-Type: application/json`, which doubles as CSRF protection (a cross-site page cannot set it without a CORS preflight the server never approves); the Ko-fi webhook is intentionally exempt and verifies its own token instead
 - no password or session token is ever stored in `localStorage`
 
 Optional account & cloud save (Systems tab in Orbital Command):
@@ -213,6 +216,17 @@ Ko-fi community buff & support code:
 - players can have a local anonymous support code before registering (shown in Systems); it is account-linked after login. It is for future supporter attribution only
 - the community buff is global: `+1%` Alloy per `€1` for `7 days`, capped at `+100%` server-side (client clamps `0..100`), and fractional EUR amounts are preserved. It applies to **all** players, is shown in the Systems widget, and boosts Alloy income only — never Energy, Strange Matter, Schematics, or personal power
 - if the API/DB is unavailable the buff is treated as `0%` and gameplay is unaffected
+
+Admin / operations panel (`/admin`):
+
+- a small **read-only** operations panel for the optional backend, gated entirely server-side
+- access is controlled only by the server-only `ADMIN_USERNAMES` (comma-separated, case-insensitive). There is no `PUBLIC_` equivalent — the list never reaches the client
+- an admin must first **register a normal account** with a matching username via the usual sign-up flow; admin status is just that account being listed in `ADMIN_USERNAMES`
+- non-admins (anonymous or wrong username) receive a `404` — the admin area is never advertised and no partial layout/data is exposed
+- the panel shows operational overview cards plus read-only Users, Ko-fi, Community-buff, and Error-log views. It never displays password hashes, peppers, session tokens, raw cookies, Ko-fi verification tokens, or full cloud-save JSON
+- v1 is strictly read-only: no deletes, bans, password resets, save edits, event creation, or buff editing
+- unexpected server errors are recorded in the SQLite `app_error_logs` table (truncated, secret-free) so the panel can surface them without reading Docker logs or mounting the Docker socket
+- normal/offline/local gameplay never depends on the admin panel; if the DB is down the panel shows an error state instead of crashing
 
 ### Publishing a release
 

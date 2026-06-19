@@ -51,6 +51,7 @@ describe('online API route guards', () => {
 			getClientAddress: () => '127.0.0.1',
 			request: new Request('http://localhost/api/leaderboard/unverified', {
 				method: 'POST',
+				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({
 					localPlayerId: '11111111-1111-4111-8111-111111111111',
 					displayName: '<script>',

@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import type { Cookies, RequestEvent } from '@sveltejs/kit';
 import type { Db } from './db';
 import { openDatabase } from './db';
@@ -20,12 +20,42 @@ export type Account = {
 
 export type SessionAccount = Pick<Account, 'id' | 'username' | 'display_name'>;
 
-export function hashPassword(password: string): string {
-	return bcrypt.hashSync(password + getPasswordPepper(), BCRYPT_COST);
+/**
+ * A fixed, valid bcrypt hash of a throwaway value. Used by the login route to
+ * run a real `compare` even when no account matches, so that the "unknown user"
+ * and "wrong password" paths cost the same — closing the timing side-channel
+ * that would otherwise allow username enumeration. The plaintext is unknown and
+ * irrelevant; it only needs to be a parseable cost-12 hash.
+ */
+export const DUMMY_PASSWORD_HASH = '$2b$12$IcJcHgVieVkbzCQVkRbiC.aEayQPwMDOsC8L3LNh0igqYdEHoWDjK';
+
+/**
+ * Pepper the password before bcrypt via an HMAC-SHA256 pre-hash keyed by the
+ * server pepper, base64-encoded.
+ *
+ * Why not just `bcrypt(password + pepper)`:
+ *   - bcrypt only consumes the first 72 bytes of its input. Appending the pepper
+ *     means it is silently dropped for long passwords (and two passwords sharing
+ *     the first 72 bytes would collide). HMAC-SHA256 is a fixed 32 bytes → 44
+ *     base64 chars, always under 72, so the *whole* password always contributes
+ *     and the pepper is a real cryptographic key over it, never truncated.
+ *   - base64 output also contains no NUL byte, avoiding bcrypt's NUL-truncation.
+ *
+ * The pepper stays server-only, so a leaked password_hash cannot be cracked
+ * offline without it.
+ */
+function pepperPassword(password: string): string {
+	return createHmac('sha256', getPasswordPepper()).update(password, 'utf8').digest('base64');
 }
 
-export function verifyPassword(password: string, passwordHash: string): boolean {
-	return bcrypt.compareSync(password + getPasswordPepper(), passwordHash);
+// bcrypt is deliberately run via the async API so the cost-12 KDF does not block
+// the single Node event loop (which also serves gameplay/`/api/*` requests).
+export async function hashPassword(password: string): Promise<string> {
+	return bcrypt.hash(pepperPassword(password), BCRYPT_COST);
+}
+
+export async function verifyPassword(password: string, passwordHash: string): Promise<boolean> {
+	return bcrypt.compare(pepperPassword(password), passwordHash);
 }
 
 export function hashToken(token: string): string {
@@ -41,14 +71,14 @@ export function createSessionToken(): string {
 	return randomBytes(32).toString('base64url');
 }
 
-export function createAccount(db: Db, username: string, displayName: string, password: string): Account {
+export async function createAccount(db: Db, username: string, displayName: string, password: string): Promise<Account> {
 	const now = new Date().toISOString();
 	const account: Account = {
 		id: randomUUID(),
 		username,
 		username_normalized: normalizeUsername(username),
 		display_name: displayName,
-		password_hash: hashPassword(password),
+		password_hash: await hashPassword(password),
 		created_at: now,
 		updated_at: now,
 		last_login_at: null,

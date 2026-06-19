@@ -126,6 +126,32 @@ CREATE TABLE IF NOT EXISTS community_buff_events (
 );
 CREATE INDEX IF NOT EXISTS idx_community_buff_events_window ON community_buff_events(starts_at, expires_at);
 `
+	},
+	{
+		id: 2,
+		name: 'app_error_logs',
+		// Stores recent server-side errors for the read-only admin panel. user_id
+		// is TEXT to match accounts.id (a UUID), not the INTEGER in the original
+		// sketch. No secrets/tokens/cookies/bodies are ever written here — see
+		// src/lib/server/errorLog.ts for the sanitizing/truncating writer.
+		sql: `
+CREATE TABLE IF NOT EXISTS app_error_logs (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	created_at TEXT NOT NULL,
+	level TEXT NOT NULL,
+	source TEXT NOT NULL,
+	message TEXT NOT NULL,
+	stack TEXT,
+	route TEXT,
+	method TEXT,
+	status INTEGER,
+	user_id TEXT,
+	request_id TEXT,
+	user_agent TEXT,
+	metadata_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_app_error_logs_created_at ON app_error_logs(created_at DESC);
+`
 	}
 ];
 

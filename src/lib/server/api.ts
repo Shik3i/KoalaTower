@@ -19,6 +19,14 @@ export function fail(status: number, code: ApiErrorCode, message: string): Respo
 
 export async function readJsonObject(event: RequestEvent, maxBytes = 64 * 1024): Promise<Record<string, unknown> | null> {
 	try {
+		// Require an explicit JSON content type. This is also our CSRF guard for
+		// state-changing API routes: a cross-site page cannot set
+		// `Content-Type: application/json` without triggering a CORS preflight
+		// that this server never approves, so forged form/`text/plain` posts are
+		// rejected here. (The Ko-fi webhook uses its own form-aware reader and is
+		// intentionally not affected.) All first-party clients send this header.
+		const contentType = (event.request.headers.get('content-type') ?? '').toLowerCase();
+		if (!contentType.includes('application/json')) return null;
 		const contentLength = Number(event.request.headers.get('content-length') ?? 0);
 		if (contentLength > maxBytes) return null;
 		const text = await event.request.text();

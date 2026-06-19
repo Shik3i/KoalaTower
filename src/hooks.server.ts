@@ -1,7 +1,8 @@
 import { building } from '$app/environment';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
+import { logServerError } from '$lib/server/errorLog';
 
 /**
  * # Adapter-node prerender workaround
@@ -85,4 +86,26 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 	applySecurityHeaders(response.headers);
 	return response;
+};
+
+/**
+ * Persist unexpected server errors into the SQLite error log so the admin panel
+ * can surface them. SvelteKit calls this only for *unexpected* errors (thrown
+ * exceptions / 500s), not for `error(...)` helper throws like the admin 404
+ * guard — so routine auth rejections are never logged. Only safe, truncated
+ * fields are stored (see logServerError); never cookies, bodies, or secrets.
+ * Logging itself fails safely and cannot crash the response.
+ */
+export const handleError: HandleServerError = ({ error, event, status, message }) => {
+	logServerError({
+		level: 'error',
+		source: 'hooks.handleError',
+		message: error instanceof Error ? error.message : String(message ?? error),
+		stack: error instanceof Error ? (error.stack ?? null) : null,
+		route: event.url?.pathname ?? null,
+		method: event.request?.method ?? null,
+		status: typeof status === 'number' ? status : 500,
+		userAgent: event.request?.headers?.get('user-agent') ?? null
+	});
+	return { message: message ?? 'Internal Error' };
 };

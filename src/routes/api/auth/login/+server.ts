@@ -1,6 +1,6 @@
 import type { RequestEvent } from './$types';
 import { fail, ok, readJsonObject } from '$lib/server/api';
-import { createSession, findAccountByUsername, setSessionCookie, verifyPassword } from '$lib/server/auth';
+import { createSession, DUMMY_PASSWORD_HASH, findAccountByUsername, setSessionCookie, verifyPassword } from '$lib/server/auth';
 import { openDatabase } from '$lib/server/db';
 import { requireAuthSecrets } from '$lib/server/env';
 import { isRateLimited } from '$lib/server/rateLimit';
@@ -21,7 +21,11 @@ export async function POST(event: RequestEvent): Promise<Response> {
 
 	const db = openDatabase();
 	const account = findAccountByUsername(db, username.value);
-	if (!account || !verifyPassword(password.value, account.password_hash)) {
+	// Always run one bcrypt compare — against the real hash, or a fixed dummy
+	// hash when the user does not exist — so both paths take the same time and
+	// cannot be used to enumerate valid usernames via response latency.
+	const passwordOk = await verifyPassword(password.value, account?.password_hash ?? DUMMY_PASSWORD_HASH);
+	if (!account || !passwordOk) {
 		return fail(401, 'unauthorized', GENERIC_LOGIN_ERROR);
 	}
 	const token = createSession(db, account.id, event);

@@ -1,89 +1,114 @@
 # Flatland TD — optional online foundation deployment
 #
-# Two usage modes are documented below.  Pick one.
+# Copy this file to `docker-compose.yml`, replace every `INSERT_KEY_HERE`
+# placeholder, then `docker compose up -d`.
 #
-# ── Mode 1: Standalone (uncomment the `ports` block and comment `networks`) ──
-# ── Mode 2: Behind Caddy reverse proxy (default) ────────────────────────────
+# ## Mode 2: Behind a Caddy reverse proxy (default below)
 #
-# ## Mode 2: Caddy reverse proxy
+# Assumes a Caddy reverse proxy on the Docker network `caddy_net` handling TLS
+# and domain routing.
 #
-# This example assumes you have a Caddy reverse proxy running on the Docker
-# network `caddy_net` that handles TLS termination and domain routing.
-#
-# Example Caddyfile snippet:
 #     tower.example.com {
-#         reverse_proxy koala-tower:8080
+#         reverse_proxy koalatower:8080
 #     }
 #
 # The Ko-fi webhook URL is then:  https://tower.example.com/api/kofi/webhook
 #
-# ## Persistence
+# For standalone use without Caddy, uncomment the `ports` block and remove the
+# `networks` block (here and at the bottom).
 #
-# SQLite lives in the `/data` volume.  Back it up periodically.  The
-# `read_only: true` flag only affects the root filesystem; the mounted
-# volume remains writable.
+# ## Persistence & the /data write-permission gotcha  ⚠️
+#
+# SQLite lives in /data. `read_only: true` only affects the container's root
+# filesystem; the mounted /data stays writable. BUT note how the two security
+# settings interact with ownership:
+#
+#   - `cap_drop: ALL` removes CAP_DAC_OVERRIDE, so even the in-container root
+#     user is subject to normal file-permission bits on /data.
+#   - The container runs as root (uid 0) by default (no `user:` set).
+#
+# => A **named volume** (the default below) just works: Docker creates it
+#    root-owned, container-root owns it, writes succeed even with cap_drop: ALL.
+#
+# => A **bind mount** to a host directory does NOT get chowned by Docker. If
+#    that host dir is owned by your login user (e.g. uid 1000) instead of root,
+#    container-root cannot create the DB file and every DB request returns
+#    `[500] ... SqliteError: unable to open database file`.
+#    Fix once on the host (uid 0 = container root):
+#        sudo chown -R 0:0 /path/on/host/data
+#    (Alternatively add `user: "1000:1000"` so the container runs as the host
+#    dir's owner — then no chown is needed.)
 
 services:
-  koala-tower:
-    # When the image is published to a registry, switch to `image:`.
-    # For local / branch development build from source:
-    build:
-      context: .
-    #   dockerfile: Dockerfile
-    # image: ghcr.io/shik3i/koalatower:latest
-    container_name: koala-tower
+  koalatower:
+    image: ghcr.io/shik3i/koalatower:latest
+    # For local / branch development, build from source instead:
+    # build:
+    #   context: .
+    container_name: koalatower
     restart: unless-stopped
 
-    # ── Secrets — replace every value before deploying! ──────────────
+    # ── Secrets — replace every INSERT_KEY_HERE before deploying! ─────
     environment:
       NODE_ENV: production
-      PORT: 8080
+      PORT: "8080"
       DATABASE_PATH: /data/flatland.db
 
       # Generate with:  node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-      SESSION_SECRET: replace-with-long-random-secret
+      SESSION_SECRET: INSERT_KEY_HERE
 
       # Generate with:  node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-      AUTH_PASSWORD_PEPPER: replace-with-long-random-pepper
+      AUTH_PASSWORD_PEPPER: INSERT_KEY_HERE
 
-      # Must match the Ko-fi verification_token.  Leave empty to disable the webhook.
-      KOFI_WEBHOOK_SECRET: replace-with-your-kofi-verification-token
+      # Must match the Ko-fi verification_token. Leave empty to disable the webhook.
+      KOFI_WEBHOOK_SECRET: INSERT_KEY_HERE
 
       # Set to "false" to hide online-feature UI
       PUBLIC_ONLINE_FEATURES_ENABLED: "true"
 
-    # ── Standalone mode: uncomment these two lines ───────────────────
+      # Comma-separated usernames for the read-only admin panel at /admin.
+      # Server-only (never PUBLIC_). Leave empty for no admins. The admin must
+      # first register a normal account with a matching username.
+      # Example:  ADMIN_USERNAMES: "timo"
+      ADMIN_USERNAMES: ""
+
+    # ── Standalone mode: uncomment to publish a host port ────────────
     # ports:
     #   - "3000:8080"
 
     # ── Behind Caddy: expose internally only ─────────────────────────
     expose:
       - "8080"
+    networks:
+      - caddy_net
 
     volumes:
-      - koala-tower-data:/data
+      # Default: named volume — zero-config, writable under cap_drop: ALL.
+      - koalatower-data:/data
+      # Alternative: bind mount to a host path. If used, the host dir MUST be
+      # writable by the container user — see the /data gotcha note above:
+      #   sudo chown -R 0:0 /home/koala/docker/koalatower/data
+      # - /home/koala/docker/koalatower/data:/data
 
-    # ── Security hardening (optional) ─────────────────────────────────
+    # ── Security hardening ───────────────────────────────────────────
     read_only: true
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
 
-    # ── Health check (optional, low-risk) ────────────────────────────
+    # ── Health check (low-risk; reports DB reachability too) ─────────
     healthcheck:
       test: ["CMD-SHELL", "node -e 'fetch(\"http://localhost:8080/api/health\").then(r => { if (r.status !== 200) process.exit(1); }).catch(() => process.exit(1))'"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 30s
 
-# ── Caddy network (external or created automatically) ──────────────
+# ── Caddy network (managed externally by your Caddy stack) ─────────
 networks:
   caddy_net:
-    # Use `external: true` if Caddy is managed separately.
-    # Remove `external` to let Compose create the network.
     external: true
 
 volumes:
-  koala-tower-data:
+  koalatower-data:
