@@ -1236,7 +1236,8 @@
 									<label class="sim-label" for="converter-front">Source:</label>
 									<select id="converter-front" bind:value={converterSourceFront} class="sim-select">
 										{#each FRONT_META.slice(0, 15) as m}
-											<option value={m.front}>{m.displayName} -> Front {m.front + 1}</option>
+											{@const targetFront = FRONT_META[m.front]}
+											<option value={m.front}>{m.displayName} -> {targetFront ? getFrontName(targetFront.id) : 'Front ' + (m.front + 1)}</option>
 										{/each}
 									</select>
 								</div>
