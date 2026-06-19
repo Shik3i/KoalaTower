@@ -503,9 +503,9 @@ export const ENEMY_TYPE_MODIFIERS: Record<EnemyType, {
 	reward: number;
 }> = {
 	[EnemyType.Normal]:  { hp: 1.0,  attack: 1.0,  speed: 1.0,  reward: 1.0 },
-	[EnemyType.Fast]:    { hp: 1.0,  attack: 1.0,  speed: 1.8,  reward: 1.3 },
+	[EnemyType.Fast]:    { hp: 0.8,  attack: 1.0,  speed: 1.8,  reward: 1.3 },
 	[EnemyType.Tank]:    { hp: 5.0,  attack: 1.5,  speed: 0.55, reward: 2.2 },
-	[EnemyType.Ranged]:  { hp: 1.0,  attack: 1.2,  speed: 0.8,  reward: 1.7 },
+	[EnemyType.Ranged]:  { hp: 0.5,  attack: 1.2,  speed: 0.8,  reward: 1.7 },
 	[EnemyType.Boss]:    { hp: 1.0,  attack: 1.0,  speed: 1.0,  reward: 1.0 },
 };
 

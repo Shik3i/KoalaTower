@@ -277,10 +277,18 @@ describe('Enemy Config', () => {
 		expect(boss.hp / normal.hp).toBeLessThanOrEqual(25);
 	});
 
-	it('fast enemy should have same HP as normal', () => {
+	it('fast enemy should have ~80% HP of normal', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 10);
 		const fast = computeEnemyConfig(EnemyType.Fast, 10);
-		expect(fast.hp).toBe(normal.hp);
+		expect(fast.hp / normal.hp).toBeCloseTo(0.8, 1);
+		expect(fast.hp).toBeLessThan(normal.hp);
+	});
+
+	it('ranged enemy should have ~50% HP of normal', () => {
+		const normal = computeEnemyConfig(EnemyType.Normal, 10);
+		const ranged = computeEnemyConfig(EnemyType.Ranged, 10);
+		expect(ranged.hp / normal.hp).toBeCloseTo(0.5, 1);
+		expect(ranged.hp).toBeLessThan(normal.hp);
 	});
 
 	it('tank should have higher HP than normal', () => {
@@ -289,12 +297,12 @@ describe('Enemy Config', () => {
 		expect(tank.hp).toBeGreaterThan(normal.hp);
 	});
 
-	it('fast identity is faster than normal but keeps normal HP', () => {
+	it('fast identity is faster than normal but has ~80% HP', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 20);
 		const fast = computeEnemyConfig(EnemyType.Fast, 20);
 		expect(fast.speed / normal.speed).toBeGreaterThan(1.6);
 		expect(fast.speed / normal.speed).toBeLessThanOrEqual(2.0);
-		expect(fast.hp).toBe(normal.hp);
+		expect(fast.hp / normal.hp).toBeCloseTo(0.8, 1);
 	});
 
 	it('tank identity is 5x HP, larger, and slower than normal', () => {
@@ -1492,8 +1500,14 @@ describe('Balance Snapshot Ratios (shots-to-kill)', () => {
 					// tankShots is bounded between 5 * basicShots - 4 and 5 * basicShots
 					expect(shots).toBeLessThanOrEqual(basicShots * 5);
 					expect(shots).toBeGreaterThanOrEqual(basicShots * 5 - 4);
-				} else if (t === EnemyType.Fast || t === EnemyType.Ranged) {
-					expect(shots).toBe(basicShots);
+				} else if (t === EnemyType.Fast) {
+					// ~0.8× HP → bounded around 0.8 × basicShots ± 1 (ceiling slack)
+					expect(shots).toBeLessThanOrEqual(Math.ceil(basicShots * 0.8) + 1);
+					expect(shots).toBeGreaterThanOrEqual(Math.max(1, Math.floor(basicShots * 0.8) - 1));
+				} else if (t === EnemyType.Ranged) {
+					// ~0.5× HP → bounded around 0.5 × basicShots ± 1 (ceiling slack)
+					expect(shots).toBeLessThanOrEqual(Math.ceil(basicShots * 0.5) + 1);
+					expect(shots).toBeGreaterThanOrEqual(Math.max(1, Math.floor(basicShots * 0.5) - 1));
 				}
 			}
 		}
