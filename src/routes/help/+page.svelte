@@ -221,7 +221,7 @@
 	</section>
 
 	<section class="help-section">
-		<h2>BLACK MARKET</h2>
+		<h2>Black Market</h2>
 		<p class="section-desc">Unauthorized Procurement Channel. Black Market upgrades are unofficial quality-of-life systems. Orbital Command denies using them. Orbital Command is lying.</p>
 		<div class="lore-box">
 			<p><strong>Strange Matter</strong> is unstable contraband recovered from anomalies, off-grid handoffs, and containers nobody signed for. It is not sold.</p>

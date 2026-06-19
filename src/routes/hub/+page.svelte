@@ -116,7 +116,7 @@
 		{ title: 'Forge', desc: 'Buy permanent tower stats first. Damage, Fire Rate, and Max HP are simple early upgrades that make the next deployment stronger.', target: '[data-section="workshop"]', placement: 'right' },
 		{ title: 'Research Deck', desc: 'Research projects finish in real time, even while you are away. Start one, deploy, and collect the result when you return.', target: '[data-section="lab"]', placement: 'right' },
 		{ title: 'Schematics Later', desc: 'After you recover Schematics from a Front, this tab reconstructs new upgrade paths. If it is empty now, that is normal.', target: '[data-section="blueprints"]', placement: 'right' },
-		{ title: 'Fronts', desc: 'Front 1 is always open. Push deeper to unlock harder Fronts with better rewards; Special Ops appear after campaign milestones.', target: '[data-section="tiers"]', placement: 'right' },
+		{ title: 'Fronts', desc: 'Front 1 is always open. Push deeper to unlock harder Fronts with better rewards; Special Operations appear after campaign milestones.', target: '[data-section="tiers"]', placement: 'right' },
 		{ title: 'Archives', desc: 'Archives track campaign stats, enemy mastery achievements, and telemetry from previous deployments.', target: '[data-section="stats"]', placement: 'right' },
 		{ title: 'Profile', desc: 'Set your display name, register an account, and manage cloud backups to protect your progress.', target: '[data-section="profile"]', placement: 'right' },
 		{ title: 'Systems', desc: 'Systems holds visual and audio preferences, along with tools to manually export, import, or reset your local save.', target: '[data-section="settings"]', placement: 'right' },
@@ -849,7 +849,7 @@
 		{ id: 'blueprints' as const, label: 'Schematics', icon: '📐' },
 		{ id: 'blackMarket' as const, label: 'Black Market', icon: '◈', requiresUnlock: true },
 		{ id: 'tiers' as const, label: 'Fronts', icon: '🌍' },
-		{ id: 'challenges' as const, label: 'Special Ops', icon: '⚡' },
+		{ id: 'challenges' as const, label: 'Special Operations', icon: '⚡' },
 		{ id: 'simulation' as const, label: 'Simulation', icon: '🧪' },
 		{ id: 'stats' as const, label: 'Archives', icon: '📊' },
 		{ id: 'profile' as const, label: 'Profile', icon: '👤' },
@@ -917,7 +917,7 @@
 			<NotificationCenter />
 		</div>
 	</header>
-	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. The Forge pre-installs permanent tower upgrades, the Research Deck runs orbital projects, and Schematics reconstruct new capabilities. Archives track campaign telemetry.</p>
+	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. Forge, Command Orders, Research, Schematics, Fronts, Special Operations, Simulation, Archives, Profile, and Systems all live here.</p>
 
 	<div class="hub-body">
 		<nav class="hub-nav" aria-label="Orbital Command sections">
@@ -1375,13 +1375,13 @@
 						{/if}
 					</div>
 
-					<h3 class="stats-sub" style="margin-top:1.5rem">Special Ops Records</h3>
+					<h3 class="stats-sub" style="margin-top:1.5rem">Special Operations Records</h3>
 					<div class="ig" style="max-width:600px">
 						{#each Object.entries(challengeHighScores) as [challenge, score]}
 							<div class="ir"><span class="il">{getChallengeName(challenge)}</span><span class="iv">Wave {score}</span></div>
 						{/each}
 						{#if Object.keys(challengeHighScores).length === 0}
-							<div class="ir"><span class="il" style="color:var(--text-dim)">No Special Ops records yet.</span></div>
+							<div class="ir"><span class="il" style="color:var(--text-dim)">No Special Operations records yet.</span></div>
 						{/if}
 					</div>
 					{/if}
