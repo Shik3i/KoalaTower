@@ -1435,7 +1435,6 @@
 								<h4>Cloud Save</h4>
 								<p class="cloud-desc">Manual backup/sync. Cloud save never auto-overwrites your local data — you choose when to upload or restore.</p>
 								<div class="cloud-meta">
-									{@const localLastUpdated = getCachedSave()?.lastUpdated ?? 0}
 									<div class="ir"><span class="il">Local save</span><span class="iv">Schema v{CURRENT_SCHEMA_VERSION} · {APP_VERSION || 'DEV'}</span></div>
 									<div class="ir"><span class="il">Cloud backup</span><span class="iv">{cloudChecked ? (cloudExists ? 'Exists' : 'None') : 'Not checked yet'}</span></div>
 									{#if cloudMeta}
@@ -1445,7 +1444,7 @@
 									{#if cloudMeta && cloudMeta.schemaVersion > CURRENT_SCHEMA_VERSION}
 										<p class="cloud-warn">Cloud backup is from a newer game version. Update the game before restoring.</p>
 									{/if}
-									{#if cloudMeta && localLastUpdated > new Date(cloudMeta.updatedAt).getTime()}
+									{#if cloudMeta && (getCachedSave()?.lastUpdated ?? 0) > new Date(cloudMeta.updatedAt).getTime()}
 										<p class="cloud-warn">Your local save is newer than the cloud backup. Upload if you want to update the cloud copy.</p>
 									{/if}
 								</div>
