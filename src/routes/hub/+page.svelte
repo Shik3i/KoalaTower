@@ -401,6 +401,7 @@
 	let cloudChecked = $state(false);
 	let cloudError = $state<string | null>(null);
 	let cloudBusy = $state(false);
+	let lastCloudConflictNotice = $state('');
 	let showUploadConfirm = $state(false);
 	let showRestoreConfirm = $state(false);
 	let uploadConfirmDialogEl = $state<HTMLDivElement | null>(null);
@@ -536,9 +537,39 @@
 		cloudBusy = true; cloudError = null;
 		try {
 			const r = await fetchCloudSaveMeta();
-			if (r.ok) { cloudExists = r.exists; cloudMeta = r.metadata; cloudChecked = true; }
+			if (r.ok) {
+				cloudExists = r.exists;
+				cloudMeta = r.metadata;
+				cloudChecked = true;
+				notifyCloudConflict(r.metadata);
+			}
 			else { cloudError = r.offline ? 'Cloud status unavailable offline.' : r.message; }
 		} finally { cloudBusy = false; }
+	}
+
+	function getCloudUpdatedMs(meta: CloudSaveMetadata | null = cloudMeta): number {
+		return meta ? new Date(meta.updatedAt).getTime() : 0;
+	}
+
+	function isCloudNewerThanLocal(meta: CloudSaveMetadata | null = cloudMeta): boolean {
+		const localUpdatedAt = getCachedSave()?.lastUpdated ?? 0;
+		const cloudUpdatedAt = getCloudUpdatedMs(meta);
+		return cloudUpdatedAt > 0 && localUpdatedAt > 0 && cloudUpdatedAt > localUpdatedAt;
+	}
+
+	function isLocalNewerThanCloud(meta: CloudSaveMetadata | null = cloudMeta): boolean {
+		const localUpdatedAt = getCachedSave()?.lastUpdated ?? 0;
+		const cloudUpdatedAt = getCloudUpdatedMs(meta);
+		return cloudUpdatedAt > 0 && localUpdatedAt > cloudUpdatedAt;
+	}
+
+	function notifyCloudConflict(meta: CloudSaveMetadata | null) {
+		if (!isCloudNewerThanLocal(meta)) return;
+		const noticeKey = meta?.updatedAt ?? '';
+		if (noticeKey && noticeKey !== lastCloudConflictNotice) {
+			lastCloudConflictNotice = noticeKey;
+			toast('Cloud backup is newer than this local save. Restore it before uploading if this device is behind.', 'warning', 6000);
+		}
 	}
 
 	function confirmUploadCloud() {
@@ -1481,7 +1512,9 @@
 									{#if cloudMeta && cloudMeta.schemaVersion > CURRENT_SCHEMA_VERSION}
 										<p class="cloud-warn">Cloud backup is from a newer game version. Update the game before restoring.</p>
 									{/if}
-									{#if cloudMeta && (getCachedSave()?.lastUpdated ?? 0) > new Date(cloudMeta.updatedAt).getTime()}
+									{#if cloudMeta && isCloudNewerThanLocal()}
+										<p class="cloud-warn">Cloud backup is newer than this local save. Restore first if this device is behind; uploading will replace the newer cloud copy.</p>
+									{:else if cloudMeta && isLocalNewerThanCloud()}
 										<p class="cloud-warn">Your local save is newer than the cloud backup. Upload if you want to update the cloud copy.</p>
 									{/if}
 								</div>
@@ -1644,7 +1677,11 @@
 		<div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) showUploadConfirm = false; }}>
 			<div bind:this={uploadConfirmDialogEl} class="dlg" role="dialog" aria-modal="true" aria-labelledby="upload-confirm-title" tabindex="-1" onkeydown={(e) => onModalKeydown(e, uploadConfirmDialogEl, () => showUploadConfirm = false)}>
 				<h3 id="upload-confirm-title">Replace cloud backup?</h3>
-				<p class="dlg-d">This will replace your cloud backup with your current local save. Your local save stays intact.</p>
+				<p class="dlg-d">
+					{isCloudNewerThanLocal()
+						? 'The cloud backup is newer than this local save. Uploading now will replace that newer cloud copy with this device.'
+						: 'This will replace your cloud backup with your current local save. Your local save stays intact.'}
+				</p>
 				<div class="dlg-a">
 					<button class="dlg-s" onclick={() => showUploadConfirm = false}>Cancel</button>
 					<button class="dlg-p" onclick={() => void doUploadCloud()}>Upload</button>
