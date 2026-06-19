@@ -596,6 +596,10 @@
 	function startRun() {
 		if (!engine) initEngine();
 		if (!engine) return;
+		// Re-wire callbacks before every run: checkGameOver() sets onGameOver=null
+		// after firing, so a reused engine would never trigger the game-over panel
+		// on subsequent deployments.
+		wireEngineCallbacks();
 		clearAutoDeployment();
 		showLaunchScreen = false;
 		showGameOver = false;

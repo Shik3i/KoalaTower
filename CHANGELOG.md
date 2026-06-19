@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.6.0 — Optional Online Foundation
+
+- **One-container Docker deployment** — Node 20 + adapter-node serves frontend, client assets, and all /api/\* routes from a single process. SQLite persists in a \`/data\` volume. No Postgres, Redis, or second container.
+- **Optional accounts** — username/password auth with bcrypt-hashed passwords, httpOnly session cookies, and in-memory rate limiting. Login is never required for normal play.
+- **Local anonymous identity** — every player gets a stable local-player-id and display name before registering. Syncs to the server for attribution only.
+- **Manual cloud saves** — logged-in users can upload and restore cloud backups from the Systems tab. Cloud saves never auto-overwrite local data; restore runs through the standard migration/import pipeline so newer-schema saves are refused safely.
+- **Ko-fi webhook** — accepts Ko-fi's \`data=<json>\` form payload, verifies the \`verification_token\` against \`KOFI_WEBHOOK_SECRET\`, redacts the token before storage, and is idempotent on \`message_id\`.
+- **Community Alloy Boost** — verified EUR Ko-fi payments create a global buff: \`+1%\` Alloy per €1 for 7 days, capped at \`+100%\`. Applies to all players, boosts Alloy income only (never Energy/Strange Matter/Schematics), and is hidden when offline or 0%.
+- **Support code UI** — each player has a \`FLTD-…\` code for future Ko-fi attribution. Account-linked when logged in.
+- **Account and cloud save UI** — Systems tab now includes login/register forms, account status, cloud save metadata comparison, upload/restore with confirmations, and a support code with copy button.
+- **Local-first guarantee intact** — no login required, local save remains primary, API/DB failures are treated as offline state, service worker bypasses /api/, and normal gameplay is never blocked.
+- Fixed a bug where the second deployment would softlock because \`onGameOver\` was never re-wired on a reused engine.
+- Deployment docs, Docker Compose example, .env.example, ARCHITECTURE.md, and a 19-step Docker runtime smoke script.
+- Known technical debt: CSRF deprecation, adapter-node prerender workaround, cloud restore reload.
+
+Out of scope / future work: leaderboard UI, verified challenges, guilds, challenge runs, supporter entitlement UI, payment/shop, OAuth.
+
 ## v0.5.7
 
 - Renamed the legacy `dailyTasks` save field to `commandOrders` with a safe v16→v17 migration. Existing saves with the old field are preserved.
