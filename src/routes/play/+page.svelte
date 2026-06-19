@@ -25,7 +25,7 @@
 	import { TierId } from '$lib/game/engine/gameTypes';
 	import { isChallengeUnlocked } from '$lib/game/balance/challenges';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
-	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
+	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore, loadedStore } from '$lib/stores/gameUiStore';
 	import { applyCommunityBuff, communityBuffStore } from '$lib/online/communityBuffClient';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
 	import { checkAchievements } from '$lib/game/balance/achievements';
@@ -87,6 +87,7 @@
 	}
 
 	let snap = $state<GameSnapshot | null>(null);
+	let saveLoaded = $state(false);
 	let coins = $state(0);
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 	let systemReducedMotion = $state(false);
@@ -150,6 +151,7 @@
 		const u2 = settingsStore.subscribe(s => { settings = s; syncSettingsToEngine(s); });
 		const u3 = highestWaveStore.subscribe(w => highestWave = w);
 		const u4 = totalRunsStore.subscribe(r => totalRuns = r);
+		const u6 = loadedStore.subscribe(l => saveLoaded = l);
 		// Community buff: subscribe for the live percent and refresh the cache if stale.
 		const u5 = communityBuffStore.subscribe(s => { currentBuffPercent = s.percent; });
 		void communityBuffStore.refreshIfStale();
@@ -202,7 +204,7 @@
 			window.removeEventListener('resize', cm);
 			window.removeEventListener('keydown', onKey);
 			window.removeEventListener('keyup', onKeyUp);
-			u1(); u2(); u3(); u4(); u5(); unsubEngine();
+			u1(); u2(); u3(); u4(); u5(); u6(); unsubEngine();
 		};
 	});
 
@@ -683,6 +685,10 @@
 	}
 
 	function startRun() {
+		if (!saveLoaded) {
+			toast('Save still loading. Deployment will be ready in a moment.', 'info');
+			return;
+		}
 		if (!engine) initEngine();
 		if (!engine) return;
 		// Re-wire callbacks before every run: checkGameOver() sets onGameOver=null
@@ -827,7 +833,7 @@
 		{#if snap?.runActive}
 			<div class="tb-pill wave-pill" title="Current wave number"><Icon name="wave" size={15} /><span use:countUp={snap.wave}>{snap.wave}</span></div>
 		{/if}
-		<div class="tb-pill coin-pill" use:tooltip={'Alloy — permanent material.\nKept between runs, spent in the Forge & Research Deck.'}><Icon name="alloy" size={15} /><span use:countUp={coins}>{coins.toLocaleString()}</span></div>
+		<div class="tb-pill coin-pill" use:tooltip={'Alloy — permanent material.\nKept between runs, spent in the Forge & Research Deck.'}><Icon name="alloy" size={15} />{#if saveLoaded}<span use:countUp={coins}>{coins.toLocaleString()}</span>{:else}<span>Loading</span>{/if}</div>
 		{#if snap?.runActive}
 			<div class="tb-pill cash-pill" use:tooltip={'Energy — this run only.\nHarvested from destroyed enemies, spent on Field Upgrades.\nResets when the tower falls.'}><Icon name="energy" size={15} /><span use:countUp={Math.floor(snap.cash)}>{Math.floor(snap.cash).toLocaleString()}</span></div>
 			<div class="tb-pill hp-pill" class:low={snap.towerHp / snap.towerMaxHp < 0.3} use:tooltip={'Tower HP — the run ends when this reaches 0.'}><Icon name="hp" size={15} /><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
@@ -1106,6 +1112,7 @@
 		<EnemyStatsPanel {snap} />
 		{#if showLaunchScreen}
 			<LaunchScreen
+				{saveLoaded}
 				{highestWave}
 				{coins}
 				{totalRuns}

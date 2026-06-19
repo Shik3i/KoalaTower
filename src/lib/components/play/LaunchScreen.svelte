@@ -15,6 +15,7 @@
 		highestWave,
 		coins,
 		totalRuns,
+		saveLoaded = true,
 		selectedFront = $bindable(TierId.Tier1),
 		selectedChallenge = $bindable<ChallengeId | null>(null),
 		unlockedFronts,
@@ -26,6 +27,7 @@
 		highestWave: number;
 		coins: number;
 		totalRuns: number;
+		saveLoaded?: boolean;
 		selectedFront?: TierId;
 		selectedChallenge?: ChallengeId | null;
 		unlockedFronts: TierId[];
@@ -67,6 +69,7 @@
 	}
 
 	function handleGlobalKey(e: KeyboardEvent) {
+		if (!saveLoaded) return;
 		if (e.key !== 'Enter') return;
 		const t = e.target;
 		if (t instanceof HTMLButtonElement || t instanceof HTMLAnchorElement
@@ -213,11 +216,11 @@
 			</div>
 		{/if}
 
-		<button class="sc-btn" class:sc-btn-ops={!!selectedChallenge} onclick={onDeploy}>
+		<button class="sc-btn" class:sc-btn-ops={!!selectedChallenge} disabled={!saveLoaded} onclick={onDeploy}>
 			<span class="sc-bi"></span>
-			<span class="sc-bt"><Icon name="play" size={16} /> {deployLabel}</span>
+			<span class="sc-bt"><Icon name="play" size={16} /> {saveLoaded ? deployLabel : 'Loading save...'}</span>
 		</button>
-		<p class="sc-hint"><kbd>Enter</kbd> start · <kbd>Space</kbd> pause · <kbd>1-4</kbd> speed</p>
+		<p class="sc-hint">{saveLoaded ? 'Enter start · Space pause · 1-4 speed' : 'Loading local save...'}</p>
 	</div>
 </div>
 
@@ -281,6 +284,7 @@
 	.ops-hs { color:var(--text-secondary); }
 
 	.sc-btn { position:relative; display:inline-flex; align-items:center; gap:.4rem; padding:.7rem 2rem; border-radius:var(--radius-md); background:linear-gradient(135deg,var(--cyan),var(--blue)); color:var(--bg-primary); font-weight:700; font-size:var(--fs-btn); cursor:pointer; overflow:hidden; transition:all var(--transition-normal); box-shadow:0 0 30px rgba(0,255,255,.2); width:100%; justify-content:center; }
+	.sc-btn:disabled { opacity:.65; cursor:wait; box-shadow:none; }
 	.sc-btn:hover { transform:translateY(-2px); box-shadow:0 0 50px rgba(0,255,255,.35); }
 	.sc-btn-ops { background:linear-gradient(135deg,rgb(220,170,0),rgb(200,120,0)); box-shadow:0 0 30px rgba(255,200,0,.2); }
 	.sc-btn-ops:hover { box-shadow:0 0 50px rgba(255,200,0,.35); }
