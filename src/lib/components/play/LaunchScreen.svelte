@@ -243,7 +243,11 @@
 			<span class="sc-bi"></span>
 			<span class="sc-bt"><Icon name="play" size={16} /> {saveLoaded ? deployLabel : 'Loading save...'}</span>
 		</button>
-		<p class="sc-hint">{saveLoaded ? 'Enter start · Space pause · 1-4 speed' : 'Loading local save...'}</p>
+		{#if saveLoaded}
+			<p class="sc-hint"><kbd>Enter</kbd> start · <kbd>Space</kbd> pause · <kbd>1-4</kbd> speed</p>
+		{:else}
+			<p class="sc-hint">Loading local save...</p>
+		{/if}
 	</div>
 </div>
 

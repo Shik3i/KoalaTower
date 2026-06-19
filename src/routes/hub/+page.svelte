@@ -987,7 +987,7 @@
 	<p class="hub-desc">🛰️ Orbital Command — your permanent base between deployments. Forge, Command Orders, Research, Schematics, Fronts, Special Operations, Simulation, Archives, Profile, and Systems all live here.</p>
 
 	<div class="hub-body">
-		<nav class="hub-nav" role="tablist" aria-label="Orbital Command sections">
+		<div class="hub-nav" role="tablist" aria-label="Orbital Command sections">
 			{#each visibleSections as s}
 				<button
 					id={'hub-tab-' + s.id}
@@ -1010,7 +1010,7 @@
 					<span class="bm-locked-text">No carrier detected. Field exposure insufficient.</span>
 				</div>
 			{/if}
-		</nav>
+		</div>
 
 		<div class="hub-content" id="hub-section-panel" role="tabpanel" aria-labelledby={'hub-tab-' + activeSection}>
 			{#if activeSection === 'workshop'}
