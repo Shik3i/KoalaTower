@@ -17,9 +17,13 @@ export function fail(status: number, code: ApiErrorCode, message: string): Respo
 	return json({ ok: false, error: { code, message } }, { status });
 }
 
-export async function readJsonObject(event: RequestEvent): Promise<Record<string, unknown> | null> {
+export async function readJsonObject(event: RequestEvent, maxBytes = 64 * 1024): Promise<Record<string, unknown> | null> {
 	try {
-		const body = await event.request.json();
+		const contentLength = Number(event.request.headers.get('content-length') ?? 0);
+		if (contentLength > maxBytes) return null;
+		const text = await event.request.text();
+		if (new TextEncoder().encode(text).length > maxBytes) return null;
+		const body = JSON.parse(text);
 		if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
 		return body as Record<string, unknown>;
 	} catch {

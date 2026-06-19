@@ -18,7 +18,7 @@ LIMIT 50
 }
 
 export async function POST(event: RequestEvent): Promise<Response> {
-	const body = await readJsonObject(event);
+	const body = await readJsonObject(event, 8 * 1024);
 	if (!body) return fail(400, 'bad_request', 'Invalid request body');
 	const localPlayerId = validateLocalPlayerId(body.localPlayerId);
 	const displayName = validateDisplayName(body.displayName);

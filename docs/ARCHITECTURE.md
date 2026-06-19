@@ -143,7 +143,7 @@ Weekly official Alloy assignments issued by Orbital Command. Up to 25 orders per
 ### Optional Online Foundation
 Optional online features run in the same SvelteKit Node server that serves the frontend. SQLite lives at `DATABASE_PATH` (Docker default: `/data/flatland.db`) and is initialized by source-controlled migrations. Normal gameplay remains local-first: no login, backend, or network access is required after the app is loaded/cached. The service worker bypasses `/api/`, and frontend helpers treat API failures as offline state.
 
-Implemented scaffolds include username/password auth, hashed session tokens, anonymous local player identity sync, cloud-save storage, unverified leaderboard entries, Ko-fi webhook records, challenge config schema, entitlement schema, and community-wide Alloy buff events. Verified challenge leaderboards, guilds, conflict-resolution UI, and permanent Ko-fi rewards are intentionally not implemented here.
+Implemented scaffolds include username/password auth, hashed session tokens, anonymous local player identity sync, cloud-save storage, unverified leaderboard entries, Ko-fi webhook records, challenge config schema, entitlement schema, and community-wide Alloy buff events. Ko-fi events must pass the configured webhook secret before buff creation, duplicate event IDs do not create duplicate buffs, and only EUR events create buffs until currency conversion rules exist. Verified challenge leaderboards, guilds, conflict-resolution UI, and permanent Ko-fi rewards are intentionally not implemented here.
 
 ## Render Feedback Systems
 

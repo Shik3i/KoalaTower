@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { RequestEvent } from './$types';
-import { fail, ok } from '$lib/server/api';
+import { fail, ok, readJsonObject } from '$lib/server/api';
 import { insertCommunityBuffEvent } from '$lib/server/communityBuff';
 import { openDatabase } from '$lib/server/db';
 import { getKofiWebhookSecret } from '$lib/server/env';
@@ -31,28 +31,26 @@ export async function POST(event: RequestEvent): Promise<Response> {
 	}
 	const webhookVerified = !!configuredSecret;
 
-	let payload: KofiPayload;
-	try {
-		payload = await event.request.json() as KofiPayload;
-	} catch {
-		return fail(400, 'bad_request', 'Invalid JSON payload');
-	}
+	const body = await readJsonObject(event, 128 * 1024);
+	if (!body) return fail(400, 'bad_request', 'Invalid JSON payload');
+	const payload = body as KofiPayload;
 
 	const eventId = firstString(payload.message_id, payload.kofi_transaction_id) ?? randomUUID();
 	const rawJson = JSON.stringify(payload);
 	const amount = typeof payload.amount === 'number' ? payload.amount : Number(payload.amount ?? 0);
-	const currency = firstString(payload.currency) ?? '';
+	const currency = (firstString(payload.currency) ?? '').toUpperCase();
 	const supportCode = findSupportCode(firstString(payload.message));
 	const db = openDatabase();
 	const now = new Date().toISOString();
-	db.prepare(`
+	const insertResult = db.prepare(`
 INSERT OR IGNORE INTO kofi_events (id, event_id, raw_json, amount, currency, support_code, created_at)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 `).run(randomUUID(), eventId, rawJson, Number.isFinite(amount) ? amount : 0, currency, supportCode, now);
 
-	if (webhookVerified && Number.isFinite(amount) && amount > 0) {
+	const communityBuffEventCreated = insertResult.changes > 0 && webhookVerified && Number.isFinite(amount) && amount > 0 && currency === 'EUR';
+	if (communityBuffEventCreated) {
 		insertCommunityBuffEvent(db, 'kofi', eventId, amount, new Date());
 	}
 
-	return ok({ recorded: true, verified: webhookVerified, communityBuffEventCreated: webhookVerified && Number.isFinite(amount) && amount > 0 });
+	return ok({ recorded: insertResult.changes > 0, verified: webhookVerified, communityBuffEventCreated });
 }

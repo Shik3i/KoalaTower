@@ -157,7 +157,7 @@ Ko-fi support-code design:
 - players can have a local anonymous support code before registering
 - future Ko-fi attribution should parse that support code from the donation message, not assume arbitrary webhook query params
 - raw Ko-fi webhook JSON is stored for audit/debugging, but permanent entitlements are not granted blindly
-- community support can create a global Alloy buff for everyone: `+1%` Alloy per `€1` equivalent for `7 days`, capped at `+100%`
+- verified EUR Ko-fi events can create a global Alloy buff for everyone: `+1%` Alloy per `€1` for `7 days`, capped at `+100%`; non-EUR events are recorded but do not create a buff until conversion rules exist
 - the community buff is not personal pay-to-win and applies to all players
 
 ### Publishing a release

@@ -11,7 +11,7 @@ export const prerender = false;
 export async function POST(event: RequestEvent): Promise<Response> {
 	if (isRateLimited(`register:${event.getClientAddress()}`)) return fail(429, 'rate_limited', 'Please wait before trying again');
 	requireAuthSecrets();
-	const body = await readJsonObject(event);
+	const body = await readJsonObject(event, 8 * 1024);
 	if (!body) return fail(400, 'bad_request', 'Invalid request body');
 	const username = validateUsername(body.username);
 	const password = validatePassword(body.password);

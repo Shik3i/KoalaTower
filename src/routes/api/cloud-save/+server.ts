@@ -23,7 +23,7 @@ WHERE account_id = ?
 export async function PUT(event: RequestEvent): Promise<Response> {
 	const account = getSessionAccount(event.cookies);
 	if (!account) return fail(401, 'unauthorized', 'Login required');
-	const body = await readJsonObject(event);
+	const body = await readJsonObject(event, MAX_SAVE_BYTES + 16 * 1024);
 	if (!body) return fail(400, 'bad_request', 'Invalid request body');
 	if (typeof body.saveJson !== 'object' || body.saveJson === null || Array.isArray(body.saveJson)) {
 		return fail(400, 'bad_request', 'saveJson must be an object');

@@ -13,7 +13,7 @@ const GENERIC_LOGIN_ERROR = 'Invalid username or password';
 export async function POST(event: RequestEvent): Promise<Response> {
 	if (isRateLimited(`login:${event.getClientAddress()}`)) return fail(429, 'rate_limited', 'Please wait before trying again');
 	requireAuthSecrets();
-	const body = await readJsonObject(event);
+	const body = await readJsonObject(event, 8 * 1024);
 	if (!body) return fail(400, 'bad_request', GENERIC_LOGIN_ERROR);
 	const username = validateUsername(body.username);
 	const password = validatePassword(body.password);
