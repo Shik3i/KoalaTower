@@ -4,7 +4,7 @@ import { fail, ok } from '$lib/server/api';
 import { insertCommunityBuffEvent } from '$lib/server/communityBuff';
 import { openDatabase } from '$lib/server/db';
 import { isKofiWebhookEnabled, getKofiWebhookSecret } from '$lib/server/env';
-import { findSupportCode } from '$lib/server/supportCode';
+import { findSupportCode, findSupportCodeOwner } from '$lib/server/supportCode';
 
 export const prerender = false;
 
@@ -97,15 +97,23 @@ export async function POST(event: RequestEvent): Promise<Response> {
 
 	const db = openDatabase();
 	const now = new Date().toISOString();
+	const owner = findSupportCodeOwner(db, supportCode);
 	const insertResult = db.prepare(`
-INSERT OR IGNORE INTO kofi_events (id, event_id, raw_json, amount, currency, support_code, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-`).run(randomUUID(), eventId, rawJson, Number.isFinite(amount) ? amount : 0, currency, supportCode, now);
+INSERT OR IGNORE INTO kofi_events (id, event_id, raw_json, amount, currency, support_code, matched_owner_type, matched_owner_id, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`).run(randomUUID(), eventId, rawJson, Number.isFinite(amount) ? amount : 0, currency, supportCode, owner?.ownerType ?? null, owner?.ownerId ?? null, now);
 
 	const communityBuffEventCreated = insertResult.changes > 0 && webhookVerified && Number.isFinite(amount) && amount > 0 && currency === 'EUR';
 	if (communityBuffEventCreated) {
 		insertCommunityBuffEvent(db, 'kofi', eventId, amount, new Date());
 	}
 
-	return ok({ recorded: insertResult.changes > 0, verified: webhookVerified, communityBuffEventCreated });
+	return ok({
+		recorded: insertResult.changes > 0,
+		verified: webhookVerified,
+		communityBuffEventCreated,
+		supportCode,
+		matchedOwnerType: owner?.ownerType ?? null,
+		matchedOwnerId: owner?.ownerId ?? null
+	});
 }

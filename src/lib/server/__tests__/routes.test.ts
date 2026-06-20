@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { closeDatabase, openDatabase } from '../db';
 import { getCommunityBuff } from '../communityBuff';
+import { createSupportCode } from '../supportCode';
 import { GET as getCloudSave } from '../../../routes/api/cloud-save/+server';
 import { POST as postKofiWebhook } from '../../../routes/api/kofi/webhook/+server';
 import { POST as postUnverifiedLeaderboard } from '../../../routes/api/leaderboard/unverified/+server';
@@ -212,5 +213,55 @@ describe('Ko-fi webhook payload + verification', () => {
 		const row = db.prepare('SELECT raw_json FROM kofi_events WHERE event_id = ?').get('kofi-redact') as { raw_json: string };
 		expect(row.raw_json).not.toContain('verification_token');
 		expect(row.raw_json).not.toContain('test-kofi-secret');
+	});
+
+	it('attributes a Ko-fi event to a local identity when the message carries its support code', async () => {
+		useTempDatabase();
+		process.env.KOFI_WEBHOOK_SECRET = 'test-kofi-secret';
+		const localPlayerId = '11111111-1111-4111-8111-111111111111';
+		const now = new Date().toISOString();
+		openDatabase().prepare(`
+INSERT INTO player_identities (id, local_player_id, display_name, created_at, updated_at, last_seen_at)
+VALUES (?, ?, ?, ?, ?, ?)
+`).run('identity-row', localPlayerId, 'Flatland Player', now, now, now);
+		const supportCode = createSupportCode('local_identity', localPlayerId);
+		const response = await postKofiWebhook({
+			request: formRequest({
+				message_id: 'kofi-attributed',
+				verification_token: 'test-kofi-secret',
+				amount: '2',
+				currency: 'EUR',
+				message: `Boost the grid ${supportCode}`
+			})
+		} as never);
+		expect(await response.json()).toMatchObject({
+			recorded: true,
+			communityBuffEventCreated: true,
+			matchedOwnerType: 'local_identity',
+			matchedOwnerId: localPlayerId
+		});
+		const db = openDatabase();
+		const row = db.prepare('SELECT matched_owner_type, matched_owner_id FROM kofi_events WHERE event_id = ?').get('kofi-attributed') as { matched_owner_type: string; matched_owner_id: string };
+		expect(row).toEqual({ matched_owner_type: 'local_identity', matched_owner_id: localPlayerId });
+	});
+
+	it('leaves owner attribution null when the support code matches nothing', async () => {
+		useTempDatabase();
+		process.env.KOFI_WEBHOOK_SECRET = 'test-kofi-secret';
+		const response = await postKofiWebhook({
+			request: formRequest({
+				message_id: 'kofi-unknown-code',
+				verification_token: 'test-kofi-secret',
+				amount: '2',
+				currency: 'EUR',
+				message: 'thanks FLTD-UNKNOWN99'
+			})
+		} as never);
+		expect(await response.json()).toMatchObject({
+			recorded: true,
+			communityBuffEventCreated: true,
+			matchedOwnerType: null,
+			matchedOwnerId: null
+		});
 	});
 });
