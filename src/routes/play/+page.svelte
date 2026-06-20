@@ -1132,7 +1132,7 @@
 				<strong>Renderer unavailable</strong>
 				<span>{pixiError}</span>
 			</div>
-		{:else if !pixiReady}
+		{:else if !pixiReady && !showLaunchScreen}
 			<div class="pixi-status loading-screen" role="status" aria-live="polite">
 				<div class="loading-scanner"></div>
 				<span class="pixi-spinner-neon"></span>
@@ -1335,14 +1335,17 @@
 	.loading-screen {
 		position: absolute;
 		inset: 0;
-		z-index: 100;
+		/* Stay below the launch screen (z-index:10) so it can never cover or
+		   trap clicks on the Deploy button. The overlay is purely a status
+		   display while Pixi initialises — it must not intercept pointer input. */
+		z-index: 4;
 		background: radial-gradient(circle at center, #0F143A, #050610);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		gap: 1rem;
-		pointer-events: all;
+		pointer-events: none;
 	}
 	.loading-title {
 		font-family: var(--font-tech);
