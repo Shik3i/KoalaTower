@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	FLATLAND_SW_CACHE_PREFIX,
 	FLATLAND_SW_REGISTRATION_PATH,
+	buildAppShellUrls,
 	canRegisterServiceWorker,
 	getFlatlandCacheName,
 	shouldBypassServiceWorkerCache,
@@ -16,6 +17,11 @@ describe('PWA service worker helpers', () => {
 	it('excludes future API routes from app-shell caching', () => {
 		expect(shouldBypassServiceWorkerCache('/api/save')).toBe(true);
 		expect(shouldBypassServiceWorkerCache('/play')).toBe(false);
+	});
+
+	it('deduplicates app-shell URLs before Cache.addAll sees them', () => {
+		expect(buildAppShellUrls(['/', '/manifest.json'], ['/manifest.json', '/favicon.png'], ['/play']))
+			.toEqual(['/', '/manifest.json', '/favicon.png', '/play']);
 	});
 
 	it('guards registration behind production and browser service worker support', () => {

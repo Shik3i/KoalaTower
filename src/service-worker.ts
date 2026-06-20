@@ -1,11 +1,11 @@
 /// <reference lib="webworker" />
 
 import { build, files, version } from '$service-worker';
-import { getFlatlandCacheName, shouldBypassServiceWorkerCache } from '$lib/pwa/serviceWorker';
+import { buildAppShellUrls, getFlatlandCacheName, shouldBypassServiceWorkerCache } from '$lib/pwa/serviceWorker';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 const CACHE_NAME = getFlatlandCacheName(version);
-const APP_SHELL = ['/', '/manifest.json', ...build, ...files];
+const APP_SHELL = buildAppShellUrls(['/', '/manifest.json'], build, files);
 
 sw.addEventListener('install', (event) => {
 	event.waitUntil(

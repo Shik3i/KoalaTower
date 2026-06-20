@@ -9,6 +9,10 @@ export function shouldBypassServiceWorkerCache(pathname: string): boolean {
 	return pathname.startsWith('/api/');
 }
 
+export function buildAppShellUrls(...groups: string[][]): string[] {
+	return Array.from(new Set(groups.flat()));
+}
+
 export function canRegisterServiceWorker(prod: boolean, nav: Pick<Navigator, 'serviceWorker'> | undefined = typeof navigator === 'undefined' ? undefined : navigator): boolean {
 	return prod && !!nav && 'serviceWorker' in nav;
 }
