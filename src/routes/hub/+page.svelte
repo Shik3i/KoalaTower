@@ -91,6 +91,7 @@
 	import SettingsSection from '$lib/components/hub/SettingsSection.svelte';
 	import SimulationSection from '$lib/components/hub/SimulationSection.svelte';
 	import BlueprintsSection from '$lib/components/hub/BlueprintsSection.svelte';
+	import StatsSection from '$lib/components/hub/StatsSection.svelte';
 
 	function formatPlayTime(totalSeconds: number): string {
 		if (totalSeconds <= 0) return '0s';
@@ -1482,88 +1483,17 @@
 			{:else if activeSection === 'simulation'}
 				<SimulationSection bind:simWave bind:simFront />
 			{:else if activeSection === 'stats'}
-				{@const enemyTypes = [EnemyType.Normal, EnemyType.Fast, EnemyType.Tank, EnemyType.Ranged, EnemyType.Boss]}
-				<div class="hs">
-					<h2 class="hst">📊 Archives</h2>
-					<p class="hsd">Campaign telemetry and historical records. Some data has been revised for clarity. Some has been revised for morale. Some has been revised because we forgot what happened.</p>
-
-					{#if totalRuns === 0}
-						<p class="hsd" style="color:var(--text-dim);font-style:italic;">No campaign records yet. The Shapes are still waiting for you to make the first move. Deploy a Tower — even a single wave writes history.</p>
-					{:else}
-
-					<h3 class="stats-sub">Lifetime Statistics</h3>
-					<div class="ig" style="max-width:600px">
-						<div class="ir"><span class="il">Total Deployments</span><span class="iv">{totalRuns}</span></div>
-						<div class="ir"><span class="il">Highest Wave</span><span class="iv">🏆 {highestWave}</span></div>
-						<div class="ir"><span class="il">Best Killstreak</span><span class="iv">⛓ {formatCompact(hubStats.bestKillstreak)}</span></div>
-						<div class="ir"><span class="il">Total Kills</span><span class="iv">{formatCompact(hubStats.totalKills)}</span></div>
-						<div class="ir"><span class="il">Bosses Defeated</span><span class="iv">{formatCompact(hubStats.totalBossesDefeated)}</span></div>
-						<div class="ir"><span class="il">Shinies Collected</span><span class="iv">{formatCompact(hubStats.totalShiniesKilled)}</span></div>
-						<div class="ir"><span class="il">Damage Dealt</span><span class="iv">{formatCompact(lifetimeStats.totalDamageDealt)}</span></div>
-						<div class="ir"><span class="il">Critical Hits</span><span class="iv">{formatCompact(lifetimeStats.totalCritsDealt)}</span></div>
-						<div class="ir"><span class="il">Energy Earned</span><span class="iv">⚡ {formatCompact(lifetimeStats.totalEnergyEarned)}</span></div>
-						<div class="ir"><span class="il">Alloy Earned</span><span class="iv">🔩 {formatCompact(hubStats.totalAlloyEarned)}</span></div>
-						<div class="ir"><span class="il">Waves Completed</span><span class="iv">{formatCompact(lifetimeStats.totalWavesCompleted)}</span></div>
-						<div class="ir"><span class="il">Play Time</span><span class="iv">{formatPlayTime(lifetimeStats.totalPlayTimeSeconds)}</span></div>
-					</div>
-
-					<h3 class="stats-sub" style="margin-top:1.5rem">Enemy Mastery</h3>
-					<p class="hsd" style="margin-bottom:.75rem">Defeat enemies to earn mastery levels. Each mastery level grants +1% damage against that enemy type, and Alloy bonuses are awarded automatically when thresholds are crossed.</p>
-					<div class="mastery-list">
-						{#each enemyTypes as et}
-							{@const kills = killsByType[et] ?? 0}
-							{@const shinies = shinyKillsByType[et] ?? 0}
-							{@const prog = getMasteryProgress(kills)}
-							{@const dmgBonus = prog.level * 1}
-							<div class="mastery-card">
-								<div class="mastery-header">
-									<span class="mastery-name">{ENEMY_TYPE_LABELS[et]}</span>
-									<span class="mastery-level" class:maxed={prog.level >= 5}>Mastery {prog.level}/5</span>
-									{#if dmgBonus > 0}<span class="mastery-bonus">+{dmgBonus}% DMG</span>{/if}
-								</div>
-								<div class="mastery-kills">
-									<span class="il">{formatCompact(kills)} kills</span>
-									{#if shinies > 0}<span class="mastery-shiny">✨ {formatCompact(shinies)} shiny</span>{/if}
-									{#if prog.level < 5}<span class="il" style="margin-left:auto">{formatCompact(prog.next - kills)} to next</span>{/if}
-								</div>
-								<div class="mastery-bar-track">
-									<div class="mastery-bar-fill" style="width:{prog.pct}%"></div>
-								</div>
-								<div class="mastery-rewards">
-									{#each [1,2,3,4,5] as l}
-										{@const key = `mastery_${et}_${l}`}
-										{@const claimed = !!masteryAchievements[key]}
-										{@const earned = prog.level >= l}
-										<div class="mastery-pip" class:earned={earned} class:claimed={claimed} use:tooltip={`Mastery ${l} — ${MASTERY_REWARDS[l-1]?.toLocaleString()} Alloy${claimed ? '\nClaimed.' : earned ? '\nEarned — claim it below.' : '\nKeep hunting this enemy type.'}`}>
-											{#if claimed}✓{:else if earned}!{:else}{l}{/if}
-										</div>
-									{/each}
-								</div>
-							</div>
-						{/each}
-					</div>
-
-					<h3 class="stats-sub" style="margin-top:1.5rem">Front Progress</h3>
-					<div class="ig" style="max-width:600px">
-						{#each Object.entries(frontBestWave) as [front, wave]}
-							<div class="ir"><span class="il">{getFrontName(front as TierId)}</span><span class="iv">Wave {wave}</span></div>
-						{/each}
-						{#if Object.keys(frontBestWave).length === 0}
-							<div class="ir"><span class="il" style="color:var(--text-dim)">No front data yet — complete a deployment.</span></div>
-						{/if}
-					</div>
-
-					<h3 class="stats-sub" style="margin-top:1.5rem">Special Operations Records</h3>
-					<div class="ig" style="max-width:600px">
-						{#each Object.entries(challengeHighScores) as [challenge, score]}
-							<div class="ir"><span class="il">{getChallengeName(challenge)}</span><span class="iv">Wave {score}</span></div>
-						{/each}
-						{#if Object.keys(challengeHighScores).length === 0}
-							<div class="ir"><span class="il" style="color:var(--text-dim)">No Special Operations records yet.</span></div>
-						{/if}
-					</div>
-					{/if}
-				</div>
+				<StatsSection
+					{totalRuns}
+					{highestWave}
+					{hubStats}
+					{lifetimeStats}
+					{killsByType}
+					{shinyKillsByType}
+					{masteryAchievements}
+					{frontBestWave}
+					{challengeHighScores}
+				/>
 			{:else if activeSection === 'profile'}
 				<div class="hs"><h2 class="hst">👤 Profile</h2>
 					{#if communityBuff.loaded && communityBuff.percent > 0}
