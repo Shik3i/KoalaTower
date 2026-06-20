@@ -62,6 +62,8 @@
 	let gameOverSchematics = $state(0);
 	let gameOverFrontName = $state('');
 	let runStartedAtMs = $state(0);
+	let activeRunToken = 0;
+	let reportingRunToken = 0;
 	let prevWave = $state(0);
 	let prevBossCount = $state(0);
 	let upgradeCategory = $state<'offense' | 'defense' | 'utility'>('offense');
@@ -404,7 +406,9 @@
 				refreshSnap();
 			},
 			onStateChange: () => { refreshSnap(); },
-			onGameOver: (geoCoins: number, _w: number) => {
+			onGameOver: async (geoCoins: number, _w: number) => {
+				const finishedRunToken = reportingRunToken;
+				if (finishedRunToken !== activeRunToken) return;
 				refreshSnap();
 				audio.play('gameOver');
 				gameOverCoins = geoCoins;
@@ -639,10 +643,15 @@
 					coinsStore.set(save.totalCoins);
 					highestWaveStore.set(save.highestWave);
 					totalRunsStore.set(save.totalRuns);
-					persistSave(save);
-					scheduleAutoDeployment(save.autoDeploymentEnabled === true && hasBlackMarketUnlock(save.blackMarketUnlocks, 'autoDeployment'));
-					showSaveIndicator = true;
-					setTimeout(() => { showSaveIndicator = false; }, 1500);
+					const persisted = await persistSave(save);
+					if (finishedRunToken !== activeRunToken) return;
+					if (persisted) {
+						scheduleAutoDeployment(save.autoDeploymentEnabled === true && hasBlackMarketUnlock(save.blackMarketUnlocks, 'autoDeployment'));
+						showSaveIndicator = true;
+						setTimeout(() => { showSaveIndicator = false; }, 1500);
+					} else {
+						toast('Save failed. Deployment Report was not written.', 'error', 6000);
+					}
 					if (isNewBest) {
 						const flavor = getOpLogMessage('newBestWave', { wave: save.highestWave });
 						if (flavor) toast('🏆 ' + flavor, 'milestone');
@@ -742,6 +751,8 @@
 		audio.play('waveStart');
 		coinsAtRunStart = coins;
 		runStartedAtMs = Date.now();
+		activeRunToken++;
+		reportingRunToken = activeRunToken;
 		const save = getCachedSave();
 		// Clamp the chosen front to what's actually unlocked, then persist it.
 		if (!unlockedFronts.includes(selectedFront)) selectedFront = TierId.Tier1;
@@ -817,6 +828,16 @@
 
 	function handleResetSave() {
 		clearAutoDeployment();
+		activeRunToken++;
+		runStartedAtMs = 0;
+		showGameOver = false;
+		showLaunchScreen = true;
+		gameView?.stop();
+		engine?.cleanup();
+		engine = null;
+		engineStore.set(null);
+		if (gameView) { gameView.destroy(); gameView = null; }
+		snap = null;
 		resetSave().then(() => {
 			showResetConfirm = false;
 			coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0);
