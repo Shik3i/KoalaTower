@@ -92,6 +92,7 @@
 	import SimulationSection from '$lib/components/hub/SimulationSection.svelte';
 	import BlueprintsSection from '$lib/components/hub/BlueprintsSection.svelte';
 	import StatsSection from '$lib/components/hub/StatsSection.svelte';
+	import TiersSection from '$lib/components/hub/TiersSection.svelte';
 
 	function formatPlayTime(totalSeconds: number): string {
 		if (totalSeconds <= 0) return '0s';
@@ -1473,9 +1474,11 @@
 					{/if}
 				</div>
 			{:else if activeSection === 'tiers'}
-				<div class="hs"><h2 class="hst">🌍 Fronts</h2><p class="hsd">Sixteen Fronts across four bands — Perimeter, Redline, Blacksite, Anomaly. Each Front spawns denser waves and drops its own Schematics. Most Fronts unlock at Wave 100 on the previous one; crossing into a new band is the hard wall. Remember: the enemy is also fighting a war. They are losing. Please continue to help them lose.</p>
-					<div class="cl">{#each TIERS as t}{@const unl = unlockedFronts.includes(t.id)}{@const band = getFrontBandDef(t.id)}{@const front = FRONT_META.findIndex(m => m.id === t.id) + 1}{@const schem = getSchematics(schematicsByFront, front)}{@const alloyMult = TIER_MULTIPLIERS[front]?.alloy ?? 1}<div class="tc" class:unl={unl} style="--band:{band.color}"><div class="tc-h"><FrontIcon front={t.id} size={30} locked={!unl} /><div><div class="tcn">{t.name}</div><div class="tcd">{t.description}</div></div></div><div class="tcr" class:tcr-ok={unl}>{unl ? '✓ Unlocked · Best Wave ' + (frontBestWave[t.id] ?? 0) + ' · Alloy x' + alloyMult.toFixed(2) + (schem > 0 ? ' · 📐' + schem : '') : '🔒 ' + describeFrontUnlock(t.id)}</div></div>{/each}</div>
-				</div>
+				<TiersSection
+					{unlockedFronts}
+					{schematicsByFront}
+					{frontBestWave}
+				/>
 			{:else if activeSection === 'challenges'}
 				<div class="hs"><h2 class="hst">⚡ Special Operations</h2><p class="hsd">Tactical exercises with modified engagement rules. Each operation tests different combat scenarios under special conditions. \'Special conditions\' is military code for \'we broke something and called it a feature.\'</p>
 					<div class="cl">{#each CHALLENGES as c}{@const unlocked = isChallengeUnlocked(c.id, frontBestWave)}{@const highScore = challengeHighScores[c.id] ?? 0}<div class="cc" class:lck={!unlocked}><div class="cc-h"><span class="cci">{c.icon}</span><div><div class="ccn">{c.name}</div><div class="ccd">{c.description}</div></div></div>{#if highScore > 0}<div class="ccs">Best: Wave {highScore}</div>{:else if !unlocked}<div class="ccl">🔒 {CHALLENGE_UNLOCK_REQS[c.id].label}</div>{/if}</div>{/each}</div>
