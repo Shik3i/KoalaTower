@@ -23,11 +23,14 @@
 	import { saveStatusStore, type SaveStatus } from '$lib/stores/saveStatusStore';
 	import WhatsNewModal from '$lib/components/WhatsNewModal.svelte';
 	import { registerFlatlandServiceWorker } from '$lib/pwa/serviceWorker';
+	import { accountStore } from '$lib/online/accountClient';
 
 	let { children } = $props();
 
 	let loaded = $state(false);
 	let suppressWhatsNewFirstRun = $state(false);
+	let account = $state<any>(null);
+	let unsubscribeAccount: (() => void) | null = null;
 	let saveStatus = $state<SaveStatus>({
 		writeFailed: false,
 		message: null,
@@ -98,6 +101,10 @@
 				toast(msg, status.writeFailed ? 'error' : 'warning', 7000);
 			}
 		});
+		unsubscribeAccount = accountStore.subscribe(state => {
+			account = state.account;
+		});
+		void accountStore.refresh();
 		try {
 			const save = await loadSave();
 			coinsStore.set(save.totalCoins);
@@ -191,6 +198,7 @@ onDestroy(() => {
 			if (rejectionHandler) window.removeEventListener('unhandledrejection', rejectionHandler);
 		}
 		unsubscribeSaveStatus?.();
+		unsubscribeAccount?.();
 	});
 </script>
 
@@ -247,6 +255,12 @@ onDestroy(() => {
 		<a href="/privacy" class="lf-link" aria-current={page.route.id === '/privacy' ? 'page' : undefined}>Privacy</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
 		<a href="/imprint" class="lf-link" aria-current={page.route.id === '/imprint' ? 'page' : undefined}>Imprint</a>
+		<span class="lf-sep" aria-hidden="true">·</span>
+		{#if account}
+			<a href="/hub?section=profile" class="lf-link lf-account-link" aria-current={page.route.id === '/hub' && page.url.searchParams.get('section') === 'profile' ? 'page' : undefined}>👤 {account.displayName}</a>
+		{:else}
+			<a href="/hub?section=profile" class="lf-link lf-account-link" aria-current={page.route.id === '/hub' && page.url.searchParams.get('section') === 'profile' ? 'page' : undefined}>👤 Guest</a>
+		{/if}
 	</nav>
 	<div class="lf-bottom">
 		{#if isSupportUrlConfigured(SUPPORT_URL)}
@@ -287,6 +301,8 @@ onDestroy(() => {
 	.lf-link { color:var(--text-dim); font-size:var(--fs-caption-sm); text-decoration:none; transition:color var(--transition-fast); }
 	.lf-link:hover { color:var(--cyan); }
 	.lf-sep { color:var(--text-dim); opacity:.3; font-size:var(--fs-caption-sm); }
+	.lf-account-link { color:var(--text-secondary); font-family:var(--font-mono); }
+	.lf-account-link:hover { color:var(--cyan); }
 	.lf-bottom { display:flex; align-items:center; gap:.75rem; }
 	.lf-version-link { display:inline-flex; align-items:center; gap:.35rem; color:var(--text-dim); opacity:.5; text-decoration:none; transition:color var(--transition-fast),opacity var(--transition-fast); }
 	.lf-version-link:hover { color:var(--cyan); opacity:1; }

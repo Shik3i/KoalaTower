@@ -85,6 +85,9 @@
 	import { getSupportCode } from '$lib/online/supportCode';
 	import { APP_VERSION } from '$lib/version';
 	import { CURRENT_SCHEMA_VERSION } from '$lib/game/save/saveTypes';
+	import { page } from '$app/state';
+	import { isValidUsername, isValidPassword, isValidDisplayName } from '$lib/online/authValidation';
+	import Icon from '$lib/components/Icon.svelte';
 
 	function formatPlayTime(totalSeconds: number): string {
 		if (totalSeconds <= 0) return '0s';
@@ -410,6 +413,129 @@
 	const toasts = createToastStore(3000);
 	const toast = toasts.push;
 
+	// Visibility states for password inputs
+	let showLoginPassword = $state(false);
+	let showRegPassword = $state(false);
+	let showRegConfirm = $state(false);
+
+	// Success modal states
+	let showRegisterSuccess = $state(false);
+	let registeredDisplayName = $state('');
+	let regSuccessOkBtnEl = $state<HTMLButtonElement | null>(null);
+	let regSuccessDialogEl = $state<HTMLDivElement | null>(null);
+
+	// Validation checks
+	const regUsernameTrimmed = $derived(regUsername.trim());
+	const regUsernameValid = $derived(isValidUsername(regUsername));
+	const showRegUsernameWarn = $derived(regUsername.length > 0 && !regUsernameValid);
+
+	const regPasswordValid = $derived(isValidPassword(regPassword));
+	const showRegPasswordWarn = $derived(regPassword.length > 0 && !regPasswordValid);
+
+	const regConfirmMatch = $derived(regPassword === regConfirm);
+	const showRegConfirmWarn = $derived(regConfirm.length > 0 && !regConfirmMatch);
+
+	const regDisplayNameValid = $derived(isValidDisplayName(regDisplayName));
+	const showRegDisplayNameWarn = $derived(regDisplayName.length > 0 && !regDisplayNameValid);
+
+	const canSubmitRegister = $derived(
+		regUsernameValid && 
+		regPasswordValid && 
+		regConfirmMatch && 
+		regDisplayNameValid && 
+		!authBusy
+	);
+
+	const canSubmitLogin = $derived(
+		loginUsername.trim().length > 0 &&
+		loginPassword.length > 0 &&
+		!authBusy
+	);
+
+	const localProfileNameValid = $derived(isValidDisplayName(localProfileName));
+	const showLocalProfileNameWarn = $derived(localProfileName.length > 0 && !localProfileNameValid);
+
+	// Password strength heuristic
+	function getPasswordStrength(p: string): { score: number; label: string; color: string } {
+		if (p.length === 0) return { score: 0, label: '', color: '' };
+		if (p.length < 10) return { score: 1, label: 'Too short', color: 'var(--red)' };
+		
+		let score = 2;
+		const hasUpper = /[A-Z]/.test(p);
+		const hasLower = /[a-z]/.test(p);
+		const hasDigit = /[0-9]/.test(p);
+		const hasSpecial = /[^A-Za-z0-9]/.test(p);
+		
+		const varieties = [hasUpper, hasLower, hasDigit, hasSpecial].filter(Boolean).length;
+		if (varieties >= 3 && p.length >= 12) {
+			score = 4;
+		} else if (varieties >= 2 || p.length >= 12) {
+			score = 3;
+		}
+		
+		if (score === 2) return { score, label: 'Weak', color: 'var(--orange)' };
+		if (score === 3) return { score, label: 'Medium', color: 'var(--yellow)' };
+		return { score, label: 'Strong', color: 'var(--green)' };
+	}
+	const regPasswordStrength = $derived(getPasswordStrength(regPassword));
+
+	// Cloud status derived info
+	const cloudSyncStatus = $derived.by(() => {
+		if (!cloudChecked) return { type: 'info', text: 'Cloud status not checked yet.', icon: '🛰️', color: 'var(--text-dim)' };
+		if (!cloudExists) return { type: 'warning', text: 'No cloud backup found. Upload your local save to create one.', icon: 'ℹ️', color: 'var(--yellow)' };
+		if (cloudMeta) {
+			if (cloudMeta.schemaVersion > CURRENT_SCHEMA_VERSION) {
+				return { type: 'error', text: 'Cloud backup is from a newer game version. Please update your game.', icon: '⚠️', color: 'var(--red)' };
+			}
+			if (isCloudNewerThanLocal()) {
+				return { type: 'conflict-cloud', text: 'Cloud backup is newer than your local save. Restore recommended.', icon: '📥', color: 'var(--yellow)' };
+			}
+			if (isLocalNewerThanCloud()) {
+				return { type: 'conflict-local', text: 'Local save is newer than cloud backup. Upload recommended.', icon: '📤', color: 'var(--cyan)' };
+			}
+			return { type: 'success', text: 'Cloud backup is up-to-date with this device.', icon: '✅', color: 'var(--green)' };
+		}
+		return { type: 'info', text: 'Cloud status check complete.', icon: '🛰️', color: 'var(--text-secondary)' };
+	});
+
+	// Scroll-to-top tracking (D5)
+	let showBackToTop = $state(false);
+	let hubPageEl = $state<HTMLElement | null>(null);
+
+	function handleScroll(e: Event) {
+		const target = e.currentTarget as HTMLElement;
+		showBackToTop = target.scrollTop > 300;
+	}
+
+	function scrollToTop() {
+		hubPageEl?.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
+	// Deep-link section selection (C8)
+	$effect(() => {
+		const sectionParam = page.url.searchParams.get('section');
+		if (sectionParam) {
+			const validSections = ['workshop', 'orders', 'lab', 'blueprints', 'blackMarket', 'tiers', 'challenges', 'simulation', 'stats', 'settings', 'profile'];
+			if (validSections.includes(sectionParam) && activeSection !== sectionParam) {
+				activeSection = sectionParam as any;
+			}
+		}
+	});
+
+	function switchAuthMode(mode: 'login' | 'register') {
+		authMode = mode;
+		authError = null;
+		loginUsername = '';
+		loginPassword = '';
+		regUsername = '';
+		regDisplayName = '';
+		regPassword = '';
+		regConfirm = '';
+		showLoginPassword = false;
+		showRegPassword = false;
+		showRegConfirm = false;
+	}
+
 	async function openImportDialog() {
 		showImportDialog = true;
 		await tick();
@@ -512,7 +638,14 @@
 		authBusy = true;
 		try {
 			const r = await registerAccount(regUsername, regPassword, regDisplayName || undefined);
-			if (r.ok) { regUsername = ''; regDisplayName = ''; regPassword = ''; regConfirm = ''; }
+			if (r.ok) {
+				registeredDisplayName = regDisplayName || regUsername;
+				showRegisterSuccess = true;
+				regUsername = ''; regDisplayName = ''; regPassword = ''; regConfirm = '';
+				toast('Account created successfully!', 'success');
+				await tick();
+				regSuccessOkBtnEl?.focus();
+			}
 			else authError = r.message;
 		} finally { authBusy = false; }
 	}
@@ -522,14 +655,20 @@
 		authBusy = true;
 		try {
 			const r = await loginAccount(loginUsername, loginPassword);
-			if (r.ok) { loginUsername = ''; loginPassword = ''; }
+			if (r.ok) {
+				loginUsername = ''; loginPassword = '';
+				toast('Logged in successfully!', 'success');
+			}
 			else authError = r.message;
 		} finally { authBusy = false; }
 	}
 
 	async function handleLogout() {
 		authBusy = true;
-		try { await logoutAccount(); }
+		try {
+			await logoutAccount();
+			toast('Logged out successfully.', 'success');
+		}
 		finally { authBusy = false; }
 		// Local save is untouched; cloud view clears with the account.
 	}
@@ -900,6 +1039,15 @@
 		if (id !== activeSection) uiSound('click');
 		activeSection = id;
 		if (id === 'orders') refreshCommandOrders();
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			if (id === 'workshop') {
+				url.searchParams.delete('section');
+			} else {
+				url.searchParams.set('section', id);
+			}
+			window.history.replaceState({}, '', url.toString());
+		}
 	}
 
 	async function onHubNavKeydown(e: KeyboardEvent, id: typeof activeSection) {
@@ -953,7 +1101,7 @@
 	<meta name="description" content="Flatland TD Orbital Command — Forge upgrades, Research Deck projects, Fronts, Special Operations, Simulation, Archives, and Systems." />
 </svelte:head>
 
-<main class="hub-page">
+<main class="hub-page" bind:this={hubPageEl} onscroll={handleScroll}>
 	<div class="bg-grid"></div>
 
 	<Tutorial steps={hubTutorialSteps} tutorialKey={HUB_TUTORIAL_KEY} />
@@ -974,10 +1122,19 @@
 					class:bm-signal-glow={bmSignal === 'glow'}
 					class:bm-signal-subtle={bmSignal === 'subtle'}
 					onclick={() => { if (!blackMarketIntroSeen) { showBlackMarketIntro = true; } else { switchSection('blackMarket'); } }}
-					aria-label={bmSignal === 'glow' ? 'Black Market — unauthorized signal active' : 'Black Market — unauthorized channel'}
+					aria-label={bmSignal === 'glow' ? 'Black Market — unauthorized signal active' : 'Black Market === unauthorized channel'}
 					use:tooltip={bmSignal === 'glow' ? 'Unauthorized signal active — something is waiting.' : 'Black Market — unauthorized channel.'}
 				>
 					◈
+				</button>
+			{/if}
+			{#if account}
+				<button class="hub-top-account" onclick={() => switchSection('profile')} use:tooltip={`Logged in as ${account.username}.\nClick to manage profile / cloud save.`}>
+					<Icon name="user" size={14} /> <span class="hub-top-username">{account.displayName}</span>
+				</button>
+			{:else}
+				<button class="hub-top-account" onclick={() => switchSection('profile')} use:tooltip={'Not logged in.\nClick to log in or register.'}>
+					<Icon name="user" size={14} /> <span class="hub-top-username text-dim">Guest</span>
 				</button>
 			{/if}
 			<NotificationCenter />
@@ -1339,7 +1496,7 @@
 						<div class="sim-param">
 							<label class="sim-label" for="sim-wave">Wave: <strong>{simWave}</strong></label>
 							<input id="sim-wave" type="range" min="1" max="10000" bind:value={simWave} class="sim-slider" />
-							<input id="sim-wave-num" type="number" min="1" max="10000" bind:value={simWave} class="sim-input" />
+							<input id="sim-wave-num" type="number" inputmode="numeric" min="1" max="10000" bind:value={simWave} class="sim-input" />
 						</div>
 						<div class="sim-param">
 							<label class="sim-label" for="sim-front">Front:</label>
@@ -1485,8 +1642,11 @@
 							<label class="local-profile-label" for="local-profile-name">Display name</label>
 							<div class="local-profile-row">
 								<input id="local-profile-name" bind:value={localProfileName} maxlength="32" autocomplete="nickname" />
-								<button class="hub-action" type="submit">Save</button>
+								<button class="hub-action" type="submit" disabled={!localProfileNameValid || localProfileName.trim().length === 0}>Save</button>
 							</div>
+							{#if showLocalProfileNameWarn}
+								<span class="auth-hint-err" style="margin-top: 0; margin-bottom: 0.2rem;">Display name must be 1-32 safe characters.</span>
+							{/if}
 							<div class="local-profile-status">
 								<span>{localProfile?.displayName ?? 'Flatland Player'}</span>
 								<span>{localProfileStatus === 'synced' ? 'Optional online sync ready' : localProfileStatus === 'offline' ? 'Offline/local only' : localProfileStatus === 'rejected' ? 'Local only' : 'Not logged in'}</span>
@@ -1501,26 +1661,28 @@
 							<div class="cloud-section">
 								<h4>Cloud Save</h4>
 								<p class="cloud-desc">Manual backup/sync. Cloud save never auto-overwrites your local data — you choose when to upload or restore.</p>
-								<div class="cloud-meta">
-									<div class="ir"><span class="il">Local save</span><span class="iv">Schema v{CURRENT_SCHEMA_VERSION} · {APP_VERSION || 'DEV'}</span></div>
-									<div class="ir"><span class="il">Cloud backup</span><span class="iv">{cloudChecked ? (cloudExists ? 'Exists' : 'None') : 'Not checked yet'}</span></div>
-									{#if cloudMeta}
-										<div class="ir"><span class="il">Cloud updated</span><span class="iv">{new Date(cloudMeta.updatedAt).toLocaleString()}</span></div>
-										<div class="ir"><span class="il">Cloud schema</span><span class="iv">v{cloudMeta.schemaVersion} · {cloudMeta.gameVersion}</span></div>
-									{/if}
-									{#if cloudMeta && cloudMeta.schemaVersion > CURRENT_SCHEMA_VERSION}
-										<p class="cloud-warn">Cloud backup is from a newer game version. Update the game before restoring.</p>
-									{/if}
-									{#if cloudMeta && isCloudNewerThanLocal()}
-										<p class="cloud-warn">Cloud backup is newer than this local save. Restore first if this device is behind; uploading will replace the newer cloud copy.</p>
-									{:else if cloudMeta && isLocalNewerThanCloud()}
-										<p class="cloud-warn">Your local save is newer than the cloud backup. Upload if you want to update the cloud copy.</p>
-									{/if}
+								
+								<div class="cloud-status-block" style="border-color: {cloudSyncStatus.color}; background: rgba({cloudSyncStatus.type === 'error' ? '255,68,68' : cloudSyncStatus.type === 'success' ? '68,255,136' : '255,221,68'}, 0.05)">
+									<span class="cloud-status-icon">{cloudSyncStatus.icon}</span>
+									<span class="cloud-status-text" style="color: {cloudSyncStatus.color}">{cloudSyncStatus.text}</span>
 								</div>
+
+								<details class="cloud-details">
+									<summary>Technical Details</summary>
+									<div class="cloud-meta">
+										<div class="ir"><span class="il">Local save</span><span class="iv">Schema v{CURRENT_SCHEMA_VERSION} · {APP_VERSION || 'DEV'}</span></div>
+										<div class="ir"><span class="il">Cloud backup</span><span class="iv">{cloudChecked ? (cloudExists ? 'Exists' : 'None') : 'Not checked yet'}</span></div>
+										{#if cloudMeta}
+											<div class="ir"><span class="il">Cloud updated</span><span class="iv">{new Date(cloudMeta.updatedAt).toLocaleString()}</span></div>
+											<div class="ir"><span class="il">Cloud schema</span><span class="iv">v{cloudMeta.schemaVersion} · {cloudMeta.gameVersion}</span></div>
+										{/if}
+									</div>
+								</details>
+
 								{#if cloudError}<p class="cloud-err">{cloudError}</p>{/if}
 								<div class="cloud-actions">
 									<button class="hub-action" onclick={() => void refreshCloudStatus()} disabled={cloudBusy}>{cloudBusy ? 'Working…' : 'Refresh Status'}</button>
-									<button class="hub-action" onclick={confirmUploadCloud} disabled={cloudBusy}>Upload Local Save</button>
+									<button class="btn-primary" onclick={confirmUploadCloud} disabled={cloudBusy}>Upload Local Save</button>
 									<button class="hub-action hub-danger" onclick={() => showRestoreConfirm = true} disabled={cloudBusy || !cloudExists}>Restore Cloud Save</button>
 								</div>
 							</div>
@@ -1528,24 +1690,99 @@
 							<h3>Account (optional)</h3>
 							<p class="acct-status">Account login is optional. Normal play stays local-first. Use an account for cloud saves and future verified/guild features.</p>
 							<div class="auth-tabs">
-								<button class="auth-tab" class:on={authMode === 'login'} onclick={() => { authMode = 'login'; authError = null; }}>Log in</button>
-								<button class="auth-tab" class:on={authMode === 'register'} onclick={() => { authMode = 'register'; authError = null; }}>Register</button>
+								<button class="auth-tab" class:on={authMode === 'login'} onclick={() => switchAuthMode('login')}>Log in</button>
+								<button class="auth-tab" class:on={authMode === 'register'} onclick={() => switchAuthMode('register')}>Register</button>
 							</div>
 							{#if authMode === 'login'}
 								<form class="auth-form" onsubmit={(e) => { e.preventDefault(); void handleLogin(); }}>
-									<label class="local-profile-label">Username<input bind:value={loginUsername} autocomplete="username" /></label>
-									<label class="local-profile-label">Password<input type="password" bind:value={loginPassword} autocomplete="current-password" /></label>
+									<label class="local-profile-label">
+										Username
+										<div class="auth-input-wrapper">
+											<Icon name="user" class="auth-prefix-icon" size={16} />
+											<input bind:value={loginUsername} autocomplete="username" placeholder="Username" />
+										</div>
+									</label>
+									<label class="local-profile-label">
+										Password
+										<div class="auth-input-wrapper">
+											<Icon name="lock" class="auth-prefix-icon" size={16} />
+											<input type={showLoginPassword ? 'text' : 'password'} bind:value={loginPassword} autocomplete="current-password" placeholder="Password" />
+											<button type="button" class="auth-suffix-btn" onclick={() => showLoginPassword = !showLoginPassword} aria-label={showLoginPassword ? 'Hide password' : 'Show password'}>
+												<Icon name={showLoginPassword ? 'eyeOff' : 'eye'} size={16} />
+											</button>
+										</div>
+									</label>
+									<div class="auth-forgot-password-wrap">
+										<button type="button" class="auth-forgot-password-btn" use:tooltip={'Password recovery is coming soon!\nContact support if you need immediate assistance.'}>
+											Forgot password?
+										</button>
+									</div>
 									{#if authError}<p class="auth-err">{authError}</p>{/if}
-									<button class="hub-action" type="submit" disabled={authBusy}>{authBusy ? 'Working…' : 'Log in'}</button>
+									<button class="btn-primary" type="submit" style="margin-top:0.5rem;" disabled={!canSubmitLogin}>{authBusy ? 'Working…' : 'Log in'}</button>
+									<p class="auth-session-hint">ℹ️ Stays logged in on this browser (via secure session cookie).</p>
 								</form>
 							{:else}
 								<form class="auth-form" onsubmit={(e) => { e.preventDefault(); void handleRegister(); }}>
-									<label class="local-profile-label">Username<input bind:value={regUsername} autocomplete="username" /></label>
-									<label class="local-profile-label">Display name (optional)<input bind:value={regDisplayName} autocomplete="nickname" maxlength="32" /></label>
-									<label class="local-profile-label">Password<input type="password" bind:value={regPassword} autocomplete="new-password" /></label>
-									<label class="local-profile-label">Confirm password<input type="password" bind:value={regConfirm} autocomplete="new-password" /></label>
+									<label class="local-profile-label">
+										Username
+										<div class="auth-input-wrapper">
+											<Icon name="user" class="auth-prefix-icon" size={16} />
+											<input bind:value={regUsername} autocomplete="username" placeholder="Username (letters, numbers, underscores)" />
+										</div>
+										{#if showRegUsernameWarn}
+											<span class="auth-hint-err">Username must be 3-24 characters using letters, numbers, or underscores.</span>
+										{:else if regUsername.length > 0 && regUsernameValid}
+											<span class="auth-hint-ok">Username format valid.</span>
+										{/if}
+									</label>
+									<label class="local-profile-label">
+										Display name (optional)
+										<div class="auth-input-wrapper">
+											<Icon name="user" class="auth-prefix-icon" size={16} />
+											<input bind:value={regDisplayName} autocomplete="nickname" maxlength="32" placeholder="Public display name" />
+										</div>
+										{#if showRegDisplayNameWarn}
+											<span class="auth-hint-err">Display name must be 1-32 safe characters.</span>
+										{/if}
+									</label>
+									<label class="local-profile-label">
+										Password
+										<div class="auth-input-wrapper">
+											<Icon name="lock" class="auth-prefix-icon" size={16} />
+											<input type={showRegPassword ? 'text' : 'password'} bind:value={regPassword} autocomplete="new-password" placeholder="Password (min 10 characters)" />
+											<button type="button" class="auth-suffix-btn" onclick={() => showRegPassword = !showRegPassword} aria-label={showRegPassword ? 'Hide password' : 'Show password'}>
+												<Icon name={showRegPassword ? 'eyeOff' : 'eye'} size={16} />
+											</button>
+										</div>
+										{#if regPassword.length > 0 && regPassword.length < 10}
+											<span class="auth-hint-err">Password must be at least 10 characters.</span>
+										{/if}
+										{#if regPassword.length > 0}
+											<div class="strength-meter">
+												<div class="strength-bar-track">
+													<div class="strength-bar-fill" style="width: {regPasswordStrength.score * 25}%; background-color: {regPasswordStrength.color}"></div>
+												</div>
+												<span class="strength-label" style="color: {regPasswordStrength.color}">{regPasswordStrength.label}</span>
+											</div>
+										{/if}
+									</label>
+									<label class="local-profile-label">
+										Confirm password
+										<div class="auth-input-wrapper">
+											<Icon name="lock" class="auth-prefix-icon" size={16} />
+											<input type={showRegConfirm ? 'text' : 'password'} bind:value={regConfirm} autocomplete="new-password" placeholder="Confirm password" />
+											<button type="button" class="auth-suffix-btn" onclick={() => showRegConfirm = !showRegConfirm} aria-label={showRegConfirm ? 'Hide password' : 'Show password'}>
+												<Icon name={showRegConfirm ? 'eyeOff' : 'eye'} size={16} />
+											</button>
+										</div>
+										{#if showRegConfirmWarn}
+											<span class="auth-hint-err">Passwords do not match.</span>
+										{:else if regConfirm.length > 0 && regConfirmMatch}
+											<span class="auth-hint-ok">Passwords match.</span>
+										{/if}
+									</label>
 									{#if authError}<p class="auth-err">{authError}</p>{/if}
-									<button class="hub-action" type="submit" disabled={authBusy}>{authBusy ? 'Working…' : 'Register'}</button>
+									<button class="btn-primary" type="submit" style="margin-top:0.5rem;" disabled={!canSubmitRegister}>{authBusy ? 'Working…' : 'Register'}</button>
 								</form>
 							{/if}
 						{:else}
@@ -1624,6 +1861,31 @@
 						<a class="hub-action" href={SUPPORT_URL} target="_blank" rel="noopener" use:tooltip={'Opens an external support page in a new tab.\nEntirely optional — the game stays free and offline.'}>Fund the next shipment</a>
 					{/if}
 					<button class="hub-action bm-primary" style="margin:0" onclick={acceptShipment}>Accept Shipment (+{STRANGE_MATTER_WEEKLY_SHIPMENT})</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Register Success Dialog -->
+	{#if showRegisterSuccess}
+		{@const closeRegModal = () => { showRegisterSuccess = false; }}
+		<div class="overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) closeRegModal(); }}>
+			<div
+				class="dlg"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="reg-success-title"
+				tabindex="-1"
+				bind:this={regSuccessDialogEl}
+				onkeydown={(e) => onModalKeydown(e, regSuccessDialogEl, closeRegModal)}
+			>
+				<h3 id="reg-success-title">🎉 Welcome, {registeredDisplayName}!</h3>
+				<p class="dlg-d">Your account has been created successfully. Your secure session is active.</p>
+				<p class="dlg-d" style="font-size:var(--fs-caption); color:var(--text-dim); line-height: 1.45;">
+					ℹ️ <strong>Your local save is untouched.</strong> Account integration is local-first: your current progress remains in this browser until you manually choose to upload a backup to the cloud.
+				</p>
+				<div class="dlg-a">
+					<button class="dlg-p" bind:this={regSuccessOkBtnEl} onclick={closeRegModal}>Acknowledge</button>
 				</div>
 			</div>
 		</div>
@@ -1712,6 +1974,11 @@
 			<span>·</span>
 			<a href="/imprint">Imprint</a>
 		</div>
+		{#if showBackToTop}
+			<button class="back-to-top" onclick={scrollToTop} aria-label="Scroll back to top" use:tooltip={'Scroll back to top'}>
+				↑
+			</button>
+		{/if}
 	</footer>
 </main>
 
@@ -1880,7 +2147,6 @@
 	.auth-form .local-profile-label input, .auth-form input { display:block; margin-top:.2rem; width:100%; box-sizing:border-box; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.4rem .55rem; font-family:var(--font-mono); font-size:var(--fs-mono-sm); }
 	.auth-err, .cloud-err { color:var(--red); font-size:var(--fs-caption-sm); margin:.25rem 0; }
 	.cloud-meta { display:grid; gap:3px; margin:.5rem 0; }
-	.cloud-warn { color:var(--yellow); font-size:var(--fs-caption-sm); margin-top:.35rem; }
 	.cloud-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.35rem; }
 	.cloud-actions .hub-action { margin:0; }
 
@@ -1907,7 +2173,7 @@
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	.save-note { margin-top:1.25rem; padding:.75rem 1rem; background:rgba(255,221,68,.04); border:1px solid rgba(255,221,68,.12); border-radius:var(--radius-sm); max-width:800px; }
 	.save-note-flavor { font-size:var(--fs-caption-sm); color:rgba(255,221,68,.45); font-style:italic; line-height:1.4; margin:0; }
-	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:flex;flex-direction:row;align-items:center;overflow-x:auto;gap:.4rem;width:auto;padding-bottom:.25rem;scrollbar-width:thin;scrollbar-color:rgba(0,255,255,.35) transparent} .hub-nav-btn{flex-shrink:0;width:auto;white-space:nowrap;text-align:center;padding:.55rem .75rem;font-size:var(--fs-body-sm)} .hub-nav .bm-locked-teaser{flex-shrink:0;white-space:nowrap} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.bm-grid{grid-template-columns:1fr}.hub-coins{font-size:var(--fs-mono)} .local-profile{grid-template-columns:1fr}.local-profile-status{flex-direction:column} }
+	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:flex;flex-direction:row;align-items:center;overflow-x:auto;gap:.4rem;width:auto;padding-bottom:.25rem;scrollbar-width:thin;scrollbar-color:rgba(0,255,255,.35) transparent;mask-image: linear-gradient(to right, black 85%, transparent 100%);-webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%)} .hub-nav-btn{flex-shrink:0;width:auto;white-space:nowrap;text-align:center;padding:.55rem .75rem;font-size:var(--fs-body-sm)} .hub-nav .bm-locked-teaser{flex-shrink:0;white-space:nowrap} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.bm-grid{grid-template-columns:1fr}.hub-coins{font-size:var(--fs-mono)} .local-profile{grid-template-columns:1fr}.local-profile-status{flex-direction:column;gap:.25rem} }
 	@media(max-width:380px){ .hub-nav-btn{font-size:var(--fs-caption);padding:.5rem .6rem} }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:var(--fs-caption); display:flex; flex-direction:column; gap:.4rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
 	.hub-footer-flavor { font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:0.35; margin:0; }
@@ -1954,4 +2220,100 @@
 	.mastery-pip { width:22px; height:22px; display:grid; place-items:center; border:1px solid var(--border-neon); border-radius:3px; color:var(--text-dim); font-family:var(--font-mono); font-size:var(--fs-caption-sm); }
 	.mastery-pip.earned { color:var(--yellow); border-color:rgba(255,221,68,.35); }
 	.mastery-pip.claimed { color:var(--green); border-color:rgba(68,255,136,.35); background:rgba(68,255,136,.06); }
+
+	/* Auth input wrappers with prefix icons and visibility toggles */
+	.auth-input-wrapper { display:flex; align-items:center; background:var(--bg-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); position:relative; margin-top:.2rem; width:100%; box-sizing:border-box; }
+	.auth-input-wrapper:focus-within { border-color:var(--cyan); box-shadow:0 0 8px rgba(0,255,255,.25); }
+	:global(.auth-prefix-icon) { margin-left:.6rem; color:var(--text-dim); pointer-events:none; }
+	.auth-input-wrapper input { border:none !important; margin-top:0 !important; background:transparent !important; flex:1; min-width:0; padding:.45rem .55rem .45rem .45rem !important; }
+	.auth-input-wrapper input:focus { outline:none; }
+	.auth-suffix-btn { background:transparent; border:none; color:var(--text-dim); cursor:pointer; padding:0 .6rem; display:flex; align-items:center; justify-content:center; transition:color var(--transition-fast); }
+	.auth-suffix-btn:hover { color:var(--cyan); }
+
+	/* Form validation and password strength indicators */
+	.auth-hint-err { color:var(--red); font-size:var(--fs-caption-sm); margin-top:.2rem; display:block; line-height:1.3; }
+	.auth-hint-ok { color:var(--green); font-size:var(--fs-caption-sm); margin-top:.2rem; display:block; line-height:1.3; }
+	.strength-meter { display:flex; align-items:center; gap:.5rem; margin-top:.3rem; }
+	.strength-bar-track { flex:1; height:4px; background:rgba(255,255,255,.1); border-radius:2px; overflow:hidden; }
+	.strength-bar-fill { height:100%; transition:width var(--transition-fast), background-color var(--transition-fast); }
+	.strength-label { font-size:var(--fs-caption-sm); font-family:var(--font-mono); font-weight:600; min-width:65px; text-align:right; }
+
+	/* Forgot password and session hints */
+	.auth-forgot-password-wrap { display:flex; justify-content:flex-end; margin-top:.2rem; margin-bottom:.3rem; }
+	.auth-forgot-password-btn { background:transparent; border:none; color:var(--text-dim); font-size:var(--fs-caption-sm); font-family:var(--font-mono); text-decoration:underline; cursor:pointer; padding:0; transition:color var(--transition-fast); }
+	.auth-forgot-password-btn:hover { color:var(--cyan); }
+	.auth-session-hint { color:var(--text-dim); font-size:var(--fs-caption-sm); font-family:var(--font-mono); margin-top:.5rem; text-align:center; line-height:1.3; }
+
+	/* Primary action button style */
+	.btn-primary {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		padding: .55rem 1.2rem;
+		border-radius: var(--radius-sm);
+		font-weight: 700;
+		font-size: var(--fs-body-sm);
+		font-family: var(--font-display);
+		transition: all var(--transition-fast);
+		text-decoration: none;
+		cursor: pointer;
+		background: linear-gradient(135deg, var(--cyan), var(--blue));
+		color: var(--bg-primary);
+		border: none;
+		box-shadow: 0 0 12px rgba(0, 255, 255, 0.25);
+	}
+	.btn-primary:hover {
+		box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+		transform: translateY(-1px);
+	}
+	.btn-primary:disabled {
+		opacity: .45;
+		cursor: default;
+		pointer-events: none;
+		box-shadow: none;
+		transform: none;
+	}
+
+	/* Top bar account badge */
+	.hub-top-account { display:inline-flex; align-items:center; gap:.35rem; font-family:var(--font-mono); font-size:var(--fs-caption); color:var(--text-secondary); background:rgba(255,255,255,.05); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.25rem .55rem; cursor:pointer; transition:all var(--transition-fast); margin-left:.5rem; }
+	.hub-top-account:hover { color:var(--cyan); border-color:var(--cyan); background:rgba(0,255,255,.05); }
+	.hub-top-username { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+	/* Cloud status layout and collapsible details */
+	.cloud-status-block { display:flex; align-items:center; gap:.5rem; padding:.55rem .75rem; border:1px solid var(--border-neon); border-radius:var(--radius-sm); margin-bottom:.75rem; font-size:var(--fs-body-sm); }
+	.cloud-status-icon { font-size:var(--fs-body); }
+	.cloud-status-text { font-family:var(--font-display); font-weight:500; }
+	.cloud-details { border:1px solid var(--border-neon); border-radius:var(--radius-sm); margin-bottom:.75rem; background:rgba(0,0,0,.1); }
+	.cloud-details summary { padding:.5rem .75rem; font-size:var(--fs-body-sm); font-family:var(--font-display); cursor:pointer; color:var(--text-secondary); user-select:none; }
+	.cloud-details summary:hover { color:var(--cyan); }
+	.cloud-details[open] summary { border-bottom:1px solid var(--border-neon); }
+	.cloud-details .cloud-meta { margin:0; padding:.3rem 0; }
+
+	/* Back-to-top button */
+	.back-to-top {
+		position: fixed;
+		bottom: 2rem;
+		right: 2rem;
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		background: var(--bg-elevated);
+		border: 1px solid var(--border-neon);
+		color: var(--cyan);
+		font-size: var(--fs-subheading);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		z-index: 150;
+		box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+		transition: all var(--transition-fast);
+	}
+	.back-to-top:hover {
+		background: var(--cyan);
+		color: var(--bg-primary);
+		box-shadow: 0 0 18px rgba(0, 255, 255, 0.4);
+		transform: translateY(-2px);
+	}
 </style>

@@ -888,9 +888,20 @@
 		<div class="tb-actions">
 			{#if snap?.runActive}
 				<div class="spd-grp" title="Game speed — also: keys 1-4, Space to pause">
-					<button class="spd-btn spd-icon" class:on={paused} onclick={() => handleSpeed(0)} title="Pause (Space)" aria-label="Pause"><Icon name={paused ? 'play' : 'pause'} size={13} /></button>
-					{#each [1,2,3] as s}<button class="spd-btn spd-n" class:on={!paused && speed === s} class:locked={isSpeedLocked(s)} onclick={() => handleSpeed(s)} use:tooltip={isSpeedLocked(s) ? `🔒 ${s}× speed\nUnlocked via a Black Market procurement.\nVisit Orbital Command → Black Market.` : `${s}× game speed\nShortcut: press ${s}`}>{isSpeedLocked(s) ? '🔒' : s + '×'}</button>{/each}
-					<button class="spd-btn spd-n" class:on={!paused && speed === 5} class:locked={isSpeedLocked(5)} onclick={() => handleSpeed(4)} use:tooltip={isSpeedLocked(5) ? '🔒 5× speed\nUnlocked via a Black Market procurement.\nVisit Orbital Command → Black Market.' : '5× game speed\nShortcut: press 4'}>{isSpeedLocked(5) ? '🔒' : '5×'}</button>
+					<div class="spd-col">
+						<button class="spd-btn spd-icon" class:on={paused} onclick={() => handleSpeed(0)} title="Pause (Space)" aria-label="Pause"><Icon name={paused ? 'play' : 'pause'} size={13} /></button>
+						<kbd class="hud-kbd">Space</kbd>
+					</div>
+					{#each [1,2,3] as s}
+						<div class="spd-col">
+							<button class="spd-btn spd-n" class:on={!paused && speed === s} class:locked={isSpeedLocked(s)} onclick={() => handleSpeed(s)} use:tooltip={isSpeedLocked(s) ? `🔒 ${s}× speed\nUnlocked via a Black Market procurement.\nVisit Orbital Command → Black Market.` : `${s}× game speed\nShortcut: press ${s}`}>{isSpeedLocked(s) ? '🔒' : s + '×'}</button>
+							<kbd class="hud-kbd">{s}</kbd>
+						</div>
+					{/each}
+					<div class="spd-col">
+						<button class="spd-btn spd-n" class:on={!paused && speed === 5} class:locked={isSpeedLocked(5)} onclick={() => handleSpeed(4)} use:tooltip={isSpeedLocked(5) ? '🔒 5× speed\nUnlocked via a Black Market procurement.\nVisit Orbital Command → Black Market.' : '5× game speed\nShortcut: press 4'}>{isSpeedLocked(5) ? '🔒' : '5×'}</button>
+						<kbd class="hud-kbd">4</kbd>
+					</div>
 					<div class="spd-status" class:paused={paused}>{paused ? '❚❚' : speed + '×'}</div>
 				</div>
 			{/if}
@@ -1077,9 +1088,11 @@
 				<span>{pixiError}</span>
 			</div>
 		{:else if !pixiReady}
-			<div class="pixi-status" role="status" aria-live="polite">
-				<span class="pixi-spinner"></span>
-				<span>Initializing renderer</span>
+			<div class="pixi-status loading-screen" role="status" aria-live="polite">
+				<div class="loading-scanner"></div>
+				<span class="pixi-spinner-neon"></span>
+				<span class="loading-title">INITIALIZING QUANTUM CORE</span>
+				<span class="loading-subtitle">Establishing secure link to Flatland...</span>
 			</div>
 		{/if}
 		<!-- Low-HP vignette overlay (CSS — above canvas, below HUD panels). Pulses
@@ -1229,9 +1242,11 @@
 	.hp-pill.low span:nth-child(2) { color:#FF4444; animation:hpDanger 0.5s ease-in-out infinite; }
 	@keyframes hpDanger { 0%,100%{opacity:1} 50%{opacity:0.5} }
 	.kill-pill span:last-child { color:var(--violet); }
-	.spd-grp { display:flex; gap:1px; align-items:center; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:100px; padding:1px; }
-	.spd-status { font-size:var(--fs-caption); color:var(--cyan); font-family:var(--font-mono); padding:0 .25rem; }
+	.spd-grp { display:flex; gap:1px; align-items:flex-start; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:12px; padding:2px; }
+	.spd-status { font-size:var(--fs-caption); color:var(--cyan); font-family:var(--font-mono); padding:0 .25rem; align-self:center; }
 	.spd-status.paused { color:var(--yellow); }
+	.spd-col { display:flex; flex-direction:column; align-items:center; gap:2px; }
+	.hud-kbd { font-family:var(--font-mono); font-size:7px; color:var(--text-dim); background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-bottom:1.5px solid rgba(255,255,255,.12); border-radius:2px; padding:0 2px; text-transform:uppercase; pointer-events:none; }
 	.save-indicator { width:8px; height:8px; border-radius:50%; background:rgba(68,255,136,0); transition:all .3s ease; flex-shrink:0; }
 	.save-indicator.saving { background:rgba(68,255,136,0.6); box-shadow:0 0 6px rgba(68,255,136,0.4); }
 	.save-indicator.failed { background:rgba(255,68,68,.75); box-shadow:0 0 8px rgba(255,68,68,.55); }
@@ -1269,8 +1284,65 @@
 	.pixi-status { position:absolute; inset:0; z-index:4; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6rem; color:var(--text-secondary); font-family:var(--font-display); background:radial-gradient(circle at center, rgba(0,255,255,.05), transparent 45%); pointer-events:none; text-align:center; padding:1rem; }
 	.pixi-status strong { color:var(--red); text-transform:uppercase; letter-spacing:.06em; }
 	.pixi-error { z-index:90; background:rgba(38,8,12,.86); color:var(--text-primary); }
-	.pixi-spinner { width:28px; height:28px; border:2px solid rgba(0,255,255,.18); border-top-color:var(--cyan); border-radius:50%; animation:pixiSpin .9s linear infinite; }
 	@keyframes pixiSpin { to { transform:rotate(360deg); } }
+
+	/* High-fidelity neon loading screen overlay */
+	.loading-screen {
+		position: absolute;
+		inset: 0;
+		z-index: 100;
+		background: radial-gradient(circle at center, #0F143A, #050610);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 1rem;
+		pointer-events: all;
+	}
+	.loading-title {
+		font-family: var(--font-tech);
+		font-size: var(--fs-body);
+		font-weight: 700;
+		color: var(--cyan);
+		text-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+		letter-spacing: 0.1em;
+		animation: pulse-glow 1.5s ease-in-out infinite alternate;
+	}
+	.loading-subtitle {
+		font-family: var(--font-mono);
+		font-size: var(--fs-caption);
+		color: var(--text-dim);
+	}
+	.pixi-spinner-neon {
+		width: 48px;
+		height: 48px;
+		border: 2px solid rgba(0, 255, 255, 0.05);
+		border-left-color: var(--cyan);
+		border-right-color: var(--blue);
+		border-radius: 50%;
+		animation: pixiSpin 1.2s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+		box-shadow: 0 0 15px rgba(0, 255, 255, 0.15);
+	}
+	.loading-scanner {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 2px;
+		background: linear-gradient(to right, transparent, var(--cyan), transparent);
+		box-shadow: 0 0 8px var(--cyan);
+		animation: scan-line 2.5s ease-in-out infinite;
+	}
+	@keyframes pulse-glow {
+		from { opacity: 0.7; text-shadow: 0 0 8px rgba(0, 255, 255, 0.3); }
+		to { opacity: 1; text-shadow: 0 0 20px rgba(0, 255, 255, 0.7); }
+	}
+	@keyframes scan-line {
+		0% { top: 0%; opacity: 0; }
+		10% { opacity: 1; }
+		90% { opacity: 1; }
+		100% { top: 100%; opacity: 0; }
+	}
 	.game-body { --safe-edge-gap: max(.45rem, env(safe-area-inset-left, 0px)); --drawer-handle-offset:.35rem; }
 	.panel { display:flex; flex-direction:column; background:var(--bg-glass); border-left:1px solid var(--border-neon); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); position:relative; transition:width var(--transition-normal); width:265px; flex-shrink:0; overflow:visible; z-index:5; }
 	.panel.coll { width:calc(42px + var(--safe-edge-gap)); }

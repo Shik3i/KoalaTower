@@ -4,7 +4,8 @@
 		| 'speed' | 'time' | 'damage' | 'range' | 'crit' | 'shiny'
 		| 'pause' | 'play' | 'settings' | 'save' | 'hub' | 'back' | 'close'
 		| 'soundOn' | 'soundOff' | 'musicOn' | 'musicOff'
-		| 'export' | 'import' | 'reset' | 'offense' | 'defense' | 'utility' | 'lock' | 'bell' | 'help';
+		| 'export' | 'import' | 'reset' | 'offense' | 'defense' | 'utility' | 'lock' | 'bell' | 'help'
+		| 'user' | 'eye' | 'eyeOff';
 
 	// 24×24 grid, stroke-based line icons drawn in currentColor.
 	const PATHS: Record<IconName, string> = {
@@ -41,6 +42,9 @@
 		lock: '<rect x="5" y="11" width="14" height="9" rx="1.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" />',
 		bell: '<path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6.5H4c.5-1 2-2.5 2-6.5Z" /><path d="M10 19a2 2 0 0 0 4 0" />',
 		help: '<circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.3c0 1.9-2.6 2.2-2.6 4" /><path d="M12 18h.01" />',
+		user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />',
+		eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />',
+		eyeOff: '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" /><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" /><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" /><line x1="2" y1="2" x2="22" y2="22" />',
 	};
 </script>
 
