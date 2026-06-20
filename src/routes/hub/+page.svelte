@@ -93,6 +93,7 @@
 	import BlueprintsSection from '$lib/components/hub/BlueprintsSection.svelte';
 	import StatsSection from '$lib/components/hub/StatsSection.svelte';
 	import TiersSection from '$lib/components/hub/TiersSection.svelte';
+	import ChallengesSection from '$lib/components/hub/ChallengesSection.svelte';
 
 	function formatPlayTime(totalSeconds: number): string {
 		if (totalSeconds <= 0) return '0s';
@@ -1480,9 +1481,10 @@
 					{frontBestWave}
 				/>
 			{:else if activeSection === 'challenges'}
-				<div class="hs"><h2 class="hst">⚡ Special Operations</h2><p class="hsd">Tactical exercises with modified engagement rules. Each operation tests different combat scenarios under special conditions. \'Special conditions\' is military code for \'we broke something and called it a feature.\'</p>
-					<div class="cl">{#each CHALLENGES as c}{@const unlocked = isChallengeUnlocked(c.id, frontBestWave)}{@const highScore = challengeHighScores[c.id] ?? 0}<div class="cc" class:lck={!unlocked}><div class="cc-h"><span class="cci">{c.icon}</span><div><div class="ccn">{c.name}</div><div class="ccd">{c.description}</div></div></div>{#if highScore > 0}<div class="ccs">Best: Wave {highScore}</div>{:else if !unlocked}<div class="ccl">🔒 {CHALLENGE_UNLOCK_REQS[c.id].label}</div>{/if}</div>{/each}</div>
-				</div>
+				<ChallengesSection
+					{frontBestWave}
+					{challengeHighScores}
+				/>
 			{:else if activeSection === 'simulation'}
 				<SimulationSection bind:simWave bind:simFront />
 			{:else if activeSection === 'stats'}
