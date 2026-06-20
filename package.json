@@ -1,6 +1,6 @@
 {
   "name": "flatland-td",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,10 +9,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "svelte-kit sync && tsc --noEmit",
-    "typecheck": "svelte-kit sync && tsc --noEmit"
+    "test:e2e": "npm run build && playwright test",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc --noEmit",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc --noEmit"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
     "@sveltejs/adapter-node": "^5.5.5",
     "@sveltejs/kit": "^2.20.2",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
@@ -20,6 +22,7 @@
     "@types/node": "^25.9.3",
     "sharp": "^0.35.1",
     "svelte": "^5.25.3",
+    "svelte-check": "^4.6.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.1",
     "vitest": "^3.1.1"

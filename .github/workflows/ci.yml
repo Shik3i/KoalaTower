@@ -42,3 +42,19 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
+
+  e2e:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    needs: check-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # pixi.js (pulled in transitively by the build) reads a global
+          # `navigator` at load, which only exists on Node 21+.
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

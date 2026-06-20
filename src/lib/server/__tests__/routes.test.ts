@@ -8,6 +8,7 @@ import { createSupportCode } from '../supportCode';
 import { GET as getCloudSave } from '../../../routes/api/cloud-save/+server';
 import { POST as postKofiWebhook } from '../../../routes/api/kofi/webhook/+server';
 import { POST as postUnverifiedLeaderboard } from '../../../routes/api/leaderboard/unverified/+server';
+import { POST as postClientError } from '../../../routes/api/client-error/+server';
 
 // Ko-fi posts urlencoded bodies whose `data` field is a JSON string.
 function kofiFormBody(payload: Record<string, unknown>): string {
@@ -63,6 +64,34 @@ describe('online API route guards', () => {
 			})
 		} as never);
 		expect(response.status).toBe(400);
+	});
+
+	it('records a client error into the app error log', async () => {
+		useTempDatabase();
+		const response = await postClientError({
+			request: new Request('http://localhost/api/client-error', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json', 'user-agent': 'vitest' },
+				body: JSON.stringify({ message: 'boom in the UI', stack: 'at foo()', route: '/hub' })
+			})
+		} as never);
+		expect(await response.json()).toMatchObject({ ok: true, recorded: true });
+		const row = openDatabase().prepare("SELECT source, level, message, route FROM app_error_logs WHERE message = 'boom in the UI'").get() as { source: string; level: string; message: string; route: string };
+		expect(row).toEqual({ source: 'client', level: 'error', message: 'boom in the UI', route: '/hub' });
+	});
+
+	it('ignores a client error report with no message', async () => {
+		useTempDatabase();
+		const response = await postClientError({
+			request: new Request('http://localhost/api/client-error', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ stack: 'x' })
+			})
+		} as never);
+		expect(await response.json()).toMatchObject({ ok: true, recorded: false });
+		const count = (openDatabase().prepare('SELECT COUNT(*) AS n FROM app_error_logs').get() as { n: number }).n;
+		expect(count).toBe(0);
 	});
 });
 

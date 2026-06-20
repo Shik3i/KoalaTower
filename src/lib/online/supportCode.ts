@@ -9,13 +9,18 @@ export type SupportCodeResult = {
 	ownerType: SupportCodeOwner;
 };
 
-async function sha256Base64Url(input: string): Promise<string> {
+async function sha256Hex(input: string): Promise<string> {
 	const data = new TextEncoder().encode(input);
 	const hash = await crypto.subtle.digest('SHA-256', data);
 	const bytes = new Uint8Array(hash);
-	let binary = '';
-	for (const byte of bytes) binary += String.fromCharCode(byte);
-	return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	let hex = '';
+	for (const byte of bytes) hex += byte.toString(16).padStart(2, '0');
+	return hex.toUpperCase();
+}
+
+/** Format a hex digest the same way the server's createSupportCode() does. */
+function formatSupportCode(digestHex: string): string {
+	return `FLTD-${digestHex.slice(0, 4)}-${digestHex.slice(4, 8)}`;
 }
 
 /**
@@ -31,13 +36,13 @@ export async function getSupportCode(identityOverride?: LocalPlayerIdentity): Pr
 	const account = get(accountStore).account;
 	if (account) {
 		return {
-			code: 'FLTD-' + (await sha256Base64Url(`account:${account.id}`)).slice(0, 10).toUpperCase(),
+			code: formatSupportCode(await sha256Hex(`account:${account.id}`)),
 			ownerType: 'account'
 		};
 	}
 	const identity = identityOverride ?? loadLocalIdentity();
 	return {
-		code: 'FLTD-' + (await sha256Base64Url(`local_identity:${identity.localPlayerId}`)).slice(0, 10).toUpperCase(),
+		code: formatSupportCode(await sha256Hex(`local_identity:${identity.localPlayerId}`)),
 		ownerType: 'local_identity'
 	};
 }

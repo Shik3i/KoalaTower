@@ -56,12 +56,33 @@
 			}
 		}
 
+		// Best-effort: surface client crashes to the server error log so they are
+		// visible in the admin panel, not just the user's console. Silently no-ops
+		// when offline / no backend. Never throws (an error here would re-enter the
+		// error handler and loop).
+		function sendClientError(detail: unknown): void {
+			try {
+				const error = detail instanceof Error ? detail : null;
+				const message = error?.message ?? (typeof detail === 'string' ? detail : String(detail ?? 'Unknown client error'));
+				void fetch('/api/client-error', {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ message, stack: error?.stack ?? null, route: location.pathname }),
+					keepalive: true
+				}).catch(() => {});
+			} catch {
+				// swallow — the error sink must never raise
+			}
+		}
+
 		clientErrorHandler = (event) => {
 			console.error('[FlatlandTD] Client error:', event.error ?? event.message);
+			sendClientError(event.error ?? event.message);
 			reportClientError('Unexpected client error. Reload if the interface stops responding.');
 		};
 		rejectionHandler = (event) => {
 			console.error('[FlatlandTD] Unhandled promise rejection:', event.reason);
+			sendClientError(event.reason);
 			reportClientError('Unexpected async error. Reload if the interface stops responding.');
 		};
 		window.addEventListener('error', clientErrorHandler);
@@ -163,9 +184,12 @@
 	import { onDestroy } from 'svelte';
 onDestroy(() => {
 		if (labInterval !== null) clearInterval(labInterval);
-		if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
-		if (clientErrorHandler) window.removeEventListener('error', clientErrorHandler);
-		if (rejectionHandler) window.removeEventListener('unhandledrejection', rejectionHandler);
+		// Guard browser globals: onDestroy also runs during SSR teardown.
+		if (typeof window !== 'undefined') {
+			if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
+			if (clientErrorHandler) window.removeEventListener('error', clientErrorHandler);
+			if (rejectionHandler) window.removeEventListener('unhandledrejection', rejectionHandler);
+		}
 		unsubscribeSaveStatus?.();
 	});
 </script>
@@ -212,17 +236,17 @@ onDestroy(() => {
 <footer class="layout-footer">
 	<p class="lf-tagline">Normal play stays local in your browser. No tracking. The Shapes remain hostile, flat, and statistically inconvenient.</p>
 	<nav class="lf-nav" aria-label="Site navigation">
-		<a href="/" class="lf-link" aria-current={page.url.pathname === '/' ? 'page' : undefined}>Home</a>
+		<a href="/" class="lf-link" aria-current={page.route.id === '/' ? 'page' : undefined}>Home</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
-		<a href="/play" class="lf-link" aria-current={page.url.pathname === '/play' ? 'page' : undefined}>Deploy</a>
+		<a href="/play" class="lf-link" aria-current={page.route.id === '/play' ? 'page' : undefined}>Deploy</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
-		<a href="/hub" class="lf-link" aria-current={page.url.pathname === '/hub' ? 'page' : undefined}>Orbital Command</a>
+		<a href="/hub" class="lf-link" aria-current={page.route.id === '/hub' ? 'page' : undefined}>Orbital Command</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
-		<a href="/help" class="lf-link" aria-current={page.url.pathname === '/help' ? 'page' : undefined}>Help</a>
+		<a href="/help" class="lf-link" aria-current={page.route.id === '/help' ? 'page' : undefined}>Help</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
-		<a href="/privacy" class="lf-link" aria-current={page.url.pathname === '/privacy' ? 'page' : undefined}>Privacy</a>
+		<a href="/privacy" class="lf-link" aria-current={page.route.id === '/privacy' ? 'page' : undefined}>Privacy</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
-		<a href="/imprint" class="lf-link" aria-current={page.url.pathname === '/imprint' ? 'page' : undefined}>Imprint</a>
+		<a href="/imprint" class="lf-link" aria-current={page.route.id === '/imprint' ? 'page' : undefined}>Imprint</a>
 	</nav>
 	<div class="lf-bottom">
 		{#if isSupportUrlConfigured(SUPPORT_URL)}

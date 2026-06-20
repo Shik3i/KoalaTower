@@ -102,7 +102,11 @@
 		window.addEventListener('keydown', handleGlobalKey);
 		requestAnimationFrame(() => selectBand(getSelectedFrontBandIndex(selectedFront)));
 	});
-	onDestroy(() => window.removeEventListener('keydown', handleGlobalKey));
+	onDestroy(() => {
+		// onDestroy also runs during SSR teardown, where window is undefined.
+		if (typeof window === 'undefined') return;
+		window.removeEventListener('keydown', handleGlobalKey);
+	});
 
 	const deployLabel = $derived(
 		selectedChallenge
@@ -299,7 +303,7 @@
 	.front-opt:focus-visible, .band-arrow:focus-visible, .band-tab:focus-visible, .sc-btn:focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
 	.front-body { display:flex; flex-direction:column; gap:.15rem; min-width:0; width:100%; }
 	.front-n { font-family:var(--font-display); font-weight:700; font-size:var(--fs-body-sm); color:var(--text-primary); line-height:1.15; }
-	.front-meta { font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+	.front-meta { font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 	.front-lock { color:var(--text-secondary); }
 	.front-opt.on .front-n { color:var(--band); }
 

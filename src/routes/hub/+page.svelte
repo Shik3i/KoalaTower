@@ -102,6 +102,7 @@
 	let totalRuns = $state(0);
 	let activeSection = $state<'workshop' | 'orders' | 'lab' | 'blueprints' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings' | 'profile'>('workshop');
 	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
+	const BUY_MULTIPLIERS = [1, 5, 10, 50, 'max'] as const;
 	let workshopLevels = $state<Partial<Record<WorkshopUpgradeId, number>>>({});
 	let forgeLevels = $state<Partial<Record<UpgradeId, number>>>({});
 	let commandOrdersState = $state<CommandOrdersState>({ week: '', completedCount: 0, claimedOrderSlots: [], claimedMilestones: [], counters: {}, boardRefreshedAt: 0 });
@@ -145,6 +146,7 @@
 	let challengeHighScores = $state<Partial<Record<string, number>>>({});
 	let unlockedFronts = $derived(getUnlockedFronts(frontBestWave));
 	let bmUnlocked = $derived(isBlackMarketUnlocked(frontBestWave));
+	let blackMarketIntroSeen = $state(false);
 	let bmSignal = $derived(computeBlackMarketSignal({
 		unlocked: bmUnlocked,
 		introSeen: blackMarketIntroSeen,
@@ -152,7 +154,6 @@
 		dailyReady: canClaimDailyStrangeMatter(bmUnlocked, lastDailyStrangeMatterPickedUpAt, nowTick),
 	}));
 	let supportReady = $derived(isSupportUrlConfigured(SUPPORT_URL));
-	let blackMarketIntroSeen = $state(false);
 	let showBlackMarketIntro = $state(false);
 	let showShipmentModal = $state(false);
 	let blackMarketIntroDialogEl = $state<HTMLDivElement | null>(null);
@@ -600,7 +601,7 @@
 			// Re-encode and run through the standard import pipeline so the cloud
 			// payload gets migration + validation + newer-schema rejection. A cloud
 			// save can never crash the app this way.
-			const exported = await exportSaveFromData(r.saveJson as SaveData);
+			const exported = await exportSaveFromData(r.saveJson as unknown as SaveData);
 			const result = await importSave(exported);
 			if (!result.success) { cloudError = result.error ?? 'Cloud restore failed.'; return; }
 			toast('Cloud save restored. Reloading…', 'success');
@@ -694,8 +695,7 @@
 		if (initialLv >= maxLv) { toast(getOpLogMessage('workshopMaxLevel'), 'warning'); return; }
 
 		let bought = 0;
-		const isMax = buyMultiplier === 'max';
-		for (let i = 0; i < (isMax ? 999999 : buyMultiplier); i++) {
+		for (let i = 0; i < (buyMultiplier === 'max' ? 999999 : buyMultiplier); i++) {
 			const lv = save.workshopUpgrades[id] ?? 0;
 			if (lv >= maxLv) break;
 			const cost = getWorkshopUpgradeCost(id, lv);
@@ -733,8 +733,7 @@
 		if (initialLv >= maxLv) { toast(getOpLogMessage('workshopMaxLevel'), 'warning'); return; }
 
 		let bought = 0;
-		const isMax = buyMultiplier === 'max';
-		for (let i = 0; i < (isMax ? 999999 : buyMultiplier); i++) {
+		for (let i = 0; i < (buyMultiplier === 'max' ? 999999 : buyMultiplier); i++) {
 			const lv = save.forgeUpgrades[id] ?? 0;
 			if (lv >= maxLv) break;
 			const cost = getForgeUpgradeCost(id, lv);
@@ -1017,8 +1016,8 @@
 				<div class="hs"><h2 class="hst">⚙ Forge</h2><p class="hsd">Permanent pre-installed tower upgrades. Each Forge level sets the <strong>starting level</strong> of the matching Field Upgrade — the same curve continues in deployment, where you buy the next levels with Energy. Locked paths require Schematic reconstruction. The Forge never stops. Neither does the paperwork.</p>
 					<div class="buy-mult">
 						<span class="mult-label">Buy</span>
-						{#each [1, 5, 10, 50, 'max'] as m}
-							{@const val = m === 'max' ? 'max' as const : m as number}
+						{#each BUY_MULTIPLIERS as m}
+							{@const val = m}
 							<button class="mult-btn" class:on={buyMultiplier === val} onclick={() => buyMultiplier = val} use:tooltip={val === 'max' ? 'Buy as many levels as you can afford.\nShortcut: hold Ctrl while buying.' : val === 50 ? 'Buy up to 50 levels at once.\nShortcut: Shift + Ctrl.' : val === 10 ? 'Buy up to 10 levels at once.' : val === 5 ? 'Buy up to 5 levels at once.\nShortcut: hold Shift.' : 'Buy a single level.'}>{val === 'max' ? 'Max' : '×' + val}</button>
 						{/each}
 					</div>

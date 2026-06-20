@@ -314,6 +314,7 @@
 			enemiesKilledThisWave: w.enemiesKilled, waveActive: w.waveActive,
 			betweenWaveTimer: w.betweenWaveTimer, spawnInterval: w.spawnInterval,
 			bossActive: false, bossHp: 0, bossMaxHp: 0,
+			bossesDefeated: st.bossesDefeated,
 		};
 		const boss = engine.getActiveBoss();
 		if (boss) { snap.bossActive = true; snap.bossHp = boss.hp; snap.bossMaxHp = boss.maxHp; }
@@ -765,10 +766,9 @@
 		if (initialLv >= maxLv) { toast(getOpLogMessage('upgradeMaxLevel'), 'warning'); return; }
 
 		let bought = 0;
-		const isMax = buyMultiplier === 'max';
-		const target = isMax ? maxLv : Math.min(initialLv + buyMultiplier, maxLv);
+		const target = buyMultiplier === 'max' ? maxLv : Math.min(initialLv + buyMultiplier, maxLv);
 
-		for (let i = 0; i < (isMax ? 999999 : buyMultiplier); i++) {
+		for (let i = 0; i < (buyMultiplier === 'max' ? 999999 : buyMultiplier); i++) {
 			if (engine.buyBattleUpgrade(id)) bought++;
 			else break;
 		}

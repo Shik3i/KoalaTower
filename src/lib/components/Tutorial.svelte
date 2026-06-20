@@ -176,6 +176,8 @@
 	});
 
 	onDestroy(() => {
+		// onDestroy also runs during SSR teardown, where window is undefined.
+		if (typeof window === 'undefined') return;
 		window.removeEventListener('resize', recalcPosition);
 		window.removeEventListener('keydown', onKey);
 		window.removeEventListener('scroll', recalcPosition, { capture: true } as AddEventListenerOptions);
@@ -213,8 +215,8 @@
 					<div class="tt-dot" class:active={i === step} class:done={i < step}></div>
 				{/each}
 			</div>
-			<h3 class="tt-title">{currentStep.title}</h3>
-			<p class="tt-desc">{currentStep.desc}</p>
+			<h3 class="tt-title">{currentStep?.title}</h3>
+			<p class="tt-desc">{currentStep?.desc}</p>
 			<div class="tt-actions">
 				<button class="tt-back" class:invisible={isFirst} tabindex={isFirst ? -1 : 0} aria-hidden={isFirst} onclick={prev}>Back</button>
 				<div class="tt-right">

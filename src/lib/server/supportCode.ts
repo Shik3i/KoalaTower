@@ -7,8 +7,10 @@ export type SupportCodeOwner = {
 };
 
 export function createSupportCode(ownerType: 'local_identity' | 'account', ownerId: string): string {
-	const digest = createHash('sha256').update(`${ownerType}:${ownerId}`).digest('base64url');
-	return `FLTD-${digest.slice(0, 10).toUpperCase()}`;
+	// Hex (single-case) avoids the entropy loss / collision risk of uppercasing
+	// a case-sensitive base64url digest. FLTD-XXXX-XXXX is also easy to read/type.
+	const digest = createHash('sha256').update(`${ownerType}:${ownerId}`).digest('hex').toUpperCase();
+	return `FLTD-${digest.slice(0, 4)}-${digest.slice(4, 8)}`;
 }
 
 export function findSupportCode(text: string | null | undefined): string | null {
