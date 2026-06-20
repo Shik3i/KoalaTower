@@ -25,6 +25,7 @@
 	import { TierId } from '$lib/game/engine/gameTypes';
 	import { isChallengeUnlocked } from '$lib/game/balance/challenges';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
+	import { addDeploymentReport, createDeploymentReport, enemyTypeToReportLabel } from '$lib/game/deploymentReports';
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore, loadedStore } from '$lib/stores/gameUiStore';
 	import { applyCommunityBuff, communityBuffStore } from '$lib/online/communityBuffClient';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
@@ -60,6 +61,7 @@
 	let gameOverKillstreak = $state(0);
 	let gameOverSchematics = $state(0);
 	let gameOverFrontName = $state('');
+	let runStartedAtMs = $state(0);
 	let prevWave = $state(0);
 	let prevBossCount = $state(0);
 	let upgradeCategory = $state<'offense' | 'defense' | 'utility'>('offense');
@@ -479,6 +481,7 @@
 
 					const reachedWave = engine.state.wave.currentWave;
 					const runChallenge = engine.state.activeChallenge;
+					let schematicsThisRun = 0;
 
 					// Challenge runs track their own high score, not front progression
 					if (runChallenge) {
@@ -501,7 +504,6 @@
 						const frontNum = getTierNumber(save.selectedFront);
 						gameOverFrontName = getFrontName(save.selectedFront);
 						save.schematicsByFront = normalizeSchematics(save.schematicsByFront);
-						let schematicsThisRun = 0;
 						// Repeatable: one grant per boss killed this deployment.
 						const bossesThisRun = engine.state.bossesDefeated;
 						if (bossesThisRun > 0) {
@@ -613,6 +615,27 @@
 						audio.play('milestone');
 					}
 
+					const realTimeSeconds = runStartedAtMs > 0
+						? Math.max(0, (Date.now() - runStartedAtMs) / 1000)
+						: Math.max(0, engine.state.elapsedTime);
+					const report = createDeploymentReport({
+						front: getTierNumber(save.selectedFront),
+						finalWave: reachedWave,
+						realTimeSeconds,
+						simulationTimeSeconds: engine.state.elapsedTime,
+						towerLostTo: enemyTypeToReportLabel(engine.state.lastTowerDamageSource),
+						alloyEarned: buffedEarned,
+						schematicsEarned: schematicsThisRun,
+						enemiesDestroyed: engine.state.killCount,
+						bossesDestroyed: engine.state.bossesDefeated,
+						damageDealt: engine.state.totalDamageDealt,
+						towerDamageTaken: engine.state.towerDamageTaken,
+						bestKillChain: engine.state.killstreak?.best ?? 0,
+						communityBuffPercent: currentBuffPercent,
+						communityBuffBonusAlloy: communityBuffBonus,
+					});
+					save.deploymentReports = addDeploymentReport(save.deploymentReports, report);
+
 					coinsStore.set(save.totalCoins);
 					highestWaveStore.set(save.highestWave);
 					totalRunsStore.set(save.totalRuns);
@@ -718,6 +741,7 @@
 		audio.unlock();
 		audio.play('waveStart');
 		coinsAtRunStart = coins;
+		runStartedAtMs = Date.now();
 		const save = getCachedSave();
 		// Clamp the chosen front to what's actually unlocked, then persist it.
 		if (!unlockedFronts.includes(selectedFront)) selectedFront = TierId.Tier1;

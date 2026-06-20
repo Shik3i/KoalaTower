@@ -17,6 +17,7 @@ describe('Save Migration', () => {
 		expect(save.lastDailyStrangeMatterPickedUpAt).toBe(0);
 		expect(save.lastDailyStrangeMatterDeploymentAt).toBe(0);
 		expect(save.blackMarketUnlocks).toEqual({});
+		expect(save.deploymentReports).toEqual([]);
 		expect(save.createdAt).toBeTruthy();
 		expect(save.saveId).toBeTruthy();
 		expect(save.saveId).toMatch(/^fltd-/);
@@ -88,6 +89,7 @@ describe('Save Migration', () => {
 		expect(typeof migrated!.settings.browserNotifications).toBe('boolean');
 		expect(migrated!.totalKills).toBe(0);
 		expect(migrated!.totalShiniesKilled).toBe(0);
+		expect(migrated!.deploymentReports).toEqual([]);
 	});
 
 	it('should clamp malformed Black Market fields during migration', () => {
@@ -453,6 +455,11 @@ describe('validateSaveData malformed-field regression', () => {
 	it('rejects malformed blackMarketUnlocks', () => {
 		expect(validateSaveData({ ...base, blackMarketUnlocks: [] })).toBe(false);
 		expect(validateSaveData({ ...base, blackMarketUnlocks: 'bad' })).toBe(false);
+	});
+
+	it('rejects malformed deploymentReports', () => {
+		expect(validateSaveData({ ...base, deploymentReports: {} })).toBe(false);
+		expect(validateSaveData({ ...base, deploymentReports: [] })).toBe(true);
 	});
 });
 

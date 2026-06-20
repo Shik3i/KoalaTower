@@ -11,6 +11,7 @@ import { GameEngine } from '../engine/GameEngine';
 import { UpgradeId, LabId, BlueprintId } from '../engine/gameTypes';
 import { getBattleUpgradeCost } from '../balance/battleUpgrades';
 import { migrateSave } from '../save/migrations';
+import { CURRENT_SCHEMA_VERSION } from '../save/saveTypes';
 import { WorkshopUpgradeId } from '../engine/gameTypes';
 
 function engineWithForge(forge: Partial<Record<UpgradeId, number>>, blueprints: BlueprintId[] = [], labLevels: Partial<Record<LabId, number>> = {}) {
@@ -141,7 +142,7 @@ describe('v14→v15 migration wipes combat Forge, keeps economy, no crash', () =
 		};
 		const migrated = migrateSave(legacy);
 		expect(migrated).not.toBeNull();
-		expect(migrated!.schemaVersion).toBe(17);
+		expect(migrated!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
 		// Combat Forge investment wiped (no refund), forgeUpgrades empty.
 		expect(migrated!.forgeUpgrades).toEqual({});
 		// Economy Forge upgrades preserved.

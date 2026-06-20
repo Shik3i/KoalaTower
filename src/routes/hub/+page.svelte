@@ -73,6 +73,7 @@
 	import SimulationSection from '$lib/components/hub/SimulationSection.svelte';
 	import BlueprintsSection from '$lib/components/hub/BlueprintsSection.svelte';
 	import StatsSection from '$lib/components/hub/StatsSection.svelte';
+	import type { DeploymentReport } from '$lib/game/deploymentReports';
 	import TiersSection from '$lib/components/hub/TiersSection.svelte';
 	import ChallengesSection from '$lib/components/hub/ChallengesSection.svelte';
 	import OrdersSection from '$lib/components/hub/OrdersSection.svelte';
@@ -125,6 +126,7 @@
 	let killsByType = $state<Partial<Record<EnemyType, number>>>({});
 	let shinyKillsByType = $state<Partial<Record<EnemyType, number>>>({});
 	let lifetimeStats = $state({ totalEnergyEarned: 0, totalDamageDealt: 0, totalCritsDealt: 0, totalWavesCompleted: 0, totalPlayTimeSeconds: 0 });
+	let deploymentReports = $state<DeploymentReport[]>([]);
 	let masteryAchievements = $state<Partial<Record<string, boolean>>>({});
 	let challengeHighScores = $state<Partial<Record<string, number>>>({});
 	let unlockedFronts = $derived(getUnlockedFronts(frontBestWave));
@@ -469,6 +471,7 @@
 				coinsStore.set(s.totalCoins);
 				highestWaveStore.set(s.highestWave);
 				totalRunsStore.set(s.totalRuns);
+				deploymentReports = [...(s.deploymentReports ?? [])];
 			}
 		}
 	}
@@ -480,6 +483,7 @@
 		highestWaveStore.set(0);
 		totalRunsStore.set(0);
 		settingsStore.set({ ...DEFAULT_SETTINGS });
+		deploymentReports = [];
 		toast(getOpLogMessage('saveReset'), 'warning');
 	}
 
@@ -706,6 +710,7 @@
 		};
 		masteryAchievements = { ...(save?.masteryAchievements ?? {}) };
 		challengeHighScores = { ...(save?.challengeHighScores ?? {}) };
+		deploymentReports = [...(save?.deploymentReports ?? [])];
 		refreshLabProgress();
 		labProgressTimer = setInterval(refreshLabProgress, 1000);
 		clockTimer = setInterval(() => { nowTick = Date.now(); }, 30000);
@@ -1122,6 +1127,7 @@
 					{masteryAchievements}
 					{frontBestWave}
 					{challengeHighScores}
+					{deploymentReports}
 				/>
 			{:else if activeSection === 'profile'}
 				<ProfileSection

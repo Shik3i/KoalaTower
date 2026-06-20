@@ -167,6 +167,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
 		bossesDefeated: 0,
 		shiniesKilled: 0,
 		totalDamageDealt: 0,
+		towerDamageTaken: 0,
 		totalEnergyEarned: 0,
 		highestWave: 0,
 		totalRuns: 0,
@@ -335,6 +336,7 @@ describe('Tower HP overkill / negative HP safety', () => {
 		// Raw damage 50 → after defense (0%) → 50 dmg, tower has only 10 HP
 		damageTower(state, 50, false);
 		expect(state.tower.hp).toBe(0);
+		expect(state.towerDamageTaken).toBe(10);
 		expect(state.tower.hp).toBeGreaterThanOrEqual(0);
 		expect(state.tower.alive).toBe(false);
 		expect(state.gameOver).toBe(true);
@@ -385,6 +387,7 @@ describe('Tower HP overkill / negative HP safety', () => {
 		expect(state.killstreak.count).toBe(0);
 		expect(state.killstreak.timer).toBe(0);
 		expect(state.killstreak.lastMilestone).toBe(0);
+		expect(state.towerDamageTaken).toBe(10);
 		expect(state.tower.hp).toBe(190); // damage applied but tower alive
 	});
 });

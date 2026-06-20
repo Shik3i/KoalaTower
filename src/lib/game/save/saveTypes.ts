@@ -3,6 +3,7 @@ import { TierId, DEFAULT_SETTINGS } from '../engine/gameTypes';
 import { emptySchematics } from '../balance/schematics';
 import type { BlackMarketUnlocks } from '../balance/blackMarket';
 import { type CommandOrdersState, createDefaultCommandOrdersState } from '../balance/commandOrders';
+import type { DeploymentReport } from '../deploymentReports';
 
 export interface LabResearch {
 	level: number;
@@ -98,9 +99,11 @@ export interface SaveData {
 	 * Migrates from legacy `dailyTasks` field if present.
 	 */
 	commandOrders: CommandOrdersState;
+	/** v18: Local Deployment Reports / Battle History, newest first and capped. */
+	deploymentReports: DeploymentReport[];
 }
 
-export const CURRENT_SCHEMA_VERSION = 17;
+export const CURRENT_SCHEMA_VERSION = 18;
 
 function generateSaveId(prefix = 'fltd'): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -159,5 +162,6 @@ export function createDefaultSave(): SaveData {
 		blackMarketIntroSeen: false,
 		bestKillstreak: 0,
 		commandOrders: createDefaultCommandOrdersState(),
+		deploymentReports: [],
 	};
 }

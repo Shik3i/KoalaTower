@@ -7,6 +7,7 @@ import { createDefaultCommandOrdersState, type CommandOrdersState } from '../bal
 import type { UpgradeId } from '../engine/gameTypes';
 import { emptySchematics, normalizeSchematics } from '../balance/schematics';
 import { normalizeBlackMarketUnlocks, normalizeStrangeMatter, normalizeTimestamp } from '../balance/blackMarket';
+import { normalizeDeploymentReports } from '../deploymentReports';
 
 export function normalizeNonNegativeInteger(value: unknown, fallback = 0): number {
 	const n = Number(value);
@@ -95,6 +96,9 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		if (version < 17) {
 			save = migrateV16toV17(save);
 		}
+		if (version < 18) {
+			save = migrateV17toV18(save);
+		}
 
 		save = ensureMetadata(save);
 
@@ -164,6 +168,7 @@ function migrateV0toV1(data: Record<string, unknown>): any {
 		autoDeploymentEnabled: false,
 		blackMarketIntroSeen: false,
 		bestKillstreak: 0,
+		deploymentReports: [],
 	};
 }
 
@@ -392,6 +397,14 @@ function migrateV16toV17(save: SaveData): SaveData {
 	};
 }
 
+function migrateV17toV18(save: SaveData): SaveData {
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		deploymentReports: normalizeDeploymentReports((save as any).deploymentReports),
+	};
+}
+
 function migrateV15toV16(save: SaveData): any {
 	// v16: Daily Orbital Command tasks → Weekly Command Orders.
 	// The legacy daily state is discarded (fresh weekly start) because the
@@ -485,6 +498,9 @@ export function validateSaveData(data: unknown): data is SaveData {
 	if (d.blackMarketUnlocks !== undefined && d.blackMarketUnlocks !== null) {
 		if (typeof d.blackMarketUnlocks !== 'object' || Array.isArray(d.blackMarketUnlocks)) return false;
 	}
+	if (d.deploymentReports !== undefined && d.deploymentReports !== null && !Array.isArray(d.deploymentReports)) {
+		return false;
+	}
 	return true;
 }
 
@@ -531,6 +547,7 @@ function ensureMetadata(save: SaveData): SaveData {
 		autoDeploymentEnabled: (save as any).autoDeploymentEnabled === true,
 		blackMarketIntroSeen: (save as any).blackMarketIntroSeen === true,
 		bestKillstreak: normalizeNonNegativeInteger((save as any).bestKillstreak),
+		deploymentReports: normalizeDeploymentReports((save as any).deploymentReports),
 	};
 }
 

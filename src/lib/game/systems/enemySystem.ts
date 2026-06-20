@@ -221,7 +221,7 @@ export function updateEnemySystem(state: GameState, dt: number): void {
 					processEnemyDeath(state, enemy);
 				}
 				// Tower still takes the hit even if enemy died — the attack already landed.
-				damageTower(state, enemy.damage, enemy.isBoss);
+				damageTower(state, enemy.damage, enemy.isBoss, enemy.type);
 			}
 		} else {
 			enemy.stopped = false;

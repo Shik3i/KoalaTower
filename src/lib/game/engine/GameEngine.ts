@@ -147,6 +147,7 @@ export class GameEngine {
 			bossesDefeated: 0,
 			shiniesKilled: 0,
 			totalDamageDealt: 0,
+			towerDamageTaken: 0,
 			totalEnergyEarned: 0,
 			highestWave: 0,
 			totalRuns: 0,
@@ -159,6 +160,7 @@ export class GameEngine {
 			critsDealt: 0,
 			energySpentThisRun: 0,
 			firstTowerDamageWave: 0,
+			lastTowerDamageSource: undefined,
 			killstreak: { count: 0, timer: 0, best: 0, lastMilestone: 0 },
 		};
 	}

@@ -472,6 +472,7 @@ export interface GameState {
 	killCount: number;
 	bossesDefeated: number;
 	totalDamageDealt: number;
+	towerDamageTaken: number;
 	totalEnergyEarned: number;
 	highestWave: number;
 	totalRuns: number;
@@ -497,6 +498,8 @@ export interface GameState {
 	energySpentThisRun: number;
 	/** Wave at which the tower first took damage this run (0 = never damaged). */
 	firstTowerDamageWave: number;
+	/** Last enemy type that damaged the tower, used for local Deployment Reports. */
+	lastTowerDamageSource?: EnemyType;
 	/**
 	 * Cosmetic-only consecutive-kill counter. Rendering concern — never
 	 * feeds into economy, damage, or progression. Reset by startRun.

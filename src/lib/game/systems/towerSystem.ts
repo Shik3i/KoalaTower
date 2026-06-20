@@ -17,6 +17,7 @@ import { GAME_CONFIG, TOWER_HP_BASE } from '../engine/gameConfig';
 import {
 	UpgradeId,
 	LabId,
+	EnemyType,
 	type Enemy,
 	type GameState,
 	type TowerState,
@@ -117,11 +118,13 @@ export function computeDamageToTower(rawDamage: number, state: GameState, isBoss
 	return Math.max(dmgFloor, Math.floor(afterPct - defAbs));
 }
 
-export function damageTower(state: GameState, rawDamage: number, isBoss: boolean = false): void {
+export function damageTower(state: GameState, rawDamage: number, isBoss: boolean = false, sourceType?: EnemyType): void {
 	if (!state.tower.alive) return; // already dead — prevent negative HP and double game-over
 	const dmg = computeDamageToTower(rawDamage, state, isBoss);
 	const hpBefore = state.tower.hp;
 	state.tower.hp = Math.max(0, state.tower.hp - dmg);
+	state.towerDamageTaken = (state.towerDamageTaken ?? 0) + Math.min(hpBefore, dmg);
+	if (sourceType) state.lastTowerDamageSource = sourceType;
 	// Record the first wave the tower took damage (daily-task "no damage" tracking).
 	if (dmg > 0 && state.firstTowerDamageWave === 0) {
 		state.firstTowerDamageWave = Math.max(1, state.wave.currentWave);

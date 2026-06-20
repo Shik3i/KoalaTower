@@ -4,6 +4,13 @@
 	import { getFrontName } from '$lib/game/balance/tiers';
 	import { CHALLENGES } from '$lib/game/balance/challenges';
 	import { formatCompact } from '$lib/game/balance/balanceMath';
+	import {
+		buildDeploymentReportSections,
+		deploymentHistoryEmptyState,
+		formatReportDuration,
+		formatReportNumber,
+		type DeploymentReport
+	} from '$lib/game/deploymentReports';
 	import { tooltip } from '$lib/components/tooltip';
 	import type { TierId } from '$lib/game/engine/gameTypes';
 
@@ -16,7 +23,8 @@
 		shinyKillsByType,
 		masteryAchievements,
 		frontBestWave,
-		challengeHighScores
+		challengeHighScores,
+		deploymentReports
 	}: {
 		totalRuns: number;
 		highestWave: number;
@@ -39,7 +47,14 @@
 		masteryAchievements: Partial<Record<string, boolean>>;
 		frontBestWave: Partial<Record<TierId, number>>;
 		challengeHighScores: Partial<Record<string, number>>;
+		deploymentReports: DeploymentReport[];
 	} = $props();
+
+	let selectedReport = $state<DeploymentReport | null>(null);
+	let reportTrigger = $state<HTMLElement | null>(null);
+	let reportModal = $state<HTMLDivElement>();
+	let reportCloseButton = $state<HTMLButtonElement>();
+	const emptyHistory = deploymentHistoryEmptyState();
 
 	const enemyTypes = [
 		EnemyType.Normal,
@@ -62,11 +77,83 @@
 		const s = totalSeconds % 60;
 		return `${s}s`;
 	}
+
+	function openDeploymentReport(report: DeploymentReport, event: MouseEvent) {
+		reportTrigger = event.currentTarget as HTMLElement;
+		selectedReport = report;
+		requestAnimationFrame(() => reportCloseButton?.focus());
+	}
+
+	function closeDeploymentReport() {
+		selectedReport = null;
+		requestAnimationFrame(() => reportTrigger?.focus());
+	}
+
+	function getReportFocusableElements(): HTMLElement[] {
+		if (!reportModal) return [];
+		return Array.from(reportModal.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+			.filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+	}
+
+	function handleReportKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && selectedReport) {
+			event.preventDefault();
+			closeDeploymentReport();
+			return;
+		}
+		if (event.key === 'Tab' && selectedReport) {
+			const focusable = getReportFocusableElements();
+			if (focusable.length === 0) return;
+			const first = focusable[0]!;
+			const last = focusable[focusable.length - 1]!;
+			if (event.shiftKey && document.activeElement === first) {
+				event.preventDefault();
+				last.focus();
+			} else if (!event.shiftKey && document.activeElement === last) {
+				event.preventDefault();
+				first.focus();
+			}
+		}
+	}
+
+	function handleReportBackdropClick(event: MouseEvent) {
+		if (event.target === event.currentTarget) closeDeploymentReport();
+	}
 </script>
+
+<svelte:window onkeydown={handleReportKeydown} />
 
 <div class="hs">
 	<h2 class="hst">📊 Archives</h2>
 	<p class="hsd">Campaign telemetry and historical records. Some data has been revised for clarity. Some has been revised for morale. Some has been revised because we forgot what happened.</p>
+
+	<h3 class="stats-sub">Deployment History</h3>
+	{#if deploymentReports.length === 0}
+		<div class="history-empty">
+			<strong>{emptyHistory.title}</strong>
+			<span>{emptyHistory.detail}</span>
+		</div>
+	{:else}
+		<div class="history-list" aria-label="Deployment History">
+			{#each deploymentReports as report (report.id)}
+				<button class="history-card" type="button" onclick={(event) => openDeploymentReport(report, event)} aria-label={`Open Front ${report.front} Deployment Report from wave ${report.finalWave}`}>
+					<span class="history-top">
+						<span class="history-title">Front {report.front} - Wave {report.finalWave}</span>
+						<span class="history-date">{new Date(report.createdAt).toLocaleDateString()}</span>
+					</span>
+					<span class="history-metrics">
+						<span>Alloy: <strong>{formatReportNumber(report.alloyEarned)}</strong></span>
+						<span>Alloy/hour: <strong>{formatReportNumber(report.alloyPerHour)}</strong></span>
+						<span>Duration: <strong>{formatReportDuration(report.realTimeSeconds)}</strong></span>
+					</span>
+					<span class="history-foot">
+						<span>{report.towerLostTo ? `Tower Lost to ${report.towerLostTo}` : 'Tower Lost'}</span>
+						<span class="history-tag">Report</span>
+					</span>
+				</button>
+			{/each}
+		</div>
+	{/if}
 
 	{#if totalRuns === 0}
 		<p class="hsd" style="color:var(--text-dim);font-style:italic;">No campaign records yet. The Shapes are still waiting for you to make the first move. Deploy a Tower — even a single wave writes history.</p>
@@ -145,12 +232,52 @@
 	{/if}
 </div>
 
+{#if selectedReport}
+	<div class="report-backdrop" role="presentation" onclick={handleReportBackdropClick}>
+		<div class="report-modal" role="dialog" aria-modal="true" aria-labelledby="deployment-report-title" bind:this={reportModal} tabindex="-1">
+			<div class="report-head">
+				<div>
+					<p class="report-kicker">Deployment Report</p>
+					<h2 id="deployment-report-title">Front {selectedReport.front} Deployment Report</h2>
+				</div>
+				<button class="report-close" type="button" aria-label="Close Deployment Report" onclick={closeDeploymentReport} bind:this={reportCloseButton}>x</button>
+			</div>
+			<div class="report-body">
+				{#each buildDeploymentReportSections(selectedReport) as section}
+					<section class="report-section" aria-label={section.title}>
+						<h3>{section.title}</h3>
+						<div class="report-rows">
+							{#each section.rows as row}
+								<div class="report-row">
+									<span>{row.label}</span>
+									<strong>{row.value}</strong>
+								</div>
+							{/each}
+						</div>
+					</section>
+				{/each}
+			</div>
+		</div>
+	</div>
+{/if}
+
 <style>
 	.hs { animation:fi .2s ease; }
 	.hst { font-size:var(--fs-heading); color:var(--cyan); margin-bottom:.4rem; }
 	.hsd { color:var(--text-secondary); font-size:var(--fs-body); margin-bottom:1.25rem; line-height:1.6; }
 	
 	.stats-sub { margin:.9rem 0 .45rem; font-size:var(--fs-body); color:var(--text-primary); font-family:var(--font-display); }
+
+	.history-empty { display:grid; gap:.25rem; max-width:600px; padding:.75rem .85rem; margin-bottom:1rem; border:1px solid var(--border-neon); border-radius:var(--radius-sm); background:rgba(0,0,0,.12); color:var(--text-secondary); }
+	.history-empty strong { color:var(--text-primary); font-family:var(--font-display); }
+	.history-list { display:grid; gap:.5rem; max-width:760px; margin-bottom:1.25rem; }
+	.history-card { width:100%; display:grid; gap:.4rem; padding:.7rem .8rem; border:1px solid var(--border-neon); border-radius:var(--radius-sm); background:var(--bg-tertiary); color:var(--text-secondary); text-align:left; cursor:pointer; transition:border-color var(--transition-fast), transform var(--transition-fast), background var(--transition-fast); }
+	.history-card:hover,.history-card:focus-visible { border-color:rgba(0,255,255,.45); background:rgba(0,255,255,.05); transform:translateY(-1px); outline:none; }
+	.history-top,.history-metrics,.history-foot { display:flex; gap:.6rem; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+	.history-title { color:var(--text-primary); font-family:var(--font-display); font-size:var(--fs-body); }
+	.history-date,.history-metrics,.history-foot { font-family:var(--font-mono); font-size:var(--fs-caption); }
+	.history-metrics strong { color:var(--cyan); font-weight:700; }
+	.history-tag { color:var(--yellow); border:1px solid rgba(255,221,68,.35); border-radius:3px; padding:.08rem .35rem; }
 	
 	.ig { display:grid; gap:3px; max-width:600px; }
 	.ir { display:flex; justify-content:space-between; padding:.4rem .55rem; font-size:var(--fs-mono); border-radius:3px; }
@@ -172,6 +299,29 @@
 	.mastery-pip { width:22px; height:22px; display:grid; place-items:center; border:1px solid var(--border-neon); border-radius:3px; color:var(--text-dim); font-family:var(--font-mono); font-size:var(--fs-caption-sm); }
 	.mastery-pip.earned { color:var(--yellow); border-color:rgba(255,221,68,.35); }
 	.mastery-pip.claimed { color:var(--green); border-color:rgba(68,255,136,.35); background:rgba(68,255,136,.06); }
+
+	.report-backdrop { position:fixed; inset:0; z-index:700; display:flex; align-items:center; justify-content:center; padding:1rem; background:rgba(5,7,16,.82); backdrop-filter:blur(5px); animation:fi .16s ease; }
+	.report-modal { width:min(760px,100%); max-height:min(86vh,820px); display:flex; flex-direction:column; overflow:hidden; border:1px solid rgba(0,255,255,.28); border-radius:var(--radius-md); background:var(--bg-secondary); box-shadow:0 0 90px rgba(0,0,0,.55), 0 0 44px rgba(0,255,255,.08); }
+	.report-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding:1rem 1.1rem .85rem; border-bottom:1px solid var(--border-neon); }
+	.report-kicker { margin:0 0 .15rem; color:var(--cyan); font-family:var(--font-mono); font-size:var(--fs-caption); text-transform:uppercase; letter-spacing:.08em; }
+	.report-head h2 { margin:0; color:var(--text-primary); font-size:var(--fs-heading); }
+	.report-close { width:34px; height:34px; display:grid; place-items:center; border:1px solid var(--border-neon); border-radius:var(--radius-sm); color:var(--text-secondary); background:rgba(0,0,0,.16); font-family:var(--font-mono); font-size:var(--fs-body); cursor:pointer; }
+	.report-close:hover,.report-close:focus-visible { color:var(--text-primary); border-color:rgba(255,68,170,.55); outline:none; }
+	.report-body { overflow:auto; padding:1rem 1.1rem 1.15rem; display:grid; gap:1rem; }
+	.report-section h3 { margin:0 0 .45rem; color:var(--cyan); font-family:var(--font-display); font-size:var(--fs-body); }
+	.report-rows { display:grid; gap:3px; }
+	.report-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.48rem .58rem; border-radius:3px; font-family:var(--font-mono); font-size:var(--fs-body-sm); background:rgba(0,0,0,.12); }
+	.report-row span { color:var(--text-secondary); }
+	.report-row strong { color:var(--yellow); font-weight:700; text-align:right; overflow-wrap:anywhere; }
+
+	@media(max-width:640px){
+		.report-backdrop { align-items:stretch; padding:.65rem; }
+		.report-modal { max-height:calc(100vh - 1.3rem); }
+		.report-head { padding:.85rem; }
+		.report-body { padding:.85rem; }
+		.report-row { align-items:flex-start; flex-direction:column; gap:.18rem; }
+		.report-row strong { text-align:left; }
+	}
 
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 </style>
