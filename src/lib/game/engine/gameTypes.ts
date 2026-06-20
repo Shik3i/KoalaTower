@@ -521,6 +521,8 @@ export interface GameSettings {
 	bloom: boolean;
 	/** Browser notification when lab research completes. */
 	browserNotifications: boolean;
+	/** Auto-pause the active run when the tab/window loses focus. */
+	pauseOnHide: boolean;
 }
 
 /** Tracks real-time research progress. */
@@ -580,5 +582,6 @@ export const DEFAULT_SETTINGS: GameSettings = {
 	sfx: true,
 	music: false,
 	bloom: true,
-	browserNotifications: false
+	browserNotifications: false,
+	pauseOnHide: true
 };

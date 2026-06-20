@@ -29,6 +29,7 @@
 		{ key: 'sfx' as keyof GameSettings, label: 'Sound Effects', desc: 'Combat & UI sounds' },
 		{ key: 'music' as keyof GameSettings, label: 'Music', desc: 'Ambient background loop' },
 		{ key: 'browserNotifications' as keyof GameSettings, label: 'Lab Notifications', desc: 'Browser notification when research finishes' },
+		{ key: 'pauseOnHide' as keyof GameSettings, label: 'Pause on Tab Switch', desc: 'Auto-pause the run when the tab loses focus' },
 	];
 </script>
 

@@ -41,6 +41,7 @@
 	import FieldUpgrades from '$lib/components/play/FieldUpgrades.svelte';
 	import GameOverPanel from '$lib/components/play/GameOverPanel.svelte';
 	import LaunchScreen from '$lib/components/play/LaunchScreen.svelte';
+	import KillstreakCounter from '$lib/components/play/KillstreakCounter.svelte';
 
 	let container = $state<HTMLDivElement>();
 	let gameView = $state<PixiGameView | null>(null);
@@ -180,7 +181,7 @@
 		window.addEventListener('keydown', onKey);
 		window.addEventListener('keyup', onKeyUp);
 		document.addEventListener('visibilitychange', pageVisibilityHandler = () => {
-			if (document.visibilityState === 'hidden' && engine?.state.runActive && !engine.isPaused()) {
+			if (settings.pauseOnHide && document.visibilityState === 'hidden' && engine?.state.runActive && !engine.isPaused()) {
 				engine.togglePause();
 				refreshSnap();
 			}
@@ -1171,36 +1172,17 @@
 			</div>
 		{/if}
 
-		<!-- Cosmetic killstreak chip — top-right, appears at chain ≥ 5. Arcade
-		     3D / cell-shaded look with chunky bevels, animated count, a tier-up
-		     burst every time the chain crosses 10/25/50/100/500/1k/5k/10k, and
-		     an animated flame layer from tier 6 (1000+) that intensifies upward.
-		     Never grants anything; the best streak is saved for achievements. -->
+		<!-- Cosmetic killstreak counter — top-right, appears at chain ≥ 5.
+		     2.5D comic / cell-shaded badge with a smoothly counting number, a
+		     tier-up "POW" burst at each milestone (10/25/50/100/500/1k/5k/10k),
+		     and escalating fire from tier 6 (1000+). Never grants anything; the
+		     best streak is saved for achievements. -->
 		{#if killstreakCount >= 5 && snap?.runActive}
-			{@const ksReduced = settings.reducedMotion || settings.lowEffectsMode}
-			{@const ksBurning = killstreakTier >= 6}
-			{@const ksGlyph = ksBurning ? '🔥' : killstreakTier >= 4 ? '💥' : killstreakTier >= 2 ? '⚡' : '⛓'}
-			<div
-				class="chain-chip"
-				data-tier={killstreakTier}
-				class:reduced={ksReduced}
-				class:burning={ksBurning && !ksReduced}
-				use:tooltip={`Killstreak: ${killstreakCount}\nConsecutive kills without taking tower damage.\nCosmetic — grants no reward. Your best streak is saved.`}
-				aria-label="Killstreak chain {killstreakCount}"
-			>
-				{#key killstreakTier}
-					<div class="chain-burst" aria-hidden="true"></div>
-				{/key}
-				{#if ksBurning}
-					<div class="chain-fire" aria-hidden="true">
-						{#each Array(7) as _, i}<span class="flame" style="--fi:{i}"></span>{/each}
-					</div>
-				{/if}
-				<div class="chain-bevel" aria-hidden="true"></div>
-				<span class="chain-glyph">{ksGlyph}</span>
-				<span class="chain-count">{#key killstreakCount}<span class="chain-num" class:no-pop={ksReduced}>x{killstreakCount}</span>{/key}</span>
-				<span class="chain-tag">CHAIN</span>
-			</div>
+			<KillstreakCounter
+				count={killstreakCount}
+				tier={killstreakTier}
+				reduced={settings.reducedMotion || settings.lowEffectsMode}
+			/>
 		{/if}
 
 		<!-- Live run info lives in the bottom-left (Tower) / bottom-right (Shapes) panels
@@ -1480,145 +1462,6 @@
 	@keyframes hpWarnIn { from{opacity:0; transform:translate(-50%,-6px)} to{opacity:1; transform:translate(-50%,0)} }
 	@keyframes hpWarnFlicker { 0%,100%{opacity:1} 50%{opacity:.55} }
 
-	/* ─── Cosmetic killstreak chip — arcade 3D / cell-shaded ─────────────── */
-	/* Top-right of the battlefield. Chunky extruded pill with hard outline,
-	   bevelled highlights, a per-tier colour theme, a "level-up" burst each
-	   time the chain crosses a tier (10/25/50/100/500/1k/5k/10k), and an
-	   animated flame layer from tier 6 (1000+) that grows hotter with tier.
-	   Cosmetic only — never grants anything. */
-	.chain-chip {
-		position: absolute; top: 3.4rem; right: .8rem;
-		display: inline-flex; align-items: center; gap: .35rem;
-		padding: .42rem 1rem .42rem .8rem;
-		font-family: var(--font-display);
-		font-weight: 900;
-		color: var(--chain-color, var(--cyan));
-		background:
-			linear-gradient(180deg, rgba(28,32,68,.96) 0%, rgba(12,14,32,.96) 55%, rgba(7,8,18,.98) 100%);
-		border: 2px solid var(--chain-color, var(--cyan));
-		border-radius: 14px;
-		z-index: 8; pointer-events: none;
-		isolation: isolate;
-		/* Stacked hard shadow = cartoon "extrude" + outer neon glow. */
-		box-shadow:
-			inset 0 2px 0 rgba(255,255,255,.22),
-			inset 0 -3px 0 rgba(0,0,0,.55),
-			inset 3px 0 0 rgba(255,255,255,.07),
-			inset -3px 0 0 rgba(0,0,0,.35),
-			0 4px 0 rgba(0,0,0,.65),
-			0 7px 14px rgba(0,0,0,.55),
-			0 0 22px var(--chain-glow, rgba(0,255,255,.45));
-		animation: chainIn .35s cubic-bezier(.34,1.56,.64,1);
-	}
-	.chain-chip.reduced { animation: fi .2s ease; box-shadow: 0 0 8px var(--chain-glow, rgba(0,255,255,.3)); }
-	.chain-chip .chain-bevel {
-		position: absolute; inset: 2px 2px auto 2px; height: 38%;
-		border-radius: 12px 12px 28px 28px;
-		background: linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,0));
-		pointer-events: none; z-index: 1;
-	}
-	.chain-chip .chain-glyph {
-		font-size: 1.1rem; line-height: 1;
-		filter: drop-shadow(0 1px 0 rgba(0,0,0,.6));
-		z-index: 2;
-	}
-	.chain-chip .chain-count {
-		font-size: 1.02rem; letter-spacing: .03em; display: inline-flex;
-		z-index: 2;
-	}
-	.chain-chip .chain-tag {
-		font-family: var(--font-mono); font-weight: 700;
-		font-size: .58rem; letter-spacing: .18em;
-		color: var(--chain-color, var(--cyan));
-		opacity: .65; margin-left: .15rem; align-self: flex-end; padding-bottom: .12rem;
-		z-index: 2;
-	}
-	/* Each new count remounts .chain-num → a quick scale "pop" on every +1. */
-	.chain-num {
-		display: inline-block;
-		color: #fff;
-		-webkit-text-stroke: 1.6px rgba(0,0,0,.85);
-		paint-order: stroke fill;
-		text-shadow:
-			0 1px 0 rgba(0,0,0,.55),
-			0 2px 0 rgba(0,0,0,.45),
-			0 3px 0 rgba(0,0,0,.35),
-			0 4px 7px rgba(0,0,0,.7),
-			0 0 10px var(--chain-glow, rgba(0,255,255,.55));
-		animation: chainPop .25s cubic-bezier(.34,1.8,.5,1);
-	}
-	.chain-num.no-pop { animation: none; }
-
-	/* Tier colour themes — cyan → yellow → pink → violet → fire. */
-	.chain-chip[data-tier="0"] { --chain-color: var(--cyan);    --chain-glow: rgba(0,255,255,.45); }
-	.chain-chip[data-tier="1"] { --chain-color: #66FFFF;        --chain-glow: rgba(0,255,255,.6); }
-	.chain-chip[data-tier="2"] { --chain-color: var(--yellow);  --chain-glow: rgba(255,221,68,.6); }
-	.chain-chip[data-tier="3"] { --chain-color: var(--pink);    --chain-glow: rgba(255,68,170,.7); }
-	.chain-chip[data-tier="4"] { --chain-color: #FF66BB;        --chain-glow: rgba(255,68,170,.85); }
-	.chain-chip[data-tier="5"] { --chain-color: var(--violet);  --chain-glow: rgba(136,68,255,.95); }
-	.chain-chip[data-tier="6"] { --chain-color: #FF8A2B;        --chain-glow: rgba(255,120,0,.95); }
-	.chain-chip[data-tier="7"] { --chain-color: #FFB02B;        --chain-glow: rgba(255,150,30,1); }
-	.chain-chip[data-tier="8"] { --chain-color: #FFE7A0;        --chain-glow: rgba(255,200,80,1); }
-
-	/* Tier-up burst — re-mounts via {#key tier} so every milestone replays. */
-	.chain-burst {
-		position: absolute; inset: -28px;
-		border-radius: 28px;
-		background:
-			radial-gradient(circle at center, var(--chain-color, var(--cyan)) 0%, transparent 55%),
-			conic-gradient(from 0deg, transparent 0deg, var(--chain-color, var(--cyan)) 30deg, transparent 60deg,
-			               transparent 120deg, var(--chain-color, var(--cyan)) 150deg, transparent 180deg,
-			               transparent 240deg, var(--chain-color, var(--cyan)) 270deg, transparent 300deg);
-		opacity: 0; mix-blend-mode: screen;
-		pointer-events: none; z-index: 0;
-		animation: chainBurst .85s cubic-bezier(.2,.8,.3,1) forwards;
-	}
-	@keyframes chainBurst {
-		0%   { opacity: 0; transform: scale(.4) rotate(0deg); }
-		25%  { opacity: .85; transform: scale(1.15) rotate(40deg); }
-		65%  { opacity: .35; transform: scale(1.6) rotate(120deg); }
-		100% { opacity: 0; transform: scale(2.1) rotate(180deg); }
-	}
-	.chain-chip.reduced .chain-burst { display: none; }
-
-	/* Flame layer — tier 6+. Small radial flames dance along the bottom edge. */
-	.chain-fire {
-		position: absolute; left: -6px; right: -6px; bottom: -10px;
-		height: 26px; pointer-events: none; z-index: 0;
-		filter: blur(.4px);
-	}
-	.chain-fire .flame {
-		position: absolute; bottom: 0;
-		left: calc(8% + var(--fi) * 13%);
-		width: 14px; height: 22px;
-		background: radial-gradient(ellipse 70% 100% at 50% 100%,
-			#FFF1C2 0%, #FFE7A0 18%, #FFB02B 45%, #FF6A00 75%, transparent 100%);
-		border-radius: 50% 50% 45% 45% / 65% 65% 40% 40%;
-		transform-origin: 50% 100%;
-		mix-blend-mode: screen; opacity: .9;
-		animation: flameDance .55s ease-in-out infinite alternate;
-		animation-delay: calc(var(--fi) * -0.08s);
-	}
-	@keyframes flameDance {
-		0%   { transform: translateX(-3px) scaleY(.85) scaleX(1.05) rotate(-4deg); opacity: .75; }
-		50%  { transform: translateX(0)    scaleY(1.15) scaleX(.95) rotate(2deg);  opacity: 1; }
-		100% { transform: translateX(3px)  scaleY(.95)  scaleX(1)    rotate(5deg);  opacity: .8; }
-	}
-	.chain-chip.burning { animation: chainIn .35s cubic-bezier(.34,1.56,.64,1), chainFireShake 1.6s ease-in-out infinite; }
-	.chain-chip.reduced.burning { animation: fi .2s ease; }
-	.chain-chip.reduced .chain-fire { display: none; }
-	/* Tier 7/8 — hotter, bigger flames, brighter halo. */
-	.chain-chip[data-tier="7"] .flame { height: 28px; width: 16px; }
-	.chain-chip[data-tier="8"] .flame { height: 32px; width: 18px; }
-	.chain-chip[data-tier="8"] { animation: chainIn .35s cubic-bezier(.34,1.56,.64,1), chainFireShake 1.1s ease-in-out infinite; }
-
-	@keyframes chainIn { from { opacity: 0; transform: translateY(-10px) scale(.85) rotate(-3deg); } to { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
-	@keyframes chainPop { 0% { transform: scale(1.55) rotate(-2deg); } 55% { transform: scale(.9) rotate(1deg); } 100% { transform: scale(1) rotate(0); } }
-	@keyframes chainFireShake {
-		0%, 100% { transform: translate(0, 0) rotate(0); }
-		25%      { transform: translate(-.5px, .5px) rotate(-.4deg); }
-		75%      { transform: translate(.5px, -.5px) rotate(.4deg); }
-	}
 
 	@keyframes fi { from{opacity:0} to{opacity:1} }
 	@keyframes si { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
