@@ -4,23 +4,18 @@
 	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { persistSave, getCachedSave, exportSave, exportSaveFromData, importSave, resetSave } from '$lib/game/save/saveService';
 	import type { SaveData } from '$lib/game/save/saveTypes';
-	import { buildWorkshopUpgradeList, getWorkshopUpgradeCost, getWorkshopUpgradeEffect, FORGE_ECONOMY_WORKSHOP_IDS } from '$lib/game/balance/workshopUpgrades';
+	import { buildWorkshopUpgradeList, getWorkshopUpgradeCost, FORGE_ECONOMY_WORKSHOP_IDS } from '$lib/game/balance/workshopUpgrades';
 	// Combat Forge stats use the SHARED Field curve (forgeUpgrades.ts). The
 	// Foundry's economy upgrades (Alloy/Energy bonus, Starting Energy) stay as
 	// permanent-only WorkshopUpgrades — filtered out of the combat list here.
 	const FORGE_ECONOMY_SET = new Set(FORGE_ECONOMY_WORKSHOP_IDS);
 	const WORKSHOP_UPGRADES = buildWorkshopUpgradeList().filter(u => FORGE_ECONOMY_SET.has(u.id));
-	import { buildForgeUpgradeList, getForgeUpgradeCost, getForgeUpgradeEffect } from '$lib/game/balance/forgeUpgrades';
-	import { formatBattleEffect } from '$lib/game/balance/upgradeScaling';
+	import { buildForgeUpgradeList, getForgeUpgradeCost } from '$lib/game/balance/forgeUpgrades';
 	const FORGE_UPGRADES = buildForgeUpgradeList();
-	import { LAB_DEFS, getLabCost, getLabEffect, isLabUnlocked, getLabDuration, formatLabDuration } from '$lib/game/balance/labs';
-	import { TIERS, FRONT_META, getUnlockedFronts, getFrontName, describeFrontUnlock, getFrontBandDef } from '$lib/game/balance/tiers';
-	import FrontIcon from '$lib/components/FrontIcon.svelte';
-	import { CHALLENGES, CHALLENGE_UNLOCK_REQS, isChallengeUnlocked } from '$lib/game/balance/challenges';
-	import { formatCompact, TIER_MULTIPLIERS } from '$lib/game/balance/balanceMath';
-	import { getSchematics, getPathSchematicCost, tryUnlockPathWithSchematics, normalizeSchematics, SCHEMATICS_FLAVOR } from '$lib/game/balance/schematics';
+	import { LAB_DEFS, getLabCost, getLabDuration, formatLabDuration } from '$lib/game/balance/labs';
+	import { FRONT_META, getUnlockedFronts, getFrontName } from '$lib/game/balance/tiers';
+	import { getSchematics, getPathSchematicCost, tryUnlockPathWithSchematics, normalizeSchematics } from '$lib/game/balance/schematics';
 	import {
-		BLACK_MARKET_UNLOCKS,
 		SCHEMATIC_CONVERSION_RATE,
 		STRANGE_MATTER_DAILY_PICKUP,
 		STRANGE_MATTER_WEEKLY_SHIPMENT,
@@ -33,33 +28,20 @@
 		hasBlackMarketUnlock,
 		isBlackMarketUnlocked,
 		isSupportUrlConfigured,
-		weeklyShipmentRemainingMs,
 		type BlackMarketUnlockId,
 		type BlackMarketUnlocks,
 	} from '$lib/game/balance/blackMarket';
 	import { EnemyType, DEFAULT_SETTINGS, type TierId } from '$lib/game/engine/gameTypes';
-	import { ENEMY_TYPE_MODIFIERS, computeEnemyConfig, ENEMY_SHAPES } from '$lib/game/balance/balanceMath';
-	import { ENEMY_TYPE_LABELS, getMasteryProgress, MASTERY_REWARDS } from '$lib/game/balance/mastery';
-	import { BLUEPRINT_DEFS, isFoundryUpgradeUnlocked, isFieldUpgradeUnlocked, getBlueprintForFoundryUpgrade, getBlueprintForFieldUpgrade, getFieldUpgradesUnlockedBy, getFoundryUpgradesUnlockedBy, describeBlueprintDiscovery } from '$lib/game/balance/blueprints';
-	import { getBlueprintStatus } from '$lib/game/progression/blueprintDiscovery';
+	import { BLUEPRINT_DEFS, isFieldUpgradeUnlocked } from '$lib/game/balance/blueprints';
 	import {
 		generateCommandOrders,
 		rolloverCommandOrders,
-		getActiveOrders,
-		getCompletedOrders,
-		isOrderComplete,
 		claimOrder,
 		claimAllCompletedOrders,
-		claimableMilestones,
 		claimMilestone,
-		nextMilestone,
 		commandOrdersWeekKey,
 		shouldRefreshBoard,
 		refreshBoard,
-		boardRefreshRemainingMs,
-		formatRefreshCountdown,
-		COMMAND_ORDERS_MAX_PER_WEEK,
-		GIFT_BOX_REWARDS,
 		type CommandOrderInstance,
 		type CommandOrdersState,
 	} from '$lib/game/balance/commandOrders';
@@ -79,14 +61,13 @@
 		syncLocalIdentity,
 		type LocalPlayerIdentity
 	} from '$lib/online/localIdentity';
-	import { communityBuffStore, formatCommunityBuffPercent, type CommunityBuffState } from '$lib/online/communityBuffClient';
+	import { communityBuffStore, type CommunityBuffState } from '$lib/online/communityBuffClient';
 	import { accountStore, registerAccount, loginAccount, logoutAccount, type AccountInfo } from '$lib/online/accountClient';
 	import { fetchCloudSaveMeta, fetchCloudSaveFull, uploadCloudSave, type CloudSaveMetadata } from '$lib/online/cloudSaveClient';
 	import { getSupportCode } from '$lib/online/supportCode';
 	import { APP_VERSION } from '$lib/version';
 	import { CURRENT_SCHEMA_VERSION } from '$lib/game/save/saveTypes';
 	import { page } from '$app/state';
-	import { isValidUsername, isValidPassword, isValidDisplayName } from '$lib/online/authValidation';
 	import Icon from '$lib/components/Icon.svelte';
 	import SettingsSection from '$lib/components/hub/SettingsSection.svelte';
 	import SimulationSection from '$lib/components/hub/SimulationSection.svelte';
@@ -100,28 +81,16 @@
 	import BlackMarketSection from '$lib/components/hub/BlackMarketSection.svelte';
 	import ProfileSection from '$lib/components/hub/ProfileSection.svelte';
 
-	function formatPlayTime(totalSeconds: number): string {
-		if (totalSeconds <= 0) return '0s';
-		const h = Math.floor(totalSeconds / 3600);
-		const m = Math.floor((totalSeconds % 3600) / 60);
-		if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
-		if (m > 0) return `${m}m`;
-		const s = totalSeconds % 60;
-		return `${s}s`;
-	}
-
 	let coins = $state(0);
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
 	let activeSection = $state<'workshop' | 'orders' | 'lab' | 'blueprints' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings' | 'profile'>('workshop');
 	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
-	const BUY_MULTIPLIERS = [1, 5, 10, 50, 'max'] as const;
 	let workshopLevels = $state<Partial<Record<WorkshopUpgradeId, number>>>({});
 	let forgeLevels = $state<Partial<Record<UpgradeId, number>>>({});
 	let commandOrdersState = $state<CommandOrdersState>({ week: '', completedCount: 0, claimedOrderSlots: [], claimedMilestones: [], counters: {}, boardRefreshedAt: 0 });
 	let commandOrderPool = $state<CommandOrderInstance[]>([]);
-	let showCompletedOrders = $state(true);
 	let labLevels = $state<Record<string, number>>({});
 	let hubStats = $state({ bestKillstreak: 0, totalKills: 0, totalBossesDefeated: 0, totalShiniesKilled: 0, totalAlloyEarned: 0 });
 
@@ -177,7 +146,6 @@
 	let bmDailyFlavour = $state(blackMarketCopy.dailyPickup());
 	let bmChannelIntro = $state(blackMarketCopy.channelIntro());
 	let activeLabId = $state<string | null>(null);
-	let activeLabFinish = $state<number>(0);
 	let activeLabTarget = $state<number>(0);
 	let labProgressPct = $state(0);
 	let labProgressTimer: ReturnType<typeof setInterval> | null = null;
@@ -199,16 +167,6 @@
 		bmShipmentFlavour = blackMarketCopy.shipmentFlavour();
 		bmDailyFlavour = blackMarketCopy.dailyPickup();
 		bmChannelIntro = blackMarketCopy.channelIntro();
-	}
-
-	function formatDuration(ms: number): string {
-		const totalMinutes = Math.ceil(Math.max(0, ms) / 60000);
-		const days = Math.floor(totalMinutes / 1440);
-		const hours = Math.floor((totalMinutes % 1440) / 60);
-		const minutes = totalMinutes % 60;
-		if (days > 0) return `${days}d ${hours}h`;
-		if (hours > 0) return `${hours}h ${minutes}m`;
-		return `${minutes}m`;
 	}
 
 	function grantStrangeMatter(save: NonNullable<ReturnType<typeof getCachedSave>>, amount: number) {
@@ -348,7 +306,6 @@
 		if (save.activeLab) {
 			activeLabId = save.activeLab.labId;
 			activeLabTarget = save.activeLab.targetLevel;
-			activeLabFinish = save.activeLab.finishesAt;
 			const now = Date.now();
 			const total = save.activeLab.finishesAt - save.activeLab.startedAt;
 			const elapsed = now - save.activeLab.startedAt;
@@ -356,13 +313,10 @@
 		} else {
 			activeLabId = null;
 			activeLabTarget = 0;
-			activeLabFinish = 0;
 			labProgressPct = 0;
 		}
 	}
 
-	function isBlueprintOwned(id: BlueprintId): boolean { return ownedBlueprints.includes(id); }
-	function isBlueprintDiscovered(id: BlueprintId): boolean { return discoveredBlueprints.includes(id); }
 	/** Reconstruct (unlock) an upgrade path by spending its Front's Schematics. */
 	function buyBlueprint(id: BlueprintId) {
 		const save = getCachedSave(); if (!save) return;
@@ -435,61 +389,6 @@
 	let regSuccessOkBtnEl = $state<HTMLButtonElement | null>(null);
 	let regSuccessDialogEl = $state<HTMLDivElement | null>(null);
 
-	// Validation checks
-	const regUsernameTrimmed = $derived(regUsername.trim());
-	const regUsernameValid = $derived(isValidUsername(regUsername));
-	const showRegUsernameWarn = $derived(regUsername.length > 0 && !regUsernameValid);
-
-	const regPasswordValid = $derived(isValidPassword(regPassword));
-	const showRegPasswordWarn = $derived(regPassword.length > 0 && !regPasswordValid);
-
-	const regConfirmMatch = $derived(regPassword === regConfirm);
-	const showRegConfirmWarn = $derived(regConfirm.length > 0 && !regConfirmMatch);
-
-	const regDisplayNameValid = $derived(isValidDisplayName(regDisplayName));
-	const showRegDisplayNameWarn = $derived(regDisplayName.length > 0 && !regDisplayNameValid);
-
-	const canSubmitRegister = $derived(
-		regUsernameValid && 
-		regPasswordValid && 
-		regConfirmMatch && 
-		regDisplayNameValid && 
-		!authBusy
-	);
-
-	const canSubmitLogin = $derived(
-		loginUsername.trim().length > 0 &&
-		loginPassword.length > 0 &&
-		!authBusy
-	);
-
-	const localProfileNameValid = $derived(isValidDisplayName(localProfileName));
-	const showLocalProfileNameWarn = $derived(localProfileName.length > 0 && !localProfileNameValid);
-
-	// Password strength heuristic
-	function getPasswordStrength(p: string): { score: number; label: string; color: string } {
-		if (p.length === 0) return { score: 0, label: '', color: '' };
-		if (p.length < 10) return { score: 1, label: 'Too short', color: 'var(--red)' };
-		
-		let score = 2;
-		const hasUpper = /[A-Z]/.test(p);
-		const hasLower = /[a-z]/.test(p);
-		const hasDigit = /[0-9]/.test(p);
-		const hasSpecial = /[^A-Za-z0-9]/.test(p);
-		
-		const varieties = [hasUpper, hasLower, hasDigit, hasSpecial].filter(Boolean).length;
-		if (varieties >= 3 && p.length >= 12) {
-			score = 4;
-		} else if (varieties >= 2 || p.length >= 12) {
-			score = 3;
-		}
-		
-		if (score === 2) return { score, label: 'Weak', color: 'var(--orange)' };
-		if (score === 3) return { score, label: 'Medium', color: 'var(--yellow)' };
-		return { score, label: 'Strong', color: 'var(--green)' };
-	}
-	const regPasswordStrength = $derived(getPasswordStrength(regPassword));
-
 	// Cloud status derived info
 	const cloudSyncStatus = $derived.by(() => {
 		if (!cloudChecked) return { type: 'info', text: 'Cloud status not checked yet.', icon: '🛰️', color: 'var(--text-dim)' };
@@ -532,20 +431,6 @@
 			}
 		}
 	});
-
-	function switchAuthMode(mode: 'login' | 'register') {
-		authMode = mode;
-		authError = null;
-		loginUsername = '';
-		loginPassword = '';
-		regUsername = '';
-		regDisplayName = '';
-		regPassword = '';
-		regConfirm = '';
-		showLoginPassword = false;
-		showRegPassword = false;
-		showRegConfirm = false;
-	}
 
 	async function openImportDialog() {
 		showImportDialog = true;
@@ -836,7 +721,6 @@
 		return () => { u1(); u2(); u3(); u4(); u5(); u6(); if (labProgressTimer) clearInterval(labProgressTimer); if (clockTimer) clearInterval(clockTimer); toasts.clear(); };
 	});
 
-	function wLv(id: WorkshopUpgradeId): number { return workshopLevels[id] ?? 0; }
 	function buyWorkshopUpgrade(id: WorkshopUpgradeId) {
 		const save = getCachedSave(); if (!save) return;
 		const upgrade = WORKSHOP_UPGRADES.find(u => u.id === id);
@@ -868,11 +752,6 @@
 	}
 
 	// ─── Combat Forge (shared Field-upgrade curve) ───────────────────────────
-	function fLv(id: UpgradeId): number { return forgeLevels[id] ?? 0; }
-	/** Permanent value at a Forge level, formatted like the in-run Field card. */
-	function forgeValueLabel(id: UpgradeId, level: number): string {
-		return formatBattleEffect(id, getForgeUpgradeEffect(id, level));
-	}
 	function buyForgeUpgrade(id: UpgradeId) {
 		const save = getCachedSave(); if (!save) return;
 		const upgrade = FORGE_UPGRADES.find(u => u.id === id);
@@ -998,8 +877,6 @@
 		toast('🔬 Started ' + def.name + ' Lv.' + (lv + 1) + ' — ' + formatLabDuration(duration), 'success');
 	}
 
-	function lLv(id: string): number { return labLevels[id] ?? 0; }
-
 	/** Toggle a boolean setting and persist it. Used by both click and keyboard. */
 	function toggleSetting(key: keyof GameSettings) {
 		const save = getCachedSave(); if (!save) return;
@@ -1013,8 +890,6 @@
 			Notification.requestPermission().catch(() => {});
 		}
 	}
-
-	const settingsList = []; // Kept empty or removed if unused, svelte-check will flag if needed. We will clean up settingsList later.
 
 	const allSections = [
 		{ id: 'workshop' as const, label: 'Forge', icon: '⚙' },
@@ -1082,10 +957,6 @@
 		if (showUploadConfirm) tick().then(() => uploadConfirmDialogEl?.focus());
 		if (showRestoreConfirm) tick().then(() => restoreConfirmDialogEl?.focus());
 	});
-
-	function getChallengeName(id: string): string {
-		return CHALLENGES.find(c => c.id === id)?.name ?? id;
-	}
 
 	$effect(() => {
 		if (!bmUnlocked && activeSection === 'blackMarket') {
@@ -1491,28 +1362,10 @@
 	.hub-nav-btn.on { color:var(--cyan); background:rgba(0,255,255,.06); }
 	.hub-nav-btn:hover:not(.on) { color:var(--text-primary); background:rgba(255,255,255,.03); }
 	.hub-content { flex:1; min-width:0; max-width:1000px; }
-	.hs { animation:fi .2s ease; }
-	.hst { font-size:var(--fs-heading); color:var(--cyan); margin-bottom:.4rem; }
-	.hsd { color:var(--text-secondary); font-size:var(--fs-body); margin-bottom:1.25rem; line-height:1.6; }
-	.empty-flavor { color:var(--text-dim); font-family:var(--font-mono); font-size:var(--fs-mono-sm); line-height:1.5; margin:0 0 1rem; padding:.6rem .8rem; border:1px dashed var(--border-neon); border-radius:var(--radius-sm); background:rgba(0,255,255,.03); }
 	.hub-action { padding:.55rem 1.2rem; font-size:var(--fs-body-sm); border-radius:var(--radius-sm); background:transparent; border:1px solid var(--border-neon); color:var(--text-secondary); cursor:pointer; transition:all var(--transition-fast); margin-right:.5rem; }
 	.hub-action:hover { border-color:var(--cyan); color:var(--text-primary); }
 	.hub-action:disabled { opacity:.45; cursor:default; pointer-events:none; }
-	.hub-danger:hover { border-color:var(--red); color:var(--red); }
-	.bm-ledger { display:grid; gap:3px; max-width:420px; margin-bottom:1rem; }
-	.bm-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; margin-bottom:1rem; }
-	.bm-copy { max-width:760px; color:rgba(210,190,255,.78); text-shadow:0 0 14px rgba(136,68,255,.08); }
-	.bm-panel { padding:.85rem 1rem; background:linear-gradient(135deg,rgba(136,68,255,.055),rgba(0,0,0,.08)),var(--bg-tertiary); border:1px solid rgba(136,68,255,.22); border-radius:var(--radius-sm); box-shadow:inset 0 0 18px rgba(0,0,0,.18); }
-	.bm-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.65rem; }
 	.bm-primary { border-color:rgba(0,255,255,.35); color:var(--cyan); }
-	.converter { margin-top:1rem; max-width:760px; }
-
-	/* Black Market header styling */
-	.bm-layout { border:1px solid rgba(136,68,255,.15); border-radius:var(--radius-md); padding:1.15rem 1.25rem; background:linear-gradient(180deg,rgba(136,68,255,.04),rgba(0,0,0,.06)),var(--bg-secondary); }
-	.bm-header-bar { display:flex; align-items:baseline; gap:.65rem; flex-wrap:wrap; margin-bottom:.5rem; }
-	.bm-header-title { color:rgba(210,190,255,.85); text-shadow:0 0 18px rgba(136,68,255,.18); }
-	.bm-header-sub { font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:.65; text-transform:uppercase; letter-spacing:.04em; }
-	.bm-pickup-copy { color:var(--text-secondary); font-style:italic; }
 
 	/* Signal icon in header */
 	.bm-signal { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; margin-left:.35rem; padding:0; border:1px solid var(--border-neon); border-radius:50%; background:transparent; color:var(--text-dim); font-size:1.1rem; cursor:pointer; transition:all var(--transition-fast); flex-shrink:0; }
@@ -1544,102 +1397,15 @@
 	.bm-intro-support { color:var(--text-dim); font-size:var(--fs-caption-sm); }
 	.bm-intro-open { background:linear-gradient(135deg,rgba(136,68,255,.7),rgba(100,30,200,.7)); border-color:rgba(136,68,255,.5); }
 	.bm-intro-open:hover { box-shadow:0 0 16px rgba(136,68,255,.4); }
-	.buy-mult { display:flex; align-items:center; gap:2px; margin-bottom:.5rem; }
-	.mult-label { font-size:var(--fs-caption-sm); color:var(--text-dim); font-family:var(--font-mono); margin-right:.2rem; }
-	.mult-btn { padding:.15rem .4rem; font-size:var(--fs-caption-sm); font-family:var(--font-mono); color:var(--text-dim); border-radius:4px; background:rgba(0,0,0,.12); border:1px solid transparent; cursor:pointer; transition:all var(--transition-fast); }
-	.mult-btn:hover { color:var(--text-secondary); border-color:var(--border-neon); }
-	.mult-btn.on { color:var(--cyan); background:rgba(0,255,255,.1); border-color:rgba(0,255,255,.25); }
-
-	/* Forge/Research upgrade cards */
-	.ug { display:flex; flex-direction:column; gap:4px; max-width:800px; }
-	.uc { display:flex; flex-direction:column; gap:.15rem; padding:.72rem .8rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition-fast); text-align:left; width:100%; }
-	.uc.aff { border-color:rgba(68,255,136,.25); }
-	.uc.aff:hover { border-color:var(--cyan); background:rgba(0,255,255,.05); }
-	.uc.mx { opacity:.5; cursor:default; }
-	.uc:disabled:not(.mx) { opacity:.65; cursor:default; }
-	.uc-t { display:flex; align-items:center; gap:.35rem; }
-	.uci { font-size:var(--fs-mono-lg); flex-shrink:0; }
-	.ucn { flex:1; font-size:var(--fs-mono-lg); font-weight:500; color:var(--text-primary); }
-	.ucl { font-size:var(--fs-mono-sm); font-family:var(--font-mono); color:var(--text-secondary); }
-	.uc-btr { height:4px; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
-	.uc-btf { height:100%; background:linear-gradient(90deg,var(--cyan),var(--blue)); border-radius:2px; transition:width var(--transition-normal); }
-	.uc.aff .uc-btf { background:linear-gradient(90deg,var(--green),var(--cyan)); }
-	.uc-b { display:flex; align-items:center; gap:.35rem; font-size:var(--fs-mono); }
-	.ucc { font-family:var(--font-mono); color:var(--yellow); }
-	.ucnx { margin-left:auto; color:var(--text-secondary); font-family:var(--font-mono); }
-	.uc.aff .ucnx { color:var(--green); }
-	/* Forge combat card — prominent current starting value, like the Field card */
-	.uc-val { font-size:var(--fs-mono-lg); color:var(--text-primary); font-family:var(--font-mono); font-weight:600; padding:.02rem 0; }
-	.uc.aff .uc-val { color:var(--green); }
-	.forge-sub { font-size:var(--fs-mono-sm); font-family:var(--font-mono); color:var(--text-secondary); text-transform:uppercase; letter-spacing:.05em; margin:.6rem 0 .3rem; }
-	.forge-sub:first-of-type { margin-top:.2rem; }
-	.completed-toggle { margin-top:1rem; display:flex; align-items:center; gap:.35rem; width:100%; padding:0; background:transparent; border:0; text-align:left; cursor:pointer; }
-	.completed-toggle:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; border-radius:var(--radius-sm); }
-	/* Daily Orbital Command tasks */
-	.gift-row { display:flex; flex-wrap:wrap; gap:.4rem; margin:.5rem 0; }
-	.gift-btn { background:linear-gradient(135deg,var(--yellow),var(--orange)); color:var(--bg-primary); font-weight:600; }
-	.task-card.aff { border-color:rgba(68,255,136,.4); background:rgba(68,255,136,.04); }
-	.task-claim { padding:.2rem .6rem; margin-left:auto; background:linear-gradient(135deg,var(--green),var(--cyan)); color:var(--bg-primary); font-weight:600; font-size:var(--fs-mono-sm); border-radius:var(--radius-sm); }
-	.orders-footer { margin-top:.6rem; font-size:var(--fs-caption-sm); color:var(--text-dim); font-style:italic; }
-	.lc { gap:.25rem; }
-	.uc.researching { border-color:rgba(255,221,68,.3); background:rgba(255,221,68,.03); }
-	.rs-bar-track { height:5px; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
-	.rs-bar-fill { height:100%; background:linear-gradient(90deg,var(--yellow),var(--orange)); border-radius:2px; transition:width .5s linear; }
-	.rs-info { font-size:var(--fs-caption-sm); color:var(--yellow); font-family:var(--font-mono); text-align:center; }
-	.rs-btn { display:block; width:100%; margin-top:.25rem; padding:.4rem; font-size:var(--fs-body-sm); border-radius:var(--radius-sm); font-weight:600; cursor:pointer; transition:all var(--transition-fast); text-align:center; }
-	.rs-btn.aff { background:linear-gradient(135deg,var(--cyan),var(--blue)); color:var(--bg-primary); }
-	.rs-btn:disabled { opacity:.55; background:var(--bg-tertiary); color:var(--text-dim); cursor:default; }
-	.cl { display:flex; flex-direction:column; gap:.5rem; max-width:800px; }
-	.tc,.cc { padding:.75rem .85rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
-	.tc.unl { border-color:rgba(68,255,136,.12); } .cc.lck { opacity:.55; }
-	.tc-h,.cc-h { display:flex; gap:.5rem; align-items:flex-start; }
-	.cci { font-size:var(--fs-icon-lg); flex-shrink:0; margin-top:2px; }
-	.tcn,.ccn { font-size:var(--fs-body-sm); color:var(--text-primary); font-weight:500; margin-bottom:.1rem; }
-	.tcd,.ccd { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.45; }
-	.tcr,.ccs,.ccl,.ccl-found { font-size:var(--fs-caption-sm); color:var(--text-secondary); font-family:var(--font-mono); margin-top:.25rem; padding:.15rem .4rem; background:rgba(0,0,0,.12); border-radius:3px; display:inline-block; }
-	.ccl-found { color:var(--cyan); background:rgba(0,255,255,.08); }
-	.schem-bal { display:flex; flex-wrap:wrap; gap:.4rem; margin:.4rem 0 .8rem; }
-	.schem-chip { display:inline-flex; align-items:center; gap:.25rem; font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-secondary); background:rgba(0,0,0,.18); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.15rem .4rem; }
-	.tcr-ok { color:var(--green); } .ccs { color:var(--green); }
-	.ig { display:grid; gap:3px; max-width:600px; }
-	.ir { display:flex; justify-content:space-between; padding:.4rem .55rem; font-size:var(--fs-mono); border-radius:3px; }
-	.ir:nth-child(odd) { background:rgba(0,0,0,.1); }
-	.il { color:var(--text-secondary); } .iv { color:var(--text-primary); font-family:var(--font-mono); font-weight:500; }
-	.local-profile { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,320px); gap:1rem; max-width:800px; margin-bottom:1rem; padding:.85rem; background:rgba(0,0,0,.14); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
-	.local-profile h3 { margin:0 0 .25rem; font-size:var(--fs-body); color:var(--text-primary); font-family:var(--font-display); }
-	.local-profile p { margin:.15rem 0; color:var(--text-secondary); font-size:var(--fs-caption); line-height:1.35; }
-	.local-profile-form { display:flex; flex-direction:column; gap:.35rem; }
-	.local-profile-label { color:var(--text-secondary); font-size:var(--fs-caption); font-family:var(--font-mono); }
-	.local-profile-row { display:flex; gap:.45rem; align-items:center; }
-	.local-profile-row input { min-width:0; flex:1; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.45rem .55rem; font:inherit; }
-	.local-profile-row .hub-action { margin:0; }
-	.local-profile-status { display:flex; justify-content:space-between; gap:.5rem; color:var(--text-dim); font-size:var(--fs-caption-sm); font-family:var(--font-mono); }
-
-	/* Community Alloy Boost widget */
-	.community-buff { display:flex; align-items:center; gap:.6rem; max-width:760px; margin-bottom:1rem; padding:.6rem .8rem; background:linear-gradient(135deg,rgba(0,255,136,.05),rgba(0,0,0,.04)); border:1px solid rgba(0,255,136,.22); border-radius:var(--radius-sm); }
-	.cb-icon { font-size:var(--fs-mono-lg); }
-	.cb-title { font-size:var(--fs-body-sm); color:var(--text-primary); font-family:var(--font-display); }
-	.cb-pct { color:var(--green); font-family:var(--font-mono); margin-left:.25rem; }
-	.cb-desc { font-size:var(--fs-caption-sm); color:var(--text-secondary); margin-top:.1rem; }
 
 	/* Support code + account + cloud save panels */
-	.support-code, .account-panel, .cloud-section { max-width:760px; margin-top:1rem; padding:.85rem 1rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
-	.support-code h3, .account-panel h3, .cloud-section h4 { margin:0 0 .35rem; font-size:var(--fs-body); color:var(--text-primary); font-family:var(--font-display); }
-	.support-code p, .account-panel p, .cloud-section p { margin:.15rem 0; color:var(--text-secondary); font-size:var(--fs-caption); line-height:1.5; }
-	.sc-note, .cloud-desc { color:var(--text-dim); font-size:var(--fs-caption-sm); }
+	.support-code { max-width:760px; margin-top:1rem; padding:.85rem 1rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
+	.support-code h3 { margin:0 0 .35rem; font-size:var(--fs-body); color:var(--text-primary); font-family:var(--font-display); }
+	.support-code p { margin:.15rem 0; color:var(--text-secondary); font-size:var(--fs-caption); line-height:1.5; }
+	.sc-note { color:var(--text-dim); font-size:var(--fs-caption-sm); }
 	.sc-row { display:flex; align-items:center; gap:.5rem; margin:.4rem 0 .2rem; }
 	.sc-code { font-family:var(--font-mono); font-size:var(--fs-mono); color:var(--cyan); background:rgba(0,0,0,.3); padding:.3rem .55rem; border-radius:var(--radius-sm); border:1px solid var(--border-neon); user-select:all; }
 	.sc-owner { color:var(--text-dim); font-size:var(--fs-caption-sm); font-family:var(--font-mono); }
-	.acct-status { color:var(--text-secondary); font-size:var(--fs-caption); }
-	.auth-tabs { display:flex; gap:.25rem; margin:.5rem 0; }
-	.auth-tab { padding:.35rem .9rem; font-size:var(--fs-caption); color:var(--text-secondary); background:transparent; border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; }
-	.auth-tab.on { color:var(--cyan); border-color:var(--cyan); background:rgba(0,255,255,.06); }
-	.auth-form { display:flex; flex-direction:column; gap:.4rem; max-width:340px; }
-	.auth-form .local-profile-label input, .auth-form input { display:block; margin-top:.2rem; width:100%; box-sizing:border-box; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.4rem .55rem; font-family:var(--font-mono); font-size:var(--fs-mono-sm); }
-	.auth-err, .cloud-err { color:var(--red); font-size:var(--fs-caption-sm); margin:.25rem 0; }
-	.cloud-meta { display:grid; gap:3px; margin:.5rem 0; }
-	.cloud-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.35rem; }
-	.cloud-actions .hub-action { margin:0; }
 
 
 	.overlay { position:fixed; inset:0; background:rgba(7,8,18,.85); display:flex; align-items:center; justify-content:center; z-index:200; padding:1rem; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); animation:fi .2s ease; }
@@ -1654,97 +1420,16 @@
 	.dlg-dng-btn { background:var(--red); color:white; }
 	.dlg-dng { border-color:rgba(255,68,68,.2); }
 	@keyframes fi { from{opacity:0} to{opacity:1} }
-	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:flex;flex-direction:row;align-items:center;overflow-x:auto;gap:.4rem;width:auto;padding-bottom:.25rem;scrollbar-width:thin;scrollbar-color:rgba(0,255,255,.35) transparent;mask-image: linear-gradient(to right, black 85%, transparent 100%);-webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%)} .hub-nav-btn{flex-shrink:0;width:auto;white-space:nowrap;text-align:center;padding:.55rem .75rem;font-size:var(--fs-body-sm)} .hub-nav .bm-locked-teaser{flex-shrink:0;white-space:nowrap} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.bm-grid{grid-template-columns:1fr}.hub-coins{font-size:var(--fs-mono)} .local-profile{grid-template-columns:1fr}.local-profile-status{flex-direction:column;gap:.25rem} }
+	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:flex;flex-direction:row;align-items:center;overflow-x:auto;gap:.4rem;width:auto;padding-bottom:.25rem;scrollbar-width:thin;scrollbar-color:rgba(0,255,255,.35) transparent;mask-image: linear-gradient(to right, black 85%, transparent 100%);-webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%)} .hub-nav-btn{flex-shrink:0;width:auto;white-space:nowrap;text-align:center;padding:.55rem .75rem;font-size:var(--fs-body-sm)} .hub-nav .bm-locked-teaser{flex-shrink:0;white-space:nowrap} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.hub-coins{font-size:var(--fs-mono)} }
 	@media(max-width:380px){ .hub-nav-btn{font-size:var(--fs-caption);padding:.5rem .6rem} }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:var(--fs-caption); display:flex; flex-direction:column; gap:.4rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
 	.hub-footer-flavor { font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:0.35; margin:0; }
 	.hub-footer-links { display:flex; gap:.4rem; align-items:center; }
 	.hub-footer-links a { color:var(--cyan); text-decoration:underline; text-underline-offset:3px; text-decoration-color:rgba(0,255,255,.2); }
-	/* ── Archives / Mastery ─────────────────────────────── */
-	.stats-sub { margin:.9rem 0 .45rem; font-size:var(--fs-body); color:var(--text-primary); font-family:var(--font-display); }
-	.mastery-list { display:grid; gap:.45rem; max-width:800px; }
-	.mastery-card { padding:.65rem .75rem; background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
-	.mastery-header { display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; margin-bottom:.35rem; }
-	.mastery-name { color:var(--text-primary); font-weight:600; font-size:var(--fs-body-sm); }
-	.mastery-level,.mastery-bonus { font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--text-secondary); padding:.1rem .35rem; border-radius:3px; background:rgba(0,0,0,.16); }
-	.mastery-level.maxed,.mastery-bonus { color:var(--cyan); }
-	.mastery-kills { display:flex; align-items:center; gap:.55rem; min-height:1.2rem; font-size:var(--fs-caption); }
-	.mastery-shiny { color:var(--yellow); font-family:var(--font-mono); }
-	.mastery-bar-track { height:5px; margin:.35rem 0; background:rgba(0,0,0,.3); border-radius:2px; overflow:hidden; }
-	.mastery-bar-fill { height:100%; background:linear-gradient(90deg,var(--cyan),var(--green)); border-radius:2px; transition:width var(--transition-normal); }
-	.mastery-rewards { display:flex; gap:.25rem; }
-	.mastery-pip { width:22px; height:22px; display:grid; place-items:center; border:1px solid var(--border-neon); border-radius:3px; color:var(--text-dim); font-family:var(--font-mono); font-size:var(--fs-caption-sm); }
-	.mastery-pip.earned { color:var(--yellow); border-color:rgba(255,221,68,.35); }
-	.mastery-pip.claimed { color:var(--green); border-color:rgba(68,255,136,.35); background:rgba(68,255,136,.06); }
-
-	/* Auth input wrappers with prefix icons and visibility toggles */
-	.auth-input-wrapper { display:flex; align-items:center; background:var(--bg-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); position:relative; margin-top:.2rem; width:100%; box-sizing:border-box; }
-	.auth-input-wrapper:focus-within { border-color:var(--cyan); box-shadow:0 0 8px rgba(0,255,255,.25); }
-	:global(.auth-prefix-icon) { margin-left:.6rem; color:var(--text-dim); pointer-events:none; }
-	.auth-input-wrapper input { border:none !important; margin-top:0 !important; background:transparent !important; flex:1; min-width:0; padding:.45rem .55rem .45rem .45rem !important; }
-	.auth-input-wrapper input:focus { outline:none; }
-	.auth-suffix-btn { background:transparent; border:none; color:var(--text-dim); cursor:pointer; padding:0 .6rem; display:flex; align-items:center; justify-content:center; transition:color var(--transition-fast); }
-	.auth-suffix-btn:hover { color:var(--cyan); }
-
-	/* Form validation and password strength indicators */
-	.auth-hint-err { color:var(--red); font-size:var(--fs-caption-sm); margin-top:.2rem; display:block; line-height:1.3; }
-	.auth-hint-ok { color:var(--green); font-size:var(--fs-caption-sm); margin-top:.2rem; display:block; line-height:1.3; }
-	.strength-meter { display:flex; align-items:center; gap:.5rem; margin-top:.3rem; }
-	.strength-bar-track { flex:1; height:4px; background:rgba(255,255,255,.1); border-radius:2px; overflow:hidden; }
-	.strength-bar-fill { height:100%; transition:width var(--transition-fast), background-color var(--transition-fast); }
-	.strength-label { font-size:var(--fs-caption-sm); font-family:var(--font-mono); font-weight:600; min-width:65px; text-align:right; }
-
-	/* Forgot password and session hints */
-	.auth-forgot-password-wrap { display:flex; justify-content:flex-end; margin-top:.2rem; margin-bottom:.3rem; }
-	.auth-forgot-password-btn { background:transparent; border:none; color:var(--text-dim); font-size:var(--fs-caption-sm); font-family:var(--font-mono); text-decoration:underline; cursor:pointer; padding:0; transition:color var(--transition-fast); }
-	.auth-forgot-password-btn:hover { color:var(--cyan); }
-	.auth-session-hint { color:var(--text-dim); font-size:var(--fs-caption-sm); font-family:var(--font-mono); margin-top:.5rem; text-align:center; line-height:1.3; }
-
-	/* Primary action button style */
-	.btn-primary {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		padding: .55rem 1.2rem;
-		border-radius: var(--radius-sm);
-		font-weight: 700;
-		font-size: var(--fs-body-sm);
-		font-family: var(--font-display);
-		transition: all var(--transition-fast);
-		text-decoration: none;
-		cursor: pointer;
-		background: linear-gradient(135deg, var(--cyan), var(--blue));
-		color: var(--bg-primary);
-		border: none;
-		box-shadow: 0 0 12px rgba(0, 255, 255, 0.25);
-	}
-	.btn-primary:hover {
-		box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
-		transform: translateY(-1px);
-	}
-	.btn-primary:disabled {
-		opacity: .45;
-		cursor: default;
-		pointer-events: none;
-		box-shadow: none;
-		transform: none;
-	}
-
 	/* Top bar account badge */
 	.hub-top-account { display:inline-flex; align-items:center; gap:.35rem; font-family:var(--font-mono); font-size:var(--fs-caption); color:var(--text-secondary); background:rgba(255,255,255,.05); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.25rem .55rem; cursor:pointer; transition:all var(--transition-fast); margin-left:.5rem; }
 	.hub-top-account:hover { color:var(--cyan); border-color:var(--cyan); background:rgba(0,255,255,.05); }
 	.hub-top-username { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
-	/* Cloud status layout and collapsible details */
-	.cloud-status-block { display:flex; align-items:center; gap:.5rem; padding:.55rem .75rem; border:1px solid var(--border-neon); border-radius:var(--radius-sm); margin-bottom:.75rem; font-size:var(--fs-body-sm); }
-	.cloud-status-icon { font-size:var(--fs-body); }
-	.cloud-status-text { font-family:var(--font-display); font-weight:500; }
-	.cloud-details { border:1px solid var(--border-neon); border-radius:var(--radius-sm); margin-bottom:.75rem; background:rgba(0,0,0,.1); }
-	.cloud-details summary { padding:.5rem .75rem; font-size:var(--fs-body-sm); font-family:var(--font-display); cursor:pointer; color:var(--text-secondary); user-select:none; }
-	.cloud-details summary:hover { color:var(--cyan); }
-	.cloud-details[open] summary { border-bottom:1px solid var(--border-neon); }
-	.cloud-details .cloud-meta { margin:0; padding:.3rem 0; }
 
 	/* Back-to-top button */
 	.back-to-top {

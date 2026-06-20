@@ -2,7 +2,7 @@
 	import { formatCommunityBuffPercent } from '$lib/online/communityBuffClient';
 	import { APP_VERSION } from '$lib/version';
 	import { CURRENT_SCHEMA_VERSION } from '$lib/game/save/saveTypes';
-	import { isValidUsername, isValidDisplayName } from '$lib/online/authValidation';
+	import { isValidUsername, isValidPassword, isValidDisplayName } from '$lib/online/authValidation';
 	import Icon from '$lib/components/Icon.svelte';
 	import { tooltip } from '$lib/components/tooltip';
 	import type { LocalPlayerIdentity } from '$lib/online/localIdentity';
@@ -107,7 +107,7 @@
 	let showRegConfirmWarn = $derived(regConfirm.length > 0 && !regConfirmMatch);
 
 	let canSubmitLogin = $derived(loginUsername.trim().length > 0 && loginPassword.trim().length > 0 && !authBusy);
-	let canSubmitRegister = $derived(regUsernameValid && regDisplayNameValid && regPassword.length >= 10 && regConfirmMatch && !authBusy);
+	let canSubmitRegister = $derived(regUsernameValid && regDisplayNameValid && isValidPassword(regPassword) && regConfirmMatch && !authBusy);
 
 	// Password strength heuristic
 	function getPasswordStrength(p: string): { score: number; label: string; color: string } {
@@ -443,8 +443,6 @@
 	.btn-primary:hover { box-shadow:0 0 10px rgba(0,255,255,0.4); }
 	.btn-primary:disabled { opacity:.45; cursor:default; pointer-events:none; }
 	
-	.bm-primary { border-color:rgba(0,255,255,.35); color:var(--cyan); }
-
 	@media(max-width:767px){
 		.local-profile { grid-template-columns:1fr; }
 		.local-profile-status { flex-direction:column; gap:.25rem; }
