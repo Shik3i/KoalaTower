@@ -1789,6 +1789,21 @@
 							<p class="acct-status">Checking account status…</p>
 						{/if}
 					</div>
+
+					<div class="support-code">
+						<h3>Supporter Identity</h3>
+						<p class="sc-desc">Paste this code into your Ko-fi message if you support Flatland TD and want future supporter cosmetics or badges linked to your game profile.</p>
+						<p class="sc-note">The Community Alloy Boost applies to everyone even without a code. Register first if you want future supporter rewards to survive browser data deletion.</p>
+						{#if supportCode}
+							<div class="sc-row">
+								<code class="sc-code">{supportCode.code}</code>
+								<button class="hub-action" onclick={copySupportCode}>{supportCodeCopied ? 'Copied' : 'Copy'}</button>
+							</div>
+							<p class="sc-owner">{supportCode.ownerType === 'account' ? '✓ Linked to your account.' : 'Local anonymous identity — register above to make it account-linked.'}</p>
+						{:else}
+							<p class="sc-owner">Generating…</p>
+						{/if}
+					</div>
 				</div>
 			{:else if activeSection === 'settings'}
 				<div class="hs"><h2 class="hst">⚙ Systems</h2>
