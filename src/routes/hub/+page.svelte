@@ -96,6 +96,7 @@
 	import ChallengesSection from '$lib/components/hub/ChallengesSection.svelte';
 	import OrdersSection from '$lib/components/hub/OrdersSection.svelte';
 	import WorkshopSection from '$lib/components/hub/WorkshopSection.svelte';
+	import LabSection from '$lib/components/hub/LabSection.svelte';
 
 	function formatPlayTime(totalSeconds: number): string {
 		if (totalSeconds <= 0) return '0s';
@@ -1186,52 +1187,15 @@
 					{claimAllCompleted}
 				/>
 			{:else if activeSection === 'lab'}
-				<div class="hs"><h2 class="hst">🔬 Research Deck</h2><p class="hsd">Time-based orbital research projects. Each level grants a permanent multiplicative bonus. Research continues offline. Only one project can be active at a time. Research continues offline because the scientists have been locked in. For their own safety.</p>
-					{#if !activeLabId}
-						<p class="empty-flavor">🔬 Research deck idle. Suspiciously quiet. Start a project below — it keeps running even while you're offline.</p>
-					{/if}
-					<div class="ug">
-						{#each LAB_DEFS as lab}
-							{@const unlocked = isLabUnlocked(lab, highestWave)}
-							{@const lv = lLv(lab.id)}
-							{@const cost = getLabCost(lab.id, lv)}
-							{@const duration = getLabDuration(lab.id, lv)}
-							{@const aff = coins >= cost}
-							{@const mx = lv >= lab.maxLevel}
-							{@const isResearching = activeLabId === lab.id}
-							{@const currMult = 1 + getLabEffect(lab.id, lv)}
-							{@const hasActive = !!activeLabId}
-							{@const lockedDisplay = '🔒 Reach Wave ' + lab.unlockWave}
-							<div class="uc lc" class:locked={!unlocked} class:researching={isResearching} class:mx={mx && unlocked}
-								use:tooltip={!unlocked
-									? `🔒 ${lab.name}\nUnlocks at Wave ${lab.unlockWave}.\nReach it on any Front to begin research.`
-									: mx
-										? `${lab.name} — MAXED\nCurrent: ×${currMult.toFixed(2)} multiplier`
-										: isResearching
-											? `${lab.name}\nResearching Lv.${activeLabTarget}…\nResearch continues even while you are offline.`
-											: `${lab.name}\nCurrent: ×${currMult.toFixed(2)} multiplier\nNext (Lv.${lv + 1}): ×${(1 + getLabEffect(lab.id, lv + 1)).toFixed(2)}\nCost: ${formatCompact(cost)} Alloy · takes ${formatLabDuration(duration)}${hasActive ? '\nAnother project is already running.' : ''}`}>
-								<div class="uc-t"><span class="uci">{unlocked ? lab.icon : '🔒'}</span><span class="ucn">{lab.name}</span><span class="ucl">{unlocked ? 'Lv.' + lv : lockedDisplay}</span></div>
-								{#if unlocked}
-									<div class="uc-btr"><div class="uc-btf" style="width:{Math.min(100, (lv / lab.maxLevel) * 100)}%"></div></div>
-									<div class="uc-eff">×{currMult.toFixed(2)} multiplier</div>
-									{#if isResearching}
-										<div class="rs-bar-track"><div class="rs-bar-fill" style="width:{labProgressPct}%"></div></div>
-										<div class="rs-info">Researching Lv.{activeLabTarget} — {labProgressPct.toFixed(0)}%</div>
-									{:else if mx}
-										<div class="rs-info">MAXED</div>
-									{:else}
-										<button class="uc-b rs-btn" class:aff={aff && !hasActive} disabled={!aff || hasActive} onclick={() => startLabResearch(lab.id)}>
-											<span class="ucc">🔩{formatCompact(cost)}</span>
-											<span class="ucnx">{hasActive ? 'BUSY' : '→ ' + formatLabDuration(duration)}</span>
-										</button>
-									{/if}
-								{:else}
-									<div class="uc-b"><span class="ucc" style="color:var(--text-dim)">🔒 Requires Wave {lab.unlockWave}</span></div>
-								{/if}
-							</div>
-						{/each}
-					</div>
-				</div>
+				<LabSection
+					{coins}
+					{highestWave}
+					{labLevels}
+					{activeLabId}
+					{activeLabTarget}
+					{labProgressPct}
+					{startLabResearch}
+				/>
 			{:else if activeSection === 'blueprints'}
 				<BlueprintsSection
 					{ownedBlueprints}
