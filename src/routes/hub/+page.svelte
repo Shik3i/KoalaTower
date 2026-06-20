@@ -88,6 +88,7 @@
 	import { page } from '$app/state';
 	import { isValidUsername, isValidPassword, isValidDisplayName } from '$lib/online/authValidation';
 	import Icon from '$lib/components/Icon.svelte';
+	import SettingsSection from '$lib/components/hub/SettingsSection.svelte';
 
 	function formatPlayTime(totalSeconds: number): string {
 		if (totalSeconds <= 0) return '0s';
@@ -1003,17 +1004,7 @@
 		}
 	}
 
-	const settingsList = [
-		{ key: 'reducedMotion' as keyof GameSettings, label: 'Reduced Motion', desc: 'Minimize animations' },
-		{ key: 'screenShake' as keyof GameSettings, label: 'Screen Shake', desc: 'Shake on damage' },
-		{ key: 'particles' as keyof GameSettings, label: 'Particles', desc: 'Death & hit effects' },
-		{ key: 'damageNumbers' as keyof GameSettings, label: 'Damage Numbers', desc: 'Show floating numbers' },
-		{ key: 'lowEffectsMode' as keyof GameSettings, label: 'Low Effects Mode', desc: 'Reduce visual effects' },
-		{ key: 'bloom' as keyof GameSettings, label: 'Neon Bloom', desc: 'Glow post-processing (off for low-end GPUs)' },
-		{ key: 'sfx' as keyof GameSettings, label: 'Sound Effects', desc: 'Combat & UI sounds' },
-		{ key: 'music' as keyof GameSettings, label: 'Music', desc: 'Ambient background loop' },
-		{ key: 'browserNotifications' as keyof GameSettings, label: 'Lab Notifications', desc: 'Browser notification when research finishes' },
-	];
+	const settingsList = []; // Kept empty or removed if unused, svelte-check will flag if needed. We will clean up settingsList later.
 
 	const allSections = [
 		{ id: 'workshop' as const, label: 'Forge', icon: '⚙' },
@@ -1806,25 +1797,15 @@
 					</div>
 				</div>
 			{:else if activeSection === 'settings'}
-				<div class="hs"><h2 class="hst">⚙ Systems</h2>
-					<div class="sg">
-						{#each settingsList as s}
-							<div class="sr" role="group" aria-label={s.label}><div class="si"><span class="sl">{s.label}</span><span class="sd">{s.desc}</span></div>
-								<div class="tg" class:on={settings[s.key]} role="switch" aria-checked={settings[s.key]} aria-label={s.label} tabindex="0" onclick={() => toggleSetting(s.key)} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSetting(s.key); } }}>
-									<div class="tgk"></div>
-								</div>
-							</div>
-						{/each}
-					</div>
-					<div class="hsd" style="margin-top:1rem;">
-						<button class="hub-action" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}>📋 Export Save</button>
-						<button class="hub-action" bind:this={importTriggerEl} onclick={openImportDialog}>📂 Import Save</button>
-						<button class="hub-action hub-danger" bind:this={resetTriggerEl} onclick={openResetDialog}>🗑 Reset Save</button>
-					</div>
-					<div class="save-note">
-						<p class="save-note-flavor">Orbital Command cannot stop you from rewriting reality. It can only confirm that doing so makes the war considerably less interesting.</p>
-					</div>
-				</div>
+				<SettingsSection
+					{settings}
+					bind:importTriggerEl
+					bind:resetTriggerEl
+					onToggleSetting={toggleSetting}
+					onExportSave={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}
+					onOpenImportDialog={openImportDialog}
+					onOpenResetDialog={openResetDialog}
+				/>
 			{/if}
 		</div>
 	</div>
@@ -2128,7 +2109,6 @@
 	.ir { display:flex; justify-content:space-between; padding:.4rem .55rem; font-size:var(--fs-mono); border-radius:3px; }
 	.ir:nth-child(odd) { background:rgba(0,0,0,.1); }
 	.il { color:var(--text-secondary); } .iv { color:var(--text-primary); font-family:var(--font-mono); font-weight:500; }
-	.sg { display:flex; flex-direction:column; gap:2px; max-width:600px; }
 	.local-profile { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,320px); gap:1rem; max-width:800px; margin-bottom:1rem; padding:.85rem; background:rgba(0,0,0,.14); border:1px solid var(--border-neon); border-radius:var(--radius-sm); }
 	.local-profile h3 { margin:0 0 .25rem; font-size:var(--fs-body); color:var(--text-primary); font-family:var(--font-display); }
 	.local-profile p { margin:.15rem 0; color:var(--text-secondary); font-size:var(--fs-caption); line-height:1.35; }
@@ -2165,15 +2145,7 @@
 	.cloud-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.35rem; }
 	.cloud-actions .hub-action { margin:0; }
 
-	.sr { display:flex; justify-content:space-between; align-items:center; padding:.55rem .55rem; border-radius:var(--radius-sm); cursor:pointer; }
-	.sr:hover { background:rgba(255,255,255,.02); }
-	.si { display:flex; flex-direction:column; gap:.08rem; }
-	.sl { font-size:var(--fs-body-sm); color:var(--text-primary); } .sd { font-size:var(--fs-caption); color:var(--text-secondary); }
-	.tg { width:38px; height:22px; border-radius:11px; background:var(--bg-tertiary); border:1px solid var(--border-neon); position:relative; transition:all var(--transition-fast); flex-shrink:0; cursor:pointer; }
-	.tg:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; }
-	.tg.on { background:rgba(0,255,255,.12); border-color:var(--cyan); }
-	.tgk { position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--text-dim); transition:all var(--transition-fast); }
-	.tg.on .tgk { left:18px; background:var(--cyan); box-shadow:0 0 6px rgba(0,255,255,.4); }
+
 	.overlay { position:fixed; inset:0; background:rgba(7,8,18,.85); display:flex; align-items:center; justify-content:center; z-index:200; padding:1rem; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); animation:fi .2s ease; }
 	.dlg { background:var(--bg-secondary); border:1px solid var(--border-neon-strong); border-radius:var(--radius-xl); padding:1.75rem; max-width:420px; width:100%; }
 	.dlg h3 { font-size:var(--fs-subheading); margin-bottom:.4rem; }
@@ -2186,8 +2158,6 @@
 	.dlg-dng-btn { background:var(--red); color:white; }
 	.dlg-dng { border-color:rgba(255,68,68,.2); }
 	@keyframes fi { from{opacity:0} to{opacity:1} }
-	.save-note { margin-top:1.25rem; padding:.75rem 1rem; background:rgba(255,221,68,.04); border:1px solid rgba(255,221,68,.12); border-radius:var(--radius-sm); max-width:800px; }
-	.save-note-flavor { font-size:var(--fs-caption-sm); color:rgba(255,221,68,.45); font-style:italic; line-height:1.4; margin:0; }
 	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:flex;flex-direction:row;align-items:center;overflow-x:auto;gap:.4rem;width:auto;padding-bottom:.25rem;scrollbar-width:thin;scrollbar-color:rgba(0,255,255,.35) transparent;mask-image: linear-gradient(to right, black 85%, transparent 100%);-webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%)} .hub-nav-btn{flex-shrink:0;width:auto;white-space:nowrap;text-align:center;padding:.55rem .75rem;font-size:var(--fs-body-sm)} .hub-nav .bm-locked-teaser{flex-shrink:0;white-space:nowrap} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.bm-grid{grid-template-columns:1fr}.hub-coins{font-size:var(--fs-mono)} .local-profile{grid-template-columns:1fr}.local-profile-status{flex-direction:column;gap:.25rem} }
 	@media(max-width:380px){ .hub-nav-btn{font-size:var(--fs-caption);padding:.5rem .6rem} }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:var(--fs-caption); display:flex; flex-direction:column; gap:.4rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
