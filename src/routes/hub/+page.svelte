@@ -97,6 +97,7 @@
 	import OrdersSection from '$lib/components/hub/OrdersSection.svelte';
 	import WorkshopSection from '$lib/components/hub/WorkshopSection.svelte';
 	import LabSection from '$lib/components/hub/LabSection.svelte';
+	import BlackMarketSection from '$lib/components/hub/BlackMarketSection.svelte';
 
 	function formatPlayTime(totalSeconds: number): string {
 		if (totalSeconds <= 0) return '0s';
@@ -1205,106 +1206,26 @@
 					{buyBlueprint}
 				/>
 			{:else if activeSection === 'blackMarket'}
-				{@const weeklyReady = canClaimWeeklyShipment(lastWeeklyBlackMarketShipmentClaimedAt, nowTick)}
-				{@const dailyReady = canClaimDailyStrangeMatter(bmUnlocked, lastDailyStrangeMatterPickedUpAt, nowTick)}
-				{@const sourceBalance = getSchematics(schematicsByFront, converterSourceFront)}
-				{@const maxConversions = Math.floor(sourceBalance / SCHEMATIC_CONVERSION_RATE)}
-				<div class="hs bm-layout">
-					<div class="bm-header-bar">
-						<h2 class="hst bm-header-title">◈ BLACK MARKET</h2>
-						<span class="bm-header-sub">{bmSignalText}</span>
-					</div>
-					<p class="hsd bm-copy">Orbital Command does not authorize the possession, trade, study, inhalation, resale, or emotional attachment to Strange Matter. Fortunately, this terminal is not connected to Orbital Command.</p>
-					<div class="bm-ledger">
-						<div class="ir"><span class="il">Strange Matter</span><span class="iv">◈ {strangeMatter.toLocaleString()}</span></div>
-						<div class="ir"><span class="il">Lifetime Recovered</span><span class="iv">◈ {lifetimeStrangeMatterEarned.toLocaleString()}</span></div>
-					</div>
-
-					<div class="bm-grid">
-						<section class="bm-panel">
-							<h3 class="stats-sub">Unmarked Shipment</h3>
-							{#if weeklyReady}
-								<p class="hsd">{bmShipmentFlavour}</p>
-								<div class="bm-actions">
-									<button class="hub-action bm-primary" onclick={openShipmentModal}>Inspect Shipment (+{STRANGE_MATTER_WEEKLY_SHIPMENT})</button>
-								</div>
-							{:else}
-								<p class="hsd">Previous shipment accepted. No record exists of the transaction.</p>
-								<div class="ccl">Next shipment in {formatDuration(weeklyShipmentRemainingMs(lastWeeklyBlackMarketShipmentClaimedAt, nowTick))}</div>
-							{/if}
-						</section>
-
-						<section class="bm-panel">
-							<h3 class="stats-sub">Daily Pickup</h3>
-							<p class="hsd bm-pickup-copy">{bmDailyFlavour}</p>
-							<button class="hub-action bm-primary" disabled={!dailyReady} onclick={claimDailyPickup}>Take the Vial (+{STRANGE_MATTER_DAILY_PICKUP})</button>
-							{#if !dailyReady}<div class="ccl">Picked up today. Back tomorrow.</div>{:else}<div class="ccl">No deployment needed — just stop by.</div>{/if}
-						</section>
-					</div>
-
-					<h3 class="stats-sub" style="margin-top:1rem">Contraband Procurement</h3>
-					<div class="cl">
-						{#each BLACK_MARKET_UNLOCKS as item}
-							{@const owned = hasBlackMarketUnlock(blackMarketUnlocks, item.id)}
-							{@const reqOk = !item.requirement || hasBlackMarketUnlock(blackMarketUnlocks, item.requirement)}
-							{@const aff = strangeMatter >= item.cost}
-							<div class="cc" class:lck={!owned && (!reqOk || !aff)}
-									use:tooltip={owned
-										? `${item.name}\nProcured.${item.status === 'scaffold' ? '\nFull effect arrives in a later update.' : ''}`
-										: item.status === 'scaffold'
-											? `${item.name}\nComing later — purchasable now, full effect arrives in a future update.\nCost: ◈ ${item.cost} Strange Matter`
-											: item.requirement && !reqOk
-												? `${item.name}\nLocked — first procure ${BLACK_MARKET_UNLOCKS.find(u => u.id === item.requirement)?.name ?? ''}.\nCost: ◈ ${item.cost} Strange Matter`
-												: `${item.name}\nCost: ◈ ${item.cost} Strange Matter${aff ? '' : ' — not enough recovered yet'}`}>
-								<div class="cc-h"><span class="cci">{owned ? '✓' : '◈'}</span><div><div class="ccn">{item.name}</div><div class="ccd">{item.description}</div></div></div>
-								<div class="uc-b" style="margin-top:.35rem">
-									<span class="ucc">◈ {item.cost}</span>
-									{#if owned}
-										<span class="ucnx">OWNED{item.status === 'scaffold' ? ' · UI/logic pending' : ''}</span>
-									{:else if item.status === 'scaffold'}
-										<span class="ucnx">COMING LATER</span>
-									{:else if item.requirement && !reqOk}
-										<span class="ucnx">Requires {BLACK_MARKET_UNLOCKS.find(u => u.id === item.requirement)?.name}</span>
-									{:else}
-										<button class="hub-action" disabled={!aff} onclick={() => buyBlackMarketUnlock(item.id)}>{aff ? 'Procure' : 'Need more'}</button>
-									{/if}
-								</div>
-								{#if item.id === 'autoDeployment' && owned}
-									<button class="hub-action" style="margin-top:.35rem" onclick={toggleAutoDeployment} use:tooltip={`Auto Deployment ${autoDeploymentEnabled ? 'is ARMED' : 'is idle'}.\nWhen armed, deployments relaunch automatically after a tower falls.\nLocal only — runs in this browser, even offline.`}>{autoDeploymentEnabled ? 'Disable Auto Deployment' : 'Arm Auto Deployment'}</button>
-								{/if}
-							</div>
-						{/each}
-					</div>
-
-					{#if hasBlackMarketUnlock(blackMarketUnlocks, 'schematicConverter')}
-						<section class="bm-panel converter">
-							<h3 class="stats-sub">Schematic Converter</h3>
-							<p class="hsd">Twenty-five obsolete designs go in. One restricted design comes out. Nobody asks why the ink is still wet.</p>
-							<div class="sim-controls">
-								<div class="sim-param">
-									<label class="sim-label" for="converter-front">Source:</label>
-									<select id="converter-front" bind:value={converterSourceFront} class="sim-select">
-										{#each FRONT_META.slice(0, 15) as m}
-											{@const targetFront = FRONT_META[m.front]}
-											<option value={m.front}>{m.displayName} -> {targetFront ? getFrontName(targetFront.id) : 'Front ' + (m.front + 1)}</option>
-										{/each}
-									</select>
-								</div>
-							</div>
-							<div class="ig" style="max-width:600px">
-								<div class="ir"><span class="il">Source Balance</span><span class="iv">{sourceBalance}</span></div>
-								<div class="ir"><span class="il">Target Balance</span><span class="iv">{getSchematics(schematicsByFront, converterSourceFront + 1)}</span></div>
-								<div class="ir"><span class="il">Rate</span><span class="iv">{SCHEMATIC_CONVERSION_RATE}:1</span></div>
-								<div class="ir"><span class="il">Max Conversions</span><span class="iv">{maxConversions}</span></div>
-							</div>
-							<div class="bm-actions">
-								<button class="hub-action bm-primary" disabled={maxConversions < 1} onclick={() => convertOneSchematic(false)}>Convert 1</button>
-								<button class="hub-action" disabled={maxConversions < 1} onclick={() => convertOneSchematic(true)}>Convert Max</button>
-							</div>
-							<div class="ccl">Conversion can prepare future Front Schematics, but it does not unlock the Front itself.</div>
-						</section>
-					{/if}
-				</div>
+				<BlackMarketSection
+					bind:converterSourceFront
+					{lastWeeklyBlackMarketShipmentClaimedAt}
+					{lastDailyStrangeMatterPickedUpAt}
+					{bmUnlocked}
+					{schematicsByFront}
+					{strangeMatter}
+					{lifetimeStrangeMatterEarned}
+					{blackMarketUnlocks}
+					{autoDeploymentEnabled}
+					{nowTick}
+					{bmSignalText}
+					{bmShipmentFlavour}
+					{bmDailyFlavour}
+					{openShipmentModal}
+					{claimDailyPickup}
+					{buyBlackMarketUnlock}
+					{toggleAutoDeployment}
+					{convertOneSchematic}
+				/>
 			{:else if activeSection === 'tiers'}
 				<TiersSection
 					{unlockedFronts}
