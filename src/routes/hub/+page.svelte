@@ -90,6 +90,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import SettingsSection from '$lib/components/hub/SettingsSection.svelte';
 	import SimulationSection from '$lib/components/hub/SimulationSection.svelte';
+	import BlueprintsSection from '$lib/components/hub/BlueprintsSection.svelte';
 
 	function formatPlayTime(totalSeconds: number): string {
 		if (totalSeconds <= 0) return '0s';
@@ -1362,14 +1363,13 @@
 					</div>
 				</div>
 			{:else if activeSection === 'blueprints'}
-				<div class="hs"><h2 class="hst">📐 Schematics</h2><p class="hsd">{SCHEMATICS_FLAVOR}</p>
-					{#if FRONT_META.reduce((sum, m) => sum + getSchematics(schematicsByFront, m.front), 0) === 0}
-						<p class="empty-flavor">📐 No Schematics recovered yet. Complete waves on a Front to salvage obsolete designs, then reconstruct them here.</p>
-					{:else}
-						<div class="schem-bal">{#each FRONT_META as m}{@const n = getSchematics(schematicsByFront, m.front)}{#if n > 0 || unlockedFronts.includes(m.id)}<span class="schem-chip" use:tooltip={`${getFrontName(m.id)} Schematics: ${n}\nRecovered by completing waves on this Front.\nSpend them in the Schematics tab to reconstruct new upgrade paths.`}><FrontIcon front={m.id} size={16} /> {n}</span>{/if}{/each}</div>
-					{/if}
-					<div class="cl">{#each BLUEPRINT_DEFS as bp}{@const status = getBlueprintStatus(bp.id, ownedBlueprints, discoveredBlueprints)}{@const cost = getPathSchematicCost(bp.id)}{@const costFrontId = cost ? FRONT_META[cost.front - 1]!.id : null}{@const have = cost ? getSchematics(schematicsByFront, cost.front) : 0}{@const aff = !!cost && have >= cost.cost}{@const fieldCount = getFieldUpgradesUnlockedBy(bp.id).length}{@const foundryCount = getFoundryUpgradesUnlockedBy(bp.id).length}<div class="cc" class:lck={status === 'undiscovered'}><div class="cc-h"><span class="cci">{status === 'owned' ? '✅' : status === 'discovered' ? bp.icon : '🔒'}</span><div><div class="ccn">{status === 'undiscovered' ? '??? Unknown Schematic' : bp.name}</div><div class="ccd">{status === 'undiscovered' ? 'Schematic not yet recovered.' : bp.description}</div></div></div>{#if status === 'owned'}<div class="ccs">✓ Reconstructed — unlocks {fieldCount} field + {foundryCount} foundry upgrade{fieldCount + foundryCount === 1 ? '' : 's'}</div>{:else if status === 'discovered'}<div class="ccl-found">🔍 Recovered — ready to reconstruct</div><div class="uc-b" style="margin-top:.3rem">{#if cost && costFrontId}<button class="hub-action" disabled={!aff} onclick={() => buyBlueprint(bp.id)} style={aff ? 'background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--bg-primary);font-weight:600' : ''}><span class="ucc">📐{cost.cost} {getFrontName(costFrontId)}</span> Reconstruct</button>{:else}<span class="ucc" style="color:var(--text-dim)">Reconstruction not yet available</span>{/if}</div>{:else}<div class="ccl">🔒 {describeBlueprintDiscovery(bp)}</div>{/if}</div>{/each}</div>
-				</div>
+				<BlueprintsSection
+					{ownedBlueprints}
+					{discoveredBlueprints}
+					{schematicsByFront}
+					{unlockedFronts}
+					{buyBlueprint}
+				/>
 			{:else if activeSection === 'blackMarket'}
 				{@const weeklyReady = canClaimWeeklyShipment(lastWeeklyBlackMarketShipmentClaimedAt, nowTick)}
 				{@const dailyReady = canClaimDailyStrangeMatter(bmUnlocked, lastDailyStrangeMatterPickedUpAt, nowTick)}
