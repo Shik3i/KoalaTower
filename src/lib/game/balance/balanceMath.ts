@@ -8,7 +8,7 @@
  *
  * Key principles:
  * - Enemy HP/ATK use piecewise power interpolation from reference anchors.
- *   This produces a deterministic curve that matches proven TD scaling curves.
+ *   This produces a deterministic, smoothly compounding long-tail curve.
  * - Workshop upgrades provide meaningful base growth so permanent investment
  *   is visibly rewarded.
  * - Battle upgrades provide strong run-scaling.
@@ -59,10 +59,10 @@ export function piecewisePowerStat(wave: number, anchors: StatAnchor[]): number 
 	return b.value * Math.pow(wave / b.wave, exponent);
 }
 
-// ─── Reference Tier 1 enemy stat anchors ────────────────────────────────────
-// These are enemy damage and enemy HP reference values for Front 1 Normal enemy.
-// They define the curve shape. The values come from a proven TD enemy scaling
-// curve and are NOT tower damage or tower HP.
+// ─── Front 1 (Tier 1) enemy stat anchors ────────────────────────────────────
+// Reference HP and attack values for a Front 1 Normal enemy at each anchor wave.
+// They define the enemy scaling-curve shape (interpolated by piecewisePowerStat);
+// these are the enemy's own stats, not the player tower's damage or HP.
 
 const REFERENCE_TIER_1_DAMAGE_ANCHORS: StatAnchor[] = [
 	{ wave: 1, value: 1.18 },
@@ -108,171 +108,31 @@ const REFERENCE_TIER_1_HP_ANCHORS: StatAnchor[] = [
 	{ wave: 1000, value: 742100000 },
 ];
 
-/** Flatland TD applies its own scale multiplier on top of the reference curve. */
-export const FLTD_ENEMY_DAMAGE_SCALE = 20;
-export const FLTD_ENEMY_HP_SCALE = 20;
-
-export const FLTD_DAMAGE_SCALE = FLTD_ENEMY_HP_SCALE; // currently 20
+// One shared Flatland scale applied to the reference enemy anchor curves below
+// (HP and attack alike). 50/6 ≈ 8.333 keeps enemy difficulty tracking the
+// player's Damage baseline — a fresh tower deals 50 damage. (Was a flat ×20,
+// which left enemies far too tanky/dangerous after the Damage curve was softened.)
+export const FLTD_ENEMY_DAMAGE_SCALE = 50 / 6;
+export const FLTD_ENEMY_HP_SCALE = 50 / 6;
 export const STARTER_DAMAGE = 50;
 
-export const TOWER_WORKSHOP_DAMAGE_ANCHORS: Array<[level: number, damage: number]> = [
-	[1, 6],
-	[100, 1050],
-	[200, 3640],
-	[300, 7770],
-	[400, 13440],
-	[500, 20650],
-	[600, 29400],
-	[700, 39690],
-	[800, 51520],
-	[900, 64890],
-	[1000, 79800],
-	[1100, 97550],
-	[1200, 119740],
-	[1300, 146600],
-	[1400, 178270],
-	[1500, 214840],
-	[1600, 257990],
-	[1700, 309860],
-	[1800, 370860],
-	[1900, 441240],
-	[2000, 521190],
-	[2100, 613220],
-	[2200, 720920],
-	[2300, 845270],
-	[2400, 986890],
-	[2500, 1150000],
-	[2600, 1330000],
-	[2700, 1530000],
-	[2800, 1770000],
-	[2900, 2040000],
-	[3000, 2340000],
-	[3100, 2680000],
-	[3200, 3070000],
-	[3300, 3520000],
-	[3400, 4020000],
-	[3500, 4590000],
-	[3600, 5240000],
-	[3700, 5970000],
-	[3800, 6820000],
-	[3900, 7770000],
-	[4000, 8850000],
-	[4100, 10050000],
-	[4200, 11420000],
-	[4300, 12950000],
-	[4400, 14660000],
-	[4500, 16550000],
-	[4600, 18640000],
-	[4700, 20930000],
-	[4800, 23420000],
-	[4900, 26130000],
-	[5000, 29050000],
-	[5100, 32190000],
-	[5200, 35560000],
-	[5300, 39160000],
-	[5400, 42990000],
-	[5500, 47060000],
-	[5600, 51370000],
-	[5700, 55930000],
-	[5800, 60740000],
-	[5900, 65800000],
-	[6000, 71110000]
-];
-
-// Precompute monotone cubic Hermite interpolation parameters in log-log space
-const INTERP_N = TOWER_WORKSHOP_DAMAGE_ANCHORS.length;
-const INTERP_X = new Float64Array(INTERP_N);
-const INTERP_Y = new Float64Array(INTERP_N);
-const INTERP_H = new Float64Array(INTERP_N - 1);
-const INTERP_D = new Float64Array(INTERP_N - 1);
-const INTERP_M = new Float64Array(INTERP_N);
-
-for (let i = 0; i < INTERP_N; i++) {
-	INTERP_X[i] = Math.log(TOWER_WORKSHOP_DAMAGE_ANCHORS[i]![0]);
-	INTERP_Y[i] = Math.log(TOWER_WORKSHOP_DAMAGE_ANCHORS[i]![1]);
-}
-
-for (let i = 0; i < INTERP_N - 1; i++) {
-	INTERP_H[i] = INTERP_X[i + 1]! - INTERP_X[i]!;
-	INTERP_D[i] = (INTERP_Y[i + 1]! - INTERP_Y[i]!) / INTERP_H[i]!;
-}
-
-// Interior tangents (weighted harmonic mean tangents for monotonicity)
-for (let i = 1; i < INTERP_N - 1; i++) {
-	const dPrev = INTERP_D[i - 1]!;
-	const dCurr = INTERP_D[i]!;
-	if (dPrev * dCurr <= 0) {
-		INTERP_M[i] = 0;
-	} else {
-		const hPrev = INTERP_H[i - 1]!;
-		const hCurr = INTERP_H[i]!;
-		const w1 = 2 * hCurr + hPrev;
-		const w2 = hCurr + 2 * hPrev;
-		INTERP_M[i] = (w1 + w2) / (w1 / dPrev + w2 / dCurr);
-	}
-}
-
-// Boundary tangents
-INTERP_M[0] = INTERP_D[0]!;
-INTERP_M[INTERP_N - 1] = INTERP_D[INTERP_N - 2]!;
-
-export function towerLikeWorkshopDamage(level: number): number {
-	if (!Number.isFinite(level) || level <= 0) return 0;
-
-	// Extrapolate smoothly for level > 6000 using log-log derivative at level 6000
-	const maxAnchorLevel = TOWER_WORKSHOP_DAMAGE_ANCHORS[INTERP_N - 1]![0];
-	if (level > maxAnchorLevel) {
-		const x = Math.log(level);
-		const xLast = INTERP_X[INTERP_N - 1]!;
-		const yLast = INTERP_Y[INTERP_N - 1]!;
-		const mLast = INTERP_M[INTERP_N - 1]!;
-		const y = yLast + mLast * (x - xLast);
-		return Math.exp(y);
-	}
-
-	const cappedLevel = level;
-	if (cappedLevel <= TOWER_WORKSHOP_DAMAGE_ANCHORS[0]![0]) {
-		return TOWER_WORKSHOP_DAMAGE_ANCHORS[0]![1];
-	}
-
-	// Find the segment i
-	let i = 0;
-	for (let j = 0; j < INTERP_N - 1; j++) {
-		if (cappedLevel <= TOWER_WORKSHOP_DAMAGE_ANCHORS[j + 1]![0]) {
-			i = j;
-			break;
-		}
-	}
-
-	const x = Math.log(cappedLevel);
-	const xi = INTERP_X[i]!;
-	const hi = INTERP_H[i]!;
-	const t = (x - xi) / hi;
-
-	const t2 = t * t;
-	const t3 = t2 * t;
-
-	const h00 = 2 * t3 - 3 * t2 + 1;
-	const h10 = t3 - 2 * t2 + t;
-	const h01 = -2 * t3 + 3 * t2;
-	const h11 = t3 - t2;
-
-	const yi = INTERP_Y[i]!;
-	const yNext = INTERP_Y[i + 1]!;
-	const mi = INTERP_M[i]!;
-	const mNext = INTERP_M[i + 1]!;
-
-	const y = h00 * yi + h10 * hi * mi + h01 * yNext + h11 * hi * mNext;
-	return Math.exp(y);
-}
+// ─── Player Damage curve ─────────────────────────────────────────────────────
+// Early-game-friendly quadratic in the upgrade level, normalized so level 1 is
+// exactly 75 (level 0 is pinned to the 50 starting damage). Deliberately gentle
+// early (no per-level doubling) and not over-tuned for the very late game — that
+// can be revisited separately. Levels are clamped to 0..6000.
+//   L0=50  L1=75  L2≈113  L3≈152  L10≈483  L100≈13057  L1000≈988431
+const DAMAGE_CURVE_SCALE = 75 / (4.73 + 4.2 + 0.115); // normalize level 1 (raw 9.045) to 75
 
 export function flatlandBaseDamageAtLevel(totalDamageLevel: number): number {
-	if (!Number.isFinite(totalDamageLevel) || totalDamageLevel <= 0) return STARTER_DAMAGE;
+	// Non-finite input falls back to the 50 starting damage.
+	if (!Number.isFinite(totalDamageLevel)) return STARTER_DAMAGE;
 
-	return Math.max(
-		STARTER_DAMAGE,
-		FLTD_DAMAGE_SCALE * towerLikeWorkshopDamage(totalDamageLevel)
-	);
+	const level = Math.max(0, Math.min(6000, Math.floor(totalDamageLevel)));
+	if (level === 0) return STARTER_DAMAGE;
+
+	const raw = 4.73 + 4.2 * level + 0.115 * level * level;
+	return Math.max(STARTER_DAMAGE, Math.round(raw * DAMAGE_CURVE_SCALE));
 }
 
 export function flatlandBaseDamageDeltaAtLevel(totalDamageLevel: number): number {
@@ -746,7 +606,7 @@ export const SHINY_CHANCE = 0.05;
 /** Energy multiplier for shiny enemies. */
 export const SHINY_ENERGY_MULTIPLIER = 2;
 
-/** Flat Alloy reward for a shiny enemy kill — always 2, like the original game. */
+/** Flat Alloy reward for a shiny enemy kill — always 2. */
 export const SHINY_BASE_ALLOY = 2;
 
 /** Determine if an enemy spawns as shiny (uses a deterministic RNG call per enemy). */

@@ -43,6 +43,8 @@ import {
 	expectedEnemiesPerWave,
 	MAX_ACTIVE_ENEMIES,
 	MAX_ENEMIES_PER_WAVE_SAFETY,
+	flatlandBaseDamageAtLevel,
+	flatlandBaseDamageDeltaAtLevel,
 } from '../balance/balanceMath';
 import { UpgradeId, WorkshopUpgradeId, EnemyType, BlueprintId, LabId } from '../engine/gameTypes';
 import { simulateRun, SCENARIOS } from '../balance/balanceSimulator';
@@ -317,7 +319,9 @@ describe('Enemy Config', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 10);
 		const tank = computeEnemyConfig(EnemyType.Tank, 10);
 		const boss = computeEnemyConfig(EnemyType.Boss, 10);
-		expect(boss.hp / normal.hp).toBeCloseTo(20, 1);
+		// Boss HP is 20× normal; allow ±0.5 for Math.floor quantization on the
+		// per-enemy base values (smaller now under the ×50/6 enemy scale).
+		expect(boss.hp / normal.hp).toBeCloseTo(20, 0);
 		expect(boss.size).toBeGreaterThan(tank.size);
 	});
 
@@ -793,34 +797,107 @@ describe('Piecewise Power Formula', () => {
 	});
 });
 
-describe('Front 1 FLTD-Scaled Values', () => {
-	it('wave 1 Front 1 damage ~24', () => {
-		expect(front1EnemyDamage(1)).toBeCloseTo(24, 0);
+describe('Front 1 FLTD-Scaled Values (×50/6 enemy scale)', () => {
+	// Enemy HP/attack = reference Tier-1 anchor value × the shared enemy scale (50/6).
+	it('wave 1 Front 1 damage ~9.83 (was ~24 under ×20)', () => {
+		expect(front1EnemyDamage(1)).toBeCloseTo(9.83, 1);
+		expect(front1EnemyDamage(1)).toBeCloseTo(1.18 * (50 / 6), 6);
 	});
-	it('wave 1 Front 1 HP ~47', () => {
-		expect(front1EnemyHp(1)).toBeCloseTo(47, 0);
+	it('wave 1 Front 1 HP ~19.58 (was ~47 under ×20)', () => {
+		expect(front1EnemyHp(1)).toBeCloseTo(19.58, 1);
+		expect(front1EnemyHp(1)).toBeCloseTo(2.35 * (50 / 6), 6);
 	});
-	it('wave 10 Front 1 damage ~96', () => {
-		expect(front1EnemyDamage(10)).toBeCloseTo(96, 0);
+	it('wave 10 Front 1 damage ~40.08 (was ~96 under ×20)', () => {
+		expect(front1EnemyDamage(10)).toBeCloseTo(40.08, 1);
+		expect(front1EnemyDamage(10)).toBeCloseTo(4.81 * (50 / 6), 6);
 	});
-	it('wave 10 Front 1 HP ~367', () => {
-		expect(front1EnemyHp(10)).toBeCloseTo(367, 0);
+	it('wave 10 Front 1 HP ~153 (was ~367 under ×20)', () => {
+		expect(front1EnemyHp(10)).toBeCloseTo(153.0, 1);
+		expect(front1EnemyHp(10)).toBeCloseTo(18.36 * (50 / 6), 6);
 	});
-	it('wave 100 Front 1 damage ~8.06K', () => {
+	it('wave 100 Front 1 damage ~3.36K', () => {
 		const dmg = front1EnemyDamage(100);
-		expect(dmg).toBeCloseTo(8060, -1);
+		expect(dmg).toBeCloseTo(3358, -1);
 	});
-	it('wave 100 Front 1 HP ~87.2K', () => {
+	it('wave 100 Front 1 HP ~36.3K', () => {
 		const hp = front1EnemyHp(100);
-		expect(hp).toBeCloseTo(87200, -2);
+		expect(hp).toBeCloseTo(36333, -2);
 	});
-	it('wave 1000 Front 1 damage ~9.66M', () => {
+	it('wave 1000 Front 1 damage ~4.02M', () => {
 		const dmg = front1EnemyDamage(1000);
-		expect(dmg).toBeCloseTo(9_659_000, -3);
+		expect(dmg).toBeCloseTo(4_024_583, -3);
 	});
-	it('wave 1000 Front 1 HP ~14.84B', () => {
+	it('wave 1000 Front 1 HP ~6.18B', () => {
 		const hp = front1EnemyHp(1000);
-		expect(hp).toBeCloseTo(14_842_000_000, -5);
+		expect(hp).toBeCloseTo(6_184_166_667, -5);
+	});
+});
+
+describe('Enemy scaling correction (×20 → ×50/6)', () => {
+	it('the shared enemy scale is exactly 50 / 6', () => {
+		expect(FLTD_ENEMY_HP_SCALE).toBe(50 / 6);
+		expect(FLTD_ENEMY_DAMAGE_SCALE).toBe(50 / 6);
+		expect(FLTD_ENEMY_HP_SCALE).toBeCloseTo(8.333333333333334, 12);
+	});
+
+	it('enemy HP scale no longer uses ×20 and is the new shared scale', () => {
+		expect(FLTD_ENEMY_HP_SCALE).not.toBe(20);
+		expect(FLTD_ENEMY_HP_SCALE).toBe(50 / 6);
+	});
+
+	it('enemy attack scale no longer uses ×20 (or ×16.67) and is the new shared scale', () => {
+		expect(FLTD_ENEMY_DAMAGE_SCALE).not.toBe(20);
+		expect(FLTD_ENEMY_DAMAGE_SCALE).not.toBeCloseTo(16.666666666666668, 6);
+		expect(FLTD_ENEMY_DAMAGE_SCALE).toBe(50 / 6);
+	});
+
+	it('enemy HP applies the new scale to the reference curve', () => {
+		// front1EnemyHp(wave) === referenceAnchor(wave) × 50/6
+		expect(front1EnemyHp(1)).toBeCloseTo(2.35 * (50 / 6), 6); // ≈ 19.58
+		expect(front1EnemyHp(10)).toBeCloseTo(18.36 * (50 / 6), 6); // ≈ 153.0
+		// New value is exactly 50/6 / 20 = 0.41667 of the old ×20 value.
+		expect(front1EnemyHp(1) / (2.35 * 20)).toBeCloseTo(50 / 6 / 20, 6);
+	});
+
+	it('enemy attack applies the new scale to the reference curve', () => {
+		expect(front1EnemyDamage(1)).toBeCloseTo(1.18 * (50 / 6), 6); // ≈ 9.83
+		expect(front1EnemyDamage(10)).toBeCloseTo(4.81 * (50 / 6), 6); // ≈ 40.08
+	});
+
+	it('enemy type HP multipliers are unchanged', () => {
+		expect(bossHpMultiplier(1)).toBe(20);
+		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Tank].hp).toBe(5.0);
+		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Fast].hp).toBe(0.8);
+		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Ranged].hp).toBe(0.5);
+		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Normal].hp).toBe(1.0);
+	});
+
+	it('spawn pacing values are unchanged', () => {
+		expect(enemiesPerWave(1)).toBe(36);
+		expect(enemiesPerWave(10)).toBe(61);
+	});
+
+	it('player Damage curve from the previous pass is unchanged', () => {
+		expect(flatlandBaseDamageAtLevel(0)).toBe(50);
+		expect(flatlandBaseDamageAtLevel(1)).toBe(75);
+		expect(flatlandBaseDamageAtLevel(2)).toBe(113);
+		expect(flatlandBaseDamageAtLevel(10)).toBe(483);
+	});
+
+	it('no NaN/Infinity for representative wave/front values', () => {
+		for (const wave of [1, 10, 100, 1000, 5000]) {
+			expect(Number.isFinite(front1EnemyHp(wave))).toBe(true);
+			expect(Number.isFinite(front1EnemyDamage(wave))).toBe(true);
+			expect(front1EnemyHp(wave)).toBeGreaterThan(0);
+			expect(front1EnemyDamage(wave)).toBeGreaterThan(0);
+			for (const tier of [1, 2, 3]) {
+				const cfg = computeEnemyConfig(EnemyType.Normal, wave, tier);
+				expect(Number.isFinite(cfg.hp)).toBe(true);
+				expect(Number.isFinite(cfg.damage)).toBe(true);
+				expect(cfg.hp).toBeGreaterThan(0);
+				expect(cfg.damage).toBeGreaterThan(0);
+			}
+		}
 	});
 });
 
@@ -834,8 +911,10 @@ describe('Front / Deployment Zone Multipliers', () => {
 	it('Front 2 is ~10x harder than Front 1', () => {
 		expect(TIER_MULTIPLIERS[2]!.hp).toBe(10);
 		expect(TIER_MULTIPLIERS[2]!.attack).toBe(10);
-		const f1 = computeEnemyConfig(EnemyType.Normal, 1, 1);
-		const f2 = computeEnemyConfig(EnemyType.Normal, 1, 2);
+		// Sample at wave 100 so Math.floor quantization on the (now smaller)
+		// per-enemy base values is negligible and the tier ratio reads cleanly.
+		const f1 = computeEnemyConfig(EnemyType.Normal, 100, 1);
+		const f2 = computeEnemyConfig(EnemyType.Normal, 100, 2);
 		expect(f2.hp / f1.hp).toBeCloseTo(10, 0);
 		expect(f2.damage / f1.damage).toBeCloseTo(10, 0);
 	});
@@ -843,8 +922,8 @@ describe('Front / Deployment Zone Multipliers', () => {
 	it('Front 3 is ~100x harder than Front 1', () => {
 		expect(TIER_MULTIPLIERS[3]!.hp).toBe(100);
 		expect(TIER_MULTIPLIERS[3]!.attack).toBe(100);
-		const f1 = computeEnemyConfig(EnemyType.Normal, 1, 1);
-		const f3 = computeEnemyConfig(EnemyType.Normal, 1, 3);
+		const f1 = computeEnemyConfig(EnemyType.Normal, 100, 1);
+		const f3 = computeEnemyConfig(EnemyType.Normal, 100, 3);
 		expect(f3.hp / f1.hp).toBeCloseTo(100, 0);
 	});
 
@@ -927,28 +1006,28 @@ describe('Wave 1-10 Enemy Stats', () => {
 		expect(c).toBe(36);
 	});
 
-	it('Wave 1 Front 1 enemy HP is around 47-50', () => {
+	it('Wave 1 Front 1 enemy HP is around 19-21', () => {
 		const hp = front1EnemyHp(1);
-		expect(hp).toBeGreaterThanOrEqual(45);
-		expect(hp).toBeLessThanOrEqual(52);
+		expect(hp).toBeGreaterThanOrEqual(18);
+		expect(hp).toBeLessThanOrEqual(21);
 	});
 
-	it('Wave 1 Front 1 enemy damage is around 24', () => {
+	it('Wave 1 Front 1 enemy damage is around 10', () => {
 		const dmg = front1EnemyDamage(1);
-		expect(dmg).toBeGreaterThanOrEqual(22);
-		expect(dmg).toBeLessThanOrEqual(26);
+		expect(dmg).toBeGreaterThanOrEqual(9);
+		expect(dmg).toBeLessThanOrEqual(11);
 	});
 
-	it('Wave 10 Front 1 enemy HP is around 367-400', () => {
+	it('Wave 10 Front 1 enemy HP is around 150-156', () => {
 		const hp = front1EnemyHp(10);
-		expect(hp).toBeGreaterThanOrEqual(360);
-		expect(hp).toBeLessThanOrEqual(410);
+		expect(hp).toBeGreaterThanOrEqual(150);
+		expect(hp).toBeLessThanOrEqual(156);
 	});
 
-	it('Wave 10 Front 1 enemy damage is around 96-100', () => {
+	it('Wave 10 Front 1 enemy damage is around 40', () => {
 		const dmg = front1EnemyDamage(10);
-		expect(dmg).toBeGreaterThanOrEqual(94);
-		expect(dmg).toBeLessThanOrEqual(102);
+		expect(dmg).toBeGreaterThanOrEqual(38);
+		expect(dmg).toBeLessThanOrEqual(42);
 	});
 
 	it('Wave 10 expected enemy count is 61', () => {
@@ -1093,24 +1172,81 @@ describe('Forge Impact', () => {
 
 // ─── Field Damage Upgrade Correction Tests ────────────────────────────────
 
-describe('Field Damage Upgrade Correction', () => {
-	it('first Field Damage upgrade gives 120 total damage', () => {
-		const dmg1 = getBattleUpgradeEffect(UpgradeId.Damage, 1);
-		expect(dmg1).toBe(120);
+describe('Damage curve (early-game-friendly quadratic)', () => {
+	it('anchors the early levels exactly', () => {
+		expect(flatlandBaseDamageAtLevel(0)).toBe(50);
+		expect(flatlandBaseDamageAtLevel(1)).toBe(75);
+		expect(flatlandBaseDamageAtLevel(2)).toBe(113);
+		expect(flatlandBaseDamageAtLevel(3)).toBe(152);
+		expect(flatlandBaseDamageAtLevel(4)).toBe(194);
+		expect(flatlandBaseDamageAtLevel(5)).toBe(237);
+		expect(flatlandBaseDamageAtLevel(10)).toBe(483);
 	});
 
-	it('first Field Damage purchase results in 120 damage', () => {
-		const firstUpgrade = getBattleUpgradeEffect(UpgradeId.Damage, 1);
-		expect(firstUpgrade).toBe(120);
+	it('matches the intended mid/late anchors', () => {
+		expect(flatlandBaseDamageAtLevel(100)).toBe(13057);
+		expect(flatlandBaseDamageAtLevel(1000)).toBe(988431);
+		expect(flatlandBaseDamageAtLevel(6000)).toBe(34537353);
 	});
 
-	it('first 5 Field Damage levels: 50→120→253→384→514→643', () => {
+	it('does not double Damage every early level (gentle ramp)', () => {
+		// The old curve jumped 50→120→253; the new one must stay far below that.
+		expect(flatlandBaseDamageAtLevel(1)).toBeLessThan(100);
+		expect(flatlandBaseDamageAtLevel(2)).toBeLessThan(150);
+	});
+
+	it('clamps to 0..6000 and never returns below the 50 base', () => {
+		expect(flatlandBaseDamageAtLevel(6001)).toBe(flatlandBaseDamageAtLevel(6000));
+		expect(flatlandBaseDamageAtLevel(50_000)).toBe(flatlandBaseDamageAtLevel(6000));
+		expect(flatlandBaseDamageAtLevel(-5)).toBe(50);
+		expect(flatlandBaseDamageAtLevel(2.9)).toBe(flatlandBaseDamageAtLevel(2));
+	});
+
+	it('sanitizes invalid input to the base (no NaN/Infinity)', () => {
+		for (const bad of [NaN, Infinity, -Infinity]) {
+			const v = flatlandBaseDamageAtLevel(bad);
+			expect(Number.isFinite(v)).toBe(true);
+			expect(v).toBe(50);
+		}
+		// Excessive but finite input stays finite.
+		expect(Number.isFinite(flatlandBaseDamageAtLevel(1e9))).toBe(true);
+	});
+
+	it('routes the Field Damage upgrade through the same curve', () => {
 		expect(getBattleUpgradeEffect(UpgradeId.Damage, 0)).toBe(50);
-		expect(getBattleUpgradeEffect(UpgradeId.Damage, 1)).toBe(120);
-		expect(getBattleUpgradeEffect(UpgradeId.Damage, 2)).toBeCloseTo(253.3, 1);
-		expect(getBattleUpgradeEffect(UpgradeId.Damage, 3)).toBeCloseTo(384.3, 1);
-		expect(getBattleUpgradeEffect(UpgradeId.Damage, 4)).toBeCloseTo(514.2, 1);
-		expect(getBattleUpgradeEffect(UpgradeId.Damage, 5)).toBeCloseTo(643.9, 1);
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 1)).toBe(75);
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 2)).toBe(113);
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 10)).toBe(483);
+	});
+
+	it('Forge starting levels + Field purchases read the same curve at the summed level', () => {
+		// Forge gives permanent starting levels; Field purchases continue from the
+		// total. Whether the level arrives via Forge or in-run, the curve is shared.
+		const forgeLevels = 3;
+		const fieldLevels = 2;
+		const total = forgeLevels + fieldLevels;
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, total)).toBe(flatlandBaseDamageAtLevel(total));
+		expect(flatlandBaseDamageAtLevel(total)).toBe(237); // level 5
+	});
+
+	it('Research is applied separately and is NOT baked into the base curve', () => {
+		// The curve returns the un-multiplied base; lab/research multipliers are
+		// layered on top by the tower stat code (damage = curve * lab.dmg).
+		const base = flatlandBaseDamageAtLevel(10);
+		const researchMultiplier = 2; // e.g. Damage Research at some level
+		const withResearch = base * researchMultiplier;
+		expect(base).toBe(483);
+		expect(withResearch).toBe(966);
+		// Calling the curve again never changes — research lives outside it.
+		expect(flatlandBaseDamageAtLevel(10)).toBe(483);
+	});
+
+	it('UI upgrade deltas are dynamic: +25 then +38', () => {
+		expect(flatlandBaseDamageDeltaAtLevel(0)).toBe(25);
+		expect(flatlandBaseDamageDeltaAtLevel(1)).toBe(38);
+		// The Field card computes the same delta from the effect helper.
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 1) - getBattleUpgradeEffect(UpgradeId.Damage, 0)).toBe(25);
+		expect(getBattleUpgradeEffect(UpgradeId.Damage, 2) - getBattleUpgradeEffect(UpgradeId.Damage, 1)).toBe(38);
 	});
 
 	it('Field Damage costs increase reasonably: 13→16→19→22→27', () => {
@@ -1198,23 +1334,23 @@ describe('Simulator Scenarios', () => {
 
 describe('Enemy Formula Verification Table', () => {
 	it('verifies key wave values for Front 1', () => {
-		// Wave 1
+		// Wave 1 (×50/6 enemy scale)
 		const w1hp = front1EnemyHp(1);
 		const w1dmg = front1EnemyDamage(1);
-		expect(w1hp).toBeCloseTo(47, 0);
-		expect(w1dmg).toBeCloseTo(24, 0);
+		expect(w1hp).toBeCloseTo(19.58, 1);
+		expect(w1dmg).toBeCloseTo(9.83, 1);
 
 		// Wave 10
 		const w10hp = front1EnemyHp(10);
 		const w10dmg = front1EnemyDamage(10);
-		expect(w10hp).toBeCloseTo(367, 0);
-		expect(w10dmg).toBeCloseTo(96, 0);
+		expect(w10hp).toBeCloseTo(153, 0);
+		expect(w10dmg).toBeCloseTo(40.08, 1);
 
 		// Wave 100
 		const w100hp = front1EnemyHp(100);
 		const w100dmg = front1EnemyDamage(100);
-		expect(w100hp).toBeCloseTo(87200, -2);
-		expect(w100dmg).toBeCloseTo(8060, -1);
+		expect(w100hp).toBeCloseTo(36333, -2);
+		expect(w100dmg).toBeCloseTo(3358, -1);
 
 		// Wave 1000
 		const w1000hp = front1EnemyHp(1000);
@@ -1370,8 +1506,8 @@ describe('Field Upgrade card display values (current, not next delta)', () => {
 		expect(formatBattleEffect(UpgradeId.Damage, 50)).toBe('50 DMG');
 	});
 
-	it('Damage at level 1 shows "120 DMG"', () => {
-		expect(formatBattleEffect(UpgradeId.Damage, 120)).toBe('120 DMG');
+	it('Damage at level 1 shows "75 DMG"', () => {
+		expect(formatBattleEffect(UpgradeId.Damage, getBattleUpgradeEffect(UpgradeId.Damage, 1))).toBe('75 DMG');
 	});
 
 	it('Attack Speed at level 0 shows "1.000 /s", not "+0.050 /s"', () => {
@@ -1456,7 +1592,7 @@ describe('Balance Snapshot Ratios (shots-to-kill)', () => {
 	const waves = [1, 10, 100, 1000, 10000];
 	const types = [EnemyType.Normal, EnemyType.Boss, EnemyType.Tank, EnemyType.Fast, EnemyType.Ranged];
 
-	it('should calculate shots-to-kill within Tower-like ratios', () => {
+	it('should calculate shots-to-kill within expected ratios', () => {
 		for (const w of waves) {
 			const damageLevel = Math.floor(w / 2);
 			const damage = getBattleUpgradeEffect(UpgradeId.Damage, damageLevel);
