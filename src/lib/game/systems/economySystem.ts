@@ -36,10 +36,22 @@ export function getWaveCoinReward(state: GameState, wave: number): number {
 	const wsAlloyLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
 	const wsAlloyMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, wsAlloyLv);
 	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
-	const mult = wave <= 10 ? 0.5 : wave <= 25 ? 0.8 : 1.2;
+	
+	let baseReward = 0;
+	if (wave <= 10) {
+		baseReward = 3;
+	} else if (wave <= 25) {
+		baseReward = 4;
+	} else {
+		baseReward = Math.floor(wave * 0.2);
+	}
+	
 	const front = getFrontAlloyMultiplier(state.tier ?? 1);
-	return Math.floor(wave * mult * wsAlloyMult * lab.alloy * front);
+	return Math.floor(baseReward * wsAlloyMult * lab.alloy * front);
 }
+
+/** Alias for getWaveCoinReward to align with player-facing terminology. */
+export const getWaveAlloyReward = getWaveCoinReward;
 
 /** Boss kill bonus alloy. */
 export function getBossCoinReward(state: GameState): number {
@@ -49,6 +61,9 @@ export function getBossCoinReward(state: GameState): number {
 	const front = getFrontAlloyMultiplier(state.tier ?? 1);
 	return Math.floor(5 * wsAlloyMult * lab.alloy * front);
 }
+
+/** Alias for getBossCoinReward to align with player-facing terminology. */
+export const getBossAlloyReward = getBossCoinReward;
 
 /** Starting energy for a deployment. */
 export function getStartingEnergy(state: GameState): number {

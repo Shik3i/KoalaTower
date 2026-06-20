@@ -1,4 +1,5 @@
 import type { Enemy, Projectile } from '../engine/gameTypes';
+import { calculateEffectiveDamage } from '../balance/balanceMath';
 
 export type DamageSourceKind = 'projectile' | 'thorns' | 'effect';
 
@@ -54,9 +55,13 @@ export function calculateEnemyDamage(target: Enemy, context: DamageContext): Dam
 	const masteryMultiplier = 1 + (context.masteryBonus ?? 0);
 	const distanceMultiplier = getDistanceMultiplier(context);
 	const rawDamage = context.baseDamage * (context.multiplier ?? 1);
-	const finalDamage = Math.max(
-		context.minDamage ?? 1,
-		Math.floor(rawDamage * (1 - armorAfterPierce) * masteryMultiplier * distanceMultiplier),
+	const finalDamage = calculateEffectiveDamage(
+		rawDamage,
+		target.armor,
+		armorPierce,
+		context.masteryBonus ?? 0,
+		distanceMultiplier,
+		context.minDamage ?? 1
 	);
 
 	return {

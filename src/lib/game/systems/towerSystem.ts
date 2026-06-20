@@ -76,9 +76,9 @@ export function applyBattleUpgrades(state: GameState): void {
 
 	const oldMaxHp = tower.maxHp;
 	tower.maxHp = maxHp;
-	// Heal by the HP gained from the upgrade (minimum 30 for non-MaxHP purchases), capped at new max.
+	// Heal by the HP gained from the upgrade, capped at new max.
 	const hpGain = Math.max(0, tower.maxHp - oldMaxHp);
-	tower.hp = Math.min(tower.hp + Math.max(30, hpGain), tower.maxHp);
+	tower.hp = Math.min(tower.hp + hpGain, tower.maxHp);
 }
 
 export function applyRegen(state: GameState, dt: number): void {

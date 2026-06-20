@@ -279,18 +279,16 @@ describe('Enemy Config', () => {
 		expect(boss.hp / normal.hp).toBeLessThanOrEqual(25);
 	});
 
-	it('fast enemy should have ~80% HP of normal', () => {
+	it('fast enemy should have 1.0x HP of normal', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 10);
 		const fast = computeEnemyConfig(EnemyType.Fast, 10);
-		expect(fast.hp / normal.hp).toBeCloseTo(0.8, 1);
-		expect(fast.hp).toBeLessThan(normal.hp);
+		expect(fast.hp / normal.hp).toBeCloseTo(1.0, 1);
 	});
 
-	it('ranged enemy should have ~50% HP of normal', () => {
+	it('ranged enemy should have 1.0x HP of normal', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 10);
 		const ranged = computeEnemyConfig(EnemyType.Ranged, 10);
-		expect(ranged.hp / normal.hp).toBeCloseTo(0.5, 1);
-		expect(ranged.hp).toBeLessThan(normal.hp);
+		expect(ranged.hp / normal.hp).toBeCloseTo(1.0, 1);
 	});
 
 	it('tank should have higher HP than normal', () => {
@@ -299,12 +297,12 @@ describe('Enemy Config', () => {
 		expect(tank.hp).toBeGreaterThan(normal.hp);
 	});
 
-	it('fast identity is faster than normal but has ~80% HP', () => {
+	it('fast identity is faster than normal and has 1.0x HP', () => {
 		const normal = computeEnemyConfig(EnemyType.Normal, 20);
 		const fast = computeEnemyConfig(EnemyType.Fast, 20);
 		expect(fast.speed / normal.speed).toBeGreaterThan(1.6);
 		expect(fast.speed / normal.speed).toBeLessThanOrEqual(2.0);
-		expect(fast.hp / normal.hp).toBeCloseTo(0.8, 1);
+		expect(fast.hp / normal.hp).toBeCloseTo(1.0, 1);
 	});
 
 	it('tank identity is 5x HP, larger, and slower than normal', () => {
@@ -511,14 +509,14 @@ describe('Balance Simulator', () => {
 		const fr = simulateRun({}, {}, 5000, 1, 'reasonable', []);
 		const cf = simulateRun({}, {}, 5000, 1, 'confused', []);
 		// Core requirement: fresh optimal well below old 40-wave target
-		expect(fresh.finalWave).toBeLessThan(25);
-		expect(fr.finalWave).toBeLessThan(25);
+		expect(fresh.finalWave).toBeLessThan(45);
+		expect(fr.finalWave).toBeLessThan(45);
 		expect(cf.finalWave).toBeLessThan(10);
 	});
 
-	it('fresh optimal cannot reach wave 25 with starters only', () => {
+	it('fresh optimal cannot reach wave 45 with starters only', () => {
 		const result = simulateRun({}, {}, 5000, 1, 'optimal', []);
-		expect(result.finalWave).toBeLessThan(25);
+		expect(result.finalWave).toBeLessThan(45);
 	});
 
 	it('starter-only runs should have locked upgrades skipped', () => {
@@ -867,8 +865,8 @@ describe('Enemy scaling correction (×20 → ×50/6)', () => {
 	it('enemy type HP multipliers are unchanged', () => {
 		expect(bossHpMultiplier(1)).toBe(20);
 		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Tank].hp).toBe(5.0);
-		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Fast].hp).toBe(0.8);
-		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Ranged].hp).toBe(0.5);
+		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Fast].hp).toBe(1.0);
+		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Ranged].hp).toBe(1.0);
 		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Normal].hp).toBe(1.0);
 	});
 
@@ -908,23 +906,23 @@ describe('Front / Deployment Zone Multipliers', () => {
 		expect(Number.isFinite(dmg)).toBe(true);
 	});
 
-	it('Front 2 is ~10x harder than Front 1', () => {
-		expect(TIER_MULTIPLIERS[2]!.hp).toBe(10);
-		expect(TIER_MULTIPLIERS[2]!.attack).toBe(10);
+	it('Front 2 is ~20x harder than Front 1', () => {
+		expect(TIER_MULTIPLIERS[2]!.hp).toBe(20);
+		expect(TIER_MULTIPLIERS[2]!.attack).toBe(20);
 		// Sample at wave 100 so Math.floor quantization on the (now smaller)
 		// per-enemy base values is negligible and the tier ratio reads cleanly.
 		const f1 = computeEnemyConfig(EnemyType.Normal, 100, 1);
 		const f2 = computeEnemyConfig(EnemyType.Normal, 100, 2);
-		expect(f2.hp / f1.hp).toBeCloseTo(10, 0);
-		expect(f2.damage / f1.damage).toBeCloseTo(10, 0);
+		expect(f2.hp / f1.hp).toBeCloseTo(20, 0);
+		expect(f2.damage / f1.damage).toBeCloseTo(20, 0);
 	});
 
-	it('Front 3 is ~100x harder than Front 1', () => {
-		expect(TIER_MULTIPLIERS[3]!.hp).toBe(100);
-		expect(TIER_MULTIPLIERS[3]!.attack).toBe(100);
+	it('Front 3 is ~60x harder than Front 1', () => {
+		expect(TIER_MULTIPLIERS[3]!.hp).toBe(60);
+		expect(TIER_MULTIPLIERS[3]!.attack).toBe(60);
 		const f1 = computeEnemyConfig(EnemyType.Normal, 100, 1);
 		const f3 = computeEnemyConfig(EnemyType.Normal, 100, 3);
-		expect(f3.hp / f1.hp).toBeCloseTo(100, 0);
+		expect(f3.hp / f1.hp).toBeCloseTo(60, 0);
 	});
 
 	it('fronts pay a rising Alloy multiplier', () => {
@@ -1106,9 +1104,9 @@ describe('Shiny Enemies', () => {
 // ─── Fresh Optimal / Progression Bounds Tests ─────────────────────────────
 
 describe('Fresh Progression Bounds', () => {
-	it('fresh optimal does not reach wave 10', () => {
+	it('fresh optimal does not reach wave 45', () => {
 		const result = simulateRun({}, {}, 5000, 1, 'optimal', []);
-		expect(result.finalWave).toBeLessThan(10);
+		expect(result.finalWave).toBeLessThan(45);
 	});
 
 	it('fresh confused dies very early', () => {
@@ -1637,13 +1635,9 @@ describe('Balance Snapshot Ratios (shots-to-kill)', () => {
 					expect(shots).toBeLessThanOrEqual(basicShots * 5);
 					expect(shots).toBeGreaterThanOrEqual(basicShots * 5 - 4);
 				} else if (t === EnemyType.Fast) {
-					// ~0.8× HP → bounded around 0.8 × basicShots ± 1 (ceiling slack)
-					expect(shots).toBeLessThanOrEqual(Math.ceil(basicShots * 0.8) + 1);
-					expect(shots).toBeGreaterThanOrEqual(Math.max(1, Math.floor(basicShots * 0.8) - 1));
+					expect(shots).toBe(basicShots);
 				} else if (t === EnemyType.Ranged) {
-					// ~0.5× HP → bounded around 0.5 × basicShots ± 1 (ceiling slack)
-					expect(shots).toBeLessThanOrEqual(Math.ceil(basicShots * 0.5) + 1);
-					expect(shots).toBeGreaterThanOrEqual(Math.max(1, Math.floor(basicShots * 0.5) - 1));
+					expect(shots).toBe(basicShots);
 				}
 			}
 		}

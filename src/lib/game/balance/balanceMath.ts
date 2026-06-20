@@ -149,6 +149,25 @@ export function front1EnemyHp(wave: number): number {
 	return piecewisePowerStat(wave, REFERENCE_TIER_1_HP_ANCHORS) * FLTD_ENEMY_HP_SCALE;
 }
 
+/**
+ * Shared helper to calculate damage after armor reduction.
+ */
+export function calculateEffectiveDamage(
+	rawDamage: number,
+	armor: number,
+	armorPierce: number = 0,
+	masteryBonus: number = 0,
+	distanceMultiplier: number = 1,
+	minDamage: number = 1
+): number {
+	const armorAfterPierce = Math.max(0, armor - Math.max(0, armorPierce));
+	const masteryMultiplier = 1 + masteryBonus;
+	return Math.max(
+		minDamage,
+		Math.floor(rawDamage * (1 - armorAfterPierce) * masteryMultiplier * distanceMultiplier)
+	);
+}
+
 // ─── Tier definitions (Front / Deployment Zone multipliers) ─────────────────
 // Each front is ~10× harder than the previous one — reaching wave ~1000 on a
 // front equates to roughly wave ~100 on the next. `reward` (in-run Energy)
@@ -165,33 +184,77 @@ export interface TierMultiplier {
 	alloy: number;
 }
 
+export const FRONT_STAT_MULTIPLIERS: Record<number, number> = {
+	1: 1,
+	2: 20,
+	3: 60,
+	4: 120,
+	5: 240,
+	6: 480,
+	7: 960,
+	8: 1920,
+	9: 5760,
+	10: 40320,
+	11: 2620000,
+	12: 1575000000,
+	13: 15750000000,
+	14: 157500000000,
+	15: 1575000000000,
+	16: 15750000000000,
+};
+
+export const FRONT_ALLOY_REWARD_MULTIPLIERS: Record<number, number> = {
+	1: 1,
+	2: 2.5,
+	3: 5,
+	4: 8,
+	5: 12,
+	6: 18,
+	7: 26,
+	8: 36,
+	9: 50,
+	10: 75,
+	11: 115,
+	12: 175,
+	13: 260,
+	14: 380,
+	15: 550,
+	16: 800,
+};
+
 // Fronts 1–5 keep their original, tuned values (locked by existing tests).
 // Fronts 6–16 are PLACEHOLDER scaffolding: difficulty continues ~10× per Front,
 // Alloy continues +0.2 per Front, speed eases up toward a 1.6 cap. These are NOT
 // final balance — the 16-Front curve is not claimed complete (see report).
 export const TIER_MULTIPLIERS: Record<number, TierMultiplier> = (() => {
-	const base: Record<number, TierMultiplier> = {
-		1: { hp: 1.0,      attack: 1.0,      speed: 1.0,  reward: 1.0,      alloy: 1.0 },
-		2: { hp: 10.0,     attack: 10.0,     speed: 1.15, reward: 10.0,     alloy: 1.2 },
-		3: { hp: 100.0,    attack: 100.0,    speed: 1.30, reward: 100.0,    alloy: 1.4 },
-		4: { hp: 1000.0,   attack: 1000.0,   speed: 1.45, reward: 1000.0,   alloy: 1.6 },
-		5: { hp: 10000.0,  attack: 10000.0,  speed: 1.50, reward: 10000.0,  alloy: 1.8 },
-	};
-	for (let front = 6; front <= 16; front++) {
-		const mag = Math.pow(10, front - 1); // ~10× per Front (placeholder)
+	const base: Record<number, TierMultiplier> = {};
+	for (let front = 1; front <= 16; front++) {
+		const statMul = FRONT_STAT_MULTIPLIERS[front] ?? 1;
+		const alloyMul = FRONT_ALLOY_REWARD_MULTIPLIERS[front] ?? 1;
+		
+		let speed = 1.0;
+		if (front === 2) speed = 1.15;
+		else if (front === 3) speed = 1.30;
+		else if (front === 4) speed = 1.45;
+		else if (front === 5) speed = 1.50;
+		else if (front >= 6) {
+			speed = Math.min(1.6, 1.5 + (front - 5) * 0.01);
+		}
+
 		base[front] = {
-			hp: mag,
-			attack: mag,
-			speed: Math.min(1.6, 1.5 + (front - 5) * 0.01),
-			reward: mag,
-			alloy: 1.0 + (front - 1) * 0.2,
+			hp: statMul,
+			attack: statMul,
+			speed,
+			reward: statMul,
+			alloy: alloyMul,
 		};
 	}
 	return base;
 })();
 
 export function getTierMultiplier(tier: number): TierMultiplier {
-	return TIER_MULTIPLIERS[tier] ?? TIER_MULTIPLIERS[1]!;
+	const clampedTier = Math.max(1, Math.min(16, Math.floor(tier)));
+	return TIER_MULTIPLIERS[clampedTier] ?? TIER_MULTIPLIERS[1]!;
 }
 
 // ─── Enemy count scaling per Front ──────────────────────────────────────────
@@ -363,9 +426,9 @@ export const ENEMY_TYPE_MODIFIERS: Record<EnemyType, {
 	reward: number;
 }> = {
 	[EnemyType.Normal]:  { hp: 1.0,  attack: 1.0,  speed: 1.0,  reward: 1.0 },
-	[EnemyType.Fast]:    { hp: 0.8,  attack: 1.0,  speed: 1.8,  reward: 1.3 },
+	[EnemyType.Fast]:    { hp: 1.0,  attack: 1.0,  speed: 1.8,  reward: 1.3 },
 	[EnemyType.Tank]:    { hp: 5.0,  attack: 1.5,  speed: 0.55, reward: 2.2 },
-	[EnemyType.Ranged]:  { hp: 0.5,  attack: 1.2,  speed: 0.8,  reward: 1.7 },
+	[EnemyType.Ranged]:  { hp: 1.0,  attack: 1.2,  speed: 0.8,  reward: 1.7 },
 	[EnemyType.Boss]:    { hp: 1.0,  attack: 1.0,  speed: 1.0,  reward: 1.0 },
 };
 

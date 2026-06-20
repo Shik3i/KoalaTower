@@ -15,10 +15,11 @@
  * progression after unlocking specific paths.
  */
 
-import { hybridCost, additiveEffect, flatlandBaseDamageAtLevel } from './balanceMath';
 import {
+	hybridCost, additiveEffect, flatlandBaseDamageAtLevel,
 	computeEnemyConfig, expectedEnemiesPerWave, baseSpawnChancePercent, spawnDensityMultiplier, availableEnemyTypes,
 	frontEnemyArmor, frontHasResistance, STARTING_TOWER_RANGE,
+	calculateEffectiveDamage, getFrontAlloyMultiplier
 } from './balanceMath';
 import { scaleCountForFront, getEnemyCountForWave } from './enemies';
 import { BATTLE_UPGRADE_DEFS, getBattleUpgradeCost, getBattleUpgradeEffect } from './battleUpgrades';
@@ -137,9 +138,12 @@ function recompute(state: SimState, ws: ReturnType<typeof computeBaseline>, work
 	state.regen = ws.wsRegen + getBattleUpgradeEffect(UpgradeId.Regen, bl(UpgradeId.Regen));
 	state.lifesteal = Math.min(0.15, ws.wsLifesteal + getBattleUpgradeEffect(UpgradeId.Lifesteal, bl(UpgradeId.Lifesteal)));
 	state.thorns = ws.wsThorns + getBattleUpgradeEffect(UpgradeId.Thorns, bl(UpgradeId.Thorns));
+	
+	const oldMaxHp = state.maxHp;
 	const hpBonus = getBattleUpgradeEffect(UpgradeId.MaxHp, bl(UpgradeId.MaxHp));
 	state.maxHp = Math.floor(ws.hp + hpBonus);
-	state.hp = Math.min(state.hp + 30, state.maxHp);
+	const hpGain = Math.max(0, state.maxHp - oldMaxHp);
+	state.hp = Math.min(state.hp + hpGain, state.maxHp);
 }
 
 function estimateDps(s: SimState): number {
@@ -147,9 +151,17 @@ function estimateDps(s: SimState): number {
 	return base * (1 + s.multishotChance * s.multishotCount) * (1 + s.critChance * (s.critMultiplier - 1));
 }
 
-function waveCoinReward(wave: number, coinMult: number): number {
-	const mult = wave <= 10 ? 0.5 : wave <= 25 ? 0.8 : 1.2;
-	return Math.floor(wave * mult * coinMult);
+function waveCoinReward(wave: number, coinMult: number, tier: number): number {
+	let baseReward = 0;
+	if (wave <= 10) {
+		baseReward = 3;
+	} else if (wave <= 25) {
+		baseReward = 4;
+	} else {
+		baseReward = Math.floor(wave * 0.2);
+	}
+	const frontMult = getFrontAlloyMultiplier(tier);
+	return Math.floor(baseReward * coinMult * frontMult);
 }
 
 /**
@@ -274,7 +286,8 @@ export function simulateRun(
 			const multAvg = 1 + state.multishotChance * state.multishotCount;
 			const critAvg = 1 + state.critChance * (state.critMultiplier - 1);
 			const effDmg = state.damage * multAvg * critAvg;
-			const hits = Math.ceil(config.hp / Math.max(1, effDmg));
+			const effDmgAfterArmor = calculateEffectiveDamage(effDmg, config.armor);
+			const hits = Math.ceil(config.hp / effDmgAfterArmor);
 			const ttk = hits / Math.max(0.1, state.fireRate);
 
 			// Regen during engagement
@@ -349,14 +362,14 @@ export function simulateRun(
 			state.cashEarned += cashReward;
 
 			// Alloy from shiny enemies or boss
-			if (config.coinReward > 0) {
-				const coinRwd = Math.floor(config.coinReward * ws.coinMult);
-				state.coins += coinRwd;
-				state.coinsEarned += coinRwd;
+			if (isShiny) {
+				const shinyAlloy = Math.floor(config.coinReward * getFrontAlloyMultiplier(tier));
+				state.coins += shinyAlloy;
+				state.coinsEarned += shinyAlloy;
 			}
 			if (isBoss) {
 				totalBossesDefeated++;
-				const bossCoins = Math.floor(5 * ws.coinMult);
+				const bossCoins = Math.floor(5 * ws.coinMult * getFrontAlloyMultiplier(tier));
 				state.coins += bossCoins;
 				state.coinsEarned += bossCoins;
 			}
@@ -368,9 +381,13 @@ export function simulateRun(
 		state.cash += cashBonus;
 		state.cashEarned += cashBonus;
 
-		const wc = waveCoinReward(wave, ws.coinMult);
+		const wc = waveCoinReward(wave, ws.coinMult, tier);
 		state.coins += wc;
 		state.coinsEarned += wc;
+
+		// Apply wave-completion healing: Math.max(30, Math.round(state.maxHp * 0.25))
+		const healAfterWave = Math.max(30, Math.round(state.maxHp * 0.25));
+		state.hp = Math.min(state.hp + healAfterWave, state.maxHp);
 
 		// Re-check blueprint unlocks
 		tryUnlockBlueprints(state, totalBossesDefeated);

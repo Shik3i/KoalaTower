@@ -38,7 +38,7 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		icon: '🔥',
 		category: 'offense',
 		maxLevel: 399,
-		baseCost: 20,
+		baseCost: 13,
 		costGrowth: 1.20,
 		costExponent: 0,
 		effectPerLevel: 0.1,

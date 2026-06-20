@@ -124,6 +124,10 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 		// Award wave completion alloy (primary alloy source), doubled for relevant challenges
 		const alloyMult = (state.activeChallenge === ChallengeId.GlassTower || state.activeChallenge === ChallengeId.BossRush) ? 2 : 1;
 		state.coins += Math.floor(getWaveCoinReward(state, wave.currentWave) * alloyMult);
+
+		// Wave completion healing: healAfterWave = max(30, round(maxHp * 0.25)), capped at max HP
+		const healAfterWave = Math.max(30, Math.round(state.tower.maxHp * 0.25));
+		state.tower.hp = Math.min(state.tower.hp + healAfterWave, state.tower.maxHp);
 	}
 }
 

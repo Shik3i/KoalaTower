@@ -71,18 +71,16 @@ describe('Enemy Config', () => {
 		expect(boss.hp).toBeGreaterThan(normal.hp);
 	});
 
-	it('fast enemy should have ~80% HP of normal', () => {
+	it('fast enemy should have 1.0x HP of normal', () => {
 		const normal = createEnemy(EnemyType.Normal, 10, 0, 0);
 		const fast = createEnemy(EnemyType.Fast, 10, 0, 0);
-		expect(fast.hp / normal.hp).toBeCloseTo(0.8, 1);
-		expect(fast.hp).toBeLessThan(normal.hp);
+		expect(fast.hp / normal.hp).toBeCloseTo(1.0, 1);
 	});
 
-	it('ranged enemy should have ~50% HP of normal', () => {
+	it('ranged enemy should have 1.0x HP of normal', () => {
 		const normal = createEnemy(EnemyType.Normal, 10, 0, 0);
 		const ranged = createEnemy(EnemyType.Ranged, 10, 0, 0);
-		expect(ranged.hp / normal.hp).toBeCloseTo(0.5, 1);
-		expect(ranged.hp).toBeLessThan(normal.hp);
+		expect(ranged.hp / normal.hp).toBeCloseTo(1.0, 1);
 	});
 
 	it('should have correct shape assignments', () => {

@@ -23,12 +23,17 @@
 		{
 			id: 'black-market',
 			q: 'What is the Black Market?',
-			a: 'The Black Market is an unofficial Orbital Command terminal for Strange Matter (◈) quality-of-life systems. Once unlocked, you can quietly pick up +1 Strange Matter once per local day — no deployment needed, just stop by — and a separate Weekly Shipment delivers +3 on its own cooldown. Both are local-first pacing tools with no streaks and no punishment for missing days. This is entirely separate from the official Command Orders (which pay Alloy). Support is appreciated and never required; nothing is gated by payment. Black Market unlocks are infrastructure and convenience, not raw combat power.',
+			a: 'The Black Market is an unofficial Orbital Command terminal for Strange Matter (◈) quality-of-life systems. It is entirely local and does NOT use real money. Once unlocked, you can quietly pick up +1 Strange Matter once per local day — no deployment needed, just stop by — and a separate Weekly Shipment delivers +3 on its own cooldown. Both are local-first pacing tools with no streaks and no punishment for missing days. Black Market unlocks are infrastructure and convenience, not raw combat power.',
 		},
 		{
 			id: 'enemies',
 			q: 'What enemy types exist?',
-			a: 'Five types, each with a unique outline shape: ■ Square = Normal (baseline), ◆ Diamond = Fast (1.8× Normal speed), ⬡ Hexagon = Tank (5× HP, larger, slower), ▶ Triangle = Ranged (stops just inside starter tower range and fires), ⬠ Pentagon = Boss (every 10 waves, 20× HP, very large). Watch their shapes to identify them instantly.',
+			a: 'Five types, each with a unique outline shape: ■ Square = Normal (baseline), ◆ Diamond = Fast (1.8× Normal speed, 1.0× HP), ⬡ Hexagon = Tank (5× HP, larger, slower), ▶ Triangle = Ranged (stops just inside starter tower range and fires, 1.0× HP), ⬠ Pentagon = Boss (every 10 waves, 20× HP, very large). Watch their shapes to identify them instantly.',
+		},
+		{
+			id: 'attack-speed-swarms',
+			q: 'Why is Attack Speed important?',
+			a: 'Attack Speed (Fire Rate) is critical for handling large swarms of fast-moving shapes (like Diamonds). Because damage is dealt to a single target at a time, having higher Attack Speed prevents your tower from getting overwhelmed when many hostiles arrive simultaneously.',
 		},
 		{
 			id: 'bosses',
@@ -51,6 +56,11 @@
 			a: 'The Forge (⚙) sets the permanent starting level of your Field Upgrades, bought with Alloy (🔩). Combat stats (Damage, Max HP, Attack Speed, Range, Crit Chance, Crit Multiplier, Defense, etc.) share ONE curve with the in-deployment Field Upgrades: a Forge level equals that many Field levels — same value — and the next in-run purchase continues from where the Forge left off (cost included). For example, Forge Max HP Lv.1 starts you at 200 HP, exactly like buying one Max HP in deployment. Research multiplies on top of that. A few economy upgrades (Alloy Bonus, Energy Bonus, Starting Energy) have no Field equivalent and stay permanent-only.',
 		},
 		{
+			id: 'wave-healing',
+			q: 'How does wave completion healing work?',
+			a: 'At the end of each wave, the tower automatically heals for a portion of its maximum health: healAfterWave = max(30, round(maxHp * 0.25)), capped at your Max HP. Purchasing Max HP upgrades in deployment also immediately repairs the added HP amount, but other upgrades do not heal.',
+		},
+		{
 			id: 'fronts',
 			q: 'What are Fronts?',
 			a: 'Fronts are campaign difficulty tracks. Each Front has denser waves, better Alloy rewards, and its own Schematic drops. Most Fronts unlock by reaching Wave 100 on the previous Front; crossing into a new band has harder milestone gates. Higher Fronts are not just bigger numbers: armor, resistance, and earlier enemy mixes become more common.',
@@ -68,12 +78,17 @@
 		{
 			id: 'lab',
 			q: 'How does the Research Deck work?',
-			a: 'The Research Deck runs orbital projects: Damage Research, Attack Speed Research, Health Research, Alloy Research, Energy Research. Purchase a level — research takes real time (it continues offline). Each level grants a permanent multiplicative bonus that stacks with the Forge. Higher levels cost more. The Research Deck turns time, Alloy, and suspicious optimism into small permanent improvements. Results are reviewed for morale compliance before release.',
+			a: 'The Research Deck runs orbital projects: Damage Research, Attack Speed Research, Health Research, Alloy Research, Energy Research. Each level grants a permanent multiplicative bonus that is a separate multiplier stacking on top of the Forge. Research continues in real time offline, converting time, Alloy, and suspicious optimism into small permanent improvements. Results are reviewed for morale compliance before release.',
+		},
+		{
+			id: 'command-orders',
+			q: 'How do Command Orders work?',
+			a: 'Command Orders are official weekly missions that award Alloy (🔩). You can complete up to 25 per week at your own pace, with new orders filling the board periodically. They progress through normal gameplay (kills, wave milestones, purchases), and there are no penalties or lost progress for skipping days.',
 		},
 		{
 			id: 'speed',
 			q: 'How do I change game speed?',
-			a: 'Use the speed buttons in the top bar: 1× (normal), 2×, 3×, 5×. Press Space to pause. Keyboard shortcuts: 1-4 for speed levels, Space for pause/resume. The game simulation speeds up internally — higher speeds let you progress faster. Warning: 5× may cause Shapes to appear statistically more aggressive.',
+			a: 'Use the speed buttons in the top bar or keyboard shortcuts (1 to 4) to toggle between 1×, 2×, 3×, and 5× speed. Press Space to pause. The game simulation speeds up internally — higher speeds let you progress faster. Warning: 5× may cause Shapes to appear statistically more aggressive.',
 		},
 		{
 			id: 'gameover',
@@ -89,6 +104,11 @@
 			id: 'save',
 			q: 'How do I save my progress?',
 			a: 'Auto-saved to your browser (IndexedDB). You can also export/import your save as JSON from the 💾 menu. Local saves are primary: no cloud, backend, or account is needed for normal play. Editing saves is technically possible. Orbital Command cannot stop you from rewriting reality. It can only confirm that doing so makes the war considerably less interesting.',
+		},
+		{
+			id: 'offline-kofi',
+			q: 'Is Flatland TD offline-playable? What is the Ko-fi buff?',
+			a: 'Yes! Flatland TD is fully local-first and playable offline with no internet or account. An optional Ko-fi support link exists for voluntary tips to the developer. Tipping is never required and unlocks a temporary, cosmetic community buff that shows up in the news feed and minor visual enhancements. If you are offline, you simply get the base Alloy and gameplay remains identical.',
 		},
 		{
 			id: 'privacy',
@@ -417,7 +437,7 @@
 	<!-- Special Operations -->
 	<section class="help-section">
 		<h2>⚡ Special Operations</h2>
-		<p class="section-desc">Tactical exercises with modified engagement rules. Fast Swarm unlocks at Tier 2 Wave 100, Glass Tower at Tier 3 Wave 50, and Boss Rush at Tier 3 Wave 100. Each operation has its own high score.</p>
+		<p class="section-desc">Tactical exercises with modified engagement rules. Fast Swarm unlocks at Front 2 Wave 100, Glass Tower at Front 3 Wave 50, and Boss Rush at Front 3 Wave 100. Each operation has its own high score.</p>
 		<div class="card-grid">
 			<div class="help-card challenge">
 				<div class="help-card-icon">🌪️</div>
@@ -427,7 +447,7 @@
 			<div class="help-card challenge">
 				<div class="help-card-icon">🔮</div>
 				<h3>Glass Tower</h3>
-				<p>Tower has only 1 HP. Enemies are 50% weaker. Double coin rewards. High risk, high reward.</p>
+				<p>Tower has only 1 HP. Enemies are 50% weaker. Double Alloy rewards. High risk, high reward.</p>
 			</div>
 			<div class="help-card challenge">
 				<div class="help-card-icon">👑</div>
