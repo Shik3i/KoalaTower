@@ -53,6 +53,15 @@
 	const recentReports = $derived(deploymentReports.slice(0, 8).reverse());
 	const maxWave = $derived(Math.max(...recentReports.map(r => r.finalWave), 10));
 	const maxAlloy = $derived(Math.max(...recentReports.map(r => r.alloyEarned), 100));
+
+	const enemyTypes = [
+		EnemyType.Normal,
+		EnemyType.Fast,
+		EnemyType.Tank,
+		EnemyType.Ranged,
+		EnemyType.Boss
+	];
+
 	const totalKillsCount = $derived(enemyTypes.reduce((acc, et) => acc + (killsByType[et] ?? 0), 0));
 
 	const wavePoints = $derived(recentReports.map((r, idx) => {
@@ -72,14 +81,6 @@
 	let reportModal = $state<HTMLDivElement>();
 	let reportCloseButton = $state<HTMLButtonElement>();
 	const emptyHistory = deploymentHistoryEmptyState();
-
-	const enemyTypes = [
-		EnemyType.Normal,
-		EnemyType.Fast,
-		EnemyType.Tank,
-		EnemyType.Ranged,
-		EnemyType.Boss
-	];
 
 	function getChallengeName(id: string): string {
 		return CHALLENGES.find(c => c.id === id)?.name ?? id;

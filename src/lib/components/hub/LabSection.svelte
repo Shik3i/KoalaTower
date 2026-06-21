@@ -2,6 +2,7 @@
 	import { LAB_DEFS, getLabCost, getLabEffect, isLabUnlocked, getLabDuration, formatLabDuration } from '$lib/game/balance/labs';
 	import { formatCompact } from '$lib/game/balance/balanceMath';
 	import { tooltip } from '$lib/components/tooltip';
+	import type { LabId } from '$lib/game/engine/gameTypes';
 
 	let {
 		coins,
@@ -18,7 +19,7 @@
 		activeLabId: string | null;
 		activeLabTarget: number;
 		labProgressPct: number;
-		startLabResearch: (id: string) => void;
+		startLabResearch: (id: LabId) => void;
 	} = $props();
 
 	function lLv(id: string): number {

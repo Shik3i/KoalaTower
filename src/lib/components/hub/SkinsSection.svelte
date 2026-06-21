@@ -2,12 +2,13 @@
 	import { TOWER_SKINS, type TowerSkin } from '$lib/game/balance/skins';
 	import { tooltip } from '$lib/components/tooltip';
 	import Icon from '$lib/components/Icon.svelte';
+	import { ChallengeId } from '$lib/game/engine/gameTypes';
 
 	interface Props {
 		coins: number;
 		selectedSkin: string;
 		unlockedSkins: string[];
-		challengeHighScores: Record<string, number>;
+		challengeHighScores: Partial<Record<string, number>>;
 		onSelectSkin: (id: string) => void;
 		onBuySkin: (id: string, cost: number) => void;
 	}
@@ -25,7 +26,7 @@
 		if (unlockedSkins.includes(skin.id)) return true;
 		if (skin.currency === 'achievement' && skin.achievementId) {
 			if (skin.achievementId === 'glass_tower_100') {
-				return (challengeHighScores['GlassTower'] ?? 0) >= 100;
+				return (challengeHighScores[ChallengeId.GlassTower] ?? 0) >= 100;
 			}
 		}
 		return false;

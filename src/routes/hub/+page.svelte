@@ -31,7 +31,7 @@
 		type BlackMarketUnlockId,
 		type BlackMarketUnlocks,
 	} from '$lib/game/balance/blackMarket';
-	import { EnemyType, DEFAULT_SETTINGS, type TierId, type LabId } from '$lib/game/engine/gameTypes';
+	import { EnemyType, DEFAULT_SETTINGS, type TierId, type LabId, ChallengeId } from '$lib/game/engine/gameTypes';
 	import { BLUEPRINT_DEFS, isFieldUpgradeUnlocked } from '$lib/game/balance/blueprints';
 	import { meetsRequirement } from '$lib/game/progression/requirements';
 	import {
@@ -188,7 +188,7 @@
 		if (!save.unlockedSkins.includes(id)) {
 			const skin = TOWER_SKINS.find(s => s.id === id);
 			if (skin && skin.currency === 'achievement' && skin.achievementId === 'glass_tower_100') {
-				const wave = save.challengeHighScores?.['GlassTower'] ?? 0;
+				const wave = save.challengeHighScores?.[ChallengeId.GlassTower] ?? 0;
 				if (wave >= 100) {
 					if (!save.unlockedSkins.includes(id)) {
 						save.unlockedSkins.push(id);
