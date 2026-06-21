@@ -34,16 +34,16 @@ export interface ForgeUpgradeDef {
 	/** Alloy cost = round(baseCost × costGrowth^level). */
 	baseCost: number;
 	costGrowth: number;
-	/** Blueprint that must be owned before this Forge path can be bought. */
+	/** Schematic path that must be reconstructed before this Forge path can be bought. */
 	requiredBlueprint?: BlueprintId;
 }
 
 /**
  * The combat stats shared between Forge and Field. Each entry's level feeds the
- * SAME getBattleUpgradeEffect(id, level) curve used in-run. Blueprint gating
- * mirrors the Field upgrade gating so a path can't be pre-installed before it
- * can be used. Forge caps are intentionally modest — each level is a full Field
- * level of permanent power.
+ * SAME getBattleUpgradeEffect(id, level) curve used in-run. Schematic path
+ * gating mirrors the Field upgrade gating so a path can't be pre-installed
+ * before it can be used. Forge caps are intentionally modest — each level is a
+ * full Field level of permanent power.
  */
 export const FORGE_UPGRADE_DEFS: ForgeUpgradeDef[] = [
 	{

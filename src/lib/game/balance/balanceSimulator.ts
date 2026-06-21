@@ -1,5 +1,5 @@
 /**
- * balanceSimulator.ts — Long-tail simulator with blueprint-gating and strategy levels.
+ * balanceSimulator.ts — Long-tail simulator with Schematic path gating and strategy levels.
  *
  * Strategies:
  *   'confused' — terrible buying (saves too long, buys random upgrades late)
@@ -9,10 +9,10 @@
  * Models: layered defense (%, abs), regen, lifesteal, thorns, and full
  * workshop baseline with the new long-tail upgrade values.
  *
- * Blueprint Gating:
- * The simulator respects blueprint locks. Fresh accounts only have access
- * to starter upgrades. Scenarios can specify unlockedBlueprints to simulate
- * progression after unlocking specific paths.
+ * Path Gating:
+ * The simulator respects Schematic path locks. Fresh accounts only have access
+ * to starter upgrades. Scenarios can specify unlockedBlueprints (legacy ID
+ * storage) to simulate progression after reconstructing specific paths.
  */
 
 import {
@@ -172,7 +172,7 @@ function waveCoinReward(wave: number, coinMult: number, tier: number, alloyWaveB
  * auto-unlock paths. Paths only come from the unlockedBlueprints parameter
  * (pre-owned).
  */
-function tryUnlockBlueprints(_state: SimState, _bossesDefeated: number): void {
+function tryUnlockPaths(_state: SimState, _bossesDefeated: number): void {
 	// Paths are NOT auto-unlocked during simulation.
 	// They must be passed via the unlockedBlueprints parameter.
 	return;
@@ -231,7 +231,7 @@ export function simulateRun(
 		priority = [
 			UpgradeId.MaxHp, UpgradeId.Damage, UpgradeId.Regen,
 			UpgradeId.FireRate, UpgradeId.CritChance, UpgradeId.CritMultiplier,
-			// Locked without blueprints, listed for when available:
+			// Locked without reconstructed paths, listed for when available:
 			UpgradeId.CashPerWave, UpgradeId.Multishot,
 			UpgradeId.Defense, UpgradeId.DefensePercent, UpgradeId.Lifesteal,
 			UpgradeId.Thorns, UpgradeId.Range, UpgradeId.EnergyAmp,
@@ -260,8 +260,8 @@ export function simulateRun(
 		// - If kill rate >= arrival rate, tower stays ahead (minimal damage)
 		// - If kill rate < arrival rate, enemies pile up and deal damage
 
-		// Try to unlock blueprints as we progress
-		tryUnlockBlueprints(state, totalBossesDefeated);
+		// Hub Schematic spending is not modeled, so this remains a no-op.
+		tryUnlockPaths(state, totalBossesDefeated);
 
 		// Front-aware roster (delayed type introduction; Front 1 drips slowly).
 		const frontTypes = availableEnemyTypes(wave, tier);
@@ -384,8 +384,8 @@ export function simulateRun(
 		const healAfterWave = Math.max(30, Math.round(state.maxHp * 0.25));
 		state.hp = Math.min(state.hp + healAfterWave, state.maxHp);
 
-		// Re-check blueprint unlocks
-		tryUnlockBlueprints(state, totalBossesDefeated);
+		// Re-check path unlocks (no-op unless the simulator models Hub spending later).
+		tryUnlockPaths(state, totalBossesDefeated);
 		tryBuyUpgrades(state, priority, threshold);
 		recompute(state, ws, workshopLevels);
 	}
@@ -441,12 +441,12 @@ export const SCENARIOS: SimScenario[] = [
 	{
 		name: 'Fresh Confused', workshop: {}, labs: {}, tier: 1, strategy: 'confused',
 		unlockedBlueprints: [],
-		desc: 'First-ever run, confused buying (hoards cash, buys almost nothing). No blueprints.'
+		desc: 'First-ever run, confused buying (hoards cash, buys almost nothing). No reconstructed paths.'
 	},
 	{
 		name: 'Fresh Reasonable', workshop: {}, labs: {}, tier: 1, strategy: 'reasonable',
 		unlockedBlueprints: [],
-		desc: 'First run, reasonable buying (HP, damage, regen). No blueprints.'
+		desc: 'First run, reasonable buying (HP, damage, regen). No reconstructed paths.'
 	},
 	{
 		name: 'Fresh Optimal', workshop: {}, labs: {}, tier: 1, strategy: 'optimal',
@@ -467,7 +467,7 @@ export const SCENARIOS: SimScenario[] = [
 		},
 		labs: {}, tier: 1, strategy: 'optimal',
 		unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell],
-		desc: 'After a few deployments: 2 damage, 1 HP, 1 fire rate forge. Early blueprints.'
+		desc: 'After a few deployments: 2 damage, 1 HP, 1 fire rate forge. Early paths reconstructed.'
 	},
 	{
 		name: 'First Boss Attempt', workshop: {
@@ -484,7 +484,7 @@ export const SCENARIOS: SimScenario[] = [
 		name: '5 Foundry Purchases', workshop: { [WorkshopUpgradeId.BaseDamage]: 3, [WorkshopUpgradeId.StartingHp]: 2 },
 		labs: {}, tier: 1, strategy: 'optimal',
 		unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell],
-		desc: 'Minimal foundry: 3 damage, 2 HP. Early blueprints unlocked.'
+		desc: 'Minimal foundry: 3 damage, 2 HP. Early paths reconstructed.'
 	},
 	{
 		name: '25 Foundry Purchases', workshop: {
@@ -493,7 +493,7 @@ export const SCENARIOS: SimScenario[] = [
 			[WorkshopUpgradeId.CoinBonus]: 2 },
 		labs: {}, tier: 1, strategy: 'optimal',
 		unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell, BlueprintId.CriticalTargeting, BlueprintId.AlloyExtraction],
-		desc: '~25 foundry levels. Mid-game blueprints unlocked.'
+		desc: '~25 foundry levels. Mid-game paths reconstructed.'
 	},
 	{
 		name: '100 Foundry + Early Labs', workshop: {
@@ -504,7 +504,7 @@ export const SCENARIOS: SimScenario[] = [
 		labs: { damageResearch: 5, healthResearch: 3, attackSpeedResearch: 2 },
 		tier: 1, strategy: 'optimal',
 		unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell, BlueprintId.CriticalTargeting, BlueprintId.AlloyExtraction, BlueprintId.PhaseDampener, BlueprintId.SplitBeamGeometry, BlueprintId.EnergyCondenser, BlueprintId.DeploymentReserves, BlueprintId.ReactiveSurface],
-		desc: '~100 foundry + early labs. Most blueprints unlocked.'
+		desc: '~100 foundry + early labs. Most paths reconstructed.'
 	},
 	{
 		name: '500 Foundry + Labs', workshop: {
@@ -518,7 +518,7 @@ export const SCENARIOS: SimScenario[] = [
 			alloyEfficiency: 15, energyEfficiency: 10 },
 		tier: 1, strategy: 'optimal',
 		unlockedBlueprints: Object.values(BlueprintId),
-		desc: '~500 foundry + 100 labs — meaningful long-term. All blueprints.'
+		desc: '~500 foundry + 100 labs — meaningful long-term. All paths reconstructed.'
 	},
 	{
 		name: '1000 Foundry + 250 Labs', workshop: {
@@ -533,7 +533,7 @@ export const SCENARIOS: SimScenario[] = [
 			alloyEfficiency: 30, energyEfficiency: 20 },
 		tier: 1, strategy: 'optimal',
 		unlockedBlueprints: Object.values(BlueprintId),
-		desc: 'Deep veteran: ~1000 foundry + 250 labs. All blueprints.'
+		desc: 'Deep veteran: ~1000 foundry + 250 labs. All paths reconstructed.'
 	},
 	{
 		name: 'Tier 2 First Try', workshop: {

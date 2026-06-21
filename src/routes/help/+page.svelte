@@ -63,12 +63,12 @@
 		{
 			id: 'fronts',
 			q: 'What are Fronts?',
-			a: 'Fronts are campaign difficulty tracks. Each Front has denser waves, better Alloy rewards, and its own Schematic drops. Most Fronts unlock by reaching Wave 100 on the previous Front; crossing into a new band has harder milestone gates. Higher Fronts are not just bigger numbers: armor, resistance, and earlier enemy mixes become more common.',
+			a: 'Fronts are campaign difficulty tracks. Each Front has denser waves, better Alloy rewards, and its own Schematic pool. Bosses can drop Schematics for the current Front, and first-time wave milestones grant guaranteed Schematic bundles. Most Fronts unlock by reaching Wave 100 on the previous Front; crossing into a new band has harder milestone gates. Higher Fronts are not just bigger numbers: armor, resistance, and earlier enemy mixes become more common.',
 		},
 		{
 			id: 'schematics',
 			q: 'What are Schematics?',
-			a: 'Schematics are Front-specific reconstruction materials. Complete waves on a Front to recover that Front\'s Schematics, then spend them in Orbital Command to unlock new Field and Forge upgrade paths. They do not replace Alloy; they unlock what Alloy can be spent on.',
+			a: 'Schematics are Front-specific reconstruction materials. Bosses have a wave-scaled chance to drop them, first-time wave milestones grant guaranteed bundles, and the Schematics tab spends them directly to unlock new Field and Forge upgrade paths once the path requirement is met. There is no separate blueprint discovery step. Schematics do not replace Alloy; they unlock what Alloy can be spent on.',
 		},
 		{
 			id: 'mastery',
@@ -244,7 +244,7 @@
 				<div class="info-icon">📐</div>
 				<h3>Schematics</h3>
 				<span class="info-badge">Per Front</span>
-				<p>Recovered design fragments — used to <strong>reconstruct upgrade paths</strong>. Collected separately for each Front. Boss kills are repeatable; first-time wave milestones are one-time. The Black Market converter can trade 25 Front N Schematics for 1 Front N+1 Schematic after it is unlocked.</p>
+				<p>Recovered design fragments — used to <strong>reconstruct upgrade paths</strong>. Collected separately for each Front. Bosses have a repeatable wave-scaled drop chance; first-time wave milestones are guaranteed and one-time. The Black Market converter can trade 25 Front N Schematics for 1 Front N+1 Schematic after it is unlocked.</p>
 			</div>
 			<div class="info-card">
 				<div class="info-icon">◈</div>
@@ -405,7 +405,7 @@
 	<!-- Fronts -->
 	<section class="help-section">
 		<h2>🌍 Fronts (16 across 4 bands)</h2>
-		<p class="section-desc">Sixteen Fronts, grouped into four bands of four. Each Front spawns denser waves (more enemies, more Energy, more shiny chances) and drops its own <strong>Schematics</strong>. Most Fronts unlock at <strong>Wave 100</strong> on the previous one; crossing into a new band is the hard wall — <strong>Wave 200</strong> into Redline, <strong>Wave 300</strong> into Blacksite, <strong>Wave 400</strong> into Anomaly.</p>
+		<p class="section-desc">Sixteen Fronts, grouped into four bands of four. Each Front spawns denser waves (more enemies, more Energy, more shiny chances) and has its own <strong>Schematics</strong> pool. Boss drops are chance-based and repeatable; first-time wave milestones are guaranteed. Most Fronts unlock at <strong>Wave 100</strong> on the previous one; crossing into a new band is the hard wall — <strong>Wave 200</strong> into Redline, <strong>Wave 300</strong> into Blacksite, <strong>Wave 400</strong> into Anomaly.</p>
 		<div class="card-grid">
 			<div class="help-card tier">
 				<div class="help-card-icon">🛡️</div>

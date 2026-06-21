@@ -18,7 +18,7 @@
 
 <div class="hs">
 	<h2 class="hst">🌍 Fronts</h2>
-	<p class="hsd">Sixteen Fronts across four bands — Perimeter, Redline, Blacksite, Anomaly. Each Front spawns denser waves and drops its own Schematics. Most Fronts unlock at Wave 100 on the previous one; crossing into a new band is the hard wall. Remember: the enemy is also fighting a war. They are losing. Please continue to help them lose.</p>
+	<p class="hsd">Sixteen Fronts across four bands — Perimeter, Redline, Blacksite, Anomaly. Each Front spawns denser waves and has its own Schematic pool: boss drops are chance-based and repeatable, while first-time wave milestones are guaranteed. Most Fronts unlock at Wave 100 on the previous one; crossing into a new band is the hard wall. Remember: the enemy is also fighting a war. They are losing. Please continue to help them lose.</p>
 	<div class="cl">
 		{#each TIERS as t}
 			{@const unl = unlockedFronts.includes(t.id)}

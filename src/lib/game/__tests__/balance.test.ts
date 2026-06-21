@@ -539,7 +539,7 @@ describe('Balance Simulator', () => {
 		expect(reasonable.finalWave).toBeGreaterThanOrEqual(confused.finalWave);
 	});
 
-	it('fresh strategies show spread with blueprint gating', () => {
+	it('fresh strategies show spread with Schematic path gating', () => {
 		const fresh = simulateRun({}, {}, 5000, 1, 'optimal', []);
 		const fr = simulateRun({}, {}, 5000, 1, 'reasonable', []);
 		const cf = simulateRun({}, {}, 5000, 1, 'confused', []);
@@ -560,8 +560,8 @@ describe('Balance Simulator', () => {
 	});
 
 	it('player with foundry purchases should survive the early waves', () => {
-		// With 5 foundry levels (3 damage, 2 HP) + early blueprints, the tower should
-		// survive through the early waves better than a completely fresh account.
+		// With 5 foundry levels (3 damage, 2 HP) + early reconstructed paths, the
+		// tower should survive through the early waves better than a fresh account.
 		// Seed 42 for deterministic comparison
 		const fresh = simulateRun({}, {}, 5000, 1, 'optimal', [], 42);
 		const upgraded = simulateRun({
@@ -645,7 +645,7 @@ describe('Balance Simulator', () => {
 		expect(optimal.finalWave).toBeGreaterThanOrEqual(confused.finalWave);
 	});
 
-	it('with all blueprints and some foundry, simulator reaches further', () => {
+	it('with all paths reconstructed and some foundry, simulator reaches further', () => {
 		const ws = { [WorkshopUpgradeId.BaseDamage]: 10, [WorkshopUpgradeId.StartingHp]: 5 };
 		const allBPs = Object.values(BlueprintId);
 		// Use fixed seed for deterministic comparison
@@ -716,7 +716,7 @@ describe('Blueprint System', () => {
 		expect(isFoundryUpgradeUnlocked(WorkshopUpgradeId.Lifesteal, bps)).toBe(true);
 	});
 
-	it('all blueprints should have valid IDs and names', () => {
+	it('all Schematic paths should have valid IDs, names, and costs', () => {
 		for (const bp of BLUEPRINT_DEFS) {
 			expect(bp.id).toBeTruthy();
 			expect(bp.name).toBeTruthy();

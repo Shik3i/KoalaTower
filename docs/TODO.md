@@ -32,7 +32,7 @@
 - [x] Workshop upgrade costs lowered, more achievable after first runs
 - [x] Add tier unlock logic based on highest wave (front-based progression)
 - [x] Implementation of Tiers 1–5 with multipliers and alloy scaling
-- [x] Blueprint discovery + research system
+- [x] Schematic path reconstruction system
 - [x] Lab research with offline time tracking + browser notifications
 - [ ] Fix enemy attack cooldown — ranged enemies should actually shoot
 - [ ] Add elite/shiny enemy variants (tracked via shiniesKilled, needs visual distinction)

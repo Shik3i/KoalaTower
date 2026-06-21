@@ -11,8 +11,8 @@
  *   steeper hybrid growth for capped stats.
  *
  * PROGRESSION GATING:
- * Starter upgrades (Damage, Attack Speed, HP, Regen) are always
- * available. Advanced upgrades require purchasing the corresponding Blueprint.
+ * Starter upgrades (Damage, Attack Speed, HP, Regen) are always available.
+ * Advanced upgrades require reconstructing the corresponding Schematic path.
  *
  * Level targets:
  *   First 10:   cheap, buyable after 1-2 runs
@@ -40,7 +40,7 @@ export interface WorkshopUpgradeDef {
 	effectPerLevel: number;
 	effectCap?: number;
 	targetStat: string;
-	/** Blueprint required to unlock (null = starter, always available) */
+	/** Schematic path required to unlock (undefined = starter, always available) */
 	requiredBlueprint?: BlueprintId;
 }
 

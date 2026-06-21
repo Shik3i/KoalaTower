@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.11 — Schematic documentation audit
+
+- Audited the Schematic path reconstruction rollout and removed stale public documentation that still described a separate Blueprint discovery/RNG step.
+- Updated Help, README, architecture notes, TODO status, and What's New copy to describe the current model: path requirement + enough Front Schematics = direct reconstruction.
+- Clarified that boss Schematic rewards are chance-based and scale with boss wave, while first-time wave milestones remain guaranteed one-time rewards.
+
 ## v0.9.4 — Fix Play screen stuck on "Initializing Quantum Core"
 
 - **Fixed the Play screen hanging forever on the loading overlay**, leaving the Deploy button unreachable. The "INITIALIZING QUANTUM CORE" overlay (added in 056d8a0) was given `z-index: 100`, an opaque background, and `pointer-events: all`, so it sat on top of the launch screen (`z-index: 10`). Because the Pixi renderer is only created on deploy, `pixiReady` stays `false` while the launch screen is up, so the overlay permanently covered and blocked the Deploy button — the run could never start. The loading overlay is now suppressed while the launch screen is visible, and defensively restored to `pointer-events: none` and a `z-index` below the launch screen.

@@ -12,7 +12,7 @@
  * - Offline completion works via Date.now().
  * - Early levels: 30s - 5min for alpha testing.
  * - Later levels: hours/days.
- * - Starter labs locked behind milestones/blueprints.
+ * - Starter labs locked behind milestones and reconstructed upgrade paths.
  */
 
 import { LabId } from '../engine/gameTypes';

@@ -66,11 +66,11 @@ describe('GameEngine — battle upgrade purchases', () => {
 		expect(engine.state.battleUpgrades[UpgradeId.Damage] ?? 0).toBe(0);
 	});
 
-	it('refuses a blueprint-locked upgrade unless its blueprint is unlocked', () => {
+	it('refuses a path-locked upgrade unless its Schematic path is reconstructed', () => {
 		const engine = new GameEngine();
-		engine.startRun({}, {}, {}, 0, [], 1); // no blueprints
+		engine.startRun({}, {}, {}, 0, [], 1); // no reconstructed paths
 		engine.state.cash = 1_000_000;
-		// Multishot requires the SplitBeamGeometry blueprint.
+		// Multishot requires the SplitBeamGeometry path.
 		expect(engine.buyBattleUpgrade(UpgradeId.Multishot)).toBe(false);
 	});
 });

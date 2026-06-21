@@ -294,7 +294,7 @@ describe('Schematics currency', () => {
 });
 
 describe('Schematic rewards', () => {
-	it('boss kills are repeatable (1–3 per kill, scaling slowly by Front)', () => {
+	it('boss drop bundles scale slowly by Front', () => {
 		expect(getBossSchematicReward(1)).toBe(1);
 		expect(getBossSchematicReward(7)).toBe(2);
 		expect(getBossSchematicReward(13)).toBe(3);

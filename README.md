@@ -22,7 +22,7 @@ Flatland is at war with **hostile geometric shapes**. Deploy towers from orbit, 
 - 🔬 **5 Research Deck projects** — real-time orbital research with offline progress
 - ⚡ **14 Field upgrades** — temporary overclocks per deployment (Offense, Defense, Utility)
 - 🌍 **16 Fronts (4 bands × 4 Fronts)** — escalating difficulty with better Alloy rewards and per-Front Schematics
-- 📑 **Schematics** — per-Front currency dropped by bosses, used to reconstruct upgrade paths
+- 📑 **Schematics** — per-Front currency from wave-scaled boss drops and first-clear milestones, used to reconstruct upgrade paths
 - 🛰️ **Command Orders** — weekly official Alloy assignments with gift box milestones and board refresh cooldowns
 - 🏆 **42 Achievements** — deploy towers, destroy shapes, earn Alloy rewards
 - 👾 **5 Enemy types** — Normal ■, Fast ◆, Tank ⬡, Ranged ▶, Boss ⬠ — each visually distinct
@@ -83,7 +83,7 @@ src/
 │       ├── engine/          # GameEngine + GameConfig + GameTypes
 │       ├── systems/         # Wave, Enemy, Tower, Projectile, Economy (pure functions)
 │       ├── balance/         # Enemies, upgrades, Research Deck, Fronts, Schematics, achievements
-│       ├── progression/     # Unlock requirements + Schematic discovery RNG
+│       ├── progression/     # Unlock requirements for Schematic path reconstruction
 │       ├── render/          # PixiJS WebGL rendering (layered renderers, death FX, effects)
 │       ├── audio/           # Procedural Web Audio SFX + music
 │       ├── save/            # IndexedDB persistence + schema migrations

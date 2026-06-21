@@ -1,11 +1,12 @@
 /**
- * requirements.ts — Declarative unlock/discovery requirements.
+ * requirements.ts — Declarative unlock requirements.
  *
  * A single data shape describes "what must be true" for something to become
  * available, plus ONE evaluator and ONE describer. This replaces hand-written
- * per-id switch statements so that adding a new gated thing (blueprint, front,
- * achievement…) is a pure data edit — the logic and the human-readable text
- * are derived from the same source and can never drift apart.
+ * per-id switch statements so that adding a new gated thing (upgrade path,
+ * front, achievement...) is a pure data edit — the logic and the
+ * human-readable text are derived from the same source and can never drift
+ * apart.
  */
 
 import type { BlueprintId, TierId } from '../engine/gameTypes';
@@ -20,7 +21,7 @@ export interface Requirement {
 	minWave?: number;
 	/** Lifetime bosses the player must have defeated. */
 	minBosses?: number;
-	/** Another blueprint that must already be owned (prerequisite chains). */
+	/** Another Schematic-reconstructed path that must already be owned. */
 	requiresBlueprint?: BlueprintId;
 	/** Front (tier) that must be unlocked. */
 	requiresFront?: TierId;
@@ -48,7 +49,7 @@ export function meetsRequirement(req: Requirement, progress: ProgressSnapshot): 
 
 /**
  * Human-readable summary of a requirement (e.g. "Reach Wave 25 · Defeat 2 Bosses").
- * `blueprintName` resolves a prerequisite blueprint id to a display name.
+ * `blueprintName` resolves a legacy prerequisite path id to a display name.
  */
 export function describeRequirement(
 	req: Requirement,
@@ -58,7 +59,7 @@ export function describeRequirement(
 	if (req.minWave !== undefined) parts.push(`Reach Wave ${req.minWave}`);
 	if (req.minBosses !== undefined) parts.push(`Defeat ${req.minBosses} Boss${req.minBosses === 1 ? '' : 'es'}`);
 	if (req.requiresBlueprint !== undefined) {
-		parts.push(`Own ${blueprintName ? blueprintName(req.requiresBlueprint) : req.requiresBlueprint}`);
+		parts.push(`Reconstruct ${blueprintName ? blueprintName(req.requiresBlueprint) : req.requiresBlueprint}`);
 	}
 	if (req.anyOf && req.anyOf.length > 0) {
 		parts.push(req.anyOf.map(sub => describeRequirement(sub, blueprintName)).join(' or '));

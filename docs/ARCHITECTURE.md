@@ -43,7 +43,7 @@ Flatland TD is a fully client-side, static web application. It uses a layered ar
 - **No framework rendering in game loop**: PixiJS/WebGL owns rendering, not Svelte.
 - **Snapshot-based UI**: Svelte receives throttled snapshots from the engine, not real-time state.
 - **Pure systems**: All game logic functions are testable without PixiJS or Svelte.
-- **Data-driven configs**: Enemies, upgrades, labs, tiers, blueprints, achievements are defined as data arrays.
+- **Data-driven configs**: Enemies, upgrades, labs, tiers, Schematic-gated upgrade paths, and achievements are defined as data arrays.
 - **Schema-versioned saves**: Save migration is handled separately from game logic.
 - **CSS variable design system**: All typography, colors, spacing use CSS custom properties in `app.css` — no hardcoded values in components.
 
@@ -85,7 +85,7 @@ koala-tower/
 │   │       ├── engine/       # Core engine + types + config
 │   │       ├── systems/      # Pure game logic
 │   │       ├── balance/      # Data configs + formulas
-│   │       ├── progression/  # Unlock requirements + discovery
+│   │       ├── progression/  # Unlock requirements for Schematic path reconstruction
 │   │       ├── render/       # PixiJS WebGL rendering (death FX, effects, damage states)
 │   │       ├── audio/        # Procedural Web Audio
 │   │       ├── save/         # IndexedDB persistence
@@ -95,7 +95,7 @@ koala-tower/
 │   │   ├── +error.svelte     # Themed error page (404/500)
 │   │   ├── +page.svelte      # Home / landing page
 │   │   ├── play/             # Game screen (canvas + HUD + vignette + boss intro + killstreak)
-│   │   ├── hub/              # Forge, Lab, Blueprints, Fronts, Black Market, etc.
+│   │   ├── hub/              # Forge, Lab, Schematics, Fronts, Black Market, etc.
 │   │   ├── help/             # FAQ + lore + replay tutorials
 │   │   ├── privacy/          # Privacy policy
 │   │   ├── imprint/          # Legal notice
@@ -114,7 +114,7 @@ koala-tower/
 |----------------|----------|------------|--------------------|-------------------------------------------------------|
 | Energy         | ⚡       | Temporary  | Destroying shapes  | Field upgrades / overclocks (per deployment)          |
 | Alloy          | 🔩       | Permanent  | Destroying shapes  | Forge upgrades + Research Deck                        |
-| Schematics     | §        | Per-Front  | Boss kills         | Upgrade-path reconstruction (per-Front)               |
+| Schematics     | §        | Per-Front  | Boss drops + milestones | Upgrade-path reconstruction (per-Front)          |
 | Strange Matter | ◈        | Permanent  | Local Black Market | QoL unlocks, weekly shipments, daily pickup           |
 
 ## Progression Systems
@@ -126,7 +126,7 @@ koala-tower/
 5 time-based orbital research projects. Run in real time (offline too). Multiplicative bonuses stack with Forge. Browser notifications for completion.
 
 ### Schematics
-Per-Front design fragments. Boss kills grant repeatable Schematics, first-time wave milestones grant larger one-time drops, and the Forge reconstructs compatible upgrade paths from them. Internal Blueprint IDs remain as legacy compatibility names.
+Per-Front design fragments. Bosses have a wave-scaled chance to drop repeatable Schematics (about 28% at Wave 10, reaching 100% at Wave 1000), first-time wave milestones grant larger guaranteed one-time drops, and the Schematics tab reconstructs compatible upgrade paths from them. Internal Blueprint IDs remain as legacy compatibility names; there is no separate "find the blueprint first" state.
 
 ### Fronts (Tiers)
 16 Fronts across 4 bands (Perimeter → Redline → Blacksite → Anomaly) with escalating difficulty and Schematics rewards. Unlocked by reaching wave milestones on previous Fronts within the same band.

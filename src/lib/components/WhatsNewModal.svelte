@@ -20,7 +20,7 @@
 	// Concise highlights — not a full changelog.
 	const highlights: string[] = [
 		'16 Fronts across four bands, each with star variants',
-		'Schematics & Front-specific progression in the Forge',
+		'Schematics directly reconstruct upgrade paths',
 		'Black Market and Strange Matter — an unauthorized channel',
 		'Offline & installable (PWA) — play with no connection',
 		'Polished Deploy Front selector',

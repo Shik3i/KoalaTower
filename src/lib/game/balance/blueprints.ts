@@ -1,15 +1,15 @@
 /**
- * blueprints.ts — Blueprint definitions and the upgrade-gating they drive.
+ * blueprints.ts — Legacy BlueprintId path definitions and the upgrade-gating they drive.
  *
  * LIFECYCLE:
  *   eligible by requirement → reconstructed with Front Schematics → owned
  *
  * SINGLE SOURCE OF TRUTH:
  *   The upgrade declares its own prerequisite via `requiredBlueprint`
- *   (see battleUpgrades.ts / workshopUpgrades.ts). The blueprint → upgrades
- *   mapping is DERIVED from that — never hand-maintained here. Adding a new
- *   gated ability is therefore: write the upgrade def (+ requiredBlueprint),
- *   write a BlueprintDef (requirement). No switch edits.
+ *   (see battleUpgrades.ts / workshopUpgrades.ts). The path → upgrades mapping
+ *   is DERIVED from that — never hand-maintained here. Adding a new gated
+ *   ability is therefore: write the upgrade def (+ requiredBlueprint), write a
+ *   BlueprintDef (requirement). No switch edits.
  */
 
 import { BlueprintId, UpgradeId, WorkshopUpgradeId } from '../engine/gameTypes';
@@ -112,7 +112,7 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 const bpMap = new Map<BlueprintId, BlueprintDef>();
 for (const bp of BLUEPRINT_DEFS) bpMap.set(bp.id, bp);
 
-/** upgradeId → required blueprint (or undefined = starter), derived from upgrade defs. */
+/** upgradeId → required legacy path id (or undefined = starter), derived from upgrade defs. */
 const fieldRequirement = new Map<UpgradeId, BlueprintId | undefined>();
 for (const u of BATTLE_UPGRADE_DEFS) fieldRequirement.set(u.id, u.requiredBlueprint);
 
@@ -123,12 +123,12 @@ export function getBlueprintDef(id: BlueprintId): BlueprintDef | undefined {
 	return bpMap.get(id);
 }
 
-/** Field (battle) upgrades a blueprint unlocks — derived, not hand-maintained. */
+/** Field (battle) upgrades a reconstructed path unlocks — derived, not hand-maintained. */
 export function getFieldUpgradesUnlockedBy(id: BlueprintId): UpgradeId[] {
 	return BATTLE_UPGRADE_DEFS.filter(u => u.requiredBlueprint === id).map(u => u.id);
 }
 
-/** Foundry (workshop) upgrades a blueprint unlocks — derived, not hand-maintained. */
+/** Foundry (workshop) upgrades a reconstructed path unlocks — derived, not hand-maintained. */
 export function getFoundryUpgradesUnlockedBy(id: BlueprintId): WorkshopUpgradeId[] {
 	return WORKSHOP_UPGRADE_DEFS.filter(u => u.requiredBlueprint === id).map(u => u.id);
 }
@@ -155,7 +155,7 @@ export function getBlueprintForFoundryUpgrade(upgradeId: WorkshopUpgradeId): Blu
 	return req ? (bpMap.get(req) ?? null) : null;
 }
 
-/** Battle upgrades with no blueprint requirement (available from the start). */
+/** Upgrades with no reconstructed-path requirement (available from the start). */
 export const STARTER_FIELD_UPGRADES: UpgradeId[] = BATTLE_UPGRADE_DEFS.filter(u => !u.requiredBlueprint).map(u => u.id);
 export const STARTER_FOUNDRY_UPGRADES: WorkshopUpgradeId[] = WORKSHOP_UPGRADE_DEFS.filter(u => !u.requiredBlueprint).map(u => u.id);
 
@@ -184,9 +184,9 @@ export function isBlueprintUnlockable(bp: BlueprintDef, highestWave: number, bos
 }
 
 /**
- * Auto-unlock blueprints based on existing upgrade levels during migration:
- * if a player already invested in a gated workshop path, grandfather the
- * blueprint so they don't lose access.
+ * Auto-unlock path ids based on existing upgrade levels during migration:
+ * if a player already invested in a gated workshop path, grandfather the path
+ * so they don't lose access.
  */
 export function computeGrandfatheredBlueprints(
 	workshopLevels: Partial<Record<WorkshopUpgradeId, number>>,
