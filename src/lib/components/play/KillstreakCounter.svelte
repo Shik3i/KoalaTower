@@ -12,8 +12,6 @@
 	} = $props();
 
 	const burning = $derived(tier >= 6);
-	const flameCount = $derived(tier >= 8 ? 8 : tier >= 7 ? 7 : 6);
-	const frontFlames = $derived(tier >= 8 ? 6 : tier >= 7 ? 5 : 4);
 	const formatted = $derived(count.toLocaleString('en-US'));
 	// Split the readout into per-character slots so each digit is its own
 	// odometer column. Only the columns whose digit actually changed re-key and
@@ -139,10 +137,6 @@
 	{/if}
 
 	{#if burning && !reduced}
-		<div class="ks-fire" aria-hidden="true">
-			<span class="ks-firebed"></span>
-			{#each Array(flameCount) as _, i}<span class="ks-flame" style="--fi:{i}; --fn:{flameCount}"></span>{/each}
-		</div>
 		<div class="ks-embers" aria-hidden="true">
 			{#each Array(9) as _, i}<span class="ks-ember" style="--ei:{i}"></span>{/each}
 		</div>
@@ -196,13 +190,6 @@
 		{/key}
 	{/if}
 
-	{#if burning && !reduced}
-		<!-- Foreground flames licking up over the number itself — the digits
-		     read as being on fire, not just sitting above a flame strip. -->
-		<div class="ks-fire-front" aria-hidden="true">
-			{#each Array(frontFlames) as _, i}<span class="ks-flame-front" style="--fi:{i}; --fn:{frontFlames}"></span>{/each}
-		</div>
-	{/if}
 </div>
 
 <style>
@@ -338,7 +325,7 @@
 	   the number so it reads as actually burning. White-hot core → gold →
 	   orange → red gradient; the container is blurred so the tongues melt into
 	   one continuous body of fire. An ember bed glows at the base. */
-	.ks-fire {
+	:global(.ks-fire) {
 		position: absolute; left: -8%; right: -8%; top: -34px; bottom: -8px;
 		z-index: -1; pointer-events: none;
 		/* Light blur only — keeps each tongue a distinct lick instead of melting
@@ -347,14 +334,14 @@
 		filter: blur(1px) brightness(1.06)
 			drop-shadow(0 0 10px rgba(255,120,20,.45));
 	}
-	.ks-firebed {
+	:global(.ks-firebed) {
 		position: absolute; left: 8%; right: 8%; bottom: 6px; height: 14px;
 		background: radial-gradient(ellipse 55% 100% at 50% 100%,
 			rgba(255,200,80,.75) 0%, rgba(255,120,0,.4) 50%, transparent 78%);
 		mix-blend-mode: screen;
 		animation: ksFirebed .6s ease-in-out infinite alternate;
 	}
-	.ks-flame {
+	:global(.ks-flame) {
 		position: absolute; bottom: 2px;
 		left: calc(6% + var(--fi) * (88% / (var(--fn) - 1)));
 		width: 22px; height: 76px; margin-left: -11px;
@@ -375,12 +362,12 @@
 	   bodies (so the glyphs read through, tinted by fire) and white-hot at the
 	   tips that lick up past the top edge — the number stands inside the flames
 	   rather than sitting in front of a backdrop. */
-	.ks-fire-front {
+	:global(.ks-fire-front) {
 		position: absolute; left: 4%; right: 4%; top: -26px; bottom: 2px;
 		z-index: 2; pointer-events: none;
 		filter: blur(1.1px) brightness(1.05);
 	}
-	.ks-flame-front {
+	:global(.ks-flame-front) {
 		position: absolute; bottom: 0;
 		left: calc(8% + var(--fi) * (84% / (var(--fn) - 1)));
 		width: 22px; height: 80px; margin-left: -11px;
@@ -392,19 +379,20 @@
 		animation: ksFlameFront .52s ease-in-out infinite alternate;
 		animation-delay: calc(var(--fi) * -.0934s);
 	}
-	.ks-embers { position: absolute; inset: 0; z-index: -1; }
+	.ks-embers { position: absolute; inset: -18px -8px 0 0; z-index: 3; pointer-events: none; }
 	.ks-ember {
-		position: absolute; bottom: 4px; left: calc(8% + var(--ei) * 13%);
-		width: 4px; height: 4px; border-radius: 50%;
+		position: absolute; bottom: 12px; left: calc(20% + var(--ei) * 9%);
+		width: 3px; height: 3px; border-radius: 50%;
 		background: radial-gradient(circle, #FFE7A0, #FF7A1A 70%, transparent);
 		mix-blend-mode: screen; opacity: 0;
-		animation: ksEmber 1.4s ease-out infinite;
+		box-shadow: 0 0 7px rgba(255, 120, 24, .8);
+		animation: ksEmber 1.2s ease-out infinite;
 		animation-delay: calc(var(--ei) * -.28s);
 	}
-	.ks[data-tier="7"] .ks-flame { height: 90px; width: 33px; }
-	.ks[data-tier="8"] .ks-flame { height: 104px; width: 36px; }
-	.ks[data-tier="7"] .ks-fire,
-	.ks[data-tier="8"] .ks-fire { top: -54px; }
+	:global(.ks[data-tier="7"] .ks-flame) { height: 90px; width: 33px; }
+	:global(.ks[data-tier="8"] .ks-flame) { height: 104px; width: 36px; }
+	:global(.ks[data-tier="7"] .ks-fire),
+	:global(.ks[data-tier="8"] .ks-fire) { top: -54px; }
 	.ks.burning .ks-readout { animation: ksBurnShake 1.4s ease-in-out infinite; }
 	.ks[data-tier="8"].burning .ks-readout { animation: ksBurnShake .85s ease-in-out infinite; }
 	/* The digits flicker hot while burning — a cheap brightness/hue pulse. */
@@ -470,7 +458,7 @@
 	}
 	.ks:global(.out) { animation: none; }
 	.ks:global(.out) .ks-readout { animation: ksImplode .34s cubic-bezier(.5,-0.4,.7,.3) forwards; }
-	.ks:global(.out) .ks-fire,
+	.ks:global(.out) :global(.ks-fire),
 	.ks:global(.out) .ks-embers { animation: ksFireOut .18s ease forwards; opacity: 0; }
 	.ks:global(.out) .ks-shard { animation: ksShard .62s cubic-bezier(.25,.6,.4,1) forwards; animation-delay: var(--d); }
 	.ks:global(.out) .ks-puff { animation: ksPuff .6s ease-out .08s forwards; }
@@ -571,7 +559,7 @@
 	.ks.reduced .ks-flash,
 	.ks.reduced .ks-shock,
 	.ks.reduced .ks-rays,
-	.ks.reduced .ks-fire,
+	.ks.reduced :global(.ks-fire),
 	.ks.reduced .ks-embers,
 	.ks.reduced .ks-debris,
 	.ks.reduced .ks-puff { display: none; }
