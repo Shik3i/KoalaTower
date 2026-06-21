@@ -85,8 +85,12 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 			// Spawn the boss at the end of the spawn window (tick 240)
 			if (wave.currentTickIndex === SPAWN_TICKS_PER_WAVE && isBossWave) {
 				wave.bossPending = true;
-				wave.enemiesInWave++;
-				wave.enemiesInSubWave++;
+				if ((wave.spawnBacklog ?? 0) > 0) {
+					wave.spawnBacklog = (wave.spawnBacklog ?? 0) - 1;
+				} else {
+					wave.enemiesInWave++;
+					wave.enemiesInSubWave++;
+				}
 			}
 		}
 	}

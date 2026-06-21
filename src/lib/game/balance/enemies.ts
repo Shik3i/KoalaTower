@@ -34,13 +34,11 @@ export function resetEnemyIdCounter(): void {
 
 /**
  * Get the total number of enemies for a wave on a given Front.
- * Boss waves return normal expected spawns + 1 Boss.
+ * Boss waves include one Boss that replaces one normal spawn.
  * `front` defaults to 1.
  */
 export function getEnemyCountForWave(wave: number, front: number = 1): number {
-	const isBossWave = wave % 10 === 0;
-	const normalSpawns = expectedEnemiesPerWave(wave, front);
-	return Math.min(MAX_ENEMIES_PER_WAVE_SAFETY, normalSpawns + (isBossWave ? 1 : 0));
+	return expectedEnemiesPerWave(wave, front);
 }
 
 /** Boss-wave enemy count for a given wave/Front — used by BossRush challenge. */

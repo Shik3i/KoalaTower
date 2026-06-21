@@ -40,7 +40,9 @@ import {
 	RANGED_ATTACK_RANGE,
 	ENEMY_TYPE_MODIFIERS,
 	baseSpawnChancePercent,
+	enemySpawnWeightsForWave,
 	spawnDensityMultiplier,
+	spawnRateRowForWave,
 	expectedEnemiesPerWave,
 	MAX_ACTIVE_ENEMIES,
 	MAX_ENEMIES_PER_WAVE_SAFETY,
@@ -394,12 +396,32 @@ describe('Boss Waves', () => {
 // ─── Enemy Count Tests ──────────────────────────────────────────────────────
 
 describe('Enemy Count & Spawn Tick Pacing', () => {
-	it('should follow correct baseSpawnChancePercent curve', () => {
-		expect(baseSpawnChancePercent(1)).toBeCloseTo(14.9, 1);
-		expect(baseSpawnChancePercent(10)).toBeCloseTo(25.3, 1);
-		expect(baseSpawnChancePercent(100)).toBeCloseTo(43.0, 1);
+	it('should follow the smooth spawn chance curve capped at wave 1000', () => {
+		expect(baseSpawnChancePercent(1)).toBe(10);
+		expect(baseSpawnChancePercent(10)).toBeCloseTo(13.0, 1);
+		expect(baseSpawnChancePercent(100)).toBeCloseTo(22.0, 1);
+		expect(baseSpawnChancePercent(500)).toBeCloseTo(40.7, 1);
 		expect(baseSpawnChancePercent(1000)).toBe(56);
 		expect(baseSpawnChancePercent(10000)).toBe(56);
+	});
+
+	it('should map smooth spawn pressure onto Tower-like enemy mix rows', () => {
+		expect(spawnRateRowForWave(1).spawnRate).toBe(10);
+		expect(spawnRateRowForWave(100).spawnRate).toBe(22);
+		expect(spawnRateRowForWave(1000).spawnRate).toBe(56);
+
+		expect(enemySpawnWeightsForWave(1)).toEqual({
+			[EnemyType.Normal]: 95,
+			[EnemyType.Fast]: 5,
+			[EnemyType.Tank]: 0,
+			[EnemyType.Ranged]: 0,
+		});
+		expect(enemySpawnWeightsForWave(1000)).toEqual({
+			[EnemyType.Normal]: 33,
+			[EnemyType.Fast]: 24,
+			[EnemyType.Tank]: 22,
+			[EnemyType.Ranged]: 21,
+		});
 	});
 
 	it('should never exceed spawn chance cap of 56%', () => {
@@ -409,17 +431,17 @@ describe('Enemy Count & Spawn Tick Pacing', () => {
 	});
 
 	it('should follow correct Front 1 expected enemies per wave', () => {
-		expect(expectedEnemiesPerWave(1, 1)).toBe(36);
-		expect(expectedEnemiesPerWave(10, 1)).toBe(61);
-		expect(expectedEnemiesPerWave(100, 1)).toBe(103);
+		expect(expectedEnemiesPerWave(1, 1)).toBe(24);
+		expect(expectedEnemiesPerWave(10, 1)).toBe(31);
+		expect(expectedEnemiesPerWave(100, 1)).toBe(53);
 		expect(expectedEnemiesPerWave(1000, 1)).toBe(134);
 		expect(expectedEnemiesPerWave(10000, 1)).toBe(134);
 	});
 
 	it('should follow correct higher Front expected counts', () => {
-		expect(expectedEnemiesPerWave(100, 5)).toBe(239);
-		expect(expectedEnemiesPerWave(100, 9)).toBe(375);
-		expect(expectedEnemiesPerWave(100, 16)).toBe(614);
+		expect(expectedEnemiesPerWave(100, 5)).toBe(122);
+		expect(expectedEnemiesPerWave(100, 9)).toBe(192);
+		expect(expectedEnemiesPerWave(100, 16)).toBe(314);
 		expect(expectedEnemiesPerWave(1000, 16)).toBe(800);
 	});
 
@@ -875,9 +897,9 @@ describe('Enemy scaling correction (HP 16.67, attack x10)', () => {
 		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Boss].hp).toBe(20.0);
 	});
 
-	it('spawn pacing values are unchanged', () => {
-		expect(enemiesPerWave(1)).toBe(36);
-		expect(enemiesPerWave(10)).toBe(61);
+	it('spawn pacing follows the smooth Tower-like curve', () => {
+		expect(enemiesPerWave(1)).toBe(24);
+		expect(enemiesPerWave(10)).toBe(31);
 	});
 
 	it('player Damage curve from the previous pass is unchanged', () => {
@@ -1004,9 +1026,9 @@ describe('Tower Starting Stats', () => {
 // ─── Wave 1-10 Enemy Stats Tests ───────────────────────────────────────────
 
 describe('Wave 1-10 Enemy Stats', () => {
-	it('Wave 1 expected enemy count is 36', () => {
+	it('Wave 1 expected enemy count is 24', () => {
 		const c = enemiesPerWave(1);
-		expect(c).toBe(36);
+		expect(c).toBe(24);
 	});
 
 	it('Wave 1 Front 1 enemy HP is around 39', () => {
@@ -1033,9 +1055,9 @@ describe('Wave 1-10 Enemy Stats', () => {
 		expect(dmg).toBeLessThanOrEqual(49);
 	});
 
-	it('Wave 10 expected enemy count is 61', () => {
+	it('Wave 10 expected enemy count is 31', () => {
 		const c = enemiesPerWave(10);
-		expect(c).toBe(61);
+		expect(c).toBe(31);
 	});
 });
 

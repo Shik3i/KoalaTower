@@ -105,7 +105,7 @@ describe('GameEngine — enemy spawn placement uses the live viewport', () => {
 	it('spawns relative to state.viewWidth/viewHeight, not the 800px fallback', () => {
 		// Regression: the renderer used to write __viewW on the engine object while
 		// waveSystem read state.viewWidth — so spawns always fell back to 800.
-		const randomValues = [0.01, 0.3, 0.3, 0.5];
+		const randomValues = [0.01, 0.3, 0.3, 0.3, 0.5];
 		vi.spyOn(Math, 'random').mockImplementation(() => randomValues.shift() ?? 0.3);
 		const engine = new GameEngine();
 		engine.startRun({}, {}, {}, 0, [], 1);

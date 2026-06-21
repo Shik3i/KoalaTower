@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getEnemyCountForWave, getSpawnIntervalForWave, getEnemyTypeForWave, createEnemy } from '../balance/enemies';
 import { EnemyType } from '../engine/gameTypes';
-import { expectedEnemiesPerWave } from '../balance/balanceMath';
+import { enemySpawnWeightsForWave, expectedEnemiesPerWave } from '../balance/balanceMath';
 
 describe('Wave Scaling', () => {
 	it('should have increasing enemy counts per wave', () => {
@@ -12,10 +12,9 @@ describe('Wave Scaling', () => {
 		expect(count9).toBeGreaterThan(count5);
 	});
 
-	it('boss waves should include normal spawns + boss', () => {
+	it('boss waves include a boss that replaces one normal spawn', () => {
 		const bossWaveCount = getEnemyCountForWave(10);
-		// Boss wave has expected normal spawns (61) + 1 boss = 62
-		expect(bossWaveCount).toBe(expectedEnemiesPerWave(10, 1) + 1);
+		expect(bossWaveCount).toBe(expectedEnemiesPerWave(10, 1));
 	});
 
 	it('should have decreasing spawn intervals', () => {
@@ -29,31 +28,27 @@ describe('Wave Scaling', () => {
 		expect(interval100).toBeGreaterThanOrEqual(0.08);
 	});
 
-	it('Front 1 introduces types slowly (Basic only through wave 9)', () => {
-		// Front 1 pacing: Wave 1–9 Basic only, Fast at 11+, Tank at 50+, Ranged at 100+.
-		for (let w = 1; w <= 9; w++) {
-			if (w % 10 === 0) continue;
-			const types = getEnemyTypeForWave(w); // default front = 1
-			expect(new Set(types)).toEqual(new Set([EnemyType.Normal]));
-		}
-
-		// Wave 5 on Front 1 is STILL Basic only (Fast no longer appears this early).
-		const typesWave5 = getEnemyTypeForWave(5);
-		expect(typesWave5).not.toContain(EnemyType.Fast);
-
-		// Fast/Runner appears from wave 11 on Front 1.
-		const typesWave11 = getEnemyTypeForWave(11);
-		expect(typesWave11).toContain(EnemyType.Fast);
+	it('uses Tower-like weighted enemy mixes from the first waves', () => {
+		expect(enemySpawnWeightsForWave(1)).toEqual({
+			[EnemyType.Normal]: 95,
+			[EnemyType.Fast]: 5,
+			[EnemyType.Tank]: 0,
+			[EnemyType.Ranged]: 0,
+		});
+		expect(enemySpawnWeightsForWave(6)).toEqual({
+			[EnemyType.Normal]: 93,
+			[EnemyType.Fast]: 5,
+			[EnemyType.Tank]: 2,
+			[EnemyType.Ranged]: 0,
+		});
 
 		const typesWave10 = getEnemyTypeForWave(10);
 		expect(typesWave10).toContain(EnemyType.Boss);
 		expect(typesWave10.length).toBe(1); // Boss wave only returns boss
 	});
 
-	it('higher Fronts introduce known types earlier than Front 1', () => {
-		// Front 5 (Redline) fields Fast by wave 5, unlike Front 1.
-		const front5Wave5 = getEnemyTypeForWave(5, 5);
-		expect(front5Wave5).toContain(EnemyType.Fast);
+	it('Front does not alter the Basic/Fast/Tank/Ranged mix table', () => {
+		expect(getEnemyTypeForWave(20, 1)).toEqual(getEnemyTypeForWave(20, 5));
 	});
 });
 
@@ -140,9 +135,9 @@ describe('Spawner Integration & Pacing', () => {
 		const countFast = runSim(0.08);
 		const countCoarse = runSim(0.5);
 
-		expect(countNormal).toBe(241); // 240 successful normal rolls + 1 boss
-		expect(countFast).toBe(241);
-		expect(countCoarse).toBe(241);
+		expect(countNormal).toBe(240); // 240 successful rolls, final boss replaces one normal spawn
+		expect(countFast).toBe(240);
+		expect(countCoarse).toBe(240);
 	});
 
 	it('active cap backlogs planned spawns instead of deleting them', () => {

@@ -16,7 +16,7 @@ import { FrontBand, TierId, EnemyType, BlueprintId } from '../engine/gameTypes';
 import {
 	enemyCountMultiplier, availableEnemyTypes, frontEnemyArmor,
 	frontHasArmor, frontHasResistance, frontEnemyResistances, computeEnemyConfig,
-	front1EnemyHp, front1EnemyDamage,
+	front1EnemyHp, front1EnemyDamage, enemySpawnWeightsForWave,
 } from '../balance/balanceMath';
 import { getEnemyCountForWave } from '../balance/enemies';
 import {
@@ -152,31 +152,30 @@ describe('Enemy count multiplier per Front', () => {
 	});
 });
 
-// ─── Enemy type introduction pacing ────────────────────────────────────────────
+// ─── Enemy type mix pacing ─────────────────────────────────────────────────────
 
 describe('Enemy type pacing', () => {
-	it('Front 1 Waves 1–9 are Basic only', () => {
-		for (let w = 1; w <= 9; w++) {
-			expect(new Set(availableEnemyTypes(w, 1))).toEqual(new Set([EnemyType.Normal]));
-		}
+	it('uses Tower-like weighted enemy mixes instead of hard unlock gates', () => {
+		expect(enemySpawnWeightsForWave(1)).toEqual({
+			[EnemyType.Normal]: 95,
+			[EnemyType.Fast]: 5,
+			[EnemyType.Tank]: 0,
+			[EnemyType.Ranged]: 0,
+		});
+		expect(enemySpawnWeightsForWave(1000)).toEqual({
+			[EnemyType.Normal]: 33,
+			[EnemyType.Fast]: 24,
+			[EnemyType.Tank]: 22,
+			[EnemyType.Ranged]: 21,
+		});
 	});
 
-	it('Front 1 introduces Fast at 11, Tank at 50, Ranged at 100', () => {
-		expect(availableEnemyTypes(10, 1)).not.toContain(EnemyType.Fast);
-		expect(availableEnemyTypes(11, 1)).toContain(EnemyType.Fast);
-		expect(availableEnemyTypes(49, 1)).not.toContain(EnemyType.Tank);
-		expect(availableEnemyTypes(50, 1)).toContain(EnemyType.Tank);
-		expect(availableEnemyTypes(99, 1)).not.toContain(EnemyType.Ranged);
-		expect(availableEnemyTypes(100, 1)).toContain(EnemyType.Ranged);
+	it('Fronts do not change the Basic/Fast/Tank/Ranged mix table', () => {
+		expect(availableEnemyTypes(20, 1)).toEqual(availableEnemyTypes(20, 5));
 	});
 
-	it('Fronts 2–4 introduce known types earlier than Front 1', () => {
-		expect(availableEnemyTypes(5, 2)).toContain(EnemyType.Fast);
-		expect(availableEnemyTypes(20, 3)).toContain(EnemyType.Tank);
-	});
-
-	it('Fronts 5+ field the full roster early', () => {
-		const t = availableEnemyTypes(20, 5);
+	it('weighted availableEnemyTypes includes the active table roster', () => {
+		const t = availableEnemyTypes(1000, 1);
 		expect(t).toContain(EnemyType.Fast);
 		expect(t).toContain(EnemyType.Tank);
 		expect(t).toContain(EnemyType.Ranged);

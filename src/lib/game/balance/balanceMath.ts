@@ -328,17 +328,77 @@ export const BASE_WAVE_DURATION_SECONDS = 30;
 export const SPAWN_TICK_SECONDS = 0.125; // 1/8 second
 export const SPAWN_TICKS_PER_WAVE = BASE_WAVE_DURATION_SECONDS / SPAWN_TICK_SECONDS; // 240
 export const MAX_BASE_SPAWN_CHANCE_PERCENT = 56;
-export const SPAWN_CHANCE_BASE = 14.9;
-export const SPAWN_CHANCE_EXPONENT = 0.23;
+export const SPAWN_RATE_CAP_WAVE = 1000;
+export const SPAWN_CHANCE_BASE_PERCENT = 10;
+export const SPAWN_CHANCE_EXPONENT = 0.5812919376;
 export const MAX_ACTIVE_ENEMIES = 150;
 export const MAX_ENEMIES_PER_WAVE_SAFETY = 5000;
 
-export function baseSpawnChancePercent(wave: number): number {
+type SpawnRateRow = {
+	wave: number;
+	spawnRate: number;
+	fast: number;
+	tank: number;
+	ranged: number;
+};
+
+export const SPAWN_RATE_TABLE: readonly SpawnRateRow[] = Object.freeze([
+	{ wave: 1, spawnRate: 10, fast: 5, tank: 0, ranged: 0 },
+	{ wave: 3, spawnRate: 11, fast: 5, tank: 2, ranged: 0 },
+	{ wave: 6, spawnRate: 13, fast: 6, tank: 4, ranged: 1 },
+	{ wave: 20, spawnRate: 15, fast: 7, tank: 6, ranged: 2 },
+	{ wave: 40, spawnRate: 17, fast: 8, tank: 7, ranged: 3 },
+	{ wave: 60, spawnRate: 19, fast: 9, tank: 8, ranged: 4 },
+	{ wave: 80, spawnRate: 20, fast: 10, tank: 8, ranged: 5 },
+	{ wave: 100, spawnRate: 22, fast: 10, tank: 9, ranged: 6 },
+	{ wave: 150, spawnRate: 24, fast: 11, tank: 10, ranged: 6 },
+	{ wave: 200, spawnRate: 26, fast: 11, tank: 11, ranged: 7 },
+	{ wave: 250, spawnRate: 28, fast: 12, tank: 12, ranged: 7 },
+	{ wave: 300, spawnRate: 30, fast: 12, tank: 13, ranged: 8 },
+	{ wave: 400, spawnRate: 32, fast: 13, tank: 13, ranged: 9 },
+	{ wave: 600, spawnRate: 34, fast: 13, tank: 14, ranged: 10 },
+	{ wave: 800, spawnRate: 36, fast: 13, tank: 14, ranged: 11 },
+	{ wave: 1000, spawnRate: 37, fast: 14, tank: 15, ranged: 11 },
+	{ wave: 1250, spawnRate: 38, fast: 15, tank: 16, ranged: 11 },
+	{ wave: 1500, spawnRate: 39, fast: 15, tank: 16, ranged: 14 },
+	{ wave: 2000, spawnRate: 40, fast: 17, tank: 17, ranged: 14 },
+	{ wave: 2500, spawnRate: 42, fast: 18, tank: 18, ranged: 15 },
+	{ wave: 3000, spawnRate: 44, fast: 19, tank: 19, ranged: 16 },
+	{ wave: 3500, spawnRate: 46, fast: 20, tank: 19, ranged: 17 },
+	{ wave: 4000, spawnRate: 48, fast: 21, tank: 20, ranged: 18 },
+	{ wave: 4500, spawnRate: 49, fast: 21, tank: 20, ranged: 19 },
+	{ wave: 5000, spawnRate: 50, fast: 22, tank: 20, ranged: 19 },
+	{ wave: 5500, spawnRate: 52, fast: 23, tank: 21, ranged: 19 },
+	{ wave: 6000, spawnRate: 54, fast: 24, tank: 21, ranged: 20 },
+	{ wave: 6500, spawnRate: 56, fast: 24, tank: 22, ranged: 21 },
+]);
+
+function smoothSpawnChancePercent(wave: number): number {
 	const safeWave = Math.max(1, Math.floor(wave));
+	const progress = Math.min(1, Math.max(0, (safeWave - 1) / (SPAWN_RATE_CAP_WAVE - 1)));
 	return Math.min(
 		MAX_BASE_SPAWN_CHANCE_PERCENT,
-		SPAWN_CHANCE_BASE * Math.pow(safeWave, SPAWN_CHANCE_EXPONENT)
+		SPAWN_CHANCE_BASE_PERCENT +
+			(MAX_BASE_SPAWN_CHANCE_PERCENT - SPAWN_CHANCE_BASE_PERCENT) *
+			Math.pow(progress, SPAWN_CHANCE_EXPONENT)
 	);
+}
+
+export function spawnRateRowForWave(wave: number): SpawnRateRow {
+	const visibleSpawnRate = Math.floor(smoothSpawnChancePercent(wave));
+	let row = SPAWN_RATE_TABLE[0]!;
+	for (const candidate of SPAWN_RATE_TABLE) {
+		if (visibleSpawnRate >= candidate.spawnRate) {
+			row = candidate;
+		} else {
+			break;
+		}
+	}
+	return row;
+}
+
+export function baseSpawnChancePercent(wave: number): number {
+	return smoothSpawnChancePercent(wave);
 }
 
 export function spawnDensityMultiplier(front: number): number {
@@ -631,41 +691,35 @@ export function computeEnemyConfig(
 	};
 }
 
+export function enemySpawnWeightsForWave(wave: number): Record<EnemyType.Normal | EnemyType.Fast | EnemyType.Tank | EnemyType.Ranged, number> {
+	const row = spawnRateRowForWave(wave);
+	const basic = Math.max(0, 100 - row.fast - row.tank - row.ranged);
+	return {
+		[EnemyType.Normal]: basic,
+		[EnemyType.Fast]: row.fast,
+		[EnemyType.Tank]: row.tank,
+		[EnemyType.Ranged]: row.ranged,
+	};
+}
+
 /**
- * Enemy types eligible for random spawn on a given (wave, Front).
+ * Enemy types eligible for random spawn on a given wave.
  *
- * Front 1 introduces mechanics SLOWLY so the player learns one thing at a time:
- *   Wave 1–9  Basic only      (Wave 10 is the first Boss, handled elsewhere)
- *   Wave 11+  + Fast / Runner  (after the first Boss)
- *   Wave 50+  + Tank / Bulwark (after Boss 5)
- *   Wave 100+ + Ranged / Needle (after Boss 10)
- *
- * Fronts 2–4 (Perimeter escalation) introduce the SAME known types earlier.
- * Fronts 5+ (Redline and beyond) field the full roster from early on.
- * Array duplicates act as spawn weights.
+ * The returned array is intentionally weighted by duplicate entries. It mirrors
+ * The Tower's spawn-rate table: the total spawn pressure rises separately from
+ * the Basic/Fast/Tank/Ranged mix, and later waves naturally replace Basic spawns
+ * with more specialized enemies.
  */
-export function availableEnemyTypes(wave: number, front: number = 1): EnemyType[] {
-	const types: EnemyType[] = [EnemyType.Normal];
+export function availableEnemyTypes(wave: number, _front: number = 1): EnemyType[] {
+	const weights = enemySpawnWeightsForWave(wave);
+	const types: EnemyType[] = [];
 
-	let fastAt: number, tankAt: number, rangedAt: number;
-	if (front <= 1) {
-		fastAt = 11; tankAt = 50; rangedAt = 100;       // deliberate slow drip
-	} else if (front <= 4) {
-		fastAt = 4; tankAt = 15; rangedAt = 30;          // Perimeter escalation
-	} else {
-		fastAt = 3; tankAt = 8; rangedAt = 15;           // Redline+ full roster
-	}
+	for (let i = 0; i < weights[EnemyType.Normal]; i++) types.push(EnemyType.Normal);
+	for (let i = 0; i < weights[EnemyType.Fast]; i++) types.push(EnemyType.Fast);
+	for (let i = 0; i < weights[EnemyType.Tank]; i++) types.push(EnemyType.Tank);
+	for (let i = 0; i < weights[EnemyType.Ranged]; i++) types.push(EnemyType.Ranged);
 
-	if (wave >= fastAt) types.push(EnemyType.Fast);
-	if (wave >= tankAt) types.push(EnemyType.Tank);
-	if (wave >= rangedAt) types.push(EnemyType.Ranged);
-
-	// Pressure weighting once the roster is open (scaled off each Front's pacing).
-	if (wave >= tankAt + 10) types.push(EnemyType.Tank);
-	if (wave >= rangedAt + 15) types.push(EnemyType.Ranged);
-	if (front >= 2 && wave >= 50) { types.push(EnemyType.Tank); types.push(EnemyType.Fast); }
-
-	return types;
+	return types.length > 0 ? types : [EnemyType.Normal];
 }
 
 export function spawnIntervalForWave(wave: number, minInterval: number = 0.06, baseInterval: number = 0.6, decay: number = 0.988): number {
