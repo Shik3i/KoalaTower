@@ -9,7 +9,7 @@ import { calculateEnemyDamage, createProjectileDamageContext } from '../systems/
 import { buildEnemyFrameIndex } from '../systems/spatialIndex';
 import { applyThorns } from '../systems/towerSystem';
 import { damageTower, computeDamageToTower } from '../systems/towerSystem';
-import { processEnemyDeath, updateProjectileSystem } from '../systems/enemySystem';
+import { processEnemyDeath, updateProjectileSystem, updateEnemySystem, updateTowerTargeting } from '../systems/enemySystem';
 
 function enemy(id: number, x: number, y: number, armor = 0): Enemy {
 	return {
@@ -388,5 +388,206 @@ describe('Tower HP overkill / negative HP safety', () => {
 		expect(state.killstreak.lastMilestone).toBe(0);
 		expect(state.towerDamageTaken).toBe(10);
 		expect(state.tower.hp).toBe(190); // damage applied but tower alive
+	});
+});
+
+describe('Ranged Projectile & Multishot 360', () => {
+	it('ranged enemy spawns a projectile on attack, which damages tower on impact', () => {
+		const state: GameState = {
+			tower: {
+				position: { x: 400, y: 300 },
+				hp: 100,
+				maxHp: 100,
+				stats: {
+					damage: 10,
+					fireRate: 1,
+					range: 150,
+					multishotChance: 0,
+					multishotCount: 1,
+					critChance: 0,
+					critMultiplier: 1.5,
+					defensePercent: 0,
+					defenseAbsolute: 0,
+					regen: 0,
+					lifesteal: 0,
+					thorns: 0,
+				},
+				fireTimer: 0,
+				alive: true,
+			},
+			wave: {
+				currentWave: 1,
+				enemiesInWave: 10,
+				enemiesSpawned: 0,
+				enemiesKilled: 0,
+				waveActive: true,
+				betweenWaveTimer: 0,
+				spawnInterval: 1,
+				killsByTypeThisWave: {},
+			},
+			enemies: [
+				{
+					id: 1,
+					type: EnemyType.Ranged,
+					config: {
+						type: EnemyType.Ranged,
+						hp: 100,
+						maxHp: 100,
+						speed: 10,
+						reward: 10,
+						damage: 15,
+						armor: 0,
+						attackRange: 150,
+						attackCooldown: 2,
+						size: 15,
+						color: 0xff0000,
+						shape: 'triangle',
+					},
+					position: { x: 400, y: 440 }, // distance = 140 <= attackRange (150)
+					hp: 100,
+					maxHp: 100,
+					speed: 10,
+					reward: 10,
+					coinReward: 0,
+					damage: 15,
+					armor: 0,
+					attackRange: 150,
+					attackCooldown: 2,
+					attackTimer: 0, // ready to attack!
+					size: 15,
+					color: 0xff0000,
+					shape: 'triangle',
+					angle: 0,
+					alive: true,
+					hitFlashTimer: 0,
+					spawnProgress: 1,
+					stopped: false,
+					isBoss: false,
+					isShiny: false,
+					wave: 1,
+				}
+			],
+			projectiles: [],
+			cash: 100,
+			coins: 10,
+			battleUpgrades: {} as any,
+			workshopUpgrades: {} as any,
+			labLevels: {} as any,
+			paused: false,
+			gameOver: false,
+			runActive: true,
+			elapsedTime: 0,
+			waveStartTime: 0,
+			killCount: 0,
+			bossesDefeated: 0,
+			totalDamageDealt: 0,
+			towerDamageTaken: 0,
+			totalEnergyEarned: 0,
+			highestWave: 1,
+			totalRuns: 1,
+			settings: { ...DEFAULT_SETTINGS },
+			shiniesKilled: 0,
+			tier: 1,
+			activeChallenge: null,
+			killsByType: {},
+			shinyKillsByType: {},
+			masteryDmgBonus: {},
+			critsDealt: 0,
+			energySpentThisRun: 0,
+			firstTowerDamageWave: 0,
+			killstreak: { count: 0, best: 0, lastMilestone: 0 },
+		};
+
+		// 1. Ranged enemy should stop and spawn a projectile, not damage tower instantly
+		updateEnemySystem(state, 0.1);
+		expect(state.enemies[0]!.stopped).toBe(true);
+		expect(state.tower.hp).toBe(100); // no damage yet!
+		expect(state.projectiles.length).toBe(1);
+		expect(state.projectiles[0]!.isEnemy).toBe(true);
+		expect(state.projectiles[0]!.damage).toBe(15);
+		expect(state.projectiles[0]!.position.x).toBe(400);
+		expect(state.projectiles[0]!.position.y).toBe(440);
+
+		// 2. Projectile should move towards the tower and damage it on impact
+		// Distance is 140. Speed is 280. It should hit in ~0.5 seconds.
+		updateProjectileSystem(state, 0.6);
+		expect(state.projectiles.length).toBe(0); // hit and removed
+		expect(state.tower.hp).toBe(85); // 100 - 15 = 85
+	});
+
+	it('multishot targeting spreads projectiles across multiple enemies in range (360 degrees)', () => {
+		const state: GameState = {
+			tower: {
+				position: { x: 400, y: 300 },
+				hp: 100,
+				maxHp: 100,
+				stats: {
+					damage: 10,
+					fireRate: 1,
+					range: 150,
+					multishotChance: 1.0, // 100% multishot chance
+					multishotCount: 2,    // 2 extra projectiles (3 total)
+					critChance: 0,
+					critMultiplier: 1.5,
+					defensePercent: 0,
+					defenseAbsolute: 0,
+					regen: 0,
+					lifesteal: 0,
+					thorns: 0,
+				},
+				fireTimer: 0,
+				alive: true,
+			},
+			wave: {
+				currentWave: 1,
+				enemiesInWave: 10,
+				enemiesSpawned: 0,
+				enemiesKilled: 0,
+				waveActive: true,
+				betweenWaveTimer: 0,
+				spawnInterval: 1,
+				killsByTypeThisWave: {},
+			},
+			enemies: [
+				{ id: 1, type: EnemyType.Normal, config: {} as any, position: { x: 400, y: 350 }, hp: 10, maxHp: 10, speed: 50, reward: 0, coinReward: 0, damage: 1, armor: 0, attackRange: 10, attackCooldown: 1, attackTimer: 0, size: 10, color: 0, shape: 'square', angle: 0, alive: true, hitFlashTimer: 0, spawnProgress: 1, stopped: false, isBoss: false, isShiny: false, wave: 1 },
+				{ id: 2, type: EnemyType.Normal, config: {} as any, position: { x: 450, y: 300 }, hp: 10, maxHp: 10, speed: 50, reward: 0, coinReward: 0, damage: 1, armor: 0, attackRange: 10, attackCooldown: 1, attackTimer: 0, size: 10, color: 0, shape: 'square', angle: 0, alive: true, hitFlashTimer: 0, spawnProgress: 1, stopped: false, isBoss: false, isShiny: false, wave: 1 },
+				{ id: 3, type: EnemyType.Normal, config: {} as any, position: { x: 350, y: 300 }, hp: 10, maxHp: 10, speed: 50, reward: 0, coinReward: 0, damage: 1, armor: 0, attackRange: 10, attackCooldown: 1, attackTimer: 0, size: 10, color: 0, shape: 'square', angle: 0, alive: true, hitFlashTimer: 0, spawnProgress: 1, stopped: false, isBoss: false, isShiny: false, wave: 1 },
+			],
+			projectiles: [],
+			cash: 100,
+			coins: 10,
+			battleUpgrades: {} as any,
+			workshopUpgrades: {} as any,
+			labLevels: {} as any,
+			paused: false,
+			gameOver: false,
+			runActive: true,
+			elapsedTime: 0,
+			waveStartTime: 0,
+			killCount: 0,
+			bossesDefeated: 0,
+			totalDamageDealt: 0,
+			towerDamageTaken: 0,
+			totalEnergyEarned: 0,
+			highestWave: 1,
+			totalRuns: 1,
+			settings: { ...DEFAULT_SETTINGS },
+			shiniesKilled: 0,
+			tier: 1,
+			activeChallenge: null,
+			killsByType: {},
+			shinyKillsByType: {},
+			masteryDmgBonus: {},
+			critsDealt: 0,
+			energySpentThisRun: 0,
+			firstTowerDamageWave: 0,
+			killstreak: { count: 0, best: 0, lastMilestone: 0 },
+		};
+
+		updateTowerTargeting(state, 0.1);
+		expect(state.projectiles.length).toBe(3);
+		
+		const targetIds = state.projectiles.map(p => p.targetId).sort();
+		expect(targetIds).toEqual([1, 2, 3]);
 	});
 });

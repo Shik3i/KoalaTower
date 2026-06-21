@@ -124,7 +124,6 @@ export function processEnemyDeath(state: GameState, target: Enemy, isCrit = fals
 		_playSound?.('bossKill');
 	} else if (target.isShiny) {
 		_addShockwave?.(target.position.x, target.position.y, 0xFFD700, target.size * 3.2, 0.4, 2.5);
-		_hitStop?.(0.05);
 		_playSound?.('shiny');
 	} else {
 		if (isCrit) {
@@ -213,13 +212,24 @@ export function updateEnemySystem(state: GameState, dt: number): void {
 			enemy.attackTimer -= dt;
 			if (enemy.attackTimer <= 0) {
 				enemy.attackTimer = enemy.attackCooldown;
-				// Apply thorns before tower takes damage (enemy may die from Thorns).
-				// If it does, route through processEnemyDeath to increment all counters.
-				if (applyThorns(state, enemy)) {
-					processEnemyDeath(state, enemy);
+				if (enemy.type === EnemyType.Ranged) {
+					const proj = createProjectile(
+						enemy.position.x,
+						enemy.position.y,
+						-1,
+						280,
+						enemy.damage,
+						enemy.color,
+						false
+					);
+					proj.isEnemy = true;
+					state.projectiles.push(proj);
+				} else {
+					if (applyThorns(state, enemy)) {
+						processEnemyDeath(state, enemy);
+					}
+					damageTower(state, enemy.damage, enemy.isBoss, enemy.type);
 				}
-				// Tower still takes the hit even if enemy died — the attack already landed.
-				damageTower(state, enemy.damage, enemy.isBoss, enemy.type);
 			}
 		} else {
 			enemy.stopped = false;
@@ -260,6 +270,36 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 	for (const proj of state.projectiles) {
 		if (!proj.alive) continue;
 
+		// ── Handle enemy projectiles ──
+		if (proj.isEnemy) {
+			const dx = state.tower.position.x - proj.position.x;
+			const dy = state.tower.position.y - proj.position.y;
+			const distSq = dx * dx + dy * dy;
+
+			const moveAmount = proj.speed * dt;
+			if (distSq < 64 || moveAmount * moveAmount >= distSq) {
+				damageTower(state, proj.damage, false, EnemyType.Ranged);
+				proj.alive = false;
+				_addParticles?.(state.tower.position.x, state.tower.position.y, proj.color, 3, 100);
+				continue;
+			}
+
+			const angle = Math.atan2(dy, dx);
+			proj.position.x += Math.cos(angle) * moveAmount;
+			proj.position.y += Math.sin(angle) * moveAmount;
+
+			let pt;
+			if (proj.trail.length >= GAME_CONFIG.PROJECTILE_TRAIL_LENGTH) {
+				pt = proj.trail.shift()!;
+				pt.x = proj.position.x;
+				pt.y = proj.position.y;
+			} else {
+				pt = { x: proj.position.x, y: proj.position.y };
+			}
+			proj.trail.push(pt);
+			continue;
+		}
+
 		// byId lookup does not recheck alive (index was built before this frame's kills).
 		// Explicitly guard so a projectile never double-damages an enemy killed earlier
 		// in the same frame by another projectile.
@@ -275,7 +315,8 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 		const dy = target.position.y - proj.position.y;
 		const distSq = dx * dx + dy * dy;
 
-		if (distSq < 64) {
+		const moveAmount = proj.speed * dt;
+		if (distSq < 64 || moveAmount * moveAmount >= distSq) {
 			const hitDistance = Math.sqrt(distSq);
 			const damage = calculateEnemyDamage(
 				target,
@@ -294,15 +335,15 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 			const impactColor = proj.isCrit ? GAME_CONFIG.NEON_YELLOW : proj.color;
 			_addParticles?.(target.position.x, target.position.y, impactColor, proj.isCrit ? 5 : 3, 120);
 
-		// Damage number popup
-		const textKind: DamageNumberKind = proj.isCrit ? 'crit' : 'damage';
-		_addDmg?.(
-			target.position.x,
-			target.position.y - target.size * 0.5,
-			formatFloatingText(textKind, effectiveDmg),
-			FLOATING_TEXT_COLORS[textKind],
-			textKind,
-		);
+			// Damage number popup
+			const textKind: DamageNumberKind = proj.isCrit ? 'crit' : 'damage';
+			_addDmg?.(
+				target.position.x,
+				target.position.y - target.size * 0.5,
+				formatFloatingText(textKind, effectiveDmg),
+				FLOATING_TEXT_COLORS[textKind],
+				textKind,
+			);
 
 			if (target.hp <= 0) {
 				target.alive = false;
@@ -314,14 +355,18 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 		}
 
 		const angle = Math.atan2(dy, dx);
-		const moveAmount = proj.speed * dt;
 		proj.position.x += Math.cos(angle) * moveAmount;
 		proj.position.y += Math.sin(angle) * moveAmount;
 
-		proj.trail.push({ x: proj.position.x, y: proj.position.y });
-		if (proj.trail.length > GAME_CONFIG.PROJECTILE_TRAIL_LENGTH) {
-			proj.trail.shift();
+		let pt;
+		if (proj.trail.length >= GAME_CONFIG.PROJECTILE_TRAIL_LENGTH) {
+			pt = proj.trail.shift()!;
+			pt.x = proj.position.x;
+			pt.y = proj.position.y;
+		} else {
+			pt = { x: proj.position.x, y: proj.position.y };
 		}
+		proj.trail.push(pt);
 	}
 
 	// Swap-remove dead projectiles in-place to avoid a per-frame allocation.
@@ -335,6 +380,26 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 	}
 }
 
+export function findNearestEnemies(state: GameState, range: number, limit: number, enemyIndex?: EnemyFrameIndex): Enemy[] {
+	const candidates = enemyIndex?.grid.queryCircle(state.tower.position.x, state.tower.position.y, range) ?? state.enemies;
+	const activeCandidates = candidates.filter(e => e.alive);
+	
+	const towerX = state.tower.position.x;
+	const towerY = state.tower.position.y;
+	const rangeSq = range * range;
+	
+	return activeCandidates
+		.map(enemy => {
+			const dx = enemy.position.x - towerX;
+			const dy = enemy.position.y - towerY;
+			return { enemy, distSq: dx * dx + dy * dy };
+		})
+		.filter(item => item.distSq <= rangeSq)
+		.sort((a, b) => a.distSq - b.distSq)
+		.slice(0, limit)
+		.map(item => item.enemy);
+}
+
 export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: EnemyFrameIndex): void {
 	if (!state.runActive || state.gameOver || state.paused) return;
 	if (!state.tower.alive) return;
@@ -344,10 +409,18 @@ export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: 
 
 	const range = state.tower.stats.range;
 	const towerPos = state.tower.position;
-	const target = findNearestEnemy(state, range, enemyIndex);
 
-	if (!target) return;
+	const nearest = findNearestEnemy(state, range, enemyIndex);
+	if (!nearest) return;
 
+	const extraCount = Math.floor(state.tower.stats.multishotCount);
+	const multishotTriggers = Math.random() < state.tower.stats.multishotChance;
+	const targetCount = multishotTriggers ? (1 + extraCount) : 1;
+
+	const targets = findNearestEnemies(state, range, targetCount, enemyIndex);
+	if (targets.length === 0) return;
+
+	const mainTarget = targets[0]!;
 	state.tower.fireTimer = 1.0 / state.tower.stats.fireRate;
 
 	// ── Muzzle flash + shot sound ──
@@ -355,7 +428,7 @@ export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: 
 	_playSound?.('shoot');
 
 	// ── Muzzle flash particles at tower edge ──
-	const angleToTarget = Math.atan2(target.position.y - towerPos.y, target.position.x - towerPos.x);
+	const angleToTarget = Math.atan2(mainTarget.position.y - towerPos.y, mainTarget.position.x - towerPos.x);
 	const towerEdgeX = towerPos.x + Math.cos(angleToTarget) * GAME_CONFIG.TOWER_SIZE * 0.9;
 	const towerEdgeY = towerPos.y + Math.sin(angleToTarget) * GAME_CONFIG.TOWER_SIZE * 0.9;
 	_addParticles?.(towerEdgeX, towerEdgeY, GAME_CONFIG.NEON_CYAN, 4, 60);
@@ -366,7 +439,7 @@ export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: 
 		? state.tower.stats.damage * state.tower.stats.critMultiplier
 		: state.tower.stats.damage;
 	const mainProj = createProjectile(
-		towerPos.x, towerPos.y, target.id,
+		towerPos.x, towerPos.y, mainTarget.id,
 		GAME_CONFIG.PROJECTILE_SPEED,
 		mainDamage,
 		mainIsCrit ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.BEAM_COLOR,
@@ -375,8 +448,7 @@ export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: 
 	state.projectiles.push(mainProj);
 
 	// Roll for multishot: fire extra projectiles on success
-	if (Math.random() < state.tower.stats.multishotChance) {
-		const extraCount = Math.floor(state.tower.stats.multishotCount);
+	if (multishotTriggers) {
 		for (let i = 0; i < extraCount; i++) {
 			const isCrit = Math.random() < state.tower.stats.critChance;
 			const damage = isCrit
@@ -386,10 +458,12 @@ export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: 
 			const offsetX = (Math.random() - 0.5) * 14;
 			const offsetY = (Math.random() - 0.5) * 14;
 
+			const targetForProj = targets[(i + 1) % targets.length] || mainTarget;
+
 			const proj = createProjectile(
 				towerPos.x + offsetX,
 				towerPos.y + offsetY,
-				target.id,
+				targetForProj.id,
 				GAME_CONFIG.PROJECTILE_SPEED,
 				damage,
 				isCrit ? GAME_CONFIG.NEON_YELLOW : GAME_CONFIG.BEAM_COLOR,

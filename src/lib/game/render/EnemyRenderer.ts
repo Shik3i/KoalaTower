@@ -37,9 +37,11 @@ export class EnemyRenderer {
 	public container = new Container();
 	private gfxMap = new Map<number, Container>();
 	private free: Container[] = [];
+	private activeIds = new Set<number>();
 
 	sync(enemies: Enemy[], time: number, reduced: boolean = false): void {
-		const activeIds = new Set<number>();
+		const activeIds = this.activeIds;
+		activeIds.clear();
 
 		for (const enemy of enemies) {
 			if (!enemy.alive) continue;

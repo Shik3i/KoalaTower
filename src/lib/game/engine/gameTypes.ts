@@ -78,6 +78,7 @@ export interface Projectile {
 	maxDistance?: number;
 	distanceFalloff?: number;
 	tags?: string[];
+	isEnemy?: boolean;
 }
 
 export interface TowerStats {
@@ -523,6 +524,8 @@ export interface GameSettings {
 	browserNotifications: boolean;
 	/** Auto-pause the active run when the tab/window loses focus. */
 	pauseOnHide: boolean;
+	/** Show FPS counter during gameplay. */
+	showFps: boolean;
 }
 
 /** Tracks real-time research progress. */
@@ -583,5 +586,6 @@ export const DEFAULT_SETTINGS: GameSettings = {
 	music: false,
 	bloom: true,
 	browserNotifications: false,
-	pauseOnHide: true
+	pauseOnHide: true,
+	showFps: false
 };

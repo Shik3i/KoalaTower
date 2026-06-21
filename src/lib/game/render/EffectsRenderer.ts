@@ -84,6 +84,8 @@ export class EffectsRenderer {
 	private textPool: PooledText[] = [];
 	private shockwavePool: Graphics[] = [];
 	private deathPool: PooledDeath[] = [];
+	private usedParticles = new Set<PooledParticle>();
+	private usedTexts = new Set<PooledText>();
 
 	// ... (wave objects unchanged)
 
@@ -255,7 +257,8 @@ export class EffectsRenderer {
 		}
 		const max = settings.lowEffectsMode ? 30 : GAME_CONFIG.MAX_PARTICLES;
 		const count = Math.min(particles.length, max);
-		const used = new Set<PooledParticle>();
+		const used = this.usedParticles;
+		used.clear();
 
 		for (let i = 0; i < count; i++) {
 			const p = particles[i]!;
@@ -290,7 +293,8 @@ export class EffectsRenderer {
 		}
 		const max = settings.lowEffectsMode ? 15 : GAME_CONFIG.MAX_DAMAGE_NUMBERS;
 		const count = Math.min(nums.length, max);
-		const used = new Set<PooledText>();
+		const used = this.usedTexts;
+		used.clear();
 
 		for (let i = 0; i < count; i++) {
 			const n = nums[i]!;

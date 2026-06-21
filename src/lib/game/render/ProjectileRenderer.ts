@@ -15,9 +15,11 @@ export class ProjectileRenderer {
 	public container = new Container();
 	private gfxMap = new Map<number, Container>();
 	private free: Container[] = [];
+	private activeIds = new Set<number>();
 
 	sync(projectiles: Projectile[]): void {
-		const activeIds = new Set<number>();
+		const activeIds = this.activeIds;
+		activeIds.clear();
 
 		for (const proj of projectiles) {
 			if (!proj.alive) continue;

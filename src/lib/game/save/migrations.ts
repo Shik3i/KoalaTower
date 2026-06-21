@@ -476,6 +476,7 @@ function normalizeSettings(raw: unknown): GameSettings {
 		bloom: s.bloom ?? DEFAULT_SETTINGS.bloom,
 		browserNotifications: s.browserNotifications ?? DEFAULT_SETTINGS.browserNotifications,
 		pauseOnHide: s.pauseOnHide ?? DEFAULT_SETTINGS.pauseOnHide,
+		showFps: s.showFps ?? DEFAULT_SETTINGS.showFps,
 	};
 }
 

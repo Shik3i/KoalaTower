@@ -92,6 +92,31 @@
 	}
 
 	let snap = $state<GameSnapshot | null>(null);
+	let fps = $state(0);
+	let lastFpsUpdate = 0;
+	let frameCount = 0;
+
+	$effect(() => {
+		if (settings.showFps && snap?.runActive && !paused) {
+			let frameId: number;
+			const tick = () => {
+				frameCount++;
+				const now = performance.now();
+				if (now - lastFpsUpdate >= 1000) {
+					fps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+					frameCount = 0;
+					lastFpsUpdate = now;
+				}
+				frameId = requestAnimationFrame(tick);
+			};
+			lastFpsUpdate = performance.now();
+			frameCount = 0;
+			frameId = requestAnimationFrame(tick);
+			return () => {
+				cancelAnimationFrame(frameId);
+			};
+		}
+	});
 	let saveLoaded = $state(false);
 	let coins = $state(0);
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
@@ -984,6 +1009,10 @@
 							<span>Music</span>
 							<input type="checkbox" checked={settings.music} onchange={(e) => setMusic((e.target as HTMLInputElement).checked)} />
 						</label>
+						<label class="set-row" title="Show real-time frames per second (FPS) counter">
+							<span>Show FPS</span>
+							<input type="checkbox" checked={settings.showFps} onchange={(e) => updateSetting('showFps', (e.target as HTMLInputElement).checked)} />
+						</label>
 					</div>
 				{/if}
 			</div>
@@ -1123,6 +1152,11 @@
 				<span class="loading-subtitle">Establishing secure link to Flatland...</span>
 			</div>
 		{/if}
+		{#if settings.showFps && snap?.runActive}
+			<div class="fps-counter" role="status" aria-live="off">
+				{fps} FPS
+			</div>
+		{/if}
 		<!-- Low-HP vignette overlay (CSS — above canvas, below HUD panels). Pulses
 		     red when tower HP < 30%, stronger + faster when < 15%. -->
 		<div
@@ -1236,6 +1270,7 @@
 
 <style>
 	.play-layout { display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden; background:var(--bg-primary); user-select:none; }
+	.fps-counter { position:absolute; top:12px; left:12px; font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--cyan); background:rgba(0,0,0,0.6); border:1px solid var(--border-neon); padding:2px 6px; border-radius:var(--radius-xs); z-index:10; pointer-events:none; text-shadow:0 0 4px rgba(0,255,255,0.4); }
 	.topbar { display:flex; align-items:center; padding:.3rem .65rem; gap:.4rem; background:rgba(7,8,18,.95); border-bottom:1px solid var(--border-neon); z-index:100; flex-shrink:0; position:relative; }
 	.tb-back { color:var(--text-dim); font-size:var(--fs-icon-md); text-decoration:none; padding:.1rem .3rem; border-radius:var(--radius-sm); transition:all var(--transition-fast); line-height:1; }
 	.tb-back:hover { color:var(--cyan); background:rgba(0,255,255,.06); }
