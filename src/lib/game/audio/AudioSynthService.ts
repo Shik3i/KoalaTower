@@ -102,6 +102,11 @@ export class AudioSynthService {
 		osc.connect(g).connect(bus);
 		osc.start(t0);
 		osc.stop(t0 + dur + 0.02);
+
+		osc.onended = () => {
+			osc.disconnect();
+			g.disconnect();
+		};
 	}
 
 	private noise(dur: number, gain: number, filterFreq: number): void {
@@ -123,6 +128,12 @@ export class AudioSynthService {
 		src.connect(filter).connect(g).connect(bus);
 		src.start(t0);
 		src.stop(t0 + dur + 0.02);
+
+		src.onended = () => {
+			src.disconnect();
+			filter.disconnect();
+			g.disconnect();
+		};
 	}
 
 	public play(name: SoundName): void {
@@ -206,6 +217,13 @@ export class AudioSynthService {
 			g.gain.value = 0.18;
 			osc.connect(filter).connect(g).connect(this.musicBus);
 			osc.start();
+
+			osc.onended = () => {
+				osc.disconnect();
+				filter.disconnect();
+				g.disconnect();
+			};
+
 			this.musicNodes.push(osc);
 		}
 
@@ -233,22 +251,36 @@ export class AudioSynthService {
 		this.activeBoss = false;
 	}
 
-	private startBossDrone(): void {
+	private startBossDrone(state: any): void {
 		if (!this.ctx || !this.musicBus) return;
-		const freqs = [36.7, 103.8];
+		const waveNum = state?.wave?.currentWave ?? 10;
+		const waveProgress = Math.min(waveNum / 100, 1.0);
+
+		const baseDb = 36.7 - (waveProgress * 3.0);
+		const tritoneDb = 103.8 + (waveProgress * 12.0);
+
+		const freqs = [baseDb, tritoneDb];
 		for (const f of freqs) {
 			const osc = this.ctx.createOscillator();
 			const g = this.ctx.createGain();
 			const filter = this.ctx.createBiquadFilter();
 			filter.type = 'lowpass';
-			filter.frequency.value = 250;
+			filter.frequency.value = 250 - (waveProgress * 100);
 			osc.type = 'sawtooth';
 			osc.frequency.value = f;
-			osc.detune.value = (Math.random() - 0.5) * 20;
+			osc.detune.value = (Math.random() - 0.5) * (20 + waveProgress * 25);
 			g.gain.setValueAtTime(0.0001, this.ctx.currentTime);
-			g.gain.linearRampToValueAtTime(0.12, this.ctx.currentTime + 3.0);
+			const targetGain = 0.12 + (waveProgress * 0.05);
+			g.gain.linearRampToValueAtTime(targetGain, this.ctx.currentTime + 3.0);
 			osc.connect(filter).connect(g).connect(this.musicBus);
 			osc.start();
+
+			osc.onended = () => {
+				osc.disconnect();
+				filter.disconnect();
+				g.disconnect();
+			};
+
 			this.bossDroneNodes.push(osc);
 		}
 	}
@@ -298,7 +330,7 @@ export class AudioSynthService {
 
 		if (hasBoss && !this.activeBoss) {
 			this.activeBoss = true;
-			this.startBossDrone();
+			this.startBossDrone(state);
 		} else if (!hasBoss && this.activeBoss) {
 			this.activeBoss = false;
 			this.stopBossDrone();
