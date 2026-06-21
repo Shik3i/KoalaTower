@@ -1,6 +1,6 @@
 {
   "name": "flatland-td",
-  "version": "0.9.11",
+  "version": "0.9.15",
   "private": true,
   "type": "module",
   "scripts": {
