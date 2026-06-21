@@ -193,7 +193,7 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 	{
 		id: UpgradeId.EnergyAmp,
 		name: 'Energy Amp',
-		description: '+2% energy per kill per level. Unlocks via Alloy Extraction.',
+		description: '+2% energy per kill per level. Unlocks via Energy Condenser.',
 		icon: '⚡',
 		category: 'utility',
 		maxLevel: 199,
@@ -201,6 +201,19 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costGrowth: 1.12,
 		costExponent: 0.45,
 		effectPerLevel: 0.02,
+		requiredBlueprint: BP.EnergyCondenser,
+	},
+	{
+		id: UpgradeId.AlloyPerWave,
+		name: 'Alloy/Wave',
+		description: '+1 bonus Alloy per wave cleared per level.',
+		icon: '🔩',
+		category: 'utility',
+		maxLevel: 299,
+		baseCost: 50,
+		costGrowth: 1.22,
+		costExponent: 0,
+		effectPerLevel: 1,
 		requiredBlueprint: BP.AlloyExtraction,
 	},
 	{
@@ -214,7 +227,7 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costGrowth: 1.22,
 		costExponent: 0,
 		effectPerLevel: 4,
-		requiredBlueprint: BP.AlloyExtraction,
+		requiredBlueprint: BP.EnergyCondenser,
 	},
 ];
 

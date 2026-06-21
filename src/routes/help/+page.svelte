@@ -43,7 +43,7 @@
 		{
 			id: 'battle-upgrades',
 			q: 'How do Field Upgrades work?',
-			a: 'During a deployment, the right panel shows Field Upgrades in three categories: Offense (Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier), Defense (Defense, Max HP), Utility (Energy Amp). Spend Energy (⚡) to overclock your tower. Each deployment STARTS at your permanent Forge level for that stat and continues the same curve from there — the card shows the current effective value, and the cost picks up where the Forge left off. All Field levels bought with Energy are lost when the tower is destroyed (the Forge starting levels are permanent). Orbital Command describes this as "performance-based incentive architecture."',
+			a: 'During a deployment, the right panel shows Field Upgrades in three categories: Offense (Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier), Defense (Defense, Max HP), Utility (Alloy/Wave, Energy/Wave, Energy Amp). Spend Energy (⚡) to overclock your tower. Each deployment STARTS at your permanent Forge level for that stat and continues the same curve from there — the card shows the current effective value, and the cost picks up where the Forge left off. All Field levels bought with Energy are lost when the tower is destroyed (the Forge starting levels are permanent). Orbital Command describes this as "performance-based incentive architecture."',
 		},
 		{
 			id: 'upgrade-caps',
@@ -232,7 +232,7 @@
 				<div class="info-icon">⚡</div>
 				<h3>Energy</h3>
 				<span class="info-badge">Temporary</span>
-				<p>Harvested from destroyed shapes during a deployment. Spent on <strong>Field Upgrades</strong> to supercharge the tower. Lost when the tower is destroyed. Boosted by <strong>Energy Amp</strong> and <strong>Energy Bonus</strong> Forge upgrades.</p>
+				<p>Harvested from destroyed shapes during a deployment. Spent on <strong>Field Upgrades</strong> to supercharge the tower. Lost when the tower is destroyed. Boosted by <strong>Energy Amp</strong> Field/Forge levels and the permanent <strong>Energy Bonus</strong>.</p>
 			</div>
 			<div class="info-card coin">
 				<div class="info-icon">🔩</div>
@@ -333,7 +333,7 @@
 			<div class="help-card ws">
 				<div class="help-card-icon">🔩</div>
 				<h3>Alloy Bonus</h3>
-				<p>+1% more Alloy per kill per level. Permanent income boost.</p>
+				<p>+1% global Alloy income per level. Permanent income boost.</p>
 				<span class="card-tag">Max 1000</span>
 			</div>
 			<div class="help-card ws">
@@ -465,7 +465,7 @@
 			<div class="ut-header"><span>Category</span><span>Upgrades</span><span>Cap</span></div>
 			<div class="ut-row"><span>⚔️ Offense</span><span>Damage, Attack Speed, Range, Multishot Chance, Multishot Targets, Crit Chance, Crit Multiplier</span><span>Crit 75%</span></div>
 			<div class="ut-row"><span>🛡️ Defense</span><span>Defense (flat damage reduction), Max HP</span><span>Max level only</span></div>
-			<div class="ut-row"><span>🔧 Utility</span><span>Energy Amp (+% energy per kill)</span><span>75% cap</span></div>
+			<div class="ut-row"><span>🔧 Utility</span><span>Alloy/Wave, Energy/Wave, Energy Amp (+% energy per kill)</span><span>Path caps</span></div>
 		</div>
 	</section>
 

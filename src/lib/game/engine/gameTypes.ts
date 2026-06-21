@@ -124,6 +124,7 @@ export enum UpgradeId {
 	Lifesteal = 'lifesteal',
 	Thorns = 'thorns',
 	EnergyAmp = 'energyAmp',
+	AlloyPerWave = 'alloyPerWave',
 	CashPerWave = 'cashPerWave',
 }
 

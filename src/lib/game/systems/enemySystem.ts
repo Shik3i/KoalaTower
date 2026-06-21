@@ -1,8 +1,7 @@
 import { GAME_CONFIG } from '../engine/gameConfig';
 import { EnemyType, type Enemy, type GameState, type Projectile, type DamageNumberKind } from '../engine/gameTypes';
 import { damageTower, applyThorns, applyLifesteal, computeDamageToTower } from './towerSystem';
-import { calculateEnergyFromKill, getBossCoinReward } from './economySystem';
-import { getFrontAlloyMultiplier } from '../balance/balanceMath';
+import { calculateEnergyFromKill, getAlloyIncomeMultiplier, getBossCoinReward } from './economySystem';
 import { calculateEnemyDamage, createProjectileDamageContext } from './damageSystem';
 import type { EnemyFrameIndex } from './spatialIndex';
 
@@ -147,7 +146,7 @@ export function processEnemyDeath(state: GameState, target: Enemy, isCrit = fals
 	}
 	if (target.isShiny) {
 		state.shiniesKilled++;
-		const shinyAlloy = Math.floor(target.coinReward * getFrontAlloyMultiplier(state.tier ?? 1));
+		const shinyAlloy = Math.floor(target.coinReward * getAlloyIncomeMultiplier(state));
 		if (shinyAlloy > 0) {
 			state.coins += shinyAlloy;
 			_addDmg?.(target.position.x, target.position.y + target.size * 1.2, formatFloatingText('alloy', shinyAlloy), FLOATING_TEXT_COLORS.alloy, 'alloy');

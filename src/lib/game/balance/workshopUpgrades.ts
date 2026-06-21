@@ -6,12 +6,12 @@
  *   tiny per-level effects. Long-term accumulation becomes powerful.
  * - Low-cap stats (FireRate, Def%, Lifesteal) are expensive per level
  *   because they are powerful. Caps prevent domination.
- * - Economy stats (CoinBonus, CashBonus) have 1000 levels for farming progression.
+ * - Economy multiplier stats have 1000 levels for farming progression.
  * - Cost curves use gentle polynomial growth for high-cap stats and
  *   steeper hybrid growth for capped stats.
  *
  * PROGRESSION GATING:
- * Starter upgrades (Damage, Attack Speed, HP, Regen, CoinBonus) are always
+ * Starter upgrades (Damage, Attack Speed, HP, Regen) are always
  * available. Advanced upgrades require purchasing the corresponding Blueprint.
  *
  * Level targets:
@@ -172,8 +172,8 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 	},
 	{
 		id: WorkshopUpgradeId.CoinBonus,
-		name: 'Alloy/Wave',
-		description: '+1% alloy income per level. 1000 levels for 10× alloy.',
+		name: 'Alloy Boost',
+		description: '+1% global Alloy income per level.',
 		icon: '🪙',
 		maxLevel: 1000,
 		costType: 'polynomial',
@@ -181,7 +181,7 @@ export const WORKSHOP_UPGRADE_DEFS: WorkshopUpgradeDef[] = [
 		costParam1: 1.7,
 		effectPerLevel: 0.01,
 		targetStat: 'coinBonus',
-		// STARTER — always available (basic alloy economy)
+		requiredBlueprint: BlueprintId.AlloyExtraction,
 	},
 	{
 		id: WorkshopUpgradeId.EnergyBonus,

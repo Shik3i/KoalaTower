@@ -86,7 +86,7 @@
 <div class="cat-tabs">
 	<button class="cat-tab" class:on={upgradeCategory === 'offense'} onclick={() => upgradeCategory = 'offense'} use:tooltip={'Offense — Damage, Attack Speed, Range, Multishot, Crit.'}><Icon name="offense" size={13} /> Offense</button>
 	<button class="cat-tab" class:on={upgradeCategory === 'defense'} onclick={() => upgradeCategory = 'defense'} use:tooltip={'Defense — flat damage reduction and Max HP.'}><Icon name="defense" size={13} /> Defense</button>
-	<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} use:tooltip={'Utility — Energy Amp (+% energy per kill).'}><Icon name="utility" size={13} /> Utility</button>
+	<button class="cat-tab" class:on={upgradeCategory === 'utility'} onclick={() => upgradeCategory = 'utility'} use:tooltip={'Utility — Alloy/Wave, Energy/Wave, and Energy Amp.'}><Icon name="utility" size={13} /> Utility</button>
 </div>
 <p class="field-note">This run only. Field levels reset when the tower falls.</p>
 {#if showBuyMultiplier}

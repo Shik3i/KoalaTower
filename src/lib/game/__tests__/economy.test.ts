@@ -8,7 +8,7 @@ import {
 	getWaveCompletionBonus,
 } from '../systems/economySystem';
 import { getFrontAlloyMultiplier } from '../balance/balanceMath';
-import { UpgradeId, type GameState } from '../engine/gameTypes';
+import { UpgradeId, WorkshopUpgradeId, type GameState } from '../engine/gameTypes';
 
 /** A fresh, valid GameState for economy unit tests. */
 function freshState(): GameState {
@@ -38,6 +38,22 @@ describe('Economy — Alloy (permanent currency)', () => {
 		// Curve steps up at 10→11 and 25→26; rewards should not decrease.
 		expect(getWaveCoinReward(state, 11)).toBeGreaterThanOrEqual(getWaveCoinReward(state, 10));
 		expect(getWaveCoinReward(state, 26)).toBeGreaterThanOrEqual(getWaveCoinReward(state, 25));
+	});
+
+	it('Alloy/Wave gives a visible flat return from the first field level', () => {
+		const state = freshState();
+		expect(getWaveCoinReward(state, 1)).toBe(3);
+		state.battleUpgrades[UpgradeId.AlloyPerWave] = 1;
+		expect(getWaveCoinReward(state, 1)).toBe(4);
+		state.battleUpgrades[UpgradeId.AlloyPerWave] = 10;
+		expect(getWaveCoinReward(state, 1)).toBe(13);
+	});
+
+	it('Alloy Boost is a global percent multiplier, separate from Alloy/Wave', () => {
+		const state = freshState();
+		state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] = 100;
+		expect(getWaveCoinReward(state, 100)).toBe(40);
+		expect(getBossCoinReward(state)).toBe(10);
 	});
 
 	it('higher fronts award more alloy via the front multiplier', () => {

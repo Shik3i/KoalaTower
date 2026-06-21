@@ -8,13 +8,13 @@
 import { ChallengeId, EnemyType, type GameState } from '../engine/gameTypes';
 import {
 	createEnemy,
-	getEnemyCountForWave,
 	resetEnemyIdCounter,
 } from '../balance/enemies';
 import {
 	SPAWN_TICK_SECONDS,
+	SPAWN_TICKS_PER_WAVE,
 	MAX_ACTIVE_ENEMIES,
-	expectedEnemiesPerWave,
+	baseSpawnChancePercent,
 	availableEnemyTypes,
 } from '../balance/balanceMath';
 import { getWaveCompletionBonus, getWaveCoinReward } from './economySystem';
@@ -30,12 +30,7 @@ export function startNewWave(state: GameState): void {
 	state.wave.currentWave++;
 	resetEnemyIdCounter();
 
-	const challenge = state.activeChallenge;
-	const front = state.tier ?? 1;
-
-	const totalEnemies = getEnemyCountForWave(state.wave.currentWave, front);
-
-	state.wave.enemiesInWave = totalEnemies;
+	state.wave.enemiesInWave = 0;
 	state.wave.enemiesSpawned = 0;
 	state.wave.enemiesKilled = 0;
 
@@ -51,7 +46,7 @@ export function startNewWave(state: GameState): void {
 
 	// Sub-wave fallback properties to ensure backward compatibility
 	state.wave.currentSubWave = 0;
-	state.wave.enemiesInSubWave = totalEnemies;
+	state.wave.enemiesInSubWave = 0;
 	state.wave.enemiesSpawnedInSubWave = 0;
 	state.wave.subWavePauseTimer = 0;
 	state.wave.subWaveActive = true;
@@ -71,25 +66,27 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 	}
 
 	const isBossWave = wave.currentWave % 10 === 0 || state.activeChallenge === ChallengeId.BossRush;
-	const front = state.tier ?? 1;
-	const N = expectedEnemiesPerWave(wave.currentWave, front);
+	const spawnChance = baseSpawnChancePercent(wave.currentWave) / 100;
 
-	// Tick scheduled spawning
-	if (wave.currentTickIndex !== undefined && wave.currentTickIndex < 240) {
+	// Tick-random spawning: every 1/8 second rolls once against the wave spawn chance.
+	if (wave.currentTickIndex !== undefined && wave.currentTickIndex < SPAWN_TICKS_PER_WAVE) {
 		wave.spawnTimer += dt;
-		while (wave.spawnTimer >= SPAWN_TICK_SECONDS && wave.currentTickIndex < 240) {
+		while (wave.spawnTimer >= SPAWN_TICK_SECONDS && wave.currentTickIndex < SPAWN_TICKS_PER_WAVE) {
 			wave.spawnTimer -= SPAWN_TICK_SECONDS;
 
-			// Even distribution scheduled spawns for this tick
-			const t = wave.currentTickIndex;
-			const tickSpawns = Math.floor((t + 1) * N / 240) - Math.floor(t * N / 240);
-			wave.spawnBacklog = (wave.spawnBacklog ?? 0) + tickSpawns;
+			if (Math.random() < spawnChance) {
+				wave.spawnBacklog = (wave.spawnBacklog ?? 0) + 1;
+				wave.enemiesInWave++;
+				wave.enemiesInSubWave++;
+			}
 
 			wave.currentTickIndex++;
 
 			// Spawn the boss at the end of the spawn window (tick 240)
-			if (wave.currentTickIndex === 240 && isBossWave) {
+			if (wave.currentTickIndex === SPAWN_TICKS_PER_WAVE && isBossWave) {
 				wave.bossPending = true;
+				wave.enemiesInWave++;
+				wave.enemiesInSubWave++;
 			}
 		}
 	}
@@ -107,7 +104,7 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 	}
 
 	// Wave completion check
-	const completedSpawning = wave.currentTickIndex !== undefined && wave.currentTickIndex >= 240;
+	const completedSpawning = wave.currentTickIndex !== undefined && wave.currentTickIndex >= SPAWN_TICKS_PER_WAVE;
 	const backlogEmpty = (wave.spawnBacklog ?? 0) === 0;
 	const bossDone = !wave.bossPending;
 	const allKilled = wave.enemiesKilled >= wave.enemiesInWave && state.enemies.length === 0;

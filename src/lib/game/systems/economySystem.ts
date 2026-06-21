@@ -7,8 +7,9 @@
  *   3. Shiny enemy kills: flat reward (handled in enemySystem)
  *   4. Milestones & achievements: one-time rewards
  *
- * All Alloy sources are multiplied by the workshop Alloy Bonus, lab Alloy
- * Research, and the per-front Alloy multiplier.
+ * All Alloy sources are multiplied by the global Alloy Boost, lab Alloy
+ * Research, and the per-front Alloy multiplier. Alloy/Wave is a separate
+ * flat wave-completion bonus.
  */
 
 import { WorkshopUpgradeId, LabId, UpgradeId, type GameState } from '../engine/gameTypes';
@@ -26,17 +27,25 @@ export function calculateEnergyFromKill(state: GameState, baseReward: number): n
 	return Math.floor(baseReward * wsEnergyMult * lab.energy * (1 + battleBonus));
 }
 
+/** Combined global Alloy income multiplier for this run/front. */
+export function getAlloyIncomeMultiplier(state: GameState): number {
+	const wsAlloyLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
+	const wsAlloyMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, wsAlloyLv);
+	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
+	const front = getFrontAlloyMultiplier(state.tier ?? 1);
+	return wsAlloyMult * lab.alloy * front;
+}
+
 /**
  * Wave completion alloy — progressive curve:
  *   Wave 1-10:   wave × 0.5
  *   Wave 11-25:  wave × 0.8
  *   Wave 26+:    wave × 1.2
- * Multiplied by wsAlloyMult × lab.alloy × front multiplier.
+ * Alloy/Wave adds a flat base reward before global multipliers.
  */
 export function getWaveCoinReward(state: GameState, wave: number): number {
-	const wsAlloyLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
-	const wsAlloyMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, wsAlloyLv);
-	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
+	const battleAlloyWaveLv = state.battleUpgrades[UpgradeId.AlloyPerWave] ?? 0;
+	const alloyWaveBonus = getBattleUpgradeEffect(UpgradeId.AlloyPerWave, battleAlloyWaveLv);
 	
 	let baseReward = 0;
 	if (wave <= 10) {
@@ -47,8 +56,7 @@ export function getWaveCoinReward(state: GameState, wave: number): number {
 		baseReward = Math.floor(wave * 0.2);
 	}
 	
-	const front = getFrontAlloyMultiplier(state.tier ?? 1);
-	return Math.floor(baseReward * wsAlloyMult * lab.alloy * front);
+	return Math.floor((baseReward + alloyWaveBonus) * getAlloyIncomeMultiplier(state));
 }
 
 /** Alias for getWaveCoinReward to align with player-facing terminology. */
@@ -56,11 +64,7 @@ export const getWaveAlloyReward = getWaveCoinReward;
 
 /** Boss kill bonus alloy. */
 export function getBossCoinReward(state: GameState): number {
-	const wsAlloyLv = state.workshopUpgrades[WorkshopUpgradeId.CoinBonus] ?? 0;
-	const wsAlloyMult = 1 + getWorkshopUpgradeEffect(WorkshopUpgradeId.CoinBonus, wsAlloyLv);
-	const lab = getLabMultiplier(state.labLevels as Partial<Record<LabId, number>>);
-	const front = getFrontAlloyMultiplier(state.tier ?? 1);
-	return Math.floor(5 * wsAlloyMult * lab.alloy * front);
+	return Math.floor(5 * getAlloyIncomeMultiplier(state));
 }
 
 /** Alias for getBossCoinReward to align with player-facing terminology. */

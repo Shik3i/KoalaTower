@@ -151,7 +151,7 @@ function estimateDps(s: SimState): number {
 	return base * (1 + s.multishotChance * s.multishotCount) * (1 + s.critChance * (s.critMultiplier - 1));
 }
 
-function waveCoinReward(wave: number, coinMult: number, tier: number): number {
+function waveCoinReward(wave: number, coinMult: number, tier: number, alloyWaveBonus: number): number {
 	let baseReward = 0;
 	if (wave <= 10) {
 		baseReward = 3;
@@ -161,7 +161,7 @@ function waveCoinReward(wave: number, coinMult: number, tier: number): number {
 		baseReward = Math.floor(wave * 0.2);
 	}
 	const frontMult = getFrontAlloyMultiplier(tier);
-	return Math.floor(baseReward * coinMult * frontMult);
+	return Math.floor((baseReward + alloyWaveBonus) * coinMult * frontMult);
 }
 
 /**
@@ -381,7 +381,7 @@ export function simulateRun(
 		state.cash += cashBonus;
 		state.cashEarned += cashBonus;
 
-		const wc = waveCoinReward(wave, ws.coinMult, tier);
+		const wc = waveCoinReward(wave, ws.coinMult, tier, getBattleUpgradeEffect(UpgradeId.AlloyPerWave, state.battleLevels[UpgradeId.AlloyPerWave] ?? 0));
 		state.coins += wc;
 		state.coinsEarned += wc;
 

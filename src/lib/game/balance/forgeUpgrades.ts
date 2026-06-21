@@ -9,9 +9,9 @@
  * battleUpgrades[id] = forgeUpgrades[id], and in-run Field purchases continue
  * from that level (so cost and value both pick up where the Forge left off).
  *
- * What the Forge stores here are the COMBAT stats shared with Field Upgrades.
- * The three economy upgrades (Alloy Bonus, Energy Bonus, Starting Energy) have
- * no Field equivalent and remain permanent-only in workshopUpgrades.ts.
+ * What the Forge stores here are the shared Field upgrade starting levels.
+ * Global economy multipliers (Alloy Boost, Energy Boost, Starting Energy)
+ * remain permanent-only in workshopUpgrades.ts.
  *
  * Cost note: the SHARED thing is the value curve, not the cost. Field upgrades
  * are bought with per-run Energy; Forge levels are bought with permanent Alloy
@@ -116,6 +116,27 @@ export const FORGE_UPGRADE_DEFS: ForgeUpgradeDef[] = [
 		description: 'Permanent starting Thorns. Each level = +2 reflected damage.',
 		icon: '🌵', category: 'defense', maxLevel: 30, baseCost: 55, costGrowth: 1.25,
 		requiredBlueprint: BlueprintId.ReactiveSurface,
+	},
+	{
+		id: UpgradeId.EnergyAmp,
+		name: 'Energy Amp',
+		description: 'Permanent starting Energy Amp level. Each level = +2% energy per kill.',
+		icon: '⚡', category: 'utility', maxLevel: 40, baseCost: 70, costGrowth: 1.25,
+		requiredBlueprint: BlueprintId.EnergyCondenser,
+	},
+	{
+		id: UpgradeId.AlloyPerWave,
+		name: 'Alloy/Wave',
+		description: 'Permanent starting Alloy/Wave level. Each level = +1 Alloy per cleared wave.',
+		icon: '🔩', category: 'utility', maxLevel: 60, baseCost: 80, costGrowth: 1.24,
+		requiredBlueprint: BlueprintId.AlloyExtraction,
+	},
+	{
+		id: UpgradeId.CashPerWave,
+		name: 'Energy/Wave',
+		description: 'Permanent starting Energy/Wave level. Each level = +4 Energy per cleared wave.',
+		icon: '💎', category: 'utility', maxLevel: 60, baseCost: 65, costGrowth: 1.24,
+		requiredBlueprint: BlueprintId.EnergyCondenser,
 	},
 ];
 

@@ -22,6 +22,7 @@ export function formatBattleEffect(id: UpgradeId, value: number): string {
 		case UpgradeId.Lifesteal: return (value * 100).toFixed(1) + '%';
 		case UpgradeId.Thorns: return value.toFixed(0) + ' dmg';
 		case UpgradeId.EnergyAmp: return (value * 100).toFixed(1) + '%';
+		case UpgradeId.AlloyPerWave: return value.toFixed(0) + ' /wave';
 		case UpgradeId.CashPerWave: return value.toFixed(0) + ' /wave';
 		default: return String(value);
 	}
@@ -46,6 +47,7 @@ export function formatBattleEffectNext(id: UpgradeId, value: number): string {
 		case UpgradeId.Lifesteal: return '+' + (value * 100).toFixed(1) + '%';
 		case UpgradeId.Thorns: return '+' + value.toFixed(0) + ' dmg';
 		case UpgradeId.EnergyAmp: return '+' + (value * 100).toFixed(1) + '%';
+		case UpgradeId.AlloyPerWave: return '+' + value.toFixed(0) + ' /wave';
 		case UpgradeId.CashPerWave: return '+' + value.toFixed(0) + ' /wave';
 		default: return '+' + String(value);
 	}

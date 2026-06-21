@@ -79,6 +79,7 @@ describe('Battle Upgrades', () => {
 		expect(ids).toContain(UpgradeId.Defense);
 		expect(ids).toContain(UpgradeId.MaxHp);
 		expect(ids).toContain(UpgradeId.EnergyAmp);
+		expect(ids).toContain(UpgradeId.AlloyPerWave);
 		expect(ids).toContain(UpgradeId.CashPerWave);
 	});
 
@@ -643,12 +644,13 @@ describe('Blueprint System', () => {
 		expect(STARTER_FIELD_UPGRADES).toContain(UpgradeId.CritMultiplier);
 	});
 
-	it('starter foundry upgrades should include BaseDamage, BaseFireRate, StartingHp, Regen, CoinBonus', () => {
+	it('starter foundry upgrades should include only non-economy basics', () => {
 		expect(STARTER_FOUNDRY_UPGRADES).toContain(WorkshopUpgradeId.BaseDamage);
 		expect(STARTER_FOUNDRY_UPGRADES).toContain(WorkshopUpgradeId.BaseFireRate);
 		expect(STARTER_FOUNDRY_UPGRADES).toContain(WorkshopUpgradeId.StartingHp);
 		expect(STARTER_FOUNDRY_UPGRADES).toContain(WorkshopUpgradeId.Regen);
-		expect(STARTER_FOUNDRY_UPGRADES).toContain(WorkshopUpgradeId.CoinBonus);
+		expect(STARTER_FOUNDRY_UPGRADES).not.toContain(WorkshopUpgradeId.CoinBonus);
+		expect(STARTER_FOUNDRY_UPGRADES).not.toContain(WorkshopUpgradeId.EnergyBonus);
 	});
 
 	it('locked upgrades should not be available without blueprint', () => {
@@ -663,6 +665,8 @@ describe('Blueprint System', () => {
 		expect(isFieldUpgradeUnlocked(UpgradeId.DefensePercent, [])).toBe(false);
 		expect(isFieldUpgradeUnlocked(UpgradeId.Defense, [])).toBe(false);
 		expect(isFieldUpgradeUnlocked(UpgradeId.EnergyAmp, [])).toBe(false);
+		expect(isFieldUpgradeUnlocked(UpgradeId.AlloyPerWave, [])).toBe(false);
+		expect(isFieldUpgradeUnlocked(UpgradeId.CashPerWave, [])).toBe(false);
 	});
 
 	it('locked foundry upgrades should not be available without blueprint', () => {

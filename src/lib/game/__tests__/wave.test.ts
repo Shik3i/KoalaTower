@@ -97,7 +97,6 @@ import { MAX_ACTIVE_ENEMIES } from '../balance/balanceMath';
 
 describe('Spawner Integration & Pacing', () => {
 	it('game speed or step size dt does not alter total spawned count', () => {
-		// Run wave 100 on Front 1 (expects 103 normal spawns + 1 boss = 104)
 		const runSim = (dtStep: number) => {
 			const state = {
 				runActive: true,
@@ -105,6 +104,13 @@ describe('Spawner Integration & Pacing', () => {
 				paused: false,
 				tier: 1,
 				enemies: [] as any[],
+				battleUpgrades: {},
+				workshopUpgrades: {},
+				labLevels: {},
+				cash: 0,
+				coins: 0,
+				totalEnergyEarned: 0,
+				tower: { hp: 100, maxHp: 100 },
 				wave: {
 					currentWave: 99, // startNewWave will increment to 100
 					killsByTypeThisWave: {},
@@ -113,11 +119,18 @@ describe('Spawner Integration & Pacing', () => {
 			};
 			startNewWave(state as any);
 
+			const originalRandom = Math.random;
+			Math.random = () => 0;
 			// Simulate 35 seconds of wave time
-			let elapsed = 0;
-			while (elapsed < 35) {
-				updateWaveSystem(state as any, dtStep);
-				elapsed += dtStep;
+			try {
+				let elapsed = 0;
+				while (elapsed < 35) {
+					updateWaveSystem(state as any, dtStep);
+					state.enemies = [];
+					elapsed += dtStep;
+				}
+			} finally {
+				Math.random = originalRandom;
 			}
 			return state.wave.enemiesSpawned;
 		};
@@ -127,13 +140,12 @@ describe('Spawner Integration & Pacing', () => {
 		const countFast = runSim(0.08);
 		const countCoarse = runSim(0.5);
 
-		expect(countNormal).toBe(104); // 103 normal + 1 boss
-		expect(countFast).toBe(104);
-		expect(countCoarse).toBe(104);
+		expect(countNormal).toBe(241); // 240 successful normal rolls + 1 boss
+		expect(countFast).toBe(241);
+		expect(countCoarse).toBe(241);
 	});
 
 	it('active cap backlogs planned spawns instead of deleting them', () => {
-		// Front 16 Wave 100 has 614 normal spawns
 		const state = {
 			runActive: true,
 			gameOver: false,
@@ -148,34 +160,39 @@ describe('Spawner Integration & Pacing', () => {
 		};
 		startNewWave(state as any);
 
+		const originalRandom = Math.random;
+		Math.random = () => 0;
 		// Simulate 35 seconds of wave spawning without killing any enemies
-		let elapsed = 0;
-		while (elapsed < 35) {
-			updateWaveSystem(state as any, 0.125);
-			elapsed += 0.125;
-		}
+		try {
+			let elapsed = 0;
+			while (elapsed < 35) {
+				updateWaveSystem(state as any, 0.125);
+				elapsed += 0.125;
+			}
 
-		// Because enemies were not killed, they should hit the active cap
-		expect(state.enemies.length).toBe(MAX_ACTIVE_ENEMIES); // capped at 150
-		expect(state.wave.spawnBacklog).toBeGreaterThan(0);
-		// Check that no spawns were lost or deleted from enemiesInWave
-		expect(state.wave.enemiesInWave).toBe(615); // 614 normal + 1 boss
+			// Because enemies were not killed, they should hit the active cap
+			expect(state.enemies.length).toBe(MAX_ACTIVE_ENEMIES); // capped at 150
+			expect(state.wave.spawnBacklog).toBeGreaterThan(0);
+			expect(state.wave.enemiesInWave).toBeGreaterThan(MAX_ACTIVE_ENEMIES);
 
-		// Now kill all alive enemies on screen
-		state.enemies = [];
-
-		// Run update loop further
-		let furtherTime = 0;
-		while (furtherTime < 35 && state.wave.enemiesSpawned < state.wave.enemiesInWave) {
-			updateWaveSystem(state as any, 0.125);
-			// Simulate immediate kills to prevent recapping
-			state.wave.enemiesKilled += state.enemies.length;
+			// Now kill all alive enemies on screen
 			state.enemies = [];
-			furtherTime += 0.125;
-		}
 
-		// Verify that all scheduled enemies eventually spawned
-		expect(state.wave.enemiesSpawned).toBe(615);
-		expect(state.wave.spawnBacklog).toBe(0);
+			// Run update loop further
+			let furtherTime = 0;
+			while (furtherTime < 35 && state.wave.enemiesSpawned < state.wave.enemiesInWave) {
+				updateWaveSystem(state as any, 0.125);
+				// Simulate immediate kills to prevent recapping
+				state.wave.enemiesKilled += state.enemies.length;
+				state.enemies = [];
+				furtherTime += 0.125;
+			}
+
+			// Verify that all scheduled enemies eventually spawned
+			expect(state.wave.enemiesSpawned).toBe(state.wave.enemiesInWave);
+			expect(state.wave.spawnBacklog).toBe(0);
+		} finally {
+			Math.random = originalRandom;
+		}
 	});
 });
