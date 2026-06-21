@@ -186,7 +186,7 @@ export class PixiGameView {
 			bloomScale: 1.1,
 			brightness: 1.0,
 			blur: 6,
-			quality: 3,
+			quality: 4,
 		});
 		this.applyBloom(this.bloomWanted());
 	}
