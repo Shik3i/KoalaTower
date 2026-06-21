@@ -25,7 +25,7 @@ import { scaleCountForFront, getEnemyCountForWave } from './enemies';
 import { BATTLE_UPGRADE_DEFS, getBattleUpgradeCost, getBattleUpgradeEffect } from './battleUpgrades';
 import { WORKSHOP_UPGRADE_DEFS, getWorkshopUpgradeEffect } from './workshopUpgrades';
 import { getLabEffect } from './labs';
-import { UpgradeId, WorkshopUpgradeId, EnemyType, BlueprintId } from '../engine/gameTypes';
+import { UpgradeId, WorkshopUpgradeId, EnemyType, BlueprintId, LabId } from '../engine/gameTypes';
 import { isFieldUpgradeUnlocked } from './blueprints';
 
 export type Strategy = 'confused' | 'reasonable' | 'optimal';
@@ -68,12 +68,12 @@ interface SimState {
 
 function computeBaseline(ws: Record<string, number>, lab: Record<string, number>) {
 	const g = (id: WorkshopUpgradeId) => ws[id] ?? 0;
-	const l = (id: string) => lab[id] ?? 0;
-	const lDmg = 1 + getLabEffect('damageResearch' as any, l('damageResearch'));
-	const lFR = 1 + getLabEffect('attackSpeedResearch' as any, l('attackSpeedResearch'));
-	const lHP = 1 + getLabEffect('healthResearch' as any, l('healthResearch'));
-	const lCoin = 1 + getLabEffect('alloyEfficiency' as any, l('alloyEfficiency'));
-	const lCash = 1 + getLabEffect('energyEfficiency' as any, l('energyEfficiency'));
+	const l = (id: LabId) => lab[id] ?? 0;
+	const lDmg = 1 + getLabEffect(LabId.DamageResearch, l(LabId.DamageResearch));
+	const lFR = 1 + getLabEffect(LabId.AttackSpeedResearch, l(LabId.AttackSpeedResearch));
+	const lHP = 1 + getLabEffect(LabId.HealthResearch, l(LabId.HealthResearch));
+	const lCoin = 1 + getLabEffect(LabId.AlloyEfficiency, l(LabId.AlloyEfficiency));
+	const lCash = 1 + getLabEffect(LabId.EnergyEfficiency, l(LabId.EnergyEfficiency));
 	return {
 		damage: flatlandBaseDamageAtLevel(g(WorkshopUpgradeId.BaseDamage)) * lDmg,
 		fireRate: (1.0 + getWorkshopUpgradeEffect(WorkshopUpgradeId.BaseFireRate, g(WorkshopUpgradeId.BaseFireRate))) * lFR,
@@ -123,8 +123,8 @@ function tryBuyUpgrades(state: SimState, priority: UpgradeId[], threshold: numbe
 function recompute(state: SimState, ws: ReturnType<typeof computeBaseline>, workshopLevels: Record<string, number>): void {
 	const bl = (id: UpgradeId) => state.battleLevels[id] ?? 0;
 	const g = (id: WorkshopUpgradeId) => workshopLevels[id] ?? 0;
-	const l = (id: string) => state.labLevels[id] ?? 0;
-	const lDmg = 1 + getLabEffect('damageResearch' as any, l('damageResearch'));
+	const l = (id: LabId) => state.labLevels[id] ?? 0;
+	const lDmg = 1 + getLabEffect(LabId.DamageResearch, l(LabId.DamageResearch));
 
 	state.damage = flatlandBaseDamageAtLevel(g(WorkshopUpgradeId.BaseDamage) + bl(UpgradeId.Damage)) * lDmg;
 	state.fireRate = ws.fireRate + getBattleUpgradeEffect(UpgradeId.FireRate, bl(UpgradeId.FireRate));
