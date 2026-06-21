@@ -187,6 +187,13 @@ export interface CommandOrdersState {
 	claimedMilestones: number[];
 	counters: Partial<Record<CommandMetric, number>>;
 	boardRefreshedAt: number;
+	/**
+	 * Slots currently admitted to the visible Active board. Completing or claiming
+	 * an order leaves its slot empty; empty slots are only refilled when the board
+	 * refresh timer (ORDER_BOARD_REFRESH_MS) elapses — never instantly. Undefined
+	 * on legacy saves; `ensureBoard` seeds it on first load.
+	 */
+	boardSlots?: number[];
 }
 
 export function createDefaultCommandOrdersState(): CommandOrdersState {
@@ -261,6 +268,55 @@ export function refreshBoard(state: CommandOrdersState, now = Date.now()): Comma
 	return { ...state, boardRefreshedAt: now };
 }
 
+/** Whether a slot still belongs on the Active board (not claimed, not completed). */
+function slotIsActive(slot: number, pool: CommandOrderInstance[], state: CommandOrdersState): boolean {
+	const o = pool.find(p => p.slot === slot);
+	if (!o) return false;
+	if (isOrderClaimed(state, slot)) return false;
+	if (isOrderComplete(o, state.counters)) return false;
+	return true;
+}
+
+/** Append the next available (unclaimed, incomplete, off-board) slots up to the cap. */
+function fillBoard(board: number[], pool: CommandOrderInstance[], state: CommandOrdersState): number[] {
+	const next = [...board];
+	for (const o of pool) {
+		if (next.length >= COMMAND_ORDERS_VISIBLE) break;
+		if (next.includes(o.slot)) continue;
+		if (isOrderClaimed(state, o.slot)) continue;
+		if (isOrderComplete(o, state.counters)) continue;
+		next.push(o.slot);
+	}
+	return next;
+}
+
+/**
+ * Seed `boardSlots` for legacy/new states that don't have it yet, WITHOUT
+ * resetting the refresh timer. Started orders are kept on the board first, then
+ * the board is topped up — i.e. it mirrors the old instant-fill once, after
+ * which refills only happen on the timer.
+ */
+export function ensureBoard(state: CommandOrdersState, pool: CommandOrderInstance[]): CommandOrdersState {
+	if (state.boardSlots !== undefined) return state;
+	const started: number[] = [];
+	for (const o of pool) {
+		if (started.length >= COMMAND_ORDERS_VISIBLE) break;
+		if (!slotIsActive(o.slot, pool, state)) continue;
+		if (isOrderStarted(o, state.counters)) started.push(o.slot);
+	}
+	return { ...state, boardSlots: fillBoard(started, pool, state) };
+}
+
+/**
+ * Board refresh: drop claimed/completed slots, then top up to the cap with new
+ * orders and stamp the refresh time. This is the ONLY path that introduces fresh
+ * orders — completing one mid-cycle just leaves a gap until the next refresh.
+ */
+export function applyBoardRefresh(state: CommandOrdersState, pool: CommandOrderInstance[], now = Date.now()): CommandOrdersState {
+	const kept = (state.boardSlots ?? []).filter(slot => slotIsActive(slot, pool, state));
+	return { ...state, boardSlots: fillBoard(kept, pool, state), boardRefreshedAt: now };
+}
+
 export function boardRefreshRemainingMs(state: CommandOrdersState, now = Date.now()): number {
 	if (state.boardRefreshedAt <= 0) return 0;
 	return Math.max(0, ORDER_BOARD_REFRESH_MS - (now - state.boardRefreshedAt));
@@ -312,6 +368,20 @@ export function isOrderStarted(order: CommandOrderInstance, counters: Partial<Re
 export function getActiveOrders(pool: CommandOrderInstance[], state: CommandOrdersState): CommandOrderInstance[] {
 	if (state.completedCount >= COMMAND_ORDERS_MAX_PER_WEEK) return [];
 
+	// Board-slot model: show exactly the slots admitted to the board (minus any
+	// since claimed/completed). Empty gaps persist until the refresh timer tops
+	// the board up again — completing an order never refills instantly.
+	if (state.boardSlots !== undefined) {
+		const result: CommandOrderInstance[] = [];
+		for (const slot of state.boardSlots) {
+			const o = pool.find(p => p.slot === slot);
+			if (!o || !slotIsActive(slot, pool, state)) continue;
+			result.push(o);
+		}
+		return result.slice(0, COMMAND_ORDERS_VISIBLE);
+	}
+
+	// ── Legacy path (no persisted board) — instant-fill, kept for old saves. ──
 	// 1. Collect all started-but-incomplete orders.
 	const started: CommandOrderInstance[] = [];
 	for (const o of pool) {

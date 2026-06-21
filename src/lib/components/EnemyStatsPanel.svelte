@@ -47,16 +47,18 @@
 
 {#if snap?.runActive && enemyStats}
 	<div class="enemy-panel" class:compact class:mobile={isMobile} role="region" aria-label="Enemy stats">
-		<button class="ep-toggle" onclick={() => compact = !compact} aria-label={compact ? 'Expand' : 'Collapse'}>
-			{compact ? '+' : '−'}
-		</button>
 		<div class="ep-content">
-			<div class="ep-title">Shapes</div>
+			<div class="ep-title">
+				<span class="ep-name">Shapes</span>
+				<button class="ep-toggle" onclick={() => compact = !compact} aria-label={compact ? 'Expand' : 'Collapse'}>
+					{compact ? '+' : '−'}
+				</button>
+			</div>
 			<div class="ep-row"><span class="ep-lbl">Alive</span><span class="ep-val">{snap.enemyCount}</span></div>
 			<div class="ep-row"><span class="ep-lbl">HP</span><span class="ep-val">{fmt(enemyStats.normal.hp)}</span></div>
-			<div class="ep-row"><span class="ep-lbl">Armor</span><span class="ep-val">{enemyStats.normal.armor > 0 ? pct(enemyStats.normal.armor) : 'absent'}</span></div>
-			<div class="ep-row"><span class="ep-lbl">DMG</span><span class="ep-val">{fmt(enemyStats.normal.damage)}</span></div>
 			{#if !compact}
+				<div class="ep-row"><span class="ep-lbl">Armor</span><span class="ep-val">{enemyStats.normal.armor > 0 ? pct(enemyStats.normal.armor) : 'absent'}</span></div>
+				<div class="ep-row"><span class="ep-lbl">DMG</span><span class="ep-val">{fmt(enemyStats.normal.damage)}</span></div>
 				<div class="ep-row"><span class="ep-lbl">Speed</span><span class="ep-val">{enemyStats.normal.speed.toFixed(0)}</span></div>
 			{/if}
 			{#if enemyStats.isBossWave && enemyStats.boss}
@@ -88,28 +90,36 @@
 	}
 
 	.enemy-panel.compact {
-		min-width: 85px;
+		min-width: 0;
 	}
 
 	.enemy-panel.mobile {
-		bottom: 60px;
+		bottom: 6px;
+		right: 6px;
+	}
+
+	.enemy-panel.mobile.compact {
+		min-width: 76px;
 	}
 
 	.ep-toggle {
-		position: absolute;
-		top: 2px;
-		right: 3px;
 		color: var(--text-dim);
-		font-size: var(--fs-caption);
-		padding: 4px 6px;
-		min-width: 28px;
-		min-height: 28px;
+		font-size: var(--fs-body-sm);
+		padding: 2px;
+		width: 22px;
+		height: 22px;
+		margin: -2px -2px -2px 0;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		line-height: 1;
 		cursor: pointer;
-		z-index: 1;
+		flex-shrink: 0;
+	}
+
+	.enemy-panel.mobile .ep-toggle {
+		width: 26px;
+		height: 26px;
 	}
 
 	.ep-toggle:hover {
@@ -117,10 +127,18 @@
 	}
 
 	.ep-content {
-		padding: 0.35rem 0.4rem;
+		padding: 0.3rem 0.4rem;
+	}
+
+	.enemy-panel.compact .ep-content {
+		padding: 0.25rem 0.35rem;
 	}
 
 	.ep-title {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.4rem;
 		font-size: var(--fs-caption);
 		color: var(--violet);
 		text-transform: uppercase;
@@ -136,6 +154,8 @@
 		gap: 0.3rem;
 		padding: 0.08rem 0;
 	}
+
+	.enemy-panel.compact .ep-row { padding: 0.04rem 0; }
 
 	.ep-lbl {
 		color: var(--text-dim);

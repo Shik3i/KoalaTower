@@ -8,10 +8,33 @@
 	 * number (not colour-only). Reduced motion is honoured via the global
 	 * prefers-reduced-motion CSS rule plus local guards.
 	 */
+	import { goto } from '$app/navigation';
 	import Icon from '$lib/components/Icon.svelte';
-	import { notifications } from '$lib/stores/notificationStore';
+	import { notifications, type AppNotification, type NotificationKind } from '$lib/stores/notificationStore';
 
 	const unread = notifications.unread;
+
+	/** Default destination per kind when a notification doesn't carry its own href. */
+	const KIND_HREF: Partial<Record<NotificationKind, string>> = {
+		achievement: '/hub?section=stats',
+		bestWave: '/hub?section=stats',
+		frontUnlock: '/play',
+		research: '/hub?section=lab',
+		blackMarket: '/hub?section=blackMarket',
+		shipment: '/hub?section=blackMarket',
+		pickup: '/hub?section=blackMarket',
+	};
+
+	function targetFor(n: AppNotification): string | undefined {
+		return n.href ?? KIND_HREF[n.kind];
+	}
+
+	function openNotification(n: AppNotification): void {
+		const href = targetFor(n);
+		if (!href) return;
+		close();
+		goto(href);
+	}
 
 	let open = $state(false);
 	let wrapEl = $state<HTMLDivElement | null>(null);
@@ -74,14 +97,25 @@
 			</div>
 			<div class="nc-list">
 				{#each $notifications as n (n.id)}
-					<div class="nc-item nc-{n.kind}">
-						<span class="nc-icon" aria-hidden="true">{n.icon}</span>
-						<div class="nc-body">
-							<div class="nc-it">{n.title}</div>
-							{#if n.detail}<div class="nc-id">{n.detail}</div>{/if}
+					{#if targetFor(n)}
+						<button type="button" class="nc-item nc-link nc-{n.kind}" onclick={() => openNotification(n)} title="Open">
+							<span class="nc-icon" aria-hidden="true">{n.icon}</span>
+							<div class="nc-body">
+								<div class="nc-it">{n.title}</div>
+								{#if n.detail}<div class="nc-id">{n.detail}</div>{/if}
+							</div>
+							<span class="nc-time">{relTime(n.time)}<span class="nc-go" aria-hidden="true">›</span></span>
+						</button>
+					{:else}
+						<div class="nc-item nc-{n.kind}">
+							<span class="nc-icon" aria-hidden="true">{n.icon}</span>
+							<div class="nc-body">
+								<div class="nc-it">{n.title}</div>
+								{#if n.detail}<div class="nc-id">{n.detail}</div>{/if}
+							</div>
+							<span class="nc-time">{relTime(n.time)}</span>
 						</div>
-						<span class="nc-time">{relTime(n.time)}</span>
-					</div>
+					{/if}
 				{:else}
 					<div class="nc-empty">
 						<div class="nc-empty-icon" aria-hidden="true">🛰️</div>
@@ -114,6 +148,11 @@
 	.nc-item { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:.5rem; align-items:start; padding:.45rem .5rem; border-radius:var(--radius-sm); border-left:2px solid transparent; }
 	.nc-item + .nc-item { margin-top:2px; }
 	.nc-item:hover { background:rgba(255,255,255,.03); }
+	/* Clickable notifications reset button chrome and gain a pointer + chevron. */
+	.nc-link { width:100%; text-align:left; background:transparent; border:none; cursor:pointer; font:inherit; color:inherit; }
+	.nc-link:hover { background:rgba(0,255,255,.06); }
+	.nc-link:focus-visible { outline:2px solid var(--cyan); outline-offset:-2px; }
+	.nc-go { margin-left:.35rem; color:var(--cyan); font-weight:700; opacity:.7; }
 	.nc-icon { font-size:1rem; line-height:1.3; }
 	.nc-body { min-width:0; }
 	.nc-it { font-size:var(--fs-body-sm); color:var(--text-primary); line-height:1.3; }

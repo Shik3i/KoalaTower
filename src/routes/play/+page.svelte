@@ -169,7 +169,7 @@
 	let frameCount = 0;
 
 	$effect(() => {
-		if (settings.showFps && snap?.runActive && !paused) {
+		if (fpsActive) {
 			let frameId: number;
 			const tick = () => {
 				frameCount++;
@@ -205,6 +205,9 @@
 	let totalRuns = $state(0);
 	let speed = $state(1);
 	let paused = $state(false);
+	// Stable boolean so the FPS effect isn't torn down every frame (snap is
+	// reassigned each frame; depending on it directly reset the counter to 0).
+	const fpsActive = $derived(settings.showFps && snap?.runActive === true && !paused);
 	let selectedFront = $state<TierId>(TierId.Tier1);
 	let frontBestWave = $state<Partial<Record<TierId, number>>>({});
 	let schematicsByFront = $state<Record<number, number>>({});
@@ -855,6 +858,10 @@
 			save?.selectedSkin ?? 'classic'
 		);
 		syncSettingsToEngine(save?.settings ?? { ...DEFAULT_SETTINGS });
+		// Re-apply the player's last chosen game speed (clamped to what's unlocked).
+		const prefSpeed = save?.preferredSpeed ?? 1;
+		const maxSpeed = getMaxUnlockedSpeed(save?.blackMarketUnlocks);
+		engine.setSpeed(Math.min(prefSpeed, maxSpeed) || 1);
 		gameView?.start();
 		refreshSnap();
 		toast('▶ ' + getOpLogMessage('deploymentStart'), 'success');
@@ -874,6 +881,9 @@
 				return;
 			}
 			engine.setSpeed(sp);
+			// Remember the chosen speed so the next deployment starts at it.
+			const save = getCachedSave();
+			if (save && save.preferredSpeed !== sp) { save.preferredSpeed = sp; persistSave(save); }
 			toast(getOpLogMessage('speedChange', { speed: sp }), 'info');
 		}
 		refreshSnap();
@@ -1042,6 +1052,21 @@
 					<div class="spd-status" class:paused={paused}>{paused ? '❚❚' : speed + '×'}</div>
 				</div>
 			{/if}
+			{#if isMobile && snap?.runActive}
+				<div class="mob-spd">
+					<button class="mob-spd-main" onclick={() => showMobileSpeed = !showMobileSpeed} aria-label="Speed: {paused ? 'Paused' : speed + '×'}. Tap to change.">
+						<Icon name={paused ? 'pause' : 'play'} size={15} />
+						<span>{paused ? '❚❚' : speed + '×'}</span>
+					</button>
+					{#if showMobileSpeed}
+						<div class="mob-spd-popup" role="menu">
+							<button class="mob-spd-opt" class:on={paused} onclick={() => { handleSpeed(0); showMobileSpeed = false; }} aria-label="Pause">❚❚</button>
+							{#each [1,2,3] as s}<button class="mob-spd-opt" class:on={!paused && speed === s} class:locked={isSpeedLocked(s)} onclick={() => { handleSpeed(s); showMobileSpeed = false; }}>{isSpeedLocked(s) ? '🔒' : s + '×'}</button>{/each}
+							<button class="mob-spd-opt" class:on={!paused && speed === 5} class:locked={isSpeedLocked(5)} onclick={() => { handleSpeed(4); showMobileSpeed = false; }}>{isSpeedLocked(5) ? '🔒' : '5×'}</button>
+						</div>
+					{/if}
+				</div>
+			{/if}
 			<button class="ibtn" class:off={!settings.sfx} onclick={toggleSfx} aria-label="Toggle sound effects" use:tooltip={`Sound effects: ${settings.sfx ? 'ON' : 'OFF'}\nCombat & UI sounds. Click to toggle.`}><Icon name={settings.sfx ? 'soundOn' : 'soundOff'} size={17} /></button>
 			<button class="ibtn" class:off={!settings.music} onclick={toggleMusic} aria-label="Toggle music" use:tooltip={`Music: ${settings.music ? 'ON' : 'OFF'}\nAmbient background loop. Click to toggle.`}><Icon name={settings.music ? 'musicOn' : 'musicOff'} size={17} /></button>
 			<button class="ibtn" onclick={replayDeploymentTutorial} aria-label="Replay deployment tutorial" use:tooltip={'Replay the deployment tutorial on this page.'}><Icon name="help" size={17} /></button>
@@ -1109,23 +1134,6 @@
 	{#key tutorialReplayKey}
 		<Tutorial steps={playTutorialSteps} tutorialKey={PLAY_TUTORIAL_KEY} />
 	{/key}
-
-	<!-- Mobile Speed Bar -->
-	{#if isMobile && snap?.runActive}
-		<div class="mob-spd">
-			<button class="mob-spd-main" onclick={() => showMobileSpeed = !showMobileSpeed} aria-label="Speed: {paused ? 'Paused' : speed + '×'}. Tap to change.">
-				<Icon name={paused ? 'pause' : 'play'} size={15} />
-				<span>{paused ? '❚❚' : speed + '×'}</span>
-			</button>
-			{#if showMobileSpeed}
-				<div class="mob-spd-popup" role="menu">
-					<button class="mob-spd-opt" class:on={paused} onclick={() => { handleSpeed(0); showMobileSpeed = false; }}>⏸ Pause</button>
-					{#each [1,2,3] as s}<button class="mob-spd-opt" class:on={!paused && speed === s} class:locked={isSpeedLocked(s)} onclick={() => { handleSpeed(s); showMobileSpeed = false; }}>{isSpeedLocked(s) ? '🔒' : s + '×'}</button>{/each}
-					<button class="mob-spd-opt" class:on={!paused && speed === 5} class:locked={isSpeedLocked(5)} onclick={() => { handleSpeed(4); showMobileSpeed = false; }}>{isSpeedLocked(5) ? '🔒' : '5×'}</button>
-				</div>
-			{/if}
-		</div>
-	{/if}
 
 	<!-- Game Over -->
 	{#if showGameOver}
@@ -1409,10 +1417,11 @@
 	.set-row input[type=checkbox] { width:16px; height:16px; accent-color:var(--cyan); cursor:pointer; }
 	.hub-link { padding:.25rem; border-radius:var(--radius-sm); color:var(--text-dim); font-size:var(--fs-body); text-decoration:none; transition:all var(--transition-fast); }
 	.hub-link:hover { color:var(--cyan); background:rgba(0,255,255,.08); }
-	.mob-spd { display:flex; align-items:center; gap:2px; padding:.3rem .4rem; background:rgba(7,8,18,.9); border-bottom:1px solid var(--border-neon); flex-shrink:0; position:relative; }
-	.mob-spd-main { display:inline-flex; align-items:center; gap:.35rem; padding:.45rem .75rem; min-width:64px; min-height:44px; font-size:var(--fs-body); font-family:var(--font-mono); color:var(--cyan); background:rgba(0,255,255,.08); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; }
-	.mob-spd-popup { display:flex; gap:3px; margin-left:.3rem; animation:fi .15s ease; }
-	.mob-spd-opt { padding:.4rem .55rem; min-width:44px; min-height:44px; font-size:var(--fs-body-sm); font-family:var(--font-mono); color:var(--text-dim); background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition-fast); }
+	/* Lives inline in the top bar (header) on mobile — compact, with a dropdown. */
+	.mob-spd { display:inline-flex; align-items:center; flex-shrink:0; position:relative; }
+	.mob-spd-main { display:inline-flex; align-items:center; gap:.3rem; padding:.3rem .5rem; min-width:50px; min-height:40px; font-size:var(--fs-body-sm); font-family:var(--font-mono); color:var(--cyan); background:rgba(0,255,255,.08); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; }
+	.mob-spd-popup { position:absolute; top:calc(100% + 4px); right:0; display:flex; gap:2px; padding:3px; background:var(--bg-secondary); border:1px solid var(--border-neon-strong); border-radius:var(--radius-sm); box-shadow:0 8px 24px rgba(0,0,0,.5); z-index:200; animation:fi .15s ease; }
+	.mob-spd-opt { padding:.4rem .3rem; min-width:36px; min-height:44px; font-size:var(--fs-body-sm); font-family:var(--font-mono); color:var(--text-dim); background:var(--bg-tertiary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; transition:all var(--transition-fast); }
 	.mob-spd-opt.on { color:var(--cyan); background:rgba(0,255,255,.1); border-color:rgba(0,255,255,.25); }
 	.mob-spd-opt:hover { color:var(--text-primary); }
 	.game-body { flex:1; display:flex; overflow:hidden; position:relative; }
@@ -1602,15 +1611,22 @@
 	@keyframes mobDrawerIn { from{opacity:0;transform:translateY(100%)} to{opacity:1;transform:translateY(0)} }
 	@media(min-width:900px){ .mn,.mob-spd,.mob-upgrade-drawer{display:none} }
 	@media(max-width:899px){
-		.topbar{padding:.2rem .3rem;gap:.2rem}
-		.tb-brand{font-size:var(--fs-caption)}
+		/* Single compact row — never wrap (wrapping made the header eat ~25% of
+		   the screen). Redundant controls are hidden: HP/kills live in the bottom
+		   panels, and the sound/music/help toggles live in the Settings dropdown. */
+		.topbar{padding:.25rem .35rem;gap:.25rem;flex-wrap:nowrap;overflow:hidden}
+		.tb-brand{display:none}
 		.tb-div{display:none}
-		.tb-pill{padding:.1rem .35rem;font-size:var(--fs-caption-sm);gap:.12rem}
-		.tb-stats{flex-wrap:wrap;gap:.12rem}
+		.tb-stats{flex-wrap:nowrap;gap:.2rem;margin-left:.1rem;min-width:0;overflow-x:auto;scrollbar-width:none}
+		.tb-stats::-webkit-scrollbar{display:none}
+		.tb-pill{padding:.12rem .35rem;font-size:var(--fs-caption-sm);gap:.12rem;flex-shrink:0}
 		.tb-max{display:none}
+		.hp-pill,.kill-pill{display:none}
 		.spd-grp{display:none}
 		.save-indicator{display:none}
-		.ibtn{min-width:44px;min-height:44px;padding:.4rem}
+		.tb-actions{flex-shrink:0;gap:.1rem}
+		.tb-actions > .ibtn{display:none}
+		.ibtn{min-width:40px;min-height:40px;padding:.35rem}
 		.ptog{min-width:44px;min-height:44px}
 		:root{--mob-nav-h:48px}
 	}

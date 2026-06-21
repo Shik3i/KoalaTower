@@ -42,7 +42,8 @@
 		claimMilestone,
 		commandOrdersWeekKey,
 		shouldRefreshBoard,
-		refreshBoard,
+		ensureBoard,
+		applyBoardRefresh,
 		type CommandOrderInstance,
 		type CommandOrdersState,
 	} from '$lib/game/balance/commandOrders';
@@ -872,12 +873,14 @@
 		const weekKey = commandOrdersWeekKey();
 		const rolled = rolloverCommandOrders(save.commandOrders, weekKey);
 		if (rolled !== save.commandOrders) { save.commandOrders = rolled; persistSave(save); }
-		// Refresh the board if cooldown expired
-		if (shouldRefreshBoard(save.commandOrders)) {
-			save.commandOrders = refreshBoard(save.commandOrders);
-			persistSave(save);
-		}
-		commandOrderPool = generateCommandOrders(weekKey, { highestWave, unlockedFrontCount: unlockedFronts.length });
+		const pool = generateCommandOrders(weekKey, { highestWave, unlockedFrontCount: unlockedFronts.length });
+		commandOrderPool = pool;
+		// Seed the persisted board for legacy saves (without touching the timer)…
+		const seeded = ensureBoard(save.commandOrders, pool);
+		let next = seeded;
+		// …then only top up with NEW orders once the refresh cooldown has elapsed.
+		if (shouldRefreshBoard(next)) next = applyBoardRefresh(next, pool);
+		if (next !== save.commandOrders) { save.commandOrders = next; persistSave(save); }
 		commandOrdersState = {
 			week: save.commandOrders.week,
 			completedCount: save.commandOrders.completedCount,
@@ -885,6 +888,7 @@
 			claimedMilestones: [...save.commandOrders.claimedMilestones],
 			counters: { ...save.commandOrders.counters },
 			boardRefreshedAt: save.commandOrders.boardRefreshedAt,
+			boardSlots: save.commandOrders.boardSlots ? [...save.commandOrders.boardSlots] : undefined,
 		};
 	}
 
@@ -1448,15 +1452,15 @@
 </main>
 
 <style>
-	.hub-page { min-height:100vh; background:var(--bg-primary); overflow-y:auto; }
+	.hub-page { min-height:100vh; background:var(--bg-primary); overflow-y:auto; overflow-x:hidden; }
 	.hub-top { display:flex; align-items:center; gap:.75rem; padding:.75rem 1.5rem; background:rgba(7,8,18,.95); border-bottom:1px solid var(--border-neon); position:sticky; top:0; z-index:10; }
 	.hub-back { color:var(--text-secondary); font-size:var(--fs-body); text-decoration:none; padding:.25rem .65rem; border:1px solid var(--border-neon); border-radius:var(--radius-sm); transition:all var(--transition-fast); }
 	.hub-back:hover { color:var(--cyan); border-color:var(--cyan); }
 	.hub-deploy { color:var(--cyan); font-size:var(--fs-body); font-weight:600; text-decoration:none; padding:.25rem .65rem; border:1px solid rgba(0,255,255,.25); border-radius:var(--radius-sm); transition:all var(--transition-fast); }
 	.hub-deploy:hover { color:var(--bg-primary); background:var(--cyan); border-color:var(--cyan); }
 	.hub-title { font-size:var(--fs-hero); font-weight:700; background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-	.hub-coins { margin-left:auto; font-family:var(--font-mono); font-size:var(--fs-mono-lg); color:var(--yellow); }
-	.hub-sm { color:var(--violet); margin-left:.5rem; }
+	.hub-coins { margin-left:auto; display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:.35rem .5rem; font-family:var(--font-mono); font-size:var(--fs-mono-lg); color:var(--yellow); }
+	.hub-sm { color:var(--violet); }
 	.hub-desc { padding:1.25rem 1.5rem .5rem; text-align:center; color:var(--text-secondary); font-size:var(--fs-body); line-height:1.7; max-width:900px; margin:0 auto; position:relative; z-index:1; }
 	.hub-body { display:flex; gap:2rem; padding:1.5rem; max-width:1400px; margin:0 auto; position:relative; z-index:1; min-height:calc(100vh - 64px); }
 	.hub-nav { display:flex; flex-direction:column; gap:.35rem; width:200px; flex-shrink:0; }
@@ -1522,14 +1526,28 @@
 	.dlg-dng-btn { background:var(--red); color:white; }
 	.dlg-dng { border-color:rgba(255,68,68,.2); }
 	@keyframes fi { from{opacity:0} to{opacity:1} }
-	@media(max-width:767px){ .hub-body{flex-direction:column;padding:1rem;gap:1rem} .hub-nav{display:flex;flex-direction:row;align-items:center;overflow-x:auto;gap:.4rem;width:auto;padding-bottom:.25rem;scrollbar-width:thin;scrollbar-color:rgba(0,255,255,.35) transparent;mask-image: linear-gradient(to right, black 85%, transparent 100%);-webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%)} .hub-nav-btn{flex-shrink:0;width:auto;white-space:nowrap;text-align:center;padding:.55rem .75rem;font-size:var(--fs-body-sm)} .hub-nav .bm-locked-teaser{flex-shrink:0;white-space:nowrap} .hub-top{padding:.6rem 1rem}.hub-desc{padding:1rem 1rem .25rem}.hub-coins{font-size:var(--fs-mono)} }
-	@media(max-width:380px){ .hub-nav-btn{font-size:var(--fs-caption);padding:.5rem .6rem} }
+	@media(max-width:767px){
+		.hub-body{flex-direction:column;padding:1rem;gap:.85rem}
+		/* Tab strip: scroll-snapping chips with visible borders so it reads as a
+		   row of switchable tabs, plus a right fade hinting more off-screen. */
+		.hub-nav{display:flex;flex-direction:row;align-items:center;overflow-x:auto;gap:.4rem;width:auto;margin:0 -1rem;padding:.5rem 1.5rem .5rem 1rem;background:rgba(0,255,255,.02);border-top:1px solid var(--border-neon);border-bottom:1px solid var(--border-neon);scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;mask-image:linear-gradient(to right, black 88%, transparent 100%);-webkit-mask-image:linear-gradient(to right, black 88%, transparent 100%)}
+		.hub-nav::-webkit-scrollbar{display:none}
+		.hub-nav-btn{flex-shrink:0;width:auto;white-space:nowrap;text-align:center;padding:.5rem .8rem;font-size:var(--fs-body-sm);border:1px solid var(--border-neon);border-radius:100px;background:rgba(255,255,255,.02);scroll-snap-align:start}
+		.hub-nav-btn.on{color:var(--cyan);background:rgba(0,255,255,.12);border-color:var(--cyan);box-shadow:0 0 10px rgba(0,255,255,.15)}
+		.hub-nav .bm-locked-teaser{flex-shrink:0;white-space:nowrap}
+		.hub-top{flex-wrap:wrap;row-gap:.4rem;padding:.6rem 1rem}
+		.hub-title{font-size:var(--fs-subheading)}
+		.hub-desc{padding:.75rem 1rem .25rem;font-size:var(--fs-body-sm);line-height:1.5}
+		.hub-coins{font-size:var(--fs-mono);width:100%;margin-left:0}
+		.hub-top-username{max-width:88px}
+	}
+	@media(max-width:380px){ .hub-nav-btn{font-size:var(--fs-caption);padding:.45rem .7rem} .hub-title{font-size:var(--fs-body)} }
 	.hub-footer { text-align:center; padding:1.5rem; color:var(--text-dim); font-size:var(--fs-caption); display:flex; flex-direction:column; gap:.4rem; align-items:center; border-top:1px solid var(--border-neon); margin-top:2rem; }
 	.hub-footer-flavor { font-size:var(--fs-caption-sm); color:var(--text-dim); opacity:0.35; margin:0; }
 	.hub-footer-links { display:flex; gap:.4rem; align-items:center; }
 	.hub-footer-links a { color:var(--cyan); text-decoration:underline; text-underline-offset:3px; text-decoration-color:rgba(0,255,255,.2); }
 	/* Top bar account badge */
-	.hub-top-account { display:inline-flex; align-items:center; gap:.35rem; font-family:var(--font-mono); font-size:var(--fs-caption); color:var(--text-secondary); background:rgba(255,255,255,.05); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.25rem .55rem; cursor:pointer; transition:all var(--transition-fast); margin-left:.5rem; }
+	.hub-top-account { display:inline-flex; align-items:center; gap:.35rem; font-family:var(--font-mono); font-size:var(--fs-caption); color:var(--text-secondary); background:rgba(255,255,255,.05); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.25rem .55rem; cursor:pointer; transition:all var(--transition-fast); }
 	.hub-top-account:hover { color:var(--cyan); border-color:var(--cyan); background:rgba(0,255,255,.05); }
 	.hub-top-username { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 

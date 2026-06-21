@@ -495,11 +495,13 @@ describe('Cost Monotonicity', () => {
 	});
 
 	it('early battle upgrade costs should not be free', () => {
-		// First level should cost more than pocket change
+		// First level should cost something but be cheap, "The Tower"-style.
 		const dmgCost0 = getBattleUpgradeCost(UpgradeId.Damage, 0);
 		expect(dmgCost0).toBeGreaterThan(0);
-		// First damage upgrade costs 10 energy, affordable from starting 60
-		expect(dmgCost0).toBeGreaterThanOrEqual(5);
+		// Gentle curve: the first Damage upgrade is a few Energy (was 30), trivially
+		// affordable from the starting reserve — big costs only arrive much later.
+		expect(dmgCost0).toBeGreaterThanOrEqual(3);
+		expect(dmgCost0).toBeLessThanOrEqual(10);
 	});
 });
 
@@ -1275,14 +1277,20 @@ describe('Damage curve (early-game-friendly quadratic)', () => {
 		expect(getBattleUpgradeEffect(UpgradeId.Damage, 2) - getBattleUpgradeEffect(UpgradeId.Damage, 1)).toBe(38);
 	});
 
-	it('Field Damage costs use the steeper Tower-like curve', () => {
-		expect(getBattleUpgradeCost(UpgradeId.Damage, 0)).toBe(30);
-		expect(getBattleUpgradeCost(UpgradeId.Damage, 1)).toBe(72);
-		expect(getBattleUpgradeCost(UpgradeId.Damage, 2)).toBe(124);
-		expect(getBattleUpgradeCost(UpgradeId.Damage, 3)).toBe(183);
-		expect(getBattleUpgradeCost(UpgradeId.Damage, 4)).toBe(252);
-		expect(getBattleUpgradeCost(UpgradeId.Damage, 9)).toBe(738);
-		expect(getBattleUpgradeCost(UpgradeId.Damage, 13)).toBe(1343);
+	it('Field Damage uses the gentle "The Tower"-style curve (level 36 ≈ $179)', () => {
+		// Near-linear with tiny compounding: cheap early, big numbers only deep in.
+		// Anchored to the original game where buying Damage level 36 costs ~$179
+		// (it used to be ~$12,000 here). getBattleUpgradeCost(id, idx) buys level idx+1.
+		expect(getBattleUpgradeCost(UpgradeId.Damage, 0)).toBe(4);
+		expect(getBattleUpgradeCost(UpgradeId.Damage, 1)).toBe(7);
+		expect(getBattleUpgradeCost(UpgradeId.Damage, 2)).toBe(11);
+		expect(getBattleUpgradeCost(UpgradeId.Damage, 3)).toBe(14);
+		expect(getBattleUpgradeCost(UpgradeId.Damage, 4)).toBe(18);
+		expect(getBattleUpgradeCost(UpgradeId.Damage, 9)).toBe(38);
+		expect(getBattleUpgradeCost(UpgradeId.Damage, 13)).toBe(56);
+		// The anchor: buying level 36 (index 35) ≈ $179.
+		expect(getBattleUpgradeCost(UpgradeId.Damage, 35)).toBeLessThanOrEqual(185);
+		expect(getBattleUpgradeCost(UpgradeId.Damage, 35)).toBeGreaterThanOrEqual(170);
 	});
 });
 
@@ -1590,12 +1598,12 @@ describe('Attack Speed Field Upgrade correction', () => {
 		expect(1 + getBattleUpgradeEffect(UpgradeId.FireRate, 30)).toBeCloseTo(2.50, 4);
 	});
 
-	it('Attack Speed costs follow the Tower-like order of magnitude', () => {
-		expect(getBattleUpgradeCost(UpgradeId.FireRate, 0)).toBe(30);
-		expect(getBattleUpgradeCost(UpgradeId.FireRate, 4)).toBe(252);
-		expect(getBattleUpgradeCost(UpgradeId.FireRate, 9)).toBe(738);
-		expect(getBattleUpgradeCost(UpgradeId.FireRate, 14)).toBe(1531);
-		expect(getBattleUpgradeCost(UpgradeId.FireRate, 29)).toBe(7314);
+	it('Attack Speed costs follow the gentle "The Tower"-style curve', () => {
+		expect(getBattleUpgradeCost(UpgradeId.FireRate, 0)).toBe(4);
+		expect(getBattleUpgradeCost(UpgradeId.FireRate, 4)).toBe(21);
+		expect(getBattleUpgradeCost(UpgradeId.FireRate, 9)).toBe(45);
+		expect(getBattleUpgradeCost(UpgradeId.FireRate, 14)).toBe(71);
+		expect(getBattleUpgradeCost(UpgradeId.FireRate, 29)).toBe(170);
 	});
 
 	it('Tower-like field cost helper uses 1-based level-to-buy input', () => {

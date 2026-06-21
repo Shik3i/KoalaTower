@@ -158,7 +158,12 @@ export function isForgeUpgrade(id: UpgradeId): boolean {
 export function getForgeUpgradeCost(id: UpgradeId, level: number): number {
 	const def = defMap.get(id);
 	if (!def) return Infinity;
-	return roundedCost(def.baseCost, def.costGrowth, level);
+	// "The Tower"-style gentle meta curve: the authored per-level growth (≈1.22–1.30)
+	// compounded into five- and six-figure costs within a few dozen levels. Compress
+	// it toward 1 so the permanent grind rises smoothly instead of exploding. Level-0
+	// cost is unchanged (growth^0 = 1), so early affordability is preserved.
+	const growth = 1 + (def.costGrowth - 1) * 0.3;
+	return roundedCost(def.baseCost, growth, level);
 }
 
 /**

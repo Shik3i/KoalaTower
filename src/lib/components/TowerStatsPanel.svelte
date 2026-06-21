@@ -39,18 +39,20 @@
 
 {#if snap?.runActive}
 	<div class="tower-panel" class:compact class:mobile={isMobile} role="region" aria-label="Tower stats">
-		<button class="tp-toggle" onclick={() => compact = !compact} aria-label={compact ? 'Expand' : 'Collapse'}>
-			{compact ? '+' : '−'}
-		</button>
 		<div class="tp-content">
-			<div class="tp-title">Tower</div>
+			<div class="tp-title">
+				<span class="tp-name">Tower</span>
+				<button class="tp-toggle" onclick={() => compact = !compact} aria-label={compact ? 'Expand' : 'Collapse'}>
+					{compact ? '+' : '−'}
+				</button>
+			</div>
 			<div class="tp-hpbar" data-level={hpLevel} role="meter" aria-label="Tower HP" aria-valuenow={Math.ceil(snap.towerHp)} aria-valuemax={snap.towerMaxHp}>
 				<div class="tp-hpfill" style="width:{hpRatio * 100}%"></div>
 				<div class="tp-hptext"><span>HP</span><span>{Math.ceil(snap.towerHp)}/{snap.towerMaxHp}</span></div>
 			</div>
 			<div class="tp-row"><span class="tp-lbl">DMG</span><span class="tp-val">{fmt(snap.towerDamage)}</span></div>
-			<div class="tp-row"><span class="tp-lbl">APS</span><span class="tp-val">{snap.towerFireRate.toFixed(2)}</span></div>
 			{#if !compact}
+				<div class="tp-row"><span class="tp-lbl">APS</span><span class="tp-val">{snap.towerFireRate.toFixed(2)}</span></div>
 				<div class="tp-row"><span class="tp-lbl">Range</span><span class="tp-val">{snap.towerRange.toFixed(0)}</span></div>
 				<div class="tp-row"><span class="tp-lbl">Def%</span><span class="tp-val">{pct(snap.towerDefensePercent)}</span></div>
 				<div class="tp-row"><span class="tp-lbl">Def</span><span class="tp-val">{snap.towerDefenseAbsolute.toFixed(0)}</span></div>
@@ -82,28 +84,36 @@
 	}
 
 	.tower-panel.compact {
-		min-width: 95px;
+		min-width: 0;
 	}
 
 	.tower-panel.mobile {
-		bottom: 60px;
+		bottom: 6px;
+		left: 6px;
+	}
+
+	.tower-panel.mobile.compact {
+		min-width: 84px;
 	}
 
 	.tp-toggle {
-		position: absolute;
-		top: 2px;
-		right: 3px;
 		color: var(--text-dim);
-		font-size: var(--fs-caption);
-		padding: 4px 6px;
-		min-width: 44px;
-		min-height: 44px;
+		font-size: var(--fs-body-sm);
+		padding: 2px;
+		width: 22px;
+		height: 22px;
+		margin: -2px -2px -2px 0;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		line-height: 1;
 		cursor: pointer;
-		z-index: 1;
+		flex-shrink: 0;
+	}
+
+	.tower-panel.mobile .tp-toggle {
+		width: 26px;
+		height: 26px;
 	}
 
 	.tp-toggle:hover {
@@ -111,10 +121,18 @@
 	}
 
 	.tp-content {
-		padding: 0.35rem 0.4rem;
+		padding: 0.3rem 0.4rem;
+	}
+
+	.tower-panel.compact .tp-content {
+		padding: 0.25rem 0.35rem;
 	}
 
 	.tp-title {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.4rem;
 		font-size: var(--fs-caption);
 		color: var(--cyan);
 		text-transform: uppercase;
@@ -131,6 +149,13 @@
 		padding: 0.08rem 0;
 	}
 
+	.tower-panel.compact .tp-hpbar {
+		height: 15px;
+		margin: 0.05rem 0 0.15rem;
+	}
+	.tower-panel.compact .tp-hptext { font-size: var(--fs-caption-sm); padding: 0 0.3rem; }
+	.tower-panel.compact .tp-row { padding: 0.04rem 0; }
+
 	.tp-lbl {
 		color: var(--text-dim);
 	}
@@ -146,6 +171,7 @@
 		position: relative;
 		height: 18px;
 		margin: 0.1rem 0 0.25rem;
+		min-width: 0;
 		border-radius: var(--radius-sm, 4px);
 		background: rgba(0, 0, 0, 0.45);
 		border: 1px solid rgba(255, 255, 255, 0.12);

@@ -250,10 +250,16 @@ export function getWorkshopUpgradeDef(id: WorkshopUpgradeId): WorkshopUpgradeDef
 export function getWorkshopUpgradeCost(id: WorkshopUpgradeId, level: number): number {
 	const def = defMap.get(id);
 	if (!def) return Infinity;
+	// "The Tower"-style gentle curves: compress the authored cost growth toward a
+	// near-linear shape so the long Foundry grind rises smoothly. Level-0 cost is
+	// unchanged (so early affordability holds); the steepness later is much softer.
 	if (def.costType === 'polynomial') {
-		return polynomialCost(def.baseCost, def.costParam1, level);
+		const exponent = 1 + (def.costParam1 - 1) * 0.4;
+		return polynomialCost(def.baseCost, exponent, level);
 	}
-	return hybridCost(def.baseCost, def.costParam1, def.costParam2 ?? 0.50, level);
+	const growth = 1 + (def.costParam1 - 1) * 0.3;
+	const exponent = (def.costParam2 ?? 0.50) * 0.5;
+	return hybridCost(def.baseCost, growth, exponent, level);
 }
 
 export function getWorkshopUpgradeEffect(id: WorkshopUpgradeId, level: number): number {

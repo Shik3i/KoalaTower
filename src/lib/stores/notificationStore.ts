@@ -30,6 +30,8 @@ export interface AppNotification {
 	icon: string;
 	time: number;
 	read: boolean;
+	/** Optional in-app route to open when the notification is clicked. */
+	href?: string;
 }
 
 /** Newest-first cap. Older entries fall off the end. */
@@ -54,6 +56,8 @@ export interface NotifyInput {
 	title: string;
 	detail?: string;
 	icon?: string;
+	/** Optional in-app route to open when the notification is clicked. */
+	href?: string;
 }
 
 export interface NotificationController extends Readable<AppNotification[]> {
@@ -81,6 +85,7 @@ export function createNotificationStore(): NotificationController {
 			icon: input.icon ?? KIND_ICON[input.kind],
 			time: Date.now(),
 			read: false,
+			href: input.href,
 		};
 		update((list) => [entry, ...list].slice(0, NOTIFICATION_CAP));
 		return id;

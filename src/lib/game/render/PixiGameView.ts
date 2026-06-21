@@ -1,4 +1,4 @@
-import { Application } from 'pixi.js';
+import { Application, Container } from 'pixi.js';
 import { AdvancedBloomFilter } from 'pixi-filters';
 import { GAME_CONFIG } from '../engine/gameConfig';
 import type { GameEngine } from '../engine/GameEngine';
@@ -26,6 +26,12 @@ export class PixiGameView {
 	private engine: GameEngine;
 
 	private layers!: GameLayers;
+	/** Scaled "camera" holding the gameplay layers; bg + wave banner stay fixed. */
+	private world!: Container;
+	private currentZoom = 1;
+	/** Gap (px) kept between the range ring and the nearest viewport edge before
+	 *  the camera starts zooming out instead of letting the ring grow further. */
+	private static readonly RANGE_EDGE_MARGIN = 28;
 	private background!: BackgroundRenderer;
 	private tower!: TowerRenderer;
 	private enemy!: EnemyRenderer;
@@ -138,33 +144,41 @@ export class PixiGameView {
 		this.projectile.container.blendMode = 'add';
 		this.layers.range.blendMode = 'add';
 
+		// Background and the wave banner stay pinned to the canvas (unscaled).
 		stage.addChild(this.layers.bg);
 		this.layers.bg.addChild(this.background.container);
 
-		stage.addChild(this.layers.range);
+		// Everything else lives in the camera `world` so a range zoom-out scales
+		// the whole battlefield uniformly around the tower.
+		this.world = new Container();
+		stage.addChild(this.world);
+
+		this.world.addChild(this.layers.range);
 		this.layers.range.addChild(this.tower.rangeContainer);
 
-		stage.addChild(this.layers.enemy);
+		this.world.addChild(this.layers.enemy);
 		this.layers.enemy.addChild(this.enemy.container);
 		// Death-effect proxies render directly under the enemy layer so corpses
 		// fade behind any live enemies overlapping the same tile.
 		this.layers.enemy.addChild(this.effects.deathContainer);
 
-		stage.addChild(this.layers.projectile);
+		this.world.addChild(this.layers.projectile);
 		this.layers.projectile.addChild(this.projectile.container);
 
-		stage.addChild(this.layers.tower);
+		this.world.addChild(this.layers.tower);
 		this.layers.tower.addChild(this.tower.container);
 
-		stage.addChild(this.layers.particle);
+		this.world.addChild(this.layers.particle);
 		this.layers.particle.addChild(this.effects.particleContainer);
 		this.layers.particle.addChild(this.effects.shockwaveContainer);
 
-		stage.addChild(this.layers.dmgText);
+		this.world.addChild(this.layers.dmgText);
 		this.layers.dmgText.addChild(this.effects.textContainer);
 
 		stage.addChild(this.layers.waveAnnounce);
 		this.layers.waveAnnounce.addChild(this.effects.waveContainer);
+
+		this.applyCamera(this.currentZoom, true);
 
 		// Neon bloom — tuned for bright strokes on a near-black field.
 		this.bloomFilter = new AdvancedBloomFilter({
@@ -192,20 +206,55 @@ export class PixiGameView {
 	}
 
 	public resize(): void {
-		// PixiJS resizeTo handles this automatically
+		// PixiJS resizeTo handles the canvas; recompute the camera for the new size.
 		if (this.app && this.initialized) {
-			const vw = this.app.screen.width;
-			const vh = this.app.screen.height;
-			this.engine.state.viewWidth = vw;
-			this.engine.state.viewHeight = vh;
-			this.tower.x = vw / 2;
-			this.tower.y = vh / 2;
-			this.tower.container.x = vw / 2;
-			this.tower.container.y = vh / 2;
-			if (this.engine.state.tower) {
-				this.engine.state.tower.position.x = vw / 2;
-				this.engine.state.tower.position.y = vh / 2;
-			}
+			const range = this.engine.state.tower?.stats?.range ?? 0;
+			const zoom = this.engine.state.runActive ? this.computeZoom(range) : 1;
+			this.applyCamera(zoom, true);
+			this.lastRange = -1;
+		}
+	}
+
+	/**
+	 * Camera zoom for a given tower range. Stays at 1 until the range ring would
+	 * come within RANGE_EDGE_MARGIN of the nearest viewport edge; past that it
+	 * returns capPx / range so the ring is pinned at the margin and the world
+	 * scales down (double range ⇒ half size), à la The Tower.
+	 */
+	private computeZoom(range: number): number {
+		const cap = Math.min(this.app.screen.width, this.app.screen.height) / 2 - PixiGameView.RANGE_EDGE_MARGIN;
+		if (cap <= 0 || range <= cap) return 1;
+		return cap / range;
+	}
+
+	/**
+	 * Apply a camera zoom: grow the simulated world (so spawns/pathing stay at the
+	 * visible edges), recentre the tower, and scale the `world` container around
+	 * the tower so it stays fixed at the canvas centre.
+	 */
+	private applyCamera(zoom: number, force = false): void {
+		if (!force && zoom === this.currentZoom) return;
+		this.currentZoom = zoom;
+		const cw = this.app.screen.width;
+		const ch = this.app.screen.height;
+		const worldW = cw / zoom;
+		const worldH = ch / zoom;
+
+		this.engine.state.viewWidth = worldW;
+		this.engine.state.viewHeight = worldH;
+		this.tower.x = worldW / 2;
+		this.tower.y = worldH / 2;
+		this.tower.container.x = worldW / 2;
+		this.tower.container.y = worldH / 2;
+		if (this.engine.state.tower) {
+			this.engine.state.tower.position.x = worldW / 2;
+			this.engine.state.tower.position.y = worldH / 2;
+		}
+
+		if (this.world) {
+			this.world.pivot.set(worldW / 2, worldH / 2);
+			this.world.position.set(cw / 2, ch / 2);
+			this.world.scale.set(zoom);
 		}
 	}
 
@@ -240,6 +289,12 @@ export class PixiGameView {
 
 		if (state.runActive && !state.gameOver) {
 			const range = state.tower.stats.range;
+			// Zoom the camera out once the range ring would pass the edge margin.
+			const desiredZoom = this.computeZoom(range);
+			if (Math.abs(desiredZoom - this.currentZoom) > 0.0005) {
+				this.applyCamera(desiredZoom);
+				this.lastRange = -1; // tower recentred → redraw the ring
+			}
 			if (range !== this.lastRange) {
 				this.lastRange = range;
 				this.tower.updateRange(range, -1);

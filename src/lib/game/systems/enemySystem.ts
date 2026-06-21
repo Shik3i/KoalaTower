@@ -33,7 +33,7 @@ export function formatFloatingText(kind: DamageNumberKind, amount: number): stri
 	const value = formatFloatingAmount(amount);
 	switch (kind) {
 		case 'crit': return `CRIT ${value}`;
-		case 'energy': return `${value} ⚡`;
+		case 'energy': return `${value}⚡`;
 		case 'alloy': return `${value} ✨`;
 		case 'strange': return `${value} ◆`;
 		case 'schematic': return `${value} ▣`;

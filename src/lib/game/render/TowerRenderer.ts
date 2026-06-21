@@ -86,28 +86,8 @@ export class TowerRenderer {
 		// Bright center
 		g.circle(cx, cy, s * 0.08).fill({ color: c.centerBright, alpha: 0.95 });
 
-		// Arcs (additive glow layer)
-		const a = this.arcsGfx;
-		for (let i = 0; i < 4; i++) {
-			const baseA = (Math.PI / 2) * i;
-			const r1 = s * 0.4, r2 = s * 0.9;
-			const start1 = baseA, end1 = baseA + Math.PI * 0.35;
-			const start2 = baseA + Math.PI, end2 = baseA + Math.PI + Math.PI * 0.35;
-			a.moveTo(cx + Math.cos(start1) * r1, cy + Math.sin(start1) * r1);
-			a.arc(cx, cy, r1, start1, end1);
-			a.stroke({ width: 1.8, color: c.arcsStroke, alpha: 0.3 });
-			a.moveTo(cx + Math.cos(start2) * r2, cy + Math.sin(start2) * r2);
-			a.arc(cx, cy, r2, start2, end2);
-			a.stroke({ width: 1.8, color: c.arcsStroke, alpha: 0.3 });
-		}
-
-		// Crosshair
-		for (let i = 0; i < 4; i++) {
-			const ca = (Math.PI / 2) * i;
-			a.moveTo(cx + Math.cos(ca) * s * 0.35, cy + Math.sin(ca) * s * 0.35)
-				.lineTo(cx + Math.cos(ca) * s * 0.85, cy + Math.sin(ca) * s * 0.85);
-			a.stroke({ width: 1, color: c.arcsStroke, alpha: 0.25 });
-		}
+		// (Removed) The rotating decorative arc/crosshair ring that clung to the
+		// tower was distracting — the tower body now reads cleanly on its own.
 	}
 
 	updateVisuals(time: number, hpPct: number, multishotCount = 0): void {
@@ -129,9 +109,6 @@ export class TowerRenderer {
 			this.towerGfx.tint = 0xFFFFFF;
 			this.container.alpha = pulse * 0.7 + 0.3;
 		}
-
-		// Rotate arcs
-		if (time > 0) this.arcsGfx.rotation += 0.015;
 
 		// Render multishot orbitals
 		this.orbitalsGfx.clear();

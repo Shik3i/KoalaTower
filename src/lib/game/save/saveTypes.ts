@@ -102,6 +102,8 @@ export interface SaveData {
 	/** v20: Customization skins */
 	selectedSkin: string;
 	unlockedSkins: string[];
+	/** Last game-speed preset the player chose; re-applied on each new run. */
+	preferredSpeed?: number;
 }
 
 export const CURRENT_SCHEMA_VERSION = 20;
@@ -165,5 +167,6 @@ export function createDefaultSave(): SaveData {
 		deploymentReports: [],
 		selectedSkin: 'classic',
 		unlockedSkins: ['classic'],
+		preferredSpeed: 1,
 	};
 }

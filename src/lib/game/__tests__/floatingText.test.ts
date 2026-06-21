@@ -46,7 +46,7 @@ describe('resolveKindStyle — floating-text classification', () => {
 	});
 
 	it('formats resource gains without plus signs and with compact glyphs', () => {
-		expect(formatFloatingText('energy', 1)).toBe('1 ⚡');
+		expect(formatFloatingText('energy', 1)).toBe('1⚡');
 		expect(formatFloatingText('alloy', 12)).toBe('12 ✨');
 		expect(formatFloatingText('strange', 3)).toBe('3 ◆');
 		expect(formatFloatingText('schematic', 2)).toBe('2 ▣');
