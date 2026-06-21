@@ -6,7 +6,11 @@
 		{ hp: number; maxHp: number; wave: number } = $props();
 
 	const color = '#FF44AA';
-	let pct = $derived(Math.max(0, Math.min(100, (hp / maxHp) * 100)));
+	let pct = $derived(
+		maxHp > 0 && Number.isFinite(hp) && Number.isFinite(maxHp)
+			? Math.max(0, Math.min(100, (hp / maxHp) * 100))
+			: 0
+	);
 </script>
 
 <div class="boss-bar" style="--bc:{color}">
