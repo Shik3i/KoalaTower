@@ -377,7 +377,7 @@ export function simulateRun(
 		if (state.hp <= 0) break;
 
 		// Wave completion
-		const cashBonus = 5 + wave + (state.battleLevels[UpgradeId.CashPerWave] ?? 0) * 1;
+		const cashBonus = getBattleUpgradeEffect(UpgradeId.CashPerWave, state.battleLevels[UpgradeId.CashPerWave] ?? 0);
 		state.cash += cashBonus;
 		state.cashEarned += cashBonus;
 

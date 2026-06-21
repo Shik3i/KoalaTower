@@ -290,11 +290,15 @@ export function waveSpeedMultiplier(wave: number): number {
 }
 
 // ─── Reward scaling ────────────────────────────────────────────────────────
-// Cash (run gold) and Coin (permanent currency) scale to support
-// continued upgrade purchasing across hundreds of waves.
+// Cash/Energy per enemy follows The Tower's early cash value cadence:
+// $1 on waves 1-9, +$1 every 10 waves through wave 200, then +$1 every
+// 20 waves. Type/front modifiers are applied after this base value.
 
 export function waveCashRewardMultiplier(wave: number): number {
-	return 1 + wave * 0.05 + Math.pow(wave, 1.3) * 0.0002;
+	const safeWave = Math.max(1, Math.floor(wave));
+	if (safeWave < 10) return 1;
+	if (safeWave <= 200) return 1 + Math.floor(safeWave / 10);
+	return 21 + Math.floor((safeWave - 200) / 20);
 }
 
 export function waveCoinRewardMultiplier(wave: number): number {
@@ -513,11 +517,11 @@ export function frontEnemyResistances(front: number, wave: number): Partial<Reco
 }
 
 export const ENEMY_BASE_CASH_REWARD: Record<EnemyType, number> = {
-	[EnemyType.Normal]:  2,
-	[EnemyType.Fast]:    3,
-	[EnemyType.Tank]:    5,
-	[EnemyType.Ranged]:  4,
-	[EnemyType.Boss]:    20,
+	[EnemyType.Normal]:  1,
+	[EnemyType.Fast]:    1,
+	[EnemyType.Tank]:    1,
+	[EnemyType.Ranged]:  1,
+	[EnemyType.Boss]:    1,
 };
 
 export const ENEMY_BASE_COIN_REWARD: Record<EnemyType, number> = {

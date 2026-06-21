@@ -206,14 +206,14 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 	{
 		id: UpgradeId.CashPerWave,
 		name: 'Energy/Wave',
-		description: '+1 bonus energy per wave cleared per level.',
+		description: '+4 bonus energy per wave cleared per level.',
 		icon: '💎',
 		category: 'utility',
 		maxLevel: 299,
 		baseCost: 30,
 		costGrowth: 1.22,
 		costExponent: 0,
-		effectPerLevel: 1,
+		effectPerLevel: 4,
 		requiredBlueprint: BP.AlloyExtraction,
 	},
 ];

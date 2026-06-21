@@ -8,7 +8,7 @@ import {
 	getWaveCompletionBonus,
 } from '../systems/economySystem';
 import { getFrontAlloyMultiplier } from '../balance/balanceMath';
-import type { GameState } from '../engine/gameTypes';
+import { UpgradeId, type GameState } from '../engine/gameTypes';
 
 /** A fresh, valid GameState for economy unit tests. */
 function freshState(): GameState {
@@ -68,8 +68,11 @@ describe('Economy — Energy (per-run currency)', () => {
 		expect(getStartingEnergy(state)).toBe(100);
 	});
 
-	it('wave completion bonus grows with wave number', () => {
+	it('wave completion bonus comes from Energy/Wave upgrades, not free wave scaling', () => {
 		const state = freshState();
-		expect(getWaveCompletionBonus(state, 50)).toBeGreaterThan(getWaveCompletionBonus(state, 1));
+		expect(getWaveCompletionBonus(state, 50)).toBe(0);
+		state.battleUpgrades[UpgradeId.CashPerWave] = 2;
+		expect(getWaveCompletionBonus(state, 1)).toBe(8);
+		expect(getWaveCompletionBonus(state, 50)).toBe(8);
 	});
 });

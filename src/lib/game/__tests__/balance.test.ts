@@ -246,11 +246,20 @@ describe('Wave Scaling', () => {
 		expect(spd200).toBeLessThanOrEqual(1.5);
 	});
 
-	it('cash reward multiplier should increase', () => {
+	it('cash reward multiplier should follow the tower-like enemy cash steps', () => {
+		expect(waveCashRewardMultiplier(1)).toBe(1);
+		expect(waveCashRewardMultiplier(9)).toBe(1);
+		expect(waveCashRewardMultiplier(10)).toBe(2);
+		expect(waveCashRewardMultiplier(20)).toBe(3);
+		expect(waveCashRewardMultiplier(100)).toBe(11);
+		expect(waveCashRewardMultiplier(200)).toBe(21);
+		expect(waveCashRewardMultiplier(220)).toBe(22);
+		expect(waveCashRewardMultiplier(240)).toBe(23);
+
 		let prev = 0;
-		for (let w = 1; w <= 100; w++) {
+		for (let w = 1; w <= 240; w++) {
 			const cur = waveCashRewardMultiplier(w);
-			expect(cur).toBeGreaterThan(prev);
+			expect(cur).toBeGreaterThanOrEqual(prev);
 			prev = cur;
 		}
 	});

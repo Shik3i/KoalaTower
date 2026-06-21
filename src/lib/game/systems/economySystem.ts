@@ -13,6 +13,7 @@
 
 import { WorkshopUpgradeId, LabId, UpgradeId, type GameState } from '../engine/gameTypes';
 import { getWorkshopUpgradeEffect } from '../balance/workshopUpgrades';
+import { getBattleUpgradeEffect } from '../balance/battleUpgrades';
 import { getLabMultiplier } from '../balance/labs';
 import { getFrontAlloyMultiplier } from '../balance/balanceMath';
 
@@ -71,9 +72,8 @@ export function getStartingEnergy(state: GameState): number {
 	return 100 + getWorkshopUpgradeEffect(WorkshopUpgradeId.StartingEnergy, lv);
 }
 
-/** Energy bonus on wave completion (scales with the Cash-Per-Wave field upgrade). */
-export function getWaveCompletionBonus(state: GameState, wave: number): number {
-	const base = 5 + wave;
+/** Energy bonus on wave completion (driven by the Energy/Wave field upgrade). */
+export function getWaveCompletionBonus(state: GameState, _wave: number): number {
 	const cashWaveLv = state.battleUpgrades[UpgradeId.CashPerWave] ?? 0;
-	return Math.floor(base + cashWaveLv * 1);
+	return Math.floor(getBattleUpgradeEffect(UpgradeId.CashPerWave, cashWaveLv));
 }
