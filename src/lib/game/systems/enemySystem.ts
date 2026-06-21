@@ -205,9 +205,7 @@ export function updateEnemySystem(state: GameState, dt: number): void {
 
 		const dx = towerPos.x - enemy.position.x;
 		const dy = towerPos.y - enemy.position.y;
-		const dist = Math.sqrt(dx * dx + dy * dy);
-
-		if (dist <= enemy.attackRange) {
+		if (dx * dx + dy * dy <= enemy.attackRange * enemy.attackRange) {
 			enemy.stopped = true;
 			enemy.attackTimer -= dt;
 			if (enemy.attackTimer <= 0) {

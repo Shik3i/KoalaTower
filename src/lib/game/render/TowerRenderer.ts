@@ -112,20 +112,6 @@ export class TowerRenderer {
 			this.container.alpha = pulse * 0.7 + 0.3;
 		}
 
-		// Render multishot orbitals
-		this.orbitalsGfx.clear();
-		const count = Math.floor(multishotCount);
-		if (count > 0) {
-			const radius = GAME_CONFIG.TOWER_SIZE * 1.35;
-			for (let i = 0; i < count; i++) {
-				const angle = time * 1.2 + (Math.PI * 2 / count) * i;
-				const ox = Math.cos(angle) * radius;
-				const oy = Math.sin(angle) * radius;
-				this.orbitalsGfx.circle(ox, oy, 3.5).fill({ color: c.orbitalsColor, alpha: 0.85 });
-				this.orbitalsGfx.circle(ox, oy, 5.5).stroke({ width: 1, color: c.orbitalsColor, alpha: 0.35 });
-			}
-		}
-
 		// Muzzle flash
 		if (this._muzzleFlash > 0) {
 			const mf = this._muzzleFlash;

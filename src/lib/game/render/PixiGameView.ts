@@ -53,6 +53,8 @@ export class PixiGameView {
 	private callbacks: PixiGameViewCallbacks;
 	private handleContextLost: ((event: Event) => void) | null = null;
 	private handleContextRestored: (() => void) | null = null;
+	private _prevPreviewKey = '';
+	private _prevPreviewTypes: EnemyType[] = [];
 
 	constructor(domContainer: HTMLElement, engine: GameEngine, callbacks: PixiGameViewCallbacks = {}) {
 		this.domContainer = domContainer;
@@ -332,7 +334,7 @@ export class PixiGameView {
 			this.app.screen.width,
 			this.app.screen.height,
 			state.wave.killsByTypeThisWave ?? {},
-			state.wave.waveActive ? [] : previewNextWaveTypes(state, nextIsBoss),
+			state.wave.waveActive ? [] : this.getPreviewWaveTypes(state, nextIsBoss),
 			nextIsBoss,
 		);
 
@@ -386,6 +388,17 @@ export class PixiGameView {
 		}
 		this.initialized = false;
 	}
+
+	private getPreviewWaveTypes(state: GameState, isBossWave: boolean): EnemyType[] {
+		const key = `${state.wave.currentWave + 1}-${state.tier ?? 1}-${isBossWave}`;
+		if (this._prevPreviewKey === key) return this._prevPreviewTypes;
+		this._prevPreviewKey = key;
+		const front = state.tier ?? 1;
+		const eligible = Array.from(new Set(availableEnemyTypes(state.wave.currentWave + 1, front)));
+		if (isBossWave && !eligible.includes(EnemyType.Boss)) eligible.push(EnemyType.Boss);
+		this._prevPreviewTypes = eligible;
+		return eligible;
+	}
 }
 
 /**
@@ -396,18 +409,4 @@ export class PixiGameView {
 function isNextWaveBoss(state: GameState): boolean {
 	const upcoming = state.wave.currentWave + 1;
 	return upcoming % 10 === 0 || state.activeChallenge === ChallengeId.BossRush;
-}
-
-/**
- * Compute the enemy types eligible for the upcoming wave so the inter-wave
- * announce can preview them. De-duplicates the weighted `availableEnemyTypes`
- * list (which acts as spawn-weight duplicates). Boss is appended for boss
- * waves so the preview row shows the boss glyph.
- */
-function previewNextWaveTypes(state: GameState, isBossWave: boolean): EnemyType[] {
-	const upcoming = state.wave.currentWave + 1;
-	const front = state.tier ?? 1;
-	const eligible = Array.from(new Set(availableEnemyTypes(upcoming, front)));
-	if (isBossWave && !eligible.includes(EnemyType.Boss)) eligible.push(EnemyType.Boss);
-	return eligible;
 }
