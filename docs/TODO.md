@@ -23,7 +23,7 @@
 - [x] Enemy object pooling for projectiles, particles, damage text, death FX
 - [ ] Improve multishot spread angle visualization
 - [ ] Draw enemy path indicators (subtle lines from spawn to tower)
-- [ ] Per-run stats dashboard with charts
+- [x] Per-run stats dashboard with charts
 
 ## Gameplay
 - [x] Boss waves now include escort enemies before the boss
@@ -44,7 +44,7 @@
 - [x] Spatial index for targeting queries
 - [x] Canvas size clamping on very large screens
 - [x] Tab visibility handling (auto-pause on blur, persist on visibilitychange)
-- [ ] Add FPS counter (debug mode)
+- [x] Add FPS counter (debug mode)
 - [ ] Reduce per-frame allocation in hot paths (further micro-optimizations)
 
 ## Mobile
@@ -69,6 +69,6 @@
 - [x] Save export/import with encoding + checksums
 - [x] Flatland News (18 rotating humorous news items on landing page)
 - [ ] Full challenge implementations
-- [ ] Stats page with charts (per-run data)
+- [x] Stats page with charts (per-run data)
 - [ ] Tower skins / customization
 - [ ] Social sharing / OpenGraph image (1200×630 PNG for maximum platform compatibility)

@@ -182,7 +182,17 @@ export class GameEngine {
 		this.onStateChange = opts.onStateChange ?? null;
 	}
 
-	public startRun(workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>, forgeUpgrades: Partial<Record<UpgradeId, number>>, labLevels: Partial<Record<LabId, number>>, startingCoins: number, unlockedBlueprints: BlueprintId[] = [], tier: number = 1, challenge: ChallengeId | null = null, killsByType: Partial<Record<EnemyType, number>> = {}): void {
+	public startRun(
+		workshopUpgrades: Partial<Record<WorkshopUpgradeId, number>>,
+		forgeUpgrades: Partial<Record<UpgradeId, number>>,
+		labLevels: Partial<Record<LabId, number>>,
+		startingCoins: number,
+		unlockedBlueprints: BlueprintId[] = [],
+		tier: number = 1,
+		challenge: ChallengeId | null = null,
+		killsByType: Partial<Record<EnemyType, number>> = {},
+		selectedSkin = 'classic'
+	): void {
 		resetEnemyIdCounter();
 		resetProjectileIdCounter();
 		this.particles = [];
@@ -210,6 +220,7 @@ export class GameEngine {
 		this.state.coins = startingCoins;
 		this.state.tier = tier;
 		this.state.activeChallenge = challenge;
+		this.state.selectedSkin = selectedSkin;
 
 		// Precompute mastery damage bonuses from lifetime kill counts
 		this.state.masteryDmgBonus = {};

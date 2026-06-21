@@ -487,6 +487,8 @@ export interface GameState {
 	viewHeight?: number;
 	/** Active Special Ops challenge for this run, or null for a standard run. */
 	activeChallenge: ChallengeId | null;
+	/** Tower skin ID active for this run */
+	selectedSkin?: string;
 	/** Per-run kill counts by enemy type — accumulated into save on game over. */
 	killsByType: Partial<Record<EnemyType, number>>;
 	/** Per-run shiny kills by type. */

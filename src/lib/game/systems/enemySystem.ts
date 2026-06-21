@@ -382,22 +382,39 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 
 export function findNearestEnemies(state: GameState, range: number, limit: number, enemyIndex?: EnemyFrameIndex): Enemy[] {
 	const candidates = enemyIndex?.grid.queryCircle(state.tower.position.x, state.tower.position.y, range) ?? state.enemies;
-	const activeCandidates = candidates.filter(e => e.alive);
-	
 	const towerX = state.tower.position.x;
 	const towerY = state.tower.position.y;
 	const rangeSq = range * range;
-	
-	return activeCandidates
-		.map(enemy => {
-			const dx = enemy.position.x - towerX;
-			const dy = enemy.position.y - towerY;
-			return { enemy, distSq: dx * dx + dy * dy };
-		})
-		.filter(item => item.distSq <= rangeSq)
-		.sort((a, b) => a.distSq - b.distSq)
-		.slice(0, limit)
-		.map(item => item.enemy);
+
+	const nearestEnemies: Enemy[] = [];
+	const nearestDists: number[] = [];
+
+	for (let i = 0; i < candidates.length; i++) {
+		const enemy = candidates[i]!;
+		if (!enemy.alive) continue;
+		const dx = enemy.position.x - towerX;
+		const dy = enemy.position.y - towerY;
+		const distSq = dx * dx + dy * dy;
+
+		if (distSq <= rangeSq) {
+			let insertIdx = nearestDists.length;
+			for (let j = 0; j < nearestDists.length; j++) {
+				if (distSq < nearestDists[j]!) {
+					insertIdx = j;
+					break;
+				}
+			}
+			if (insertIdx < limit) {
+				nearestEnemies.splice(insertIdx, 0, enemy);
+				nearestDists.splice(insertIdx, 0, distSq);
+				if (nearestEnemies.length > limit) {
+					nearestEnemies.pop();
+					nearestDists.pop();
+				}
+			}
+		}
+	}
+	return nearestEnemies;
 }
 
 export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: EnemyFrameIndex): void {

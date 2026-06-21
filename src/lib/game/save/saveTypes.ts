@@ -99,9 +99,12 @@ export interface SaveData {
 	commandOrders: CommandOrdersState;
 	/** v18: Local Deployment Reports / Battle History, newest first and capped. */
 	deploymentReports: DeploymentReport[];
+	/** v20: Customization skins */
+	selectedSkin: string;
+	unlockedSkins: string[];
 }
 
-export const CURRENT_SCHEMA_VERSION = 19;
+export const CURRENT_SCHEMA_VERSION = 20;
 
 function generateSaveId(prefix = 'fltd'): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -160,5 +163,7 @@ export function createDefaultSave(): SaveData {
 		bestKillstreak: 0,
 		commandOrders: createDefaultCommandOrdersState(),
 		deploymentReports: [],
+		selectedSkin: 'classic',
+		unlockedSkins: ['classic'],
 	};
 }

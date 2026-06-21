@@ -83,9 +83,11 @@
 	import LabSection from '$lib/components/hub/LabSection.svelte';
 	import BlackMarketSection from '$lib/components/hub/BlackMarketSection.svelte';
 	import ProfileSection from '$lib/components/hub/ProfileSection.svelte';
+	import SkinsSection from '$lib/components/hub/SkinsSection.svelte';
+	import { TOWER_SKINS } from '$lib/game/balance/skins';
 
-	type HubSectionId = 'workshop' | 'orders' | 'lab' | 'blueprints' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings' | 'profile';
-	const HUB_SECTION_IDS: HubSectionId[] = ['workshop', 'orders', 'lab', 'blueprints', 'blackMarket', 'tiers', 'challenges', 'simulation', 'stats', 'settings', 'profile'];
+	type HubSectionId = 'workshop' | 'orders' | 'lab' | 'blueprints' | 'skins' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings' | 'profile';
+	const HUB_SECTION_IDS: HubSectionId[] = ['workshop', 'orders', 'lab', 'blueprints', 'skins', 'blackMarket', 'tiers', 'challenges', 'simulation', 'stats', 'settings', 'profile'];
 
 	function isHubSectionId(value: string): value is HubSectionId {
 		return HUB_SECTION_IDS.includes(value as HubSectionId);
@@ -96,6 +98,8 @@
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
 	let activeSection = $state<HubSectionId>('workshop');
+	let selectedSkin = $state('classic');
+	let unlockedSkins = $state<string[]>(['classic']);
 	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
 	let workshopLevels = $state<Partial<Record<WorkshopUpgradeId, number>>>({});
 	let forgeLevels = $state<Partial<Record<UpgradeId, number>>>({});
@@ -170,6 +174,60 @@
 		lastDailyStrangeMatterPickedUpAt = save.lastDailyStrangeMatterPickedUpAt ?? 0;
 		autoDeploymentEnabled = save.autoDeploymentEnabled === true;
 		blackMarketIntroSeen = save.blackMarketIntroSeen === true;
+	}
+
+	function refreshSkinsState() {
+		const save = getCachedSave(); if (!save) return;
+		selectedSkin = save.selectedSkin ?? 'classic';
+		unlockedSkins = save.unlockedSkins ? [...save.unlockedSkins] : ['classic'];
+	}
+
+	function handleSelectSkin(id: string) {
+		const save = getCachedSave(); if (!save) return;
+		if (!save.unlockedSkins.includes(id)) {
+			const skin = TOWER_SKINS.find(s => s.id === id);
+			if (skin && skin.currency === 'achievement' && skin.achievementId === 'glass_tower_100') {
+				const wave = save.challengeHighScores?.['GlassTower'] ?? 0;
+				if (wave >= 100) {
+					if (!save.unlockedSkins.includes(id)) {
+						save.unlockedSkins.push(id);
+					}
+				} else {
+					toast('Skin is locked.', 'error');
+					return;
+				}
+			} else {
+				toast('Skin is locked.', 'error');
+				return;
+			}
+		}
+		save.selectedSkin = id;
+		persistSave(save);
+		selectedSkin = id;
+		unlockedSkins = [...save.unlockedSkins];
+		uiSound('click');
+		toast('Skin equipped successfully.', 'success');
+	}
+
+	function handleBuySkin(id: string, cost: number) {
+		const save = getCachedSave(); if (!save) return;
+		if (save.unlockedSkins.includes(id)) {
+			toast('Skin already unlocked.', 'info');
+			return;
+		}
+		if (save.totalCoins < cost) {
+			toast('Not enough Alloy coins.', 'error');
+			return;
+		}
+		save.totalCoins -= cost;
+		if (!save.unlockedSkins.includes(id)) {
+			save.unlockedSkins.push(id);
+		}
+		persistSave(save);
+		coinsStore.set(save.totalCoins);
+		unlockedSkins = [...save.unlockedSkins];
+		uiSound('upgrade');
+		toast('Skin purchased and unlocked!', 'success');
 	}
 
 	function refreshBmCopy() {
@@ -487,6 +545,8 @@
 				highestWaveStore.set(s.highestWave);
 				totalRunsStore.set(s.totalRuns);
 				deploymentReports = [...(s.deploymentReports ?? [])];
+				selectedSkin = s.selectedSkin ?? 'classic';
+				unlockedSkins = s.unlockedSkins ? [...s.unlockedSkins] : ['classic'];
 			}
 		}
 	}
@@ -499,6 +559,8 @@
 		totalRunsStore.set(0);
 		settingsStore.set({ ...DEFAULT_SETTINGS });
 		deploymentReports = [];
+		selectedSkin = 'classic';
+		unlockedSkins = ['classic'];
 		toast(getOpLogMessage('saveReset'), 'warning');
 	}
 
@@ -709,6 +771,7 @@
 			totalAlloyEarned: save?.totalAlloyEarned ?? 0,
 		};
 		refreshBlackMarketState();
+		refreshSkinsState();
 		refreshCommandOrders();
 		if (save?.frontBestWave) frontBestWave = { ...save.frontBestWave };
 		if (save?.killsByType) killsByType = { ...save.killsByType };
@@ -915,6 +978,7 @@
 		{ id: 'orders' as const, label: 'Command Orders', icon: '🛰' },
 		{ id: 'lab' as const, label: 'Research Deck', icon: '🔬' },
 		{ id: 'blueprints' as const, label: 'Schematics', icon: '📐' },
+		{ id: 'skins' as const, label: 'Customization', icon: '🎨' },
 		{ id: 'blackMarket' as const, label: 'Black Market', icon: '◈', requiresUnlock: true },
 		{ id: 'tiers' as const, label: 'Fronts', icon: '🌍' },
 		{ id: 'challenges' as const, label: 'Special Operations', icon: '⚡' },
@@ -1096,6 +1160,15 @@
 					{frontBestWave}
 					totalBossesDefeated={hubStats.totalBossesDefeated}
 					{buyBlueprint}
+				/>
+			{:else if activeSection === 'skins'}
+				<SkinsSection
+					{coins}
+					{selectedSkin}
+					{unlockedSkins}
+					{challengeHighScores}
+					onSelectSkin={handleSelectSkin}
+					onBuySkin={handleBuySkin}
 				/>
 			{:else if activeSection === 'blackMarket'}
 				<BlackMarketSection

@@ -130,7 +130,7 @@ export class PixiGameView {
 
 		const stars = generateStars(vw, vh, Math.floor(GAME_CONFIG.BACKGROUND_STARS * (vw / 800)));
 		this.background = new BackgroundRenderer(stars, vw, vh);
-		this.tower = new TowerRenderer(vw / 2, vh / 2);
+		this.tower = new TowerRenderer(vw / 2, vh / 2, this.engine.state.selectedSkin ?? 'classic');
 		this.enemy = new EnemyRenderer();
 		this.projectile = new ProjectileRenderer();
 		this.effects = new EffectsRenderer();

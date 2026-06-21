@@ -74,6 +74,78 @@
 	let ctrlHeld = $state(false);
 	let showMobileSpeed = $state(false);
 
+	let touchStartY = 0;
+	let touchEndY = 0;
+	let touchStartX = 0;
+	let touchEndX = 0;
+	let currentTranslateY = $state(0);
+	let currentTranslateX = $state(0);
+	let drawerElement = $state<HTMLDivElement | null>(null);
+
+	function handleTouchStart(e: TouchEvent) {
+		const touch = e.touches[0];
+		if (!touch) return;
+		touchStartY = touch.clientY;
+		touchEndY = touch.clientY;
+		touchStartX = touch.clientX;
+		touchEndX = touch.clientX;
+		if (drawerElement) {
+			drawerElement.style.transition = 'none';
+		}
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		const touch = e.touches[0];
+		if (!touch) return;
+		touchEndY = touch.clientY;
+		touchEndX = touch.clientX;
+		const diffY = touchEndY - touchStartY;
+		const diffX = touchEndX - touchStartX;
+
+		const isLandscape = window.innerWidth > window.innerHeight;
+
+		if (isLandscape) {
+			if (diffX > 0) {
+				currentTranslateX = diffX;
+				if (drawerElement) {
+					drawerElement.style.transform = `translateX(${diffX}px)`;
+				}
+			}
+		} else {
+			if (diffY > 0) {
+				currentTranslateY = diffY;
+				if (drawerElement) {
+					drawerElement.style.transform = `translateY(${diffY}px)`;
+				}
+			}
+		}
+	}
+
+	function handleTouchEnd() {
+		if (drawerElement) {
+			drawerElement.style.transition = 'transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+			const isLandscape = window.innerWidth > window.innerHeight;
+
+			if (isLandscape) {
+				const diffX = touchEndX - touchStartX;
+				if (diffX > 80) {
+					showMobileUpgrades = false;
+				} else {
+					drawerElement.style.transform = 'translateX(0)';
+				}
+			} else {
+				const diffY = touchEndY - touchStartY;
+				if (diffY > 80) {
+					showMobileUpgrades = false;
+				} else {
+					drawerElement.style.transform = 'translateY(0)';
+				}
+			}
+		}
+		currentTranslateY = 0;
+		currentTranslateX = 0;
+	}
+
 	const PLAY_TUTORIAL_KEY = 'flatland-td-tutorial-done';
 	const playTutorialSteps = [
 		{ title: 'Start a Deployment', desc: 'Pick Front 1 and launch. Your tower fires automatically; your job is choosing upgrades before the shapes overwhelm it.', target: '.sc-btn', placement: 'center' as const },
@@ -771,7 +843,17 @@
 		const unlockedBPs = (save?.unlockedBlueprints ?? []) as import('$lib/game/engine/gameTypes').BlueprintId[];
 		// Validate challenge is still unlocked (defensive — selection persists across sessions)
 		const validChallenge = selectedChallenge && isChallengeUnlocked(selectedChallenge, frontBestWave) ? selectedChallenge : null;
-		engine.startRun(save?.workshopUpgrades ?? {}, save?.forgeUpgrades ?? {}, save?.labLevels ?? {}, coins, unlockedBPs, getTierNumber(selectedFront), validChallenge, save?.killsByType ?? {});
+		engine.startRun(
+			save?.workshopUpgrades ?? {},
+			save?.forgeUpgrades ?? {},
+			save?.labLevels ?? {},
+			coins,
+			unlockedBPs,
+			getTierNumber(selectedFront),
+			validChallenge,
+			save?.killsByType ?? {},
+			save?.selectedSkin ?? 'classic'
+		);
 		syncSettingsToEngine(save?.settings ?? { ...DEFAULT_SETTINGS });
 		gameView?.start();
 		refreshSnap();
@@ -923,8 +1005,9 @@
 <div class="play-layout" role="main">
 	<Toasts controller={toasts} vertical="top" offsetRem={3} />
 
+	<!-- Dropdown save menu, settings menu, etc. -->
 	<!-- Top Bar -->
-	<header class="topbar">
+	<header class="topbar" onclick={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
 		<a href="/" class="tb-back" aria-label="Home" title="Home"><Icon name="back" size={18} /></a>
 		<h1 class="tb-brand">Flatland TD</h1>
 		<div class="tb-div"></div>
@@ -1094,7 +1177,7 @@
 	<div class="game-body">
 		<!-- Left Panel -->
 		{#if !isMobile}
-			<aside class="panel left" class:coll={!leftPanelOpen}>
+			<aside class="panel left" class:coll={!leftPanelOpen} onclick={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
 				<button class="ptog" onclick={() => leftPanelOpen = !leftPanelOpen}>{leftPanelOpen ? '◀' : '▶'}</button>
 				{#if leftPanelOpen}
 					<div class="pc">
@@ -1234,7 +1317,7 @@
 
 		<!-- Right Panel: only Battle Upgrades -->
 		{#if !isMobile}
-			<aside class="panel right" class:coll={!rightPanelOpen}>
+			<aside class="panel right" class:coll={!rightPanelOpen} onclick={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
 				<button class="ptog" onclick={() => rightPanelOpen = !rightPanelOpen}>{rightPanelOpen ? '▶' : '◀'}</button>
 				{#if rightPanelOpen}
 					<div class="pc">
@@ -1252,13 +1335,21 @@
 
 	<!-- Mobile: battle upgrades drawer + nav -->
 	{#if isMobile}
-		<nav class="mn">
+		<nav class="mn" onclick={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
 			<button class="mnb" class:on={!showMobileUpgrades} onclick={() => showMobileUpgrades = false} title="Game canvas view"><span class="mni"><Icon name="range" size={20} /></span><span class="mnl">Game</span></button>
 			<button class="mnb" class:on={showMobileUpgrades} onclick={() => showMobileUpgrades = !showMobileUpgrades} title="Battle Upgrades panel"><span class="mni"><Icon name="offense" size={20} /></span><span class="mnl">Upgrades</span></button>
 			<a href="/hub" class="mnb" title="Orbital Command — Forge, Research, Archives"><span class="mni"><Icon name="hub" size={20} /></span><span class="mnl">Orbital</span></a>
 		</nav>
 		{#if showMobileUpgrades && snap?.runActive}
-			<div class="mob-upgrade-drawer">
+			<div
+				class="mob-upgrade-drawer"
+				bind:this={drawerElement}
+				onclick={e => e.stopPropagation()}
+				ontouchstart={e => { e.stopPropagation(); handleTouchStart(e); }}
+				ontouchmove={handleTouchMove}
+				ontouchend={handleTouchEnd}
+			>
+				<div class="mob-drawer-handle"></div>
 				<div class="mob-ug-header">
 					<span>⚡ Field Upgrades</span>
 					<button class="mob-ug-close" onclick={() => showMobileUpgrades = false}>✕</button>
@@ -1432,9 +1523,34 @@
 	.mnb.on { color:var(--cyan); }
 	.mnb.on::after { content:''; position:absolute; top:0; left:25%; right:25%; height:2px; background:var(--cyan); border-radius:0 0 2px 2px; box-shadow:0 0 8px rgba(0,255,255,.4); }
 	.mni { font-size:var(--fs-icon-lg); } .mnl { font-size:var(--fs-caption-sm); font-weight:500; }
-	.mob-upgrade-drawer { position:fixed; bottom:var(--mob-nav-h,48px); left:0; right:0; max-height:60vh; background:var(--bg-secondary); border-top:1px solid var(--border-neon-strong); border-radius:var(--radius-xl) var(--radius-xl) 0 0; z-index:150; overflow-y:auto; padding:.5rem .65rem .75rem; padding-bottom: calc(.75rem + env(safe-area-inset-bottom, 0px)); animation:mobDrawerIn .25s cubic-bezier(.34,1.56,.64,1); box-shadow:0 -8px 32px rgba(0,0,0,.5); }
+	.mob-upgrade-drawer { position:fixed; bottom:var(--mob-nav-h,48px); left:0; right:0; max-height:60vh; background:var(--bg-secondary); border-top:1px solid var(--border-neon-strong); border-radius:var(--radius-xl) var(--radius-xl) 0 0; z-index:150; overflow-y:auto; padding:0 .65rem .75rem; padding-bottom: calc(.75rem + env(safe-area-inset-bottom, 0px)); animation:mobDrawerIn .25s cubic-bezier(.34,1.56,.64,1); box-shadow:0 -8px 32px rgba(0,0,0,.5); will-change:transform; touch-action:none; }
+	.mob-drawer-handle { width:40px; height:4px; background:var(--text-dim); opacity:0.3; border-radius:2px; margin:0.35rem auto 0.5rem; flex-shrink:0; }
 	.mob-ug-header { display:flex; justify-content:space-between; align-items:center; font-size:var(--fs-caption); color:var(--cyan); font-family:var(--font-mono); margin-bottom:.35rem; }
 	.mob-ug-close { color:var(--text-dim); font-size:var(--fs-body-sm); padding:.1rem .3rem; cursor:pointer; }
+
+	@media (max-width: 899px) and (orientation: landscape) {
+		.mob-upgrade-drawer {
+			top: 0;
+			bottom: 0;
+			left: auto;
+			right: 0;
+			width: 320px;
+			max-height: 100vh;
+			height: 100vh;
+			border-top: none;
+			border-left: 1px solid var(--border-neon-strong);
+			border-radius: 0;
+			animation: mobDrawerSideIn 0.25s ease-out;
+			padding-top: 1rem;
+		}
+		.mob-drawer-handle {
+			display: none;
+		}
+		@keyframes mobDrawerSideIn {
+			from { transform: translateX(100%); }
+			to { transform: translateX(0); }
+		}
+	}
 
 	/* ─── Low-HP vignette ───────────────────────────────────────────────── */
 	/* Red radial-gradient overlay on the canvas. Pulses while HP < 30%,

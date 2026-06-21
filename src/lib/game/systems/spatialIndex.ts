@@ -12,9 +12,34 @@ export interface Boundary {
 	height: number;
 }
 
+class QuadtreeNodePool {
+	private pool: Quadtree[] = [];
+	private index = 0;
+
+	reset(): void {
+		this.index = 0;
+	}
+
+	get(boundary: Boundary, capacity: number): Quadtree {
+		if (this.index < this.pool.length) {
+			const node = this.pool[this.index]!;
+			node.init(boundary, capacity);
+			this.index++;
+			return node;
+		} else {
+			const node = new Quadtree(boundary, capacity);
+			this.pool.push(node);
+			this.index++;
+			return node;
+		}
+	}
+}
+
+const qtPool = new QuadtreeNodePool();
+
 export class Quadtree {
-	private readonly boundary: Boundary;
-	private readonly capacity: number;
+	public boundary: Boundary;
+	public capacity: number;
 	private enemies: Enemy[] = [];
 	private divided = false;
 
@@ -27,6 +52,13 @@ export class Quadtree {
 	constructor(boundary: Boundary, capacity = 8) {
 		this.boundary = boundary;
 		this.capacity = capacity;
+	}
+
+	init(boundary: Boundary, capacity: number): void {
+		this.boundary = boundary;
+		this.capacity = capacity;
+		this.enemies.length = 0;
+		this.divided = false;
 	}
 
 	insert(enemy: Enemy): boolean {
@@ -66,14 +98,15 @@ export class Quadtree {
 		const halfW = width / 2;
 		const halfH = height / 2;
 
-		this.nw = new Quadtree({ x, y, width: halfW, height: halfH }, this.capacity);
-		this.ne = new Quadtree({ x: x + halfW, y, width: halfW, height: halfH }, this.capacity);
-		this.sw = new Quadtree({ x, y: y + halfH, width: halfW, height: halfH }, this.capacity);
-		this.se = new Quadtree({ x: x + halfW, y: y + halfH, width: halfW, height: halfH }, this.capacity);
+		this.nw = qtPool.get({ x, y, width: halfW, height: halfH }, this.capacity);
+		this.ne = qtPool.get({ x: x + halfW, y, width: halfW, height: halfH }, this.capacity);
+		this.sw = qtPool.get({ x, y: y + halfH, width: halfW, height: halfH }, this.capacity);
+		this.se = qtPool.get({ x: x + halfW, y: y + halfH, width: halfW, height: halfH }, this.capacity);
 
 		this.divided = true;
 
-		for (const e of this.enemies) {
+		for (let i = 0; i < this.enemies.length; i++) {
+			const e = this.enemies[i]!;
 			const success = (
 				this.nw.insert(e) ||
 				this.ne.insert(e) ||
@@ -81,7 +114,7 @@ export class Quadtree {
 				this.se.insert(e)
 			);
 		}
-		this.enemies = [];
+		this.enemies.length = 0;
 	}
 
 	queryCircle(x: number, y: number, radius: number): Enemy[] {
@@ -101,7 +134,8 @@ export class Quadtree {
 			this.sw!.queryCircleRecursive(x, y, radius, radiusSq, results);
 			this.se!.queryCircleRecursive(x, y, radius, radiusSq, results);
 		} else {
-			for (const enemy of this.enemies) {
+			for (let i = 0; i < this.enemies.length; i++) {
+				const enemy = this.enemies[i]!;
 				const dx = enemy.position.x - x;
 				const dy = enemy.position.y - y;
 				if (dx * dx + dy * dy <= radiusSq) {
@@ -122,6 +156,7 @@ export class Quadtree {
 }
 
 export function buildEnemyFrameIndex(enemies: Enemy[], capacity = 8): EnemyFrameIndex {
+	qtPool.reset();
 	const byId = new Map<number, Enemy>();
 
 	let minX = 0;
@@ -129,7 +164,8 @@ export function buildEnemyFrameIndex(enemies: Enemy[], capacity = 8): EnemyFrame
 	let minY = 0;
 	let maxY = 800;
 
-	for (const enemy of enemies) {
+	for (let i = 0; i < enemies.length; i++) {
+		const enemy = enemies[i]!;
 		if (!enemy.alive) continue;
 		byId.set(enemy.id, enemy);
 
@@ -145,9 +181,10 @@ export function buildEnemyFrameIndex(enemies: Enemy[], capacity = 8): EnemyFrame
 	const height = (maxY - minY) + 200;
 
 	const boundary: Boundary = { x: minX, y: minY, width, height };
-	const grid = new Quadtree(boundary, capacity);
+	const grid = qtPool.get(boundary, capacity);
 
-	for (const enemy of enemies) {
+	for (let i = 0; i < enemies.length; i++) {
+		const enemy = enemies[i]!;
 		if (enemy.alive) {
 			grid.insert(enemy);
 		}

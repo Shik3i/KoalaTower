@@ -102,6 +102,9 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		if (version < 19) {
 			save = migrateV18toV19(save);
 		}
+		if (version < 20) {
+			save = migrateV19toV20(save);
+		}
 
 		save = ensureMetadata(save);
 
@@ -413,6 +416,15 @@ function migrateV18toV19(save: SaveData): SaveData {
 	};
 }
 
+function migrateV19toV20(save: SaveData): SaveData {
+	return {
+		...save,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+		selectedSkin: (save as any).selectedSkin ?? 'classic',
+		unlockedSkins: Array.isArray((save as any).unlockedSkins) ? (save as any).unlockedSkins : ['classic'],
+	};
+}
+
 function migrateV15toV16(save: SaveData): any {
 	// v16: Daily Orbital Command tasks → Weekly Command Orders.
 	// The legacy daily state is discarded (fresh weekly start) because the
@@ -554,6 +566,10 @@ function ensureMetadata(save: SaveData): SaveData {
 		blackMarketIntroSeen: (save as any).blackMarketIntroSeen === true,
 		bestKillstreak: normalizeNonNegativeInteger((save as any).bestKillstreak),
 		deploymentReports: normalizeDeploymentReports((save as any).deploymentReports),
+		selectedSkin: (save as any).selectedSkin ?? 'classic',
+		unlockedSkins: Array.isArray((save as any).unlockedSkins)
+			? (save as any).unlockedSkins
+			: ['classic'],
 	};
 }
 
