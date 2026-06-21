@@ -1007,7 +1007,7 @@
 					class:bm-signal-glow={bmSignal === 'glow'}
 					class:bm-signal-subtle={bmSignal === 'subtle'}
 					onclick={() => { if (!blackMarketIntroSeen) { showBlackMarketIntro = true; } else { switchSection('blackMarket'); } }}
-					aria-label={bmSignal === 'glow' ? 'Black Market — unauthorized signal active' : 'Black Market === unauthorized channel'}
+					aria-label={bmSignal === 'glow' ? 'Black Market — unauthorized signal active' : 'Black Market — unauthorized channel'}
 					use:tooltip={bmSignal === 'glow' ? 'Unauthorized signal active — something is waiting.' : 'Black Market — unauthorized channel.'}
 				>
 					◈
