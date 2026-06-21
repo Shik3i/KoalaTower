@@ -31,7 +31,7 @@
 		type BlackMarketUnlockId,
 		type BlackMarketUnlocks,
 	} from '$lib/game/balance/blackMarket';
-	import { EnemyType, DEFAULT_SETTINGS, type TierId } from '$lib/game/engine/gameTypes';
+	import { EnemyType, DEFAULT_SETTINGS, type TierId, type LabId } from '$lib/game/engine/gameTypes';
 	import { BLUEPRINT_DEFS, isFieldUpgradeUnlocked } from '$lib/game/balance/blueprints';
 	import { meetsRequirement } from '$lib/game/progression/requirements';
 	import {
@@ -872,19 +872,19 @@
 	}
 
 	// Time-based lab research
-	function startLabResearch(id: string) {
+	function startLabResearch(id: LabId) {
 		const save = getCachedSave(); if (!save) return;
 		const def = LAB_DEFS.find(l => l.id === id); if (!def) return;
 		const lv = (save.labLevels as Record<string, number>)[id] ?? 0;
 		if (lv >= def.maxLevel) { toast(getOpLogMessage('labMaxLevel'), 'warning'); return; }
 		if (save.activeLab) { toast(getOpLogMessage('labAlreadyActive'), 'warning'); return; }
-		const cost = getLabCost(id as any, lv);
-		const duration = getLabDuration(id as any, lv);
+		const cost = getLabCost(id, lv);
+		const duration = getLabDuration(id, lv);
 		if (save.totalCoins < cost) { toast(getOpLogMessage('workshopNotEnough'), 'error'); return; }
 		save.totalCoins -= cost;
 		const now = Date.now();
 		save.activeLab = {
-			labId: id as any,
+			labId: id,
 			targetLevel: lv + 1,
 			startedAt: now,
 			finishesAt: now + duration,
