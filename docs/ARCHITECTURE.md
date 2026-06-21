@@ -189,7 +189,7 @@ Paste `https://<your-domain>/api/kofi/webhook` into Ko-fi. Ko-fi sends `applicat
 ## Render Feedback Systems
 
 - **Death proxies**: Render-only corpses (capped at 60, 200ms lifetime) that scale-out + spin + fade — never enter combat state
-- **Cosmetic killstreak**: Escalating chain counter near tower (cyan → yellow → pink), resets on tower damage or timeout, grants no resources
+- **Cosmetic killstreak**: Escalating chain counter near tower (cyan → yellow → pink), resets on tower damage or a new run, survives wave lulls, grants no resources
 - **Enemy damage states**: Fracture lines + tint shift at ≤50% / ≤25% HP (no per-enemy HP bars)
 - **Low-HP vignette**: Red radial CSS overlay that pulses <30% tower HP, stronger <15%
 - **Boss intro flash**: One-shot centered overlay on boss-wave start (~850ms)

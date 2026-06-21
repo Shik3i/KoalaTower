@@ -12,7 +12,7 @@
 - [x] Global font-size system with CSS variables
 - [x] Bulk-upgrade system (Shift×5, Ctrl×Max, toggle buttons)
 - [x] Enemy death animation (scale-out + spin + fade, shape-specific)
-- [x] Cosmetic killstreak chain (visual-only, resets on damage/timeout)
+- [x] Cosmetic killstreak chain (visual-only, resets on damage/new run)
 - [x] Low-HP vignette overlay (<30% red pulse, <15% stronger)
 - [x] Damage-state readability on enemies (cracks + tint, no HP bars)
 - [x] Boss-wave intro flash

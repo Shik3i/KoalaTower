@@ -27,7 +27,7 @@ Flatland is at war with **hostile geometric shapes**. Deploy towers from orbit, 
 - 🏆 **42 Achievements** — deploy towers, destroy shapes, earn Alloy rewards
 - 👾 **5 Enemy types** — Normal ■, Fast ◆, Tank ⬡, Ranged ▶, Boss ⬠ — each visually distinct
 - ⚡ **3 Special Operations** — challenge modes with modified rules
-- 💥 **Cosmetic killstreak chain** — visual-only feedback for clean waves (no economy tie-in)
+- 💥 **Cosmetic killstreak chain** — visual-only feedback for clean waves, surviving wave lulls and resetting on tower damage (no economy tie-in)
 - 🩸 **Damage-state readability** — enemies show cracks + tint as HP drops (no per-enemy HP bars)
 
 ### Controls
