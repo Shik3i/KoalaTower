@@ -8,7 +8,7 @@
  * unlock (reconstruct) an upgrade path; the path then stays owned forever.
  *
  * Sources (Part 5):
- *   • Boss kills        → small, REPEATABLE Schematics for that Front.
+ *   • Boss kills        → chance-based, REPEATABLE Schematics for that Front.
  *   • Wave milestones   → larger, ONE-TIME Schematic bonuses per Front.
  *
  * Internal note: the unlockable "paths" reuse the existing BlueprintId ids so
@@ -82,11 +82,24 @@ export function spendSchematics(map: SchematicsByFront, front: number, cost: num
 // ─── Source 1: repeatable boss-kill rewards ──────────────────────────────────
 
 /**
- * Schematics granted for a single boss kill on a Front (REPEATABLE).
+ * Schematic bundle size granted when a boss drops Schematics (REPEATABLE).
  * Front 1 → 1; rises slowly so higher Fronts pay a little more (1–3 range).
  */
 export function getBossSchematicReward(front: number): number {
 	return Math.min(3, 1 + Math.floor((front - 1) / 6));
+}
+
+/**
+ * Chance that a killed boss drops its Front's Schematic bundle.
+ * Early bosses are occasional finds; deep bosses become reliable salvage.
+ */
+export function getBossSchematicDropChance(bossWave: number): number {
+	const safeWave = Math.max(10, Math.floor(bossWave));
+	return Math.min(1, 0.2 + 0.8 * Math.sqrt(safeWave / 1000));
+}
+
+export function rollBossSchematicReward(front: number, bossWave: number, rng: () => number = Math.random): number {
+	return rng() < getBossSchematicDropChance(bossWave) ? getBossSchematicReward(front) : 0;
 }
 
 // ─── Source 2: one-time wave milestones ──────────────────────────────────────

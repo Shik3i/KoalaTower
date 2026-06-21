@@ -1,17 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { BlueprintId, TierId } from '../engine/gameTypes';
 import { meetsRequirement, describeRequirement, type ProgressSnapshot } from '../progression/requirements';
-import { rollBlueprintDiscovery, getBlueprintStatus } from '../progression/blueprintDiscovery';
 import {
 	BLUEPRINT_DEFS,
 	STARTER_FIELD_UPGRADES,
 	isFieldUpgradeUnlocked,
 	getFieldUpgradesUnlockedBy,
-	describeBlueprintDiscovery,
+	describeBlueprintUnlock,
 } from '../balance/blueprints';
 import { UpgradeId } from '../engine/gameTypes';
 import { getUnlockedFronts, isFrontUnlocked, FRONT_UNLOCK_WAVE } from '../balance/tiers';
 import { getFrontAlloyMultiplier } from '../balance/balanceMath';
+import {
+	emptySchematics,
+	addSchematics,
+	getSchematics,
+	getPathSchematicCost,
+	tryUnlockPathWithSchematics,
+	getBossSchematicDropChance,
+	rollBossSchematicReward,
+} from '../balance/schematics';
 
 const baseProgress = (over: Partial<ProgressSnapshot> = {}): ProgressSnapshot => ({
 	highestWave: 0,
@@ -48,78 +56,33 @@ describe('requirements', () => {
 	});
 });
 
-describe('blueprint discovery', () => {
-	const optics = BLUEPRINT_DEFS.find(b => b.id === BlueprintId.ExtendedCoreOptics)!;
+describe('schematic path reconstruction', () => {
+	it('uses Schematics directly, without a discovery roll', () => {
+		const map = emptySchematics();
+		const cost = getPathSchematicCost(BlueprintId.AlloyExtraction)!;
+		addSchematics(map, cost.front, cost.cost);
+		const owned: BlueprintId[] = [];
 
-	it('drops an eligible blueprint when the roll succeeds', () => {
-		const found = rollBlueprintDiscovery({
-			front: optics.discovery.fronts[0]!,
-			progress: baseProgress({ highestWave: 100 }),
-			discovered: [],
-			owned: [],
-			rng: () => 0, // always under any positive chance
-		});
-		expect(found).toContain(BlueprintId.ExtendedCoreOptics);
+		expect(tryUnlockPathWithSchematics(map, owned, BlueprintId.AlloyExtraction)).toBe(true);
+		expect(getSchematics(map, cost.front)).toBe(0);
 	});
 
-	it('never drops when the roll fails', () => {
-		const found = rollBlueprintDiscovery({
-			front: optics.discovery.fronts[0]!,
-			progress: baseProgress({ highestWave: 100 }),
-			discovered: [],
-			owned: [],
-			rng: () => 0.999,
-		});
-		expect(found).toEqual([]);
+	it('keeps requirement checks separate from Schematic spending', () => {
+		const optics = BLUEPRINT_DEFS.find(b => b.id === BlueprintId.ExtendedCoreOptics)!;
+		expect(meetsRequirement(optics.requirement, baseProgress({ highestWave: 24 }))).toBe(false);
+		expect(meetsRequirement(optics.requirement, baseProgress({ highestWave: 25 }))).toBe(true);
 	});
 
-	it('does not drop on the wrong front', () => {
-		// EnergyReclaimer only drops on Tier3.
-		const found = rollBlueprintDiscovery({
-			front: TierId.Tier1,
-			progress: baseProgress({ highestWave: 1000, unlockedFronts: [TierId.Tier1, TierId.Tier2, TierId.Tier3] }),
-			discovered: [],
-			owned: [],
-			rng: () => 0,
-		});
-		expect(found).not.toContain(BlueprintId.EnergyReclaimer);
+	it('boss Schematic drop chance rises with boss wave and caps at 100%', () => {
+		expect(getBossSchematicDropChance(10)).toBeCloseTo(0.28, 2);
+		expect(getBossSchematicDropChance(100)).toBeGreaterThan(getBossSchematicDropChance(10));
+		expect(getBossSchematicDropChance(1000)).toBe(1);
 	});
 
-	it('does not drop when the requirement is unmet', () => {
-		const found = rollBlueprintDiscovery({
-			front: optics.discovery.fronts[0]!,
-			progress: baseProgress({ highestWave: 0 }),
-			discovered: [],
-			owned: [],
-			rng: () => 0,
-		});
-		expect(found).not.toContain(BlueprintId.ExtendedCoreOptics);
-	});
-
-	it('skips already discovered or owned blueprints', () => {
-		const ownedFound = rollBlueprintDiscovery({
-			front: optics.discovery.fronts[0]!,
-			progress: baseProgress({ highestWave: 100 }),
-			discovered: [],
-			owned: [BlueprintId.ExtendedCoreOptics],
-			rng: () => 0,
-		});
-		expect(ownedFound).not.toContain(BlueprintId.ExtendedCoreOptics);
-
-		const discoveredFound = rollBlueprintDiscovery({
-			front: optics.discovery.fronts[0]!,
-			progress: baseProgress({ highestWave: 100 }),
-			discovered: [BlueprintId.ExtendedCoreOptics],
-			owned: [],
-			rng: () => 0,
-		});
-		expect(discoveredFound).not.toContain(BlueprintId.ExtendedCoreOptics);
-	});
-
-	it('reports lifecycle status', () => {
-		expect(getBlueprintStatus(BlueprintId.CriticalTargeting, [BlueprintId.CriticalTargeting], [])).toBe('owned');
-		expect(getBlueprintStatus(BlueprintId.CriticalTargeting, [], [BlueprintId.CriticalTargeting])).toBe('discovered');
-		expect(getBlueprintStatus(BlueprintId.CriticalTargeting, [], [])).toBe('undiscovered');
+	it('rolls a boss Schematic reward from the scaled chance', () => {
+		expect(rollBossSchematicReward(1, 10, () => 0)).toBe(1);
+		expect(rollBossSchematicReward(1, 10, () => 0.99)).toBe(0);
+		expect(rollBossSchematicReward(13, 1000, () => 0.99)).toBe(3);
 	});
 });
 
@@ -135,9 +98,9 @@ describe('blueprint ↔ upgrade derivation (single source of truth)', () => {
 		expect(isFieldUpgradeUnlocked(UpgradeId.Range, [BlueprintId.ExtendedCoreOptics])).toBe(true);
 	});
 
-	it('every blueprint has a readable discovery description', () => {
+	it('every blueprint has a readable reconstruction description', () => {
 		for (const bp of BLUEPRINT_DEFS) {
-			expect(describeBlueprintDiscovery(bp)).toContain('Find at');
+			expect(describeBlueprintUnlock(bp, 1).length).toBeGreaterThan(0);
 		}
 	});
 });

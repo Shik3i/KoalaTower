@@ -99,6 +99,9 @@ export function migrateSave(data: Record<string, unknown>): SaveData | null {
 		if (version < 18) {
 			save = migrateV17toV18(save);
 		}
+		if (version < 19) {
+			save = migrateV18toV19(save);
+		}
 
 		save = ensureMetadata(save);
 
@@ -130,7 +133,6 @@ function migrateV0toV1(data: Record<string, unknown>): any {
 		labLevels: (data.labLevels as Record<string, number>) || {},
 		blueprints: [],
 		unlockedBlueprints: [],
-		discoveredBlueprints: [],
 		selectedFront: TierId.Tier1,
 		frontBestWave: {},
 		activeLab: null,
@@ -307,13 +309,11 @@ function migrateV6toV7(save: SaveData): SaveData {
 }
 
 function migrateV7toV8(save: SaveData): SaveData {
-	// v8 adds the blueprint discovery layer + selected front.
-	// Owned blueprints are implicitly already discovered.
-	const owned = Array.isArray(save.unlockedBlueprints) ? save.unlockedBlueprints : [];
+	// v8 adds selected front. The old pre-v1 discovery layer was removed;
+	// Schematics are now the reconstruction currency and unlock gate.
 	return {
 		...save,
 		schemaVersion: CURRENT_SCHEMA_VERSION,
-		discoveredBlueprints: Array.from(new Set([...(save.discoveredBlueprints ?? []), ...owned])),
 		selectedFront: save.selectedFront ?? TierId.Tier1,
 	};
 }
@@ -405,6 +405,14 @@ function migrateV17toV18(save: SaveData): SaveData {
 	};
 }
 
+function migrateV18toV19(save: SaveData): SaveData {
+	const { discoveredBlueprints: _, ...rest } = save as any;
+	return {
+		...rest,
+		schemaVersion: CURRENT_SCHEMA_VERSION,
+	};
+}
+
 function migrateV15toV16(save: SaveData): any {
 	// v16: Daily Orbital Command tasks → Weekly Command Orders.
 	// The legacy daily state is discarded (fresh weekly start) because the
@@ -493,9 +501,6 @@ export function validateSaveData(data: unknown): data is SaveData {
 	if (d.unlockedBlueprints !== undefined && d.unlockedBlueprints !== null) {
 		if (!Array.isArray(d.unlockedBlueprints)) return false;
 	}
-	if (d.discoveredBlueprints !== undefined && d.discoveredBlueprints !== null) {
-		if (!Array.isArray(d.discoveredBlueprints)) return false;
-	}
 	if (d.blackMarketUnlocks !== undefined && d.blackMarketUnlocks !== null) {
 		if (typeof d.blackMarketUnlocks !== 'object' || Array.isArray(d.blackMarketUnlocks)) return false;
 	}
@@ -517,7 +522,6 @@ function ensureMetadata(save: SaveData): SaveData {
 		totalRuns: normalizeNonNegativeInteger((save as any).totalRuns),
 		totalAlloyEarned: normalizeNonNegativeInteger((save as any).totalAlloyEarned),
 		settings: normalizeSettings((save as unknown as Record<string, unknown>).settings),
-		discoveredBlueprints: Array.from(new Set([...((save as any).discoveredBlueprints ?? []), ...((save as any).unlockedBlueprints ?? [])])),
 		selectedFront: (save as any).selectedFront ?? TierId.Tier1,
 		frontBestWave: normalizeFrontBestWave((save as any).frontBestWave, normalizeNonNegativeInteger((save as any).highestWave)),
 		achievements: (save as any).achievements ?? {},

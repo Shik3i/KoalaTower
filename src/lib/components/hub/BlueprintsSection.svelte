@@ -2,24 +2,35 @@
 	import { FRONT_META, getFrontName } from '$lib/game/balance/tiers';
 	import FrontIcon from '$lib/components/FrontIcon.svelte';
 	import { getSchematics, getPathSchematicCost, SCHEMATICS_FLAVOR } from '$lib/game/balance/schematics';
-	import { BLUEPRINT_DEFS, getFieldUpgradesUnlockedBy, getFoundryUpgradesUnlockedBy, describeBlueprintDiscovery } from '$lib/game/balance/blueprints';
-	import { getBlueprintStatus } from '$lib/game/progression/blueprintDiscovery';
+	import { BLUEPRINT_DEFS, getFieldUpgradesUnlockedBy, getFoundryUpgradesUnlockedBy, describeBlueprintUnlock } from '$lib/game/balance/blueprints';
+	import { meetsRequirement } from '$lib/game/progression/requirements';
 	import { tooltip } from '$lib/components/tooltip';
 	import type { BlueprintId, TierId } from '$lib/game/engine/gameTypes';
 
 	let {
 		ownedBlueprints,
-		discoveredBlueprints,
 		schematicsByFront,
 		unlockedFronts,
+		frontBestWave,
+		totalBossesDefeated,
 		buyBlueprint
 	}: {
 		ownedBlueprints: BlueprintId[];
-		discoveredBlueprints: BlueprintId[];
 		schematicsByFront: Record<number, number>;
 		unlockedFronts: TierId[];
+		frontBestWave: Partial<Record<TierId, number>>;
+		totalBossesDefeated: number;
 		buyBlueprint: (id: BlueprintId) => void;
 	} = $props();
+
+	function requirementMet(bp: (typeof BLUEPRINT_DEFS)[number], costFrontId: TierId | null): boolean {
+		return meetsRequirement(bp.requirement, {
+			highestWave: costFrontId ? (frontBestWave[costFrontId] ?? 0) : 0,
+			bossesDefeated: totalBossesDefeated,
+			ownedBlueprints,
+			unlockedFronts,
+		});
+	}
 </script>
 
 <div class="hs">
@@ -43,38 +54,41 @@
 
 	<div class="cl">
 		{#each BLUEPRINT_DEFS as bp}
-			{@const status = getBlueprintStatus(bp.id, ownedBlueprints, discoveredBlueprints)}
 			{@const cost = getPathSchematicCost(bp.id)}
 			{@const costFrontId = cost ? FRONT_META[cost.front - 1]!.id : null}
 			{@const have = cost ? getSchematics(schematicsByFront, cost.front) : 0}
 			{@const aff = !!cost && have >= cost.cost}
+			{@const reqMet = requirementMet(bp, costFrontId)}
+			{@const owned = ownedBlueprints.includes(bp.id)}
 			{@const fieldCount = getFieldUpgradesUnlockedBy(bp.id).length}
 			{@const foundryCount = getFoundryUpgradesUnlockedBy(bp.id).length}
 			
-			<div class="cc" class:lck={status === 'undiscovered'}>
+			<div class="cc" class:lck={!owned && !reqMet}>
 				<div class="cc-h">
-					<span class="cci">{status === 'owned' ? '✅' : status === 'discovered' ? bp.icon : '🔒'}</span>
+					<span class="cci">{owned ? '✅' : reqMet ? bp.icon : '🔒'}</span>
 					<div>
-						<div class="ccn">{status === 'undiscovered' ? '??? Unknown Schematic' : bp.name}</div>
-						<div class="ccd">{status === 'undiscovered' ? 'Schematic not yet recovered.' : bp.description}</div>
+						<div class="ccn">{bp.name}</div>
+						<div class="ccd">{bp.description}</div>
 					</div>
 				</div>
 				
-				{#if status === 'owned'}
+				{#if owned}
 					<div class="ccs">✓ Reconstructed — unlocks {fieldCount} field + {foundryCount} foundry upgrade{fieldCount + foundryCount === 1 ? '' : 's'}</div>
-				{:else if status === 'discovered'}
-					<div class="ccl-found">🔍 Recovered — ready to reconstruct</div>
+				{:else if reqMet}
 					<div class="uc-b" style="margin-top:.3rem">
 						{#if cost && costFrontId}
 							<button class="hub-action" disabled={!aff} onclick={() => buyBlueprint(bp.id)} style={aff ? 'background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--bg-primary);font-weight:600' : ''}>
 								<span class="ucc">📐{cost.cost} {getFrontName(costFrontId)}</span> Reconstruct
 							</button>
+							{#if !aff}
+								<span class="ccl">Need {cost.cost - have} more {getFrontName(costFrontId)} Schematics</span>
+							{/if}
 						{:else}
 							<span class="ucc" style="color:var(--text-dim)">Reconstruction not yet available</span>
 						{/if}
 					</div>
 				{:else}
-					<div class="ccl">🔒 {describeBlueprintDiscovery(bp)}</div>
+					<div class="ccl">🔒 {cost ? describeBlueprintUnlock(bp, cost.front) : 'No reconstruction path available'}</div>
 				{/if}
 			</div>
 		{/each}
@@ -98,8 +112,7 @@
 	.ccn { font-size:var(--fs-body-sm); color:var(--text-primary); font-weight:500; margin-bottom:.1rem; }
 	.ccd { font-size:var(--fs-caption); color:var(--text-secondary); line-height:1.45; }
 	
-	.ccs,.ccl,.ccl-found { font-size:var(--fs-caption-sm); color:var(--text-secondary); font-family:var(--font-mono); margin-top:.25rem; padding:.15rem .4rem; background:rgba(0,0,0,.12); border-radius:3px; display:inline-block; }
-	.ccl-found { color:var(--cyan); background:rgba(0,255,255,.08); }
+	.ccs,.ccl { font-size:var(--fs-caption-sm); color:var(--text-secondary); font-family:var(--font-mono); margin-top:.25rem; padding:.15rem .4rem; background:rgba(0,0,0,.12); border-radius:3px; display:inline-block; }
 	.ccs { color:var(--green); }
 	
 	.ucc { font-family:var(--font-mono); color:var(--yellow); }

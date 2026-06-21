@@ -13,7 +13,7 @@
 	import { buildForgeUpgradeList, getForgeUpgradeCost } from '$lib/game/balance/forgeUpgrades';
 	const FORGE_UPGRADES = buildForgeUpgradeList();
 	import { LAB_DEFS, getLabCost, getLabDuration, formatLabDuration } from '$lib/game/balance/labs';
-	import { FRONT_META, getUnlockedFronts, getFrontName } from '$lib/game/balance/tiers';
+	import { FRONT_META, frontToTierId, getUnlockedFronts, getFrontName } from '$lib/game/balance/tiers';
 	import { getSchematics, getPathSchematicCost, tryUnlockPathWithSchematics, normalizeSchematics } from '$lib/game/balance/schematics';
 	import {
 		SCHEMATIC_CONVERSION_RATE,
@@ -33,6 +33,7 @@
 	} from '$lib/game/balance/blackMarket';
 	import { EnemyType, DEFAULT_SETTINGS, type TierId } from '$lib/game/engine/gameTypes';
 	import { BLUEPRINT_DEFS, isFieldUpgradeUnlocked } from '$lib/game/balance/blueprints';
+	import { meetsRequirement } from '$lib/game/progression/requirements';
 	import {
 		generateCommandOrders,
 		rolloverCommandOrders,
@@ -112,7 +113,6 @@
 	let simFront = $state(1);
 
 	let ownedBlueprints = $state<BlueprintId[]>([]);
-	let discoveredBlueprints = $state<BlueprintId[]>([]);
 	let schematicsByFront = $state<Record<number, number>>({});
 	let strangeMatter = $state(0);
 	let lifetimeStrangeMatterEarned = $state(0);
@@ -324,9 +324,19 @@
 		const save = getCachedSave(); if (!save) return;
 		const bp = BLUEPRINT_DEFS.find(b => b.id === id); if (!bp) return;
 		if (ownedBlueprints.includes(id)) { toast(getOpLogMessage('blueprintAlreadyOwned'), 'info'); return; }
-		if (!discoveredBlueprints.includes(id)) { toast(getOpLogMessage('blueprintNotYetFound'), 'error'); return; }
 		const cost = getPathSchematicCost(id);
 		if (!cost) { toast('No Schematic cost defined for this path.', 'error'); return; }
+		const costFront = frontToTierId(cost.front);
+		const requirementMet = meetsRequirement(bp.requirement, {
+			highestWave: save.frontBestWave?.[costFront] ?? 0,
+			bossesDefeated: save.totalBossesDefeated,
+			ownedBlueprints: save.unlockedBlueprints ?? [],
+			unlockedFronts: getUnlockedFronts(save.frontBestWave ?? {}),
+		});
+		if (!requirementMet) {
+			toast('Schematic path requirements not met yet.', 'error');
+			return;
+		}
 		save.schematicsByFront = normalizeSchematics(save.schematicsByFront);
 		if (!tryUnlockPathWithSchematics(save.schematicsByFront, save.unlockedBlueprints ?? [], id)) {
 			toast('Not enough ' + getFrontName(FRONT_META[cost.front - 1]!.id) + ' Schematics (need ' + cost.cost + ').', 'error');
@@ -684,7 +694,6 @@
 		void refreshSupportCode();
 		const save = getCachedSave();
 		if (save?.unlockedBlueprints) ownedBlueprints = [...save.unlockedBlueprints];
-		if (save?.discoveredBlueprints) discoveredBlueprints = [...save.discoveredBlueprints];
 		if (save?.schematicsByFront) schematicsByFront = { ...save.schematicsByFront };
 		workshopLevels = { ...(save?.workshopUpgrades ?? {}) } as Record<WorkshopUpgradeId, number>;
 		forgeLevels = { ...(save?.forgeUpgrades ?? {}) } as Record<UpgradeId, number>;
@@ -1077,9 +1086,10 @@
 			{:else if activeSection === 'blueprints'}
 				<BlueprintsSection
 					{ownedBlueprints}
-					{discoveredBlueprints}
 					{schematicsByFront}
 					{unlockedFronts}
+					{frontBestWave}
+					totalBossesDefeated={hubStats.totalBossesDefeated}
 					{buyBlueprint}
 				/>
 			{:else if activeSection === 'blackMarket'}

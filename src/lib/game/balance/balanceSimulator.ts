@@ -165,21 +165,16 @@ function waveCoinReward(wave: number, coinMult: number, tier: number, alloyWaveB
 }
 
 /**
- * Checks if a blueprint should be auto-unlocked during simulation
- * based on wave/boss progress.
+ * Checks if an upgrade path should be auto-unlocked during simulation.
  *
- * IMPORTANT: In the actual game, blueprints are discovered (become purchasable)
- * but require Alloy to purchase. The simulator does NOT model Alloy purchases,
- * so it does NOT auto-unlock blueprints. Blueprints only come from the
- * unlockedBlueprints parameter (pre-owned).
- *
- * This function is kept for documentation but returns early.
+ * IMPORTANT: In the actual game, paths are reconstructed by spending Schematics
+ * in the Hub. The simulator does NOT model Hub spending, so it does NOT
+ * auto-unlock paths. Paths only come from the unlockedBlueprints parameter
+ * (pre-owned).
  */
 function tryUnlockBlueprints(_state: SimState, _bossesDefeated: number): void {
-	// Blueprints are NOT auto-unlocked during simulation.
+	// Paths are NOT auto-unlocked during simulation.
 	// They must be passed via the unlockedBlueprints parameter.
-	// In the real game, blueprints become DISCOVERABLE at wave thresholds
-	// but still require Alloy purchase, which the simulator does not model.
 	return;
 }
 

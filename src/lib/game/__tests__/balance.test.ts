@@ -61,6 +61,7 @@ import {
 	BLUEPRINT_DEFS,
 	isBlueprintUnlockable,
 } from '../balance/blueprints';
+import { getPathSchematicCost } from '../balance/schematics';
 import { getDefaultTowerStats, TOWER_HP_BASE, STARTING_CASH_BASE } from '../engine/gameConfig';
 import { createDefaultSave } from '../save/saveTypes';
 import { GameEngine } from '../engine/GameEngine';
@@ -719,7 +720,7 @@ describe('Blueprint System', () => {
 		for (const bp of BLUEPRINT_DEFS) {
 			expect(bp.id).toBeTruthy();
 			expect(bp.name).toBeTruthy();
-			expect(bp.cost).toBeGreaterThan(0);
+			expect(getPathSchematicCost(bp.id)?.cost).toBeGreaterThan(0);
 			expect(bp.order).toBeGreaterThan(0);
 		}
 	});

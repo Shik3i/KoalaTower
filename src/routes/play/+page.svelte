@@ -17,11 +17,9 @@
 	import { seedBattleUpgradesFromForge } from '$lib/game/balance/forgeUpgrades';
 	import { applyCounterDeltas, rolloverCommandOrders, commandOrdersWeekKey } from '$lib/game/balance/commandOrders';
 	const BATTLE_UPGRADES = buildBattleUpgradeList();
-	import { getBlueprintDef } from '$lib/game/balance/blueprints';
 	import { getUnlockedFronts, getTierNumber, getFrontName } from '$lib/game/balance/tiers';
-	import { addSchematics, getBossSchematicReward, pendingMilestoneSchematics, normalizeSchematics } from '$lib/game/balance/schematics';
+	import { addSchematics, pendingMilestoneSchematics, normalizeSchematics, rollBossSchematicReward } from '$lib/game/balance/schematics';
 	import { getMaxUnlockedSpeed, hasBlackMarketUnlock } from '$lib/game/balance/blackMarket';
-	import { rollBlueprintDiscovery } from '$lib/game/progression/blueprintDiscovery';
 	import { TierId } from '$lib/game/engine/gameTypes';
 	import { isChallengeUnlocked } from '$lib/game/balance/challenges';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
@@ -509,12 +507,17 @@
 						const frontNum = getTierNumber(save.selectedFront);
 						gameOverFrontName = getFrontName(save.selectedFront);
 						save.schematicsByFront = normalizeSchematics(save.schematicsByFront);
-						// Repeatable: one grant per boss killed this deployment.
+						// Repeatable: each boss has a wave-scaled chance to drop Schematics.
 						const bossesThisRun = engine.state.bossesDefeated;
 						if (bossesThisRun > 0) {
-							const perBoss = getBossSchematicReward(frontNum);
-							schematicsThisRun += bossesThisRun * perBoss;
-							addSchematics(save.schematicsByFront, frontNum, bossesThisRun * perBoss);
+							for (let bossIndex = 1; bossIndex <= bossesThisRun; bossIndex++) {
+								const bossWave = bossIndex * 10;
+								const bossReward = rollBossSchematicReward(frontNum, bossWave);
+								if (bossReward > 0) {
+									schematicsThisRun += bossReward;
+									addSchematics(save.schematicsByFront, frontNum, bossReward);
+								}
+							}
 						}
 						// One-time: first-time wave milestones on this Front.
 						save.claimedSchematicMilestones = Array.isArray(save.claimedSchematicMilestones) ? save.claimedSchematicMilestones : [];
@@ -596,28 +599,6 @@
 					}
 					if (totalReward > 0) {
 						gameOverCoins += totalReward;
-					}
-
-					// ── Blueprint discovery roll (RNG, once per deployment) ──
-					// Depth is measured on the CURRENT front (per-front best wave).
-					const found = rollBlueprintDiscovery({
-						front: save.selectedFront,
-						progress: {
-							highestWave: save.frontBestWave?.[save.selectedFront] ?? 0,
-							bossesDefeated: save.totalBossesDefeated,
-							ownedBlueprints: save.unlockedBlueprints ?? [],
-							unlockedFronts: getUnlockedFronts(save.frontBestWave ?? {}),
-						},
-						discovered: save.discoveredBlueprints ?? [],
-						owned: save.unlockedBlueprints ?? [],
-					});
-					if (found.length) {
-						save.discoveredBlueprints = [...(save.discoveredBlueprints ?? []), ...found];
-						for (const id of found) {
-							const def = getBlueprintDef(id);
-							toast('🔍 ' + getOpLogMessage('blueprintDiscovered', { name: def?.name ?? id }), 'milestone');
-						}
-						audio.play('milestone');
 					}
 
 					const realTimeSeconds = runStartedAtMs > 0

@@ -46,8 +46,6 @@ export interface SaveData {
 	blueprints: string[];
 	/** v5: Blueprint IDs permanently unlocked via purchase (owned) */
 	unlockedBlueprints: BlueprintId[];
-	/** v8: Blueprint IDs found in the field but not yet acquired */
-	discoveredBlueprints: BlueprintId[];
 	/** v8: Last front (tier) the player selected for deployment */
 	selectedFront: TierId;
 	/** v9: Best wave reached on each front — gates sequential front unlocks */
@@ -103,7 +101,7 @@ export interface SaveData {
 	deploymentReports: DeploymentReport[];
 }
 
-export const CURRENT_SCHEMA_VERSION = 18;
+export const CURRENT_SCHEMA_VERSION = 19;
 
 function generateSaveId(prefix = 'fltd'): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -129,7 +127,6 @@ export function createDefaultSave(): SaveData {
 		labLevels: {},
 		blueprints: [],
 		unlockedBlueprints: [],
-		discoveredBlueprints: [],
 		selectedFront: TierId.Tier1,
 		frontBestWave: {},
 		activeLab: null,

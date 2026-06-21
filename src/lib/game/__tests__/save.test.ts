@@ -73,7 +73,6 @@ describe('Save Migration', () => {
 		// v9: per-front best wave grandfathers the global best onto Front 1
 		expect(migrated!.frontBestWave).toBeTruthy();
 		// New required arrays/fields exist
-		expect(Array.isArray(migrated!.discoveredBlueprints)).toBe(true);
 		expect(Array.isArray(migrated!.unlockedBlueprints)).toBe(true);
 		expect(migrated!.selectedFront).toBeTruthy();
 		expect(migrated!.strangeMatter).toBe(0);
@@ -434,10 +433,6 @@ describe('validateSaveData malformed-field regression', () => {
 
 	it('rejects unlockedBlueprints as plain object', () => {
 		expect(validateSaveData({ ...base, unlockedBlueprints: { a: 1 } })).toBe(false);
-	});
-
-	it('rejects discoveredBlueprints as plain object', () => {
-		expect(validateSaveData({ ...base, discoveredBlueprints: { a: 1 } })).toBe(false);
 	});
 
 	it('accepts null workshopUpgrades (repaired by ensureMetadata)', () => {

@@ -1,31 +1,23 @@
 /**
  * blueprints.ts — Blueprint definitions and the upgrade-gating they drive.
  *
- * LIFECYCLE (see progression/blueprintDiscovery.ts):
- *   undiscovered → discovered (found via RNG at a qualifying front) → owned (bought with Alloy)
+ * LIFECYCLE:
+ *   eligible by requirement → reconstructed with Front Schematics → owned
  *
  * SINGLE SOURCE OF TRUTH:
  *   The upgrade declares its own prerequisite via `requiredBlueprint`
  *   (see battleUpgrades.ts / workshopUpgrades.ts). The blueprint → upgrades
  *   mapping is DERIVED from that — never hand-maintained here. Adding a new
  *   gated ability is therefore: write the upgrade def (+ requiredBlueprint),
- *   write a BlueprintDef (cost + requirement + discovery). No switch edits.
+ *   write a BlueprintDef (requirement). No switch edits.
  */
 
-import { BlueprintId, TierId, UpgradeId, WorkshopUpgradeId } from '../engine/gameTypes';
+import { BlueprintId, UpgradeId, WorkshopUpgradeId } from '../engine/gameTypes';
 import type { BlueprintCategory } from '../engine/gameTypes';
 import { type Requirement, type ProgressSnapshot, meetsRequirement, describeRequirement } from '../progression/requirements';
 import { BATTLE_UPGRADE_DEFS } from './battleUpgrades';
 import { WORKSHOP_UPGRADE_DEFS } from './workshopUpgrades';
-import { getFrontName } from './tiers';
-
-/** How a blueprint is found in the field (the RNG discovery step). */
-export interface BlueprintDiscovery {
-	/** Fronts (tiers) on which this blueprint can drop. */
-	fronts: TierId[];
-	/** Per-deployment drop chance once the front + requirement are satisfied (0–1). */
-	chance: number;
-}
+import { frontToTierId, getFrontName } from './tiers';
 
 export interface BlueprintDef {
 	id: BlueprintId;
@@ -33,14 +25,10 @@ export interface BlueprintDef {
 	description: string;
 	icon: string;
 	category: BlueprintCategory;
-	/** Alloy cost to acquire (research) once discovered. */
-	cost: number;
 	/** Display order (lower = first). */
 	order: number;
-	/** What must be true for this blueprint to become discoverable. */
+	/** What must be true before this path can be reconstructed with Schematics. */
 	requirement: Requirement;
-	/** Where/how often it drops. */
-	discovery: BlueprintDiscovery;
 }
 
 export const BLUEPRINT_DEFS: BlueprintDef[] = [
@@ -49,83 +37,73 @@ export const BLUEPRINT_DEFS: BlueprintDef[] = [
 		id: BlueprintId.ExtendedCoreOptics,
 		name: 'Extended Tower Optics',
 		description: "Long-range targeting array. Procurement claims it was 'temporarily misplaced' for six fiscal quarters.",
-		icon: '🎯', category: 'attack', cost: 200, order: 5,
+		icon: '🎯', category: 'attack', order: 5,
 		requirement: { minWave: 25 },
-		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
 	},
 	{
 		id: BlueprintId.CriticalTargeting,
 		name: 'Critical Targeting',
 		description: "Critical hit calibration system. R&D insists the 0.001% crit amplification is 'within acceptable margins.'",
-		icon: '⭐', category: 'attack', cost: 250, order: 10,
+		icon: '⭐', category: 'attack', order: 10,
 		requirement: { anyOf: [{ minWave: 25 }, { minBosses: 2 }] },
-		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
 	},
 	{
 		id: BlueprintId.SplitBeamGeometry,
 		name: 'Split Beam Geometry',
 		description: "Multi-target splitting lens. The beam doesn't actually split — it just argues with several shapes at once.",
-		icon: '💥', category: 'attack', cost: 500, order: 20,
+		icon: '💥', category: 'attack', order: 20,
 		requirement: { minWave: 50 },
-		discovery: { fronts: [TierId.Tier1, TierId.Tier2], chance: 0.08 },
 	},
 	// ── Defense ─────────────────────────────────────────────────────────
 	{
 		id: BlueprintId.PlatedCoreShell,
 		name: 'Plated Tower Shell',
 		description: "Ablative plating. Absorbs damage after percentage reduction, or as Command puts it, 'after the important damage has already happened.'",
-		icon: '🛡️', category: 'defense', cost: 200, order: 10,
+		icon: '🛡️', category: 'defense', order: 10,
 		requirement: { minWave: 20 },
-		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
 	},
 	{
 		id: BlueprintId.PhaseDampener,
 		name: 'Phase Dampener',
 		description: "Phase-shift field. Reduces incoming damage by a percentage that Command insists is 'mathematically significant.'",
-		icon: '🔰', category: 'defense', cost: 400, order: 20,
+		icon: '🔰', category: 'defense', order: 20,
 		requirement: { minWave: 50 },
-		discovery: { fronts: [TierId.Tier1, TierId.Tier2], chance: 0.08 },
 	},
 	{
 		id: BlueprintId.ReactiveSurface,
 		name: 'Reactive Surface',
 		description: "Spike-core reactive armor. Returns damage to melee attackers. The shapes call it 'unsportsmanlike geometry.'",
-		icon: '🌵', category: 'defense', cost: 500, order: 30,
+		icon: '🌵', category: 'defense', order: 30,
 		requirement: { anyOf: [{ minBosses: 5 }, { minWave: 75 }] },
-		discovery: { fronts: [TierId.Tier2], chance: 0.07 },
 	},
 	{
 		id: BlueprintId.EnergyReclaimer,
 		name: 'Energy Reclaimer',
 		description: "Siphon-core system that leeches structural integrity from damaged targets. R&D calls it 'recycling.' The shapes call it 'theft.'",
-		icon: '🩸', category: 'defense', cost: 1200, order: 40,
+		icon: '🩸', category: 'defense', order: 40,
 		requirement: { minWave: 100 },
-		discovery: { fronts: [TierId.Tier3], chance: 0.06 },
 	},
 	// ── Utility ─────────────────────────────────────────────────────────
 	{
 		id: BlueprintId.AlloyExtraction,
 		name: 'Alloy Extraction',
 		description: "Scavenger schematics that improve alloy yield. Procurement insists the extra alloy was 'always there, you just weren't looking hard enough.'",
-		icon: '🔩', category: 'utility', cost: 250, order: 10,
+		icon: '🔩', category: 'utility', order: 10,
 		requirement: { minWave: 25 },
-		discovery: { fronts: [TierId.Tier1], chance: 0.08 },
 	},
 	{
 		id: BlueprintId.EnergyCondenser,
 		name: 'Energy Condenser',
 		description: "Condenser that amplifies harvested energy. Command describes the efficiency gain as 'classified,' which means 'we don't know either.'",
-		icon: '⚡', category: 'utility', cost: 400, order: 20,
+		icon: '⚡', category: 'utility', order: 20,
 		requirement: { minWave: 50 },
-		discovery: { fronts: [TierId.Tier1, TierId.Tier2], chance: 0.08 },
 	},
 	{
 		id: BlueprintId.DeploymentReserves,
 		name: 'Deployment Reserves',
 		description: "Pre-charges the Core with starting energy. The energy is 'borrowed' from future deployments. Future you will not be filing a complaint.",
-		icon: '🔋', category: 'utility', cost: 400, order: 30,
+		icon: '🔋', category: 'utility', order: 30,
 		requirement: { minWave: 75 },
-		discovery: { fronts: [TierId.Tier2], chance: 0.07 },
 	},
 ];
 
@@ -185,21 +163,21 @@ export const STARTER_FOUNDRY_UPGRADES: WorkshopUpgradeId[] = WORKSHOP_UPGRADE_DE
 
 const blueprintName = (id: BlueprintId): string => bpMap.get(id)?.name ?? id;
 
-/** Human-readable discovery condition, e.g. "Front: Tier 1 · Reach Wave 25". */
-export function describeBlueprintDiscovery(bp: BlueprintDef): string {
-	const fronts = bp.discovery.fronts.map(getFrontName).join(' / ');
+/** Human-readable reconstruction condition, e.g. "Perimeter · Reach Wave 25". */
+export function describeBlueprintUnlock(bp: BlueprintDef, front: number): string {
+	const fronts = getFrontName(frontToTierId(front));
 	const cond = describeRequirement(bp.requirement, blueprintName);
-	return `Find at ${fronts} · ${cond}`;
+	return `${fronts} · ${cond}`;
 }
 
-/** True when the blueprint's requirement is met (eligible to be discovered). */
-export function isBlueprintDiscoverable(bp: BlueprintDef, progress: ProgressSnapshot): boolean {
+/** True when the path's requirement is met (eligible for reconstruction). */
+export function isBlueprintReconstructable(bp: BlueprintDef, progress: ProgressSnapshot): boolean {
 	return meetsRequirement(bp.requirement, progress);
 }
 
 /**
  * Back-compat shim for existing tests/UI: evaluates the requirement against a
- * bare (wave, bosses) pair. Prefer isBlueprintDiscoverable with a full snapshot.
+ * bare (wave, bosses) pair. Prefer isBlueprintReconstructable with a full snapshot.
  */
 export function isBlueprintUnlockable(bp: BlueprintDef, highestWave: number, bossesDefeated: number): boolean {
 	return meetsRequirement(bp.requirement, { highestWave, bossesDefeated, ownedBlueprints: [], unlockedFronts: [] });

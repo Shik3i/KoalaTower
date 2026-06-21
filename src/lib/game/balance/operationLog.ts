@@ -33,9 +33,7 @@ export interface OpLogCategory {
 	upgradeMaxLevel: string[];
 	upgradeNotEnough: string[];
 	// Schematics
-	blueprintDiscovered: string[];
 	blueprintAlreadyOwned: string[];
-	blueprintNotYetFound: string[];
 	// Hub: Forge
 	workshopMaxLevel: string[];
 	workshopNotEnough: string[];
@@ -334,30 +332,12 @@ const POOLS: OpLogCategory = {
 		'Insufficient Energy. The upgrade remains pending. Indefinitely.',
 	],
 
-	blueprintDiscovered: [
-		'Schematic recovered: {name}. Procurement insists they knew where it was.',
-		'Field recovery confirmed: {name}. R&D is already arguing over who gets credit.',
-		'{name} schematic found. Its chain of custody is unclear. Gloriously.',
-		'New schematic: {name}. Orbital Command has pre-filed the success report.',
-		'Schematic secured in the field: {name}. Research it at Orbital Command.',
-		'{name} recovered. The shapes had it. They no longer do.',
-		'Schematic fragment retrieved: {name}. Origins classified. Even from us.',
-	],
-
 	blueprintAlreadyOwned: [
 		'Already researched. The archives are not a recycle bin.',
 		'Schematic already committed to the Tower design. Permanently.',
 		'Research complete. Repeating it would change nothing. Probably.',
 		'This schematic is in active deployment. The bureaucracy notes: redundant.',
 		'Already in service. Procurement has this filed under Done.',
-	],
-
-	blueprintNotYetFound: [
-		'Schematic not yet recovered. Deploy and search the field first.',
-		'Schematic classified: field discovery required before research.',
-		'R&D needs the physical schematic before research can begin. Deploy to find it.',
-		'No schematic recovered yet. The field does not yield schematics willingly.',
-		'Discovery required first. Check the schematic\'s conditions and deploy accordingly.',
 	],
 
 	workshopMaxLevel: [
