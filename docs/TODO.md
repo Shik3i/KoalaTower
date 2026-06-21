@@ -35,7 +35,7 @@
 - [x] Schematic path reconstruction system
 - [x] Lab research with offline time tracking + browser notifications
 - [ ] Fix enemy attack cooldown — ranged enemies should actually shoot
-- [ ] Add elite/shiny enemy variants (tracked via shiniesKilled, needs visual distinction)
+- [x] Add elite/shiny enemy variants with glow-based visual distinction
 - [ ] Full challenge mode implementations (Fast Swarm, Glass Tower, Boss Rush — currently scaffolds)
 - [ ] Prestige/ascension system
 

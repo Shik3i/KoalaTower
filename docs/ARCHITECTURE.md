@@ -203,7 +203,7 @@ Paste `https://<your-domain>/api/kofi/webhook` into Ko-fi. Ko-fi sends `applicat
 - Boss waves every 10 waves — boss appears at the end of a normal spawn schedule.
 - Early waves (1–10) use a gentler scaling curve for onboarding.
 - Supports 10,000+ waves with deterministic stat anchors.
-- **Shiny enemies**: Rare elite variants with higher HP and double rewards (tracked, visual distinction pending).
+- **Shiny enemies**: Rare elite variants with higher HP and double rewards, highlighted by a pulsing gold glow.
 
 ## UI/UX Features
 
