@@ -1,5 +1,19 @@
 <script lang="ts">
 	import { cubicIn, backOut } from 'svelte/easing';
+	import {
+		KILL_SPARKS,
+		SHATTER_SHARDS,
+		TIER_WORDS,
+	} from './killstreak/effectConfig';
+
+	/*
+		Prototype map
+		- effectConfig.ts: spark, shatter vectors and tier words.
+		- Markup sections: tier burst, burning particles, outro, readout.
+		- CSS sections: shell, digits, tier palette, burst, burning, sparks,
+		  tier word, outro, keyframes, reduced motion, responsive.
+		- Fast visual knobs: vector arrays in effectConfig.ts and the tier palette below.
+	*/
 
 	let {
 		count,
@@ -21,42 +35,6 @@
 	const slots = $derived(
 		formatted.split('').map((ch) => ({ ch, sep: ch < '0' || ch > '9' })),
 	);
-
-	// Shatter debris: fixed radial vectors (px) + spin + stagger. Hard-coded so
-	// the burst reads the same every time — no per-frame randomness, no GC churn.
-	const shards = [
-		{ tx: -46, ty: -34, r: -220, d: 0,  s: 1.15 },
-		{ tx: -18, ty: -52, r: 180,  d: 18, s: .85 },
-		{ tx: 20,  ty: -50, r: 260,  d: 6,  s: 1.0 },
-		{ tx: 52,  ty: -30, r: -180, d: 24, s: .9 },
-		{ tx: 64,  ty: 4,   r: 300,  d: 12, s: 1.1 },
-		{ tx: 50,  ty: 36,  r: -260, d: 30, s: .8 },
-		{ tx: 16,  ty: 54,  r: 200,  d: 8,  s: 1.05 },
-		{ tx: -22, ty: 52,  r: -300, d: 22, s: .9 },
-		{ tx: -54, ty: 30,  r: 240,  d: 14, s: 1.0 },
-		{ tx: -64, ty: -4,  r: -200, d: 4,  s: .85 },
-		{ tx: 0,   ty: -64, r: 160,  d: 28, s: .7 },
-		{ tx: 0,   ty: 64,  r: -160, d: 16, s: .7 },
-	];
-
-	// Per-kill spark flick: a fixed fan of sparks that fire off the changing
-	// (ones) digit each time the count ticks. Hard-coded vectors → identical
-	// burst every time, no per-frame randomness, no GC churn.
-	const sparks = [
-		{ x: 8,   y: -14, d: 0  },
-		{ x: 16,  y: -4,  d: 14 },
-		{ x: 14,  y: 8,   d: 6  },
-		{ x: 2,   y: 16,  d: 20 },
-		{ x: -10, y: 12,  d: 10 },
-		{ x: 18,  y: 2,   d: 24 },
-	];
-
-	// Punchy comic shout per tier crossed. Index mirrors getKillstreakTier()
-	// (tier 6 = 1000+ = the fire tier). Cosmetic flavour only.
-	const TIER_WORDS = [
-		'STREAK!', 'RAMPAGE!', 'DOMINATING!', 'UNSTOPPABLE!', 'GODLIKE!',
-		'LEGENDARY!', 'INFERNO!', 'ANNIHILATION!', 'TRANSCENDENT!',
-	];
 
 	let rollEl: HTMLElement | undefined = $state();
 	// Baseline for tier-cross detection. Left undefined so the first effect run
@@ -111,8 +89,8 @@
 		};
 	}
 
-	// Outro: shatter the number into spinning shards + a smoke puff, unless the
-	// player prefers reduced motion (then a plain quick fade).
+	// Outro: shatter the number into spinning shards, unless the player prefers
+	// reduced motion (then a plain quick fade).
 	function shatter(node: HTMLElement, opts: { reduced?: boolean } = {}) {
 		if (opts.reduced) return { duration: 160, css: (u: number) => `opacity:${u}` };
 		node.classList.add('out');
@@ -128,6 +106,7 @@
 	out:shatter={{ reduced }}
 	aria-label="Killstreak ×{count}"
 >
+	<!-- Tier burst: one-shot flash/shock/rays when the tier changes. -->
 	{#if !reduced}
 		{#key tier}
 			<div class="ks-flash" aria-hidden="true"></div>
@@ -136,6 +115,7 @@
 		{/key}
 	{/if}
 
+	<!-- Burning particles: always-on embers around molten tiers. -->
 	{#if burning && !reduced}
 		<div class="ks-embers" aria-hidden="true">
 			{#each Array(9) as _, i}<span class="ks-ember" style="--ei:{i}"></span>{/each}
@@ -144,12 +124,12 @@
 
 	<!-- Outro-only effects: inert until the root gets the `out` class. -->
 	<div class="ks-debris" aria-hidden="true">
-		{#each shards as s}
+		{#each SHATTER_SHARDS as s}
 			<span class="ks-shard" style="--tx:{s.tx}px; --ty:{s.ty}px; --r:{s.r}deg; --d:{s.d}ms; --ss:{s.s}"></span>
 		{/each}
 	</div>
-	<div class="ks-puff" aria-hidden="true"></div>
 
+	<!-- Readout: x mark, odometer digits, per-digit sparks. -->
 	<span class="ks-readout">
 		<span class="ks-x">×</span>
 		<span class="ks-roll" bind:this={rollEl}>
@@ -164,22 +144,16 @@
 							<span class="ks-digit">
 								{#key slot.ch}
 									<span class="ks-glyph ks-d" in:rollIn out:rollOut>{slot.ch}</span>
+									<span class="ks-sparks" aria-hidden="true">
+										{#each KILL_SPARKS as s}
+											<span class="ks-spark" style="--sx:{s.x}px; --sy:{s.y}px; --sd:{s.d}ms"></span>
+										{/each}
+									</span>
 								{/key}
 							</span>
 						{/if}
 					{/each}
 				</span>
-				<!-- Per-kill spark flick off the ones digit (the column that ticks
-				     every kill). Remounts on each count change to replay. -->
-				{#if !reduced}
-					{#key count}
-						<span class="ks-sparks" aria-hidden="true">
-							{#each sparks as s}
-								<span class="ks-spark" style="--sx:{s.x}px; --sy:{s.y}px; --sd:{s.d}ms"></span>
-							{/each}
-						</span>
-					{/key}
-				{/if}
 			{/if}
 		</span>
 	</span>
@@ -240,6 +214,7 @@
 	   per-slot width (--ks-dw, one '0' advance) mean the readout never shifts
 	   left/right as digits flip — only the changing column rolls. */
 	.ks-num {
+		position: relative; z-index: 2;
 		display: inline-flex; align-items: baseline;
 		font-size: 3.3rem;
 		font-variant-numeric: tabular-nums;
@@ -319,66 +294,6 @@
 		animation: ksRays .55s cubic-bezier(.2,.7,.3,1) forwards;
 	}
 
-	/* ── Fire (tier 6+) ──────────────────────────────────────────────────────
-	   Big flames that engulf the number: tall tongues rise from below and lick
-	   up PAST the top of the digits, with a second translucent layer drawn over
-	   the number so it reads as actually burning. White-hot core → gold →
-	   orange → red gradient; the container is blurred so the tongues melt into
-	   one continuous body of fire. An ember bed glows at the base. */
-	:global(.ks-fire) {
-		position: absolute; left: -8%; right: -8%; top: -34px; bottom: -8px;
-		z-index: -1; pointer-events: none;
-		/* Light blur only — keeps each tongue a distinct lick instead of melting
-		   them into one orange blob. A soft drop-shadow gives the whole body a
-		   warm halo without the muddy screen-stack. */
-		filter: blur(1px) brightness(1.06)
-			drop-shadow(0 0 10px rgba(255,120,20,.45));
-	}
-	:global(.ks-firebed) {
-		position: absolute; left: 8%; right: 8%; bottom: 6px; height: 14px;
-		background: radial-gradient(ellipse 55% 100% at 50% 100%,
-			rgba(255,200,80,.75) 0%, rgba(255,120,0,.4) 50%, transparent 78%);
-		mix-blend-mode: screen;
-		animation: ksFirebed .6s ease-in-out infinite alternate;
-	}
-	:global(.ks-flame) {
-		position: absolute; bottom: 2px;
-		left: calc(6% + var(--fi) * (88% / (var(--fn) - 1)));
-		width: 22px; height: 76px; margin-left: -11px;
-		/* Wispy tongue: transparent root → hot orange body → bright gold →
-		   white-hot tip that fades to nothing, so it reads as a real flame
-		   licking up rather than a solid bar. */
-		background: linear-gradient(to top,
-			rgba(220,40,0,0) 0%, rgba(255,70,0,.45) 12%, rgba(255,120,10,.78) 34%,
-			rgba(255,180,50,.92) 58%, rgba(255,235,170,.96) 80%,
-			rgba(255,255,255,.6) 92%, transparent 100%);
-		/* Tall, pointed tip + rounded base. */
-		border-radius: 50% 50% 44% 44% / 94% 94% 6% 6%;
-		transform-origin: 50% 100%; mix-blend-mode: screen; opacity: .88;
-		animation: ksFlame .4s ease-in-out infinite alternate;
-		animation-delay: calc(var(--fi) * -.067s);
-	}
-	/* Foreground tongues that ENGULF the digits: translucent over the digit
-	   bodies (so the glyphs read through, tinted by fire) and white-hot at the
-	   tips that lick up past the top edge — the number stands inside the flames
-	   rather than sitting in front of a backdrop. */
-	:global(.ks-fire-front) {
-		position: absolute; left: 4%; right: 4%; top: -26px; bottom: 2px;
-		z-index: 2; pointer-events: none;
-		filter: blur(1.1px) brightness(1.05);
-	}
-	:global(.ks-flame-front) {
-		position: absolute; bottom: 0;
-		left: calc(8% + var(--fi) * (84% / (var(--fn) - 1)));
-		width: 22px; height: 80px; margin-left: -11px;
-		background: linear-gradient(to top,
-			rgba(255,80,0,0) 0%, rgba(255,110,10,.26) 24%, rgba(255,160,40,.5) 50%,
-			rgba(255,215,120,.78) 74%, rgba(255,250,230,.94) 90%, transparent 100%);
-		border-radius: 50% 50% 46% 46% / 94% 94% 6% 6%;
-		transform-origin: 50% 100%; mix-blend-mode: screen; opacity: .72;
-		animation: ksFlameFront .52s ease-in-out infinite alternate;
-		animation-delay: calc(var(--fi) * -.0934s);
-	}
 	.ks-embers { position: absolute; inset: -18px -8px 0 0; z-index: 3; pointer-events: none; }
 	.ks-ember {
 		position: absolute; bottom: 12px; left: calc(20% + var(--ei) * 9%);
@@ -389,10 +304,6 @@
 		animation: ksEmber 1.2s ease-out infinite;
 		animation-delay: calc(var(--ei) * -.28s);
 	}
-	:global(.ks[data-tier="7"] .ks-flame) { height: 90px; width: 33px; }
-	:global(.ks[data-tier="8"] .ks-flame) { height: 104px; width: 36px; }
-	:global(.ks[data-tier="7"] .ks-fire),
-	:global(.ks[data-tier="8"] .ks-fire) { top: -54px; }
 	.ks.burning .ks-readout { animation: ksBurnShake 1.4s ease-in-out infinite; }
 	.ks[data-tier="8"].burning .ks-readout { animation: ksBurnShake .85s ease-in-out infinite; }
 	/* The digits flicker hot while burning — a cheap brightness/hue pulse. */
@@ -423,7 +334,6 @@
 		animation: ksSpark .42s ease-out forwards;
 		animation-delay: var(--sd);
 	}
-
 	/* ── Tier-up word pop ("INFERNO!" etc.) — one-shot, sits under the number ─ */
 	.ks-word {
 		position: absolute; top: 3.05rem; right: .3rem;
@@ -440,7 +350,7 @@
 	.ks[data-tier="7"] .ks-word,
 	.ks[data-tier="8"] .ks-word { font-size: 1.45rem; }
 
-	/* ── Shatter debris + smoke puff (outro only — inert until `.out`) ──────── */
+	/* ── Shatter debris (outro only — inert until `.out`) ──────────────────── */
 	.ks-debris { position: absolute; inset: 0; z-index: 3; }
 	.ks-shard {
 		position: absolute; top: 42%; left: 42%;
@@ -450,18 +360,10 @@
 		filter: drop-shadow(0 0 1px var(--ks-ink));
 		opacity: 0;
 	}
-	.ks-puff {
-		position: absolute; inset: 50% 50% 50% 50%; width: 54px; height: 54px;
-		margin: -27px 0 0 -27px; border-radius: 50%;
-		background: radial-gradient(circle, rgba(220,225,245,.5) 0%, rgba(150,160,200,.18) 45%, transparent 70%);
-		opacity: 0; z-index: 2;
-	}
 	.ks:global(.out) { animation: none; }
 	.ks:global(.out) .ks-readout { animation: ksImplode .34s cubic-bezier(.5,-0.4,.7,.3) forwards; }
-	.ks:global(.out) :global(.ks-fire),
 	.ks:global(.out) .ks-embers { animation: ksFireOut .18s ease forwards; opacity: 0; }
 	.ks:global(.out) .ks-shard { animation: ksShard .62s cubic-bezier(.25,.6,.4,1) forwards; animation-delay: var(--d); }
-	.ks:global(.out) .ks-puff { animation: ksPuff .6s ease-out .08s forwards; }
 
 	/* ── Keyframes ─────────────────────────────────────────────────────────── */
 	@keyframes ksIn {
@@ -504,20 +406,6 @@
 		35%  { opacity: .85; transform: scale(1.05) rotate(6deg); }
 		100% { opacity: 0; transform: scale(1.6) rotate(40deg); }
 	}
-	@keyframes ksFlame {
-		0%   { transform: translateX(-2px) scaleY(.62) scaleX(1.12) rotate(-5deg); opacity: .68; }
-		50%  { transform: translateX(0) scaleY(1.32) scaleX(.82) rotate(2deg); opacity: 1; }
-		100% { transform: translateX(2px) scaleY(.9) scaleX(1.02) rotate(6deg); opacity: .8; }
-	}
-	@keyframes ksFlameFront {
-		0%   { transform: translateX(-3px) scaleY(.7) scaleX(1.1) rotate(-7deg); opacity: .55; }
-		50%  { transform: translateX(2px) scaleY(1.28) scaleX(.84) rotate(3deg); opacity: .85; }
-		100% { transform: translateX(4px) scaleY(.92) scaleX(1) rotate(9deg); opacity: .6; }
-	}
-	@keyframes ksFirebed {
-		0%   { opacity: .65; transform: scaleX(.94); }
-		100% { opacity: 1; transform: scaleX(1.06); }
-	}
 	@keyframes ksHeat {
 		from { filter: brightness(1.02) saturate(1.06) drop-shadow(0 0 6px rgba(255,110,0,.75)); }
 		to   { filter: brightness(1.28) saturate(1.22) drop-shadow(0 0 14px rgba(255,150,25,.95)); }
@@ -546,11 +434,6 @@
 		12%  { opacity: 1; }
 		100% { opacity: 0; transform: translate(var(--tx), calc(var(--ty) + 34px)) rotate(var(--r)) scale(.5); }
 	}
-	@keyframes ksPuff {
-		0%   { opacity: 0; transform: scale(.4); }
-		30%  { opacity: .8; transform: scale(1); }
-		100% { opacity: 0; transform: scale(1.7); }
-	}
 	@keyframes ksFireOut { to { opacity: 0; } }
 
 	/* ── Reduced motion / low effects: static, readable, no particles ──────── */
@@ -559,10 +442,8 @@
 	.ks.reduced .ks-flash,
 	.ks.reduced .ks-shock,
 	.ks.reduced .ks-rays,
-	.ks.reduced :global(.ks-fire),
 	.ks.reduced .ks-embers,
-	.ks.reduced .ks-debris,
-	.ks.reduced .ks-puff { display: none; }
+	.ks.reduced .ks-debris { display: none; }
 
 	@media (max-width: 899px) {
 		.ks { top: 2.5rem; right: .6rem; }
