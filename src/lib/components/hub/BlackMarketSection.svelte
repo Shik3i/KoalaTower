@@ -119,9 +119,9 @@
 			<div class="cc" class:lck={!owned && (!reqOk || !aff)}
 				use:tooltip={
 					owned
-						? `${item.name}\nProcured.${item.status === 'scaffold' ? '\nFull effect arrives in a later update.' : ''}`
+						? `${item.name}\nProcured.${item.status === 'scaffold' ? '\nFull effect remains reserved for a later update.' : ''}`
 						: item.status === 'scaffold'
-							? `${item.name}\nComing later — purchasable now, full effect arrives in a future update.\nCost: ◈ ${item.cost} Strange Matter`
+							? `${item.name}\nComing later — procurement is not available yet.\nPlanned cost: ◈ ${item.cost} Strange Matter`
 							: item.requirement && !reqOk
 								? `${item.name}\nLocked — first procure ${BLACK_MARKET_UNLOCKS.find(u => u.id === item.requirement)?.name ?? ''}.\nCost: ◈ ${item.cost} Strange Matter`
 								: `${item.name}\nCost: ◈ ${item.cost} Strange Matter${aff ? '' : ' — not enough recovered yet'}`
@@ -137,7 +137,7 @@
 				<div class="uc-b" style="margin-top:.35rem">
 					<span class="ucc">◈ {item.cost}</span>
 					{#if owned}
-						<span class="ucnx">OWNED{item.status === 'scaffold' ? ' · UI/logic pending' : ''}</span>
+						<span class="ucnx">OWNED{item.status === 'scaffold' ? ' · effect pending' : ''}</span>
 					{:else if item.status === 'scaffold'}
 						<span class="ucnx">COMING LATER</span>
 					{:else if item.requirement && !reqOk}
