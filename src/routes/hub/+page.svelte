@@ -84,11 +84,18 @@
 	import BlackMarketSection from '$lib/components/hub/BlackMarketSection.svelte';
 	import ProfileSection from '$lib/components/hub/ProfileSection.svelte';
 
+	type HubSectionId = 'workshop' | 'orders' | 'lab' | 'blueprints' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings' | 'profile';
+	const HUB_SECTION_IDS: HubSectionId[] = ['workshop', 'orders', 'lab', 'blueprints', 'blackMarket', 'tiers', 'challenges', 'simulation', 'stats', 'settings', 'profile'];
+
+	function isHubSectionId(value: string): value is HubSectionId {
+		return HUB_SECTION_IDS.includes(value as HubSectionId);
+	}
+
 	let coins = $state(0);
 	let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
 	let highestWave = $state(0);
 	let totalRuns = $state(0);
-	let activeSection = $state<'workshop' | 'orders' | 'lab' | 'blueprints' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings' | 'profile'>('workshop');
+	let activeSection = $state<HubSectionId>('workshop');
 	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
 	let workshopLevels = $state<Partial<Record<WorkshopUpgradeId, number>>>({});
 	let forgeLevels = $state<Partial<Record<UpgradeId, number>>>({});
@@ -437,11 +444,8 @@
 	// Deep-link section selection (C8)
 	$effect(() => {
 		const sectionParam = page.url.searchParams.get('section');
-		if (sectionParam) {
-			const validSections = ['workshop', 'orders', 'lab', 'blueprints', 'blackMarket', 'tiers', 'challenges', 'simulation', 'stats', 'settings', 'profile'];
-			if (validSections.includes(sectionParam) && activeSection !== sectionParam) {
-				activeSection = sectionParam as any;
-			}
+		if (sectionParam && isHubSectionId(sectionParam) && activeSection !== sectionParam) {
+			activeSection = sectionParam;
 		}
 	});
 
