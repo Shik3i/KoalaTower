@@ -786,7 +786,7 @@
 		let bought = 0;
 		const target = buyMultiplier === 'max' ? maxLv : Math.min(initialLv + buyMultiplier, maxLv);
 
-		for (let i = 0; i < (buyMultiplier === 'max' ? 999999 : buyMultiplier); i++) {
+		for (let i = initialLv; i < target; i++) {
 			if (engine.buyBattleUpgrade(id)) bought++;
 			else break;
 		}

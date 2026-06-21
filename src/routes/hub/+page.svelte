@@ -742,7 +742,8 @@
 		if (initialLv >= maxLv) { toast(getOpLogMessage('workshopMaxLevel'), 'warning'); return; }
 
 		let bought = 0;
-		for (let i = 0; i < (buyMultiplier === 'max' ? 999999 : buyMultiplier); i++) {
+		const target = buyMultiplier === 'max' ? maxLv : Math.min(initialLv + buyMultiplier, maxLv);
+		for (let i = initialLv; i < target; i++) {
 			const lv = save.workshopUpgrades[id] ?? 0;
 			if (lv >= maxLv) break;
 			const cost = getWorkshopUpgradeCost(id, lv);
@@ -775,7 +776,8 @@
 		if (initialLv >= maxLv) { toast(getOpLogMessage('workshopMaxLevel'), 'warning'); return; }
 
 		let bought = 0;
-		for (let i = 0; i < (buyMultiplier === 'max' ? 999999 : buyMultiplier); i++) {
+		const target = buyMultiplier === 'max' ? maxLv : Math.min(initialLv + buyMultiplier, maxLv);
+		for (let i = initialLv; i < target; i++) {
 			const lv = save.forgeUpgrades[id] ?? 0;
 			if (lv >= maxLv) break;
 			const cost = getForgeUpgradeCost(id, lv);
