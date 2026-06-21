@@ -46,6 +46,8 @@ const DAMAGE_ASCENT: Record<DamageNumberKind, number> = {
 	error: 22,
 };
 
+const MILESTONE_WAVES = new Set([10, 25, 50, 100, 250, 500, 1000, 2500, 4500]);
+
 export class GameEngine {
 	public state: GameState;
 	public particles: Particle[] = [];
@@ -324,8 +326,7 @@ export class GameEngine {
 	private checkMilestones(): void {
 		const wave = this.state.wave.currentWave;
 		if (this.firedMilestones.has(wave)) return;
-		const milestoneWaves = [10, 25, 50, 100, 250, 500, 1000, 2500, 4500];
-		if (milestoneWaves.includes(wave)) {
+		if (MILESTONE_WAVES.has(wave)) {
 			this.firedMilestones.add(wave);
 			if (this.onMilestone) {
 				this.onMilestone(`Wave ${wave} reached!`);
@@ -374,7 +375,7 @@ export class GameEngine {
 			towerRegen: t.stats.regen,
 			towerLifesteal: t.stats.lifesteal,
 			towerThorns: t.stats.thorns,
-			upgradeLevels: { ...this.state.battleUpgrades as Record<string, number> },
+			upgradeLevels: this.state.battleUpgrades as unknown as Record<string, number>,
 			enemiesInWave: w.enemiesInWave,
 			enemiesSpawned: w.enemiesSpawned,
 			enemiesKilledThisWave: w.enemiesKilled,
@@ -454,7 +455,11 @@ export class GameEngine {
 			const t = Math.min(1, 1 - s.life / s.maxLife);
 			// Ease-out expansion
 			s.radius = s.maxRadius * (1 - (1 - t) * (1 - t));
-			if (s.life <= 0) this.shockwaves.splice(i, 1);
+			if (s.life <= 0) {
+				const li = this.shockwaves.length - 1;
+				if (i !== li) this.shockwaves[i] = this.shockwaves[li]!;
+				this.shockwaves.pop();
+			}
 		}
 	}
 
@@ -556,7 +561,11 @@ export class GameEngine {
 			const d = this.deathEffects[i]!;
 			d.age += dt;
 			d.rotation += d.spin * dt;
-			if (d.age >= d.life) this.deathEffects.splice(i, 1);
+			if (d.age >= d.life) {
+				const li = this.deathEffects.length - 1;
+				if (i !== li) this.deathEffects[i] = this.deathEffects[li]!;
+				this.deathEffects.pop();
+			}
 		}
 	}
 
@@ -568,7 +577,9 @@ export class GameEngine {
 			p.life -= dt;
 			p.alpha = Math.max(0, p.life / p.maxLife);
 			if (p.life <= 0) {
-				this.particles.splice(i, 1);
+				const li = this.particles.length - 1;
+				if (i !== li) this.particles[i] = this.particles[li]!;
+				this.particles.pop();
 			}
 		}
 	}
@@ -582,7 +593,9 @@ export class GameEngine {
 			n.life -= dt;
 			n.alpha = Math.max(0, n.life / n.maxLife);
 			if (n.life <= 0) {
-				this.damageNumbers.splice(i, 1);
+				const li = this.damageNumbers.length - 1;
+				if (i !== li) this.damageNumbers[i] = this.damageNumbers[li]!;
+				this.damageNumbers.pop();
 			}
 		}
 	}

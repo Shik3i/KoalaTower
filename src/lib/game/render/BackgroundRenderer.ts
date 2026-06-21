@@ -19,13 +19,16 @@ export class BackgroundRenderer {
 		this.container.addChild(this.bgGfx);
 		this.container.addChild(this.gridGfx);
 
-		// Stars with additive blend for glow
+		// Stars with additive blend for glow — single parent Container
+		// avoids ~80 individual batch breaks vs per-Graphics blendMode.
+		const starLayer = new Container();
+		starLayer.blendMode = 'add';
 		for (const star of stars) {
 			const sg = new Graphics();
-			sg.blendMode = 'add';
-			this.container.addChild(sg);
+			starLayer.addChild(sg);
 			this.starGfxs.push(sg);
 		}
+		this.container.addChild(starLayer);
 
 		this.drawStatic();
 	}

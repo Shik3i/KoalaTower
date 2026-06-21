@@ -155,9 +155,12 @@ export class Quadtree {
 	}
 }
 
+/** Persistent Map reused across frames to avoid per-frame allocation. */
+const _byId = new Map<number, Enemy>();
+
 export function buildEnemyFrameIndex(enemies: Enemy[], capacity = 8): EnemyFrameIndex {
 	qtPool.reset();
-	const byId = new Map<number, Enemy>();
+	_byId.clear();
 
 	let minX = 0;
 	let maxX = 800;
@@ -167,7 +170,7 @@ export function buildEnemyFrameIndex(enemies: Enemy[], capacity = 8): EnemyFrame
 	for (let i = 0; i < enemies.length; i++) {
 		const enemy = enemies[i]!;
 		if (!enemy.alive) continue;
-		byId.set(enemy.id, enemy);
+		_byId.set(enemy.id, enemy);
 
 		if (enemy.position.x < minX) minX = enemy.position.x;
 		if (enemy.position.x > maxX) maxX = enemy.position.x;
@@ -190,5 +193,5 @@ export function buildEnemyFrameIndex(enemies: Enemy[], capacity = 8): EnemyFrame
 		}
 	}
 
-	return { byId, grid };
+	return { byId: _byId, grid };
 }

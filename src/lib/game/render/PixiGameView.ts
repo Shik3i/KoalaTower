@@ -186,7 +186,7 @@ export class PixiGameView {
 			bloomScale: 1.1,
 			brightness: 1.0,
 			blur: 6,
-			quality: 4,
+			quality: 3,
 		});
 		this.applyBloom(this.bloomWanted());
 	}
@@ -332,7 +332,7 @@ export class PixiGameView {
 			this.app.screen.width,
 			this.app.screen.height,
 			state.wave.killsByTypeThisWave ?? {},
-			previewNextWaveTypes(state, nextIsBoss),
+			state.wave.waveActive ? [] : previewNextWaveTypes(state, nextIsBoss),
 			nextIsBoss,
 		);
 

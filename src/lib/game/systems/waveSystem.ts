@@ -188,5 +188,14 @@ function getSpawnPosition(state: GameState): { x: number; y: number } {
 }
 
 export function removeDeadEnemies(state: GameState): void {
-	state.enemies = state.enemies.filter(e => e.alive);
+	// In-place compact: swap dead enemies with the last alive element and pop.
+	// Avoids allocating a new array via filter() every frame.
+	let i = state.enemies.length;
+	while (i-- > 0) {
+		if (!state.enemies[i]!.alive) {
+			const li = state.enemies.length - 1;
+			if (i !== li) state.enemies[i] = state.enemies[li]!;
+			state.enemies.pop();
+		}
+	}
 }

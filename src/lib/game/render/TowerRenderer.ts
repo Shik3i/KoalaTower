@@ -14,6 +14,7 @@ export class TowerRenderer {
 	private orbitalsGfx = new Graphics();
 	public rangeGfx = new Graphics();
 	public rangeContainer = new Container();
+	private readonly _skin: typeof TOWER_SKINS[number];
 
 	private _muzzleFlash = 0;
 
@@ -21,6 +22,7 @@ export class TowerRenderer {
 		this.x = x;
 		this.y = y;
 		this.skinId = skinId;
+		this._skin = TOWER_SKINS.find(sk => sk.id === skinId) ?? TOWER_SKINS[0]!;
 
 		this.container = new Container();
 		this.container.x = x;
@@ -58,7 +60,7 @@ export class TowerRenderer {
 		const s = GAME_CONFIG.TOWER_SIZE;
 		const cx = 0, cy = 0;
 
-		const skin = TOWER_SKINS.find(sk => sk.id === this.skinId) ?? TOWER_SKINS[0]!;
+		const skin = this._skin;
 		const c = skin.colors;
 
 		// Octagon body (solid core)
@@ -95,7 +97,7 @@ export class TowerRenderer {
 		const dangerPulse = Math.sin(time * 4.5) * 0.3 + 0.7;
 		const pulse = Math.sin(time * 0.75) * 0.25 + 0.75;
 
-		const skin = TOWER_SKINS.find(sk => sk.id === this.skinId) ?? TOWER_SKINS[0]!;
+		const skin = this._skin;
 		const c = skin.colors;
 
 		// HP-based tint
@@ -143,7 +145,7 @@ export class TowerRenderer {
 		g.clear();
 		const cx = this.x, cy = this.y;
 
-		const skin = TOWER_SKINS.find(sk => sk.id === this.skinId) ?? TOWER_SKINS[0]!;
+		const skin = this._skin;
 		const rColor = skin.colors.coreStroke;
 
 		// Subtle range fill
