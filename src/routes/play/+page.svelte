@@ -11,6 +11,7 @@
 	import { UpgradeId, type GameSnapshot, type GameSettings, AchievementId, DEFAULT_SETTINGS, ChallengeId, EnemyType } from '$lib/game/engine/gameTypes';
 	import { getKillstreakTier } from '$lib/game/systems/enemySystem';
 	import { countUp } from '$lib/utils/countUp';
+	import { writeClipboardText } from '$lib/utils/clipboard';
 	import { tooltip } from '$lib/components/tooltip';
 	import { checkMasteryAchievements } from '$lib/game/balance/mastery';
 	import { buildBattleUpgradeList } from '$lib/game/balance/battleUpgrades';
@@ -804,8 +805,8 @@
 
 	async function handleExportSave() {
 		const s = await exportSave();
-		navigator.clipboard?.writeText(s);
-		toast(getOpLogMessage('saveExported'), 'success');
+		const copied = await writeClipboardText(s);
+		toast(copied ? getOpLogMessage('saveExported') : 'Save exported, but clipboard access was blocked.', copied ? 'success' : 'warning');
 	}
 
 	function handleResetSave() {

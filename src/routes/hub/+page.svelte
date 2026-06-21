@@ -54,6 +54,7 @@
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
 	import { tooltip } from '$lib/components/tooltip';
+	import { writeClipboardText } from '$lib/utils/clipboard';
 	import { notifications } from '$lib/stores/notificationStore';
 	import NotificationCenter from '$lib/components/NotificationCenter.svelte';
 	import {
@@ -663,12 +664,10 @@
 
 	async function copySupportCode() {
 		if (!supportCode) return;
-		try {
-			await navigator.clipboard?.writeText(supportCode.code);
+		const copied = await writeClipboardText(supportCode.code);
+		if (copied) {
 			supportCodeCopied = true;
 			setTimeout(() => { supportCodeCopied = false; }, 1500);
-		} catch {
-			// Clipboard blocked — the code stays visible to select/copy manually.
 		}
 	}
 
@@ -1185,7 +1184,11 @@
 					bind:importTriggerEl
 					bind:resetTriggerEl
 					onToggleSetting={toggleSetting}
-					onExportSave={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}
+					onExportSave={async () => {
+						const s = await exportSave();
+						const copied = await writeClipboardText(s);
+						toast(copied ? getOpLogMessage('saveExported') : 'Save exported, but clipboard access was blocked.', copied ? 'success' : 'warning');
+					}}
 					onOpenImportDialog={openImportDialog}
 					onOpenResetDialog={openResetDialog}
 				/>
@@ -1336,7 +1339,11 @@
 				<p class="dlg-d">This will replace your current local save with the cloud save. Export your local save first if you want a backup.</p>
 				<div class="dlg-a" style="flex-wrap:wrap">
 					<button class="dlg-s" onclick={() => showRestoreConfirm = false}>Cancel</button>
-					<button class="hub-action" onclick={async () => { const s = await exportSave(); navigator.clipboard?.writeText(s); toast(getOpLogMessage('saveExported'), 'success'); }}>Export Local Save First</button>
+					<button class="hub-action" onclick={async () => {
+						const s = await exportSave();
+						const copied = await writeClipboardText(s);
+						toast(copied ? getOpLogMessage('saveExported') : 'Save exported, but clipboard access was blocked.', copied ? 'success' : 'warning');
+					}}>Export Local Save First</button>
 					<button class="dlg-dng-btn" onclick={() => void doRestoreCloud()}>Restore Cloud Save</button>
 				</div>
 			</div>
