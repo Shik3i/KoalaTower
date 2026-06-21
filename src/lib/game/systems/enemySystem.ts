@@ -100,7 +100,7 @@ export function processEnemyDeath(state: GameState, target: Enemy, isCrit = fals
 	// Lives in a separate buffer; never affects targeting or wave completion.
 	_addDeathEffect?.(target);
 
-	// ── Cosmetic killstreak: increment + refresh timer. No economy/combat effect.
+	// ── Cosmetic killstreak: increment the chain. No economy/combat effect.
 	bumpKillstreak(state);
 
 	// ── Death effects by enemy type ──
@@ -159,14 +159,13 @@ export function processEnemyDeath(state: GameState, target: Enemy, isCrit = fals
 }
 
 /**
- * Increment the cosmetic killstreak, refresh its timeout window, and fire the
- * milestone callback whenever a new tier is crossed. Purely visual — grants
- * no resources, no damage, no hidden multipliers.
+ * Increment the cosmetic killstreak and fire the milestone callback whenever a
+ * new tier is crossed. Purely visual — grants no resources, no damage, no hidden
+ * multipliers. The chain never decays on its own; only a tower hit clears it.
  */
 function bumpKillstreak(state: GameState): void {
 	if (!state.killstreak) return;
 	state.killstreak.count = Math.min(state.killstreak.count + 1, GAME_CONFIG.KILLSTREAK_MAX);
-	state.killstreak.timer = GAME_CONFIG.KILLSTREAK_WINDOW;
 	if (state.killstreak.count > state.killstreak.best) {
 		state.killstreak.best = state.killstreak.count;
 	}

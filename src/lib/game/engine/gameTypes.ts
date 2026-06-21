@@ -418,10 +418,9 @@ export interface DeathEffect {
 
 /** Cosmetic-only consecutive-kill counter (no economy / combat effect). */
 export interface KillstreakState {
-	/** Current consecutive kills (resets on tower damage / timeout / new run). */
+	/** Current consecutive kills. Only ever resets on tower damage / new run —
+	 *  there is no idle timeout, so wave transitions and spawn lulls never break it. */
 	count: number;
-	/** Seconds remaining before the chain resets if no kill occurs. */
-	timer: number;
 	/** Highest count reached this deployment — purely a vanity metric. */
 	best: number;
 	/** Last tick when a milestone pulse fired (avoids retriggering per frame). */

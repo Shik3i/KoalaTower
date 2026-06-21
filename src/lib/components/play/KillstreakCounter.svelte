@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cubicOut, cubicIn } from 'svelte/easing';
+	import { cubicIn, backOut } from 'svelte/easing';
 
 	let {
 		count,
@@ -12,9 +12,17 @@
 	} = $props();
 
 	const burning = $derived(tier >= 6);
-	const flameCount = $derived(tier >= 8 ? 11 : tier >= 7 ? 9 : 7);
-	const frontFlames = $derived(tier >= 8 ? 6 : 5);
+	const flameCount = $derived(tier >= 8 ? 8 : tier >= 7 ? 7 : 6);
+	const frontFlames = $derived(tier >= 8 ? 6 : tier >= 7 ? 5 : 4);
 	const formatted = $derived(count.toLocaleString('en-US'));
+	// Split the readout into per-character slots so each digit is its own
+	// odometer column. Only the columns whose digit actually changed re-key and
+	// roll — bumping the ones place rolls a single digit, not the whole number.
+	// Separators (commas) are inert: they never animate. Fixed-width tabular
+	// slots keep the layout from jittering left/right as digits flip.
+	const slots = $derived(
+		formatted.split('').map((ch) => ({ ch, sep: ch < '0' || ch > '9' })),
+	);
 
 	// Shatter debris: fixed radial vectors (px) + spin + stagger. Hard-coded so
 	// the burst reads the same every time — no per-frame randomness, no GC churn.
@@ -33,42 +41,75 @@
 		{ tx: 0,   ty: 64,  r: -160, d: 16, s: .7 },
 	];
 
+	// Per-kill spark flick: a fixed fan of sparks that fire off the changing
+	// (ones) digit each time the count ticks. Hard-coded vectors → identical
+	// burst every time, no per-frame randomness, no GC churn.
+	const sparks = [
+		{ x: 8,   y: -14, d: 0  },
+		{ x: 16,  y: -4,  d: 14 },
+		{ x: 14,  y: 8,   d: 6  },
+		{ x: 2,   y: 16,  d: 20 },
+		{ x: -10, y: 12,  d: 10 },
+		{ x: 18,  y: 2,   d: 24 },
+	];
+
+	// Punchy comic shout per tier crossed. Index mirrors getKillstreakTier()
+	// (tier 6 = 1000+ = the fire tier). Cosmetic flavour only.
+	const TIER_WORDS = [
+		'STREAK!', 'RAMPAGE!', 'DOMINATING!', 'UNSTOPPABLE!', 'GODLIKE!',
+		'LEGENDARY!', 'INFERNO!', 'ANNIHILATION!', 'TRANSCENDENT!',
+	];
+
 	let rollEl: HTMLElement | undefined = $state();
-	let prevTier = tier;
+	// Baseline for tier-cross detection. Left undefined so the first effect run
+	// only records the starting tier (no spurious pop on mount); set every run after.
+	let prevTier: number | undefined;
+	// Tier-up word pop. `popKey` bumps on every cross so the keyed element
+	// remounts and replays its one-shot animation even on the same word.
+	let popWord = $state('');
+	let popKey = $state(0);
 
 	// Big level-up punch when a tier is crossed (the per-kill feedback is the
 	// odometer roll itself). One-shot CSS animation, cleaned up on end so it
-	// never blocks the burning-shake / heat loops underneath.
+	// never blocks the burning-shake / heat loops underneath. Also fires the
+	// tier-up word pop ("INFERNO!" etc.).
 	$effect(() => {
 		const t = tier;
 		const el = rollEl;
-		if (!reduced && el && t > prevTier) {
+		if (prevTier !== undefined && !reduced && el && t > prevTier) {
 			el.classList.remove('levelup');
 			void el.offsetWidth;
 			el.classList.add('levelup');
 			el.addEventListener('animationend', () => el.classList.remove('levelup'), { once: true });
+			if (t >= 0 && t < TIER_WORDS.length) {
+				popWord = TIER_WORDS[t]!;
+				popKey++;
+			}
 		}
 		prevTier = t;
 	});
 
-	// Odometer roll: the old number rotates down and out, the new one rolls in
-	// from the top. Implemented as paired in/out transitions on a keyed span.
+	// Odometer roll for an INCREASING counter: the new digit rises up from below
+	// into place and the old one lifts up and out the top — the chain climbs, so
+	// the digits climb with it. backOut gives the incoming digit a tiny
+	// settle-bounce as it locks in, like a mechanical counter seating.
 	function rollIn(_node: HTMLElement) {
 		return {
-			duration: 300, easing: cubicOut,
-			css: (t: number, u: number) =>
-				`transform: translateY(${-u * 78}%) rotateX(${u * 85}deg); opacity: ${t};`,
+			duration: 280, easing: backOut,
+			css: (t: number) =>
+				`transform: translateY(${(1 - t) * 95}%) rotateX(${(1 - t) * 60}deg); opacity: ${Math.min(1, t)};`,
 		};
 	}
 	function rollOut(node: HTMLElement) {
-		// Pull the outgoing copy out of flow so the incoming one defines width.
+		// Pull the outgoing copy out of flow so the incoming one defines the slot.
 		node.style.position = 'absolute';
 		node.style.left = '0';
+		node.style.right = '0';
 		node.style.top = '0';
 		return {
-			duration: 300, easing: cubicIn,
+			duration: 240, easing: cubicIn,
 			css: (t: number, u: number) =>
-				`transform: translateY(${u * 78}%) rotateX(${-u * 85}deg); opacity: ${t};`,
+				`transform: translateY(${-u * 95}%) rotateX(${-u * 60}deg); opacity: ${t};`,
 		};
 	}
 
@@ -119,14 +160,41 @@
 		<span class="ks-x">×</span>
 		<span class="ks-roll" bind:this={rollEl}>
 			{#if reduced}
-				<span class="ks-num">{formatted}</span>
+				<span class="ks-num"><span class="ks-glyph">{formatted}</span></span>
 			{:else}
-				{#key count}
-					<span class="ks-num" in:rollIn out:rollOut>{formatted}</span>
-				{/key}
+				<span class="ks-num">
+					{#each slots as slot, i (i)}
+						{#if slot.sep}
+							<span class="ks-glyph ks-sep">{slot.ch}</span>
+						{:else}
+							<span class="ks-digit">
+								{#key slot.ch}
+									<span class="ks-glyph ks-d" in:rollIn out:rollOut>{slot.ch}</span>
+								{/key}
+							</span>
+						{/if}
+					{/each}
+				</span>
+				<!-- Per-kill spark flick off the ones digit (the column that ticks
+				     every kill). Remounts on each count change to replay. -->
+				{#if !reduced}
+					{#key count}
+						<span class="ks-sparks" aria-hidden="true">
+							{#each sparks as s}
+								<span class="ks-spark" style="--sx:{s.x}px; --sy:{s.y}px; --sd:{s.d}ms"></span>
+							{/each}
+						</span>
+					{/key}
+				{/if}
 			{/if}
 		</span>
 	</span>
+
+	{#if !reduced && popWord}
+		{#key popKey}
+			<span class="ks-word" data-tier={tier} aria-hidden="true">{popWord}</span>
+		{/key}
+	{/if}
 
 	{#if burning && !reduced}
 		<!-- Foreground flames licking up over the number itself — the digits
@@ -161,7 +229,11 @@
 		font-family: var(--font-display); font-weight: 900;
 		line-height: .8;
 		transform: rotate(-3deg);
+		transform-origin: 70% 60%;
 		will-change: transform;
+		/* Subtle idle-breath so the number feels alive between kills (not a dead
+		   static glyph). Suspended while burning — the heat-shake takes over. */
+		animation: ksBreath 3.4s ease-in-out infinite;
 	}
 	/* Odometer stage: gives the in/out roll a 3D hinge and holds the layout
 	   while the outgoing copy is yanked out of flow during its roll-out. */
@@ -177,11 +249,28 @@
 		transform: translateY(-.18em);
 		opacity: .95;
 	}
+	/* Odometer container: a row of fixed-width digit slots. Tabular figures +
+	   per-slot width (--ks-dw, one '0' advance) mean the readout never shifts
+	   left/right as digits flip — only the changing column rolls. */
 	.ks-num {
-		display: inline-block;
+		display: inline-flex; align-items: baseline;
 		font-size: 3.3rem;
-		letter-spacing: .01em;
+		font-variant-numeric: tabular-nums;
+		--ks-dw: .92ch;
+	}
+	/* One odometer column. Holds the layout while the outgoing digit is yanked
+	   out of flow during its roll, and gives the roll its 3D hinge. */
+	.ks-digit {
+		position: relative; display: inline-block;
+		width: var(--ks-dw); text-align: center;
+		perspective: 360px;
+	}
+	.ks-sep { width: calc(var(--ks-dw) * .42); text-align: center; }
+	/* The comic glyph: chunky cell-shaded face + hard extruded 2.5D side. */
+	.ks-glyph {
+		display: inline-block;
 		color: transparent;
+		font-variant-numeric: tabular-nums;
 		/* Two BRIGHT cell-shade bands on the front face (specular cap → light).
 		   All the dark tones live on the extruded side only, so the face stays
 		   as readable as the solid-coloured "×". A thinner 2.5px outline keeps
@@ -205,7 +294,7 @@
 	}
 
 	/* Per-tier level-up punch (one-shot, re-triggered + cleaned up in JS). */
-	.ks-roll.levelup { animation: ksLevel .5s cubic-bezier(.3,1.7,.5,1); }
+	.ks-roll:global(.levelup) { animation: ksLevel .5s cubic-bezier(.3,1.7,.5,1); }
 
 	/* ── Tier palette ─────────────────────────────────────────────────────────
 	   --ks-hi specular cap  --ks-lit light band  --ks-tone main  --ks-edge side
@@ -250,44 +339,55 @@
 	   orange → red gradient; the container is blurred so the tongues melt into
 	   one continuous body of fire. An ember bed glows at the base. */
 	.ks-fire {
-		position: absolute; left: -10%; right: -10%; top: -40px; bottom: -10px;
+		position: absolute; left: -8%; right: -8%; top: -34px; bottom: -8px;
 		z-index: -1; pointer-events: none;
-		filter: blur(2px) contrast(1.18) brightness(1.1);
+		/* Light blur only — keeps each tongue a distinct lick instead of melting
+		   them into one orange blob. A soft drop-shadow gives the whole body a
+		   warm halo without the muddy screen-stack. */
+		filter: blur(1px) brightness(1.06)
+			drop-shadow(0 0 10px rgba(255,120,20,.45));
 	}
 	.ks-firebed {
-		position: absolute; left: 4%; right: 4%; bottom: 4px; height: 16px;
-		background: radial-gradient(ellipse 60% 100% at 50% 100%,
-			rgba(255,190,50,.9) 0%, rgba(255,110,0,.6) 45%, transparent 75%);
+		position: absolute; left: 8%; right: 8%; bottom: 6px; height: 14px;
+		background: radial-gradient(ellipse 55% 100% at 50% 100%,
+			rgba(255,200,80,.75) 0%, rgba(255,120,0,.4) 50%, transparent 78%);
 		mix-blend-mode: screen;
 		animation: ksFirebed .6s ease-in-out infinite alternate;
 	}
 	.ks-flame {
 		position: absolute; bottom: 2px;
-		left: calc(var(--fi) * (100% / (var(--fn) - 1)));
-		width: 30px; height: 78px; margin-left: -15px;
+		left: calc(6% + var(--fi) * (88% / (var(--fn) - 1)));
+		width: 22px; height: 76px; margin-left: -11px;
+		/* Wispy tongue: transparent root → hot orange body → bright gold →
+		   white-hot tip that fades to nothing, so it reads as a real flame
+		   licking up rather than a solid bar. */
 		background: linear-gradient(to top,
-			rgba(190,25,0,0) 0%, #C81E00 6%, #FF4D00 22%, #FF8E14 42%,
-			#FFC23C 62%, #FFEAA0 82%, #FFFEF4 94%, transparent 100%);
-		border-radius: 46% 46% 48% 48% / 84% 84% 16% 16%;
-		transform-origin: 50% 100%; mix-blend-mode: screen; opacity: .9;
+			rgba(220,40,0,0) 0%, rgba(255,70,0,.45) 12%, rgba(255,120,10,.78) 34%,
+			rgba(255,180,50,.92) 58%, rgba(255,235,170,.96) 80%,
+			rgba(255,255,255,.6) 92%, transparent 100%);
+		/* Tall, pointed tip + rounded base. */
+		border-radius: 50% 50% 44% 44% / 94% 94% 6% 6%;
+		transform-origin: 50% 100%; mix-blend-mode: screen; opacity: .88;
 		animation: ksFlame .4s ease-in-out infinite alternate;
 		animation-delay: calc(var(--fi) * -.067s);
 	}
-	/* Foreground tongues over the number: translucent at the root, white-hot at
-	   the tip, screen-blended so they brighten the digits like real fire. */
+	/* Foreground tongues that ENGULF the digits: translucent over the digit
+	   bodies (so the glyphs read through, tinted by fire) and white-hot at the
+	   tips that lick up past the top edge — the number stands inside the flames
+	   rather than sitting in front of a backdrop. */
 	.ks-fire-front {
-		position: absolute; left: 2%; right: 2%; top: -24px; bottom: 2px;
+		position: absolute; left: 4%; right: 4%; top: -26px; bottom: 2px;
 		z-index: 2; pointer-events: none;
-		filter: blur(2.4px) brightness(1.05);
+		filter: blur(1.1px) brightness(1.05);
 	}
 	.ks-flame-front {
 		position: absolute; bottom: 0;
 		left: calc(8% + var(--fi) * (84% / (var(--fn) - 1)));
-		width: 34px; height: 66px; margin-left: -17px;
+		width: 22px; height: 80px; margin-left: -11px;
 		background: linear-gradient(to top,
-			rgba(255,90,0,0) 4%, rgba(255,130,20,.55) 32%, rgba(255,200,80,.8) 60%,
-			rgba(255,248,220,.92) 84%, transparent 100%);
-		border-radius: 48% 48% 50% 50% / 82% 82% 18% 18%;
+			rgba(255,80,0,0) 0%, rgba(255,110,10,.26) 24%, rgba(255,160,40,.5) 50%,
+			rgba(255,215,120,.78) 74%, rgba(255,250,230,.94) 90%, transparent 100%);
+		border-radius: 50% 50% 46% 46% / 94% 94% 6% 6%;
 		transform-origin: 50% 100%; mix-blend-mode: screen; opacity: .72;
 		animation: ksFlameFront .52s ease-in-out infinite alternate;
 		animation-delay: calc(var(--fi) * -.0934s);
@@ -309,6 +409,48 @@
 	.ks[data-tier="8"].burning .ks-readout { animation: ksBurnShake .85s ease-in-out infinite; }
 	/* The digits flicker hot while burning — a cheap brightness/hue pulse. */
 	.ks.burning .ks-num { animation: ksHeat .22s steps(2, end) infinite alternate; }
+	/* …and the glyphs themselves become molten: the cell-shade fill is replaced
+	   by a live fire gradient (dark ember base → orange → gold → white-hot tip)
+	   that shimmers, so the NUMBER itself is on fire, not sitting before a
+	   backdrop of flames. The black stroke + extruded side stay for comic depth. */
+	.ks.burning .ks-glyph {
+		background: linear-gradient(to top,
+			#6e1300 0%, #B81B00 12%, #FF4400 30%, #FF8410 50%,
+			#FFBE38 68%, #FFE49A 84%, #FFFFFF 98%);
+		background-size: 100% 220%;
+		-webkit-background-clip: text; background-clip: text;
+		animation: ksFireFill .5s ease-in-out infinite alternate;
+	}
+
+	/* ── Per-kill spark flick (fires off the ones digit each tick) ─────────── */
+	.ks-sparks {
+		position: absolute; right: -2px; top: 44%;
+		width: 0; height: 0; z-index: 4; pointer-events: none;
+	}
+	.ks-spark {
+		position: absolute; width: 3px; height: 3px; border-radius: 50%;
+		background: radial-gradient(circle, #fff 0%, var(--ks-lit) 65%, transparent 100%);
+		box-shadow: 0 0 5px var(--ks-glow);
+		opacity: 0; mix-blend-mode: screen;
+		animation: ksSpark .42s ease-out forwards;
+		animation-delay: var(--sd);
+	}
+
+	/* ── Tier-up word pop ("INFERNO!" etc.) — one-shot, sits under the number ─ */
+	.ks-word {
+		position: absolute; top: 3.05rem; right: .3rem;
+		font-family: var(--font-display); font-weight: 900;
+		font-size: 1.2rem; letter-spacing: .02em;
+		white-space: nowrap; text-align: right;
+		color: var(--ks-lit);
+		-webkit-text-stroke: 2px var(--ks-ink); paint-order: stroke fill;
+		text-shadow: 2px 2px 0 var(--ks-edge), 0 0 12px var(--ks-glow);
+		transform-origin: 100% 0; pointer-events: none; z-index: 5;
+		animation: ksWord 1.1s cubic-bezier(.2,1.5,.4,1) forwards;
+	}
+	.ks[data-tier="6"] .ks-word,
+	.ks[data-tier="7"] .ks-word,
+	.ks[data-tier="8"] .ks-word { font-size: 1.45rem; }
 
 	/* ── Shatter debris + smoke puff (outro only — inert until `.out`) ──────── */
 	.ks-debris { position: absolute; inset: 0; z-index: 3; }
@@ -326,18 +468,34 @@
 		background: radial-gradient(circle, rgba(220,225,245,.5) 0%, rgba(150,160,200,.18) 45%, transparent 70%);
 		opacity: 0; z-index: 2;
 	}
-	.ks.out { animation: none; }
-	.ks.out .ks-readout { animation: ksImplode .34s cubic-bezier(.5,-0.4,.7,.3) forwards; }
-	.ks.out .ks-fire,
-	.ks.out .ks-embers { animation: ksFireOut .18s ease forwards; opacity: 0; }
-	.ks.out .ks-shard { animation: ksShard .62s cubic-bezier(.25,.6,.4,1) forwards; animation-delay: var(--d); }
-	.ks.out .ks-puff { animation: ksPuff .6s ease-out .08s forwards; }
+	.ks:global(.out) { animation: none; }
+	.ks:global(.out) .ks-readout { animation: ksImplode .34s cubic-bezier(.5,-0.4,.7,.3) forwards; }
+	.ks:global(.out) .ks-fire,
+	.ks:global(.out) .ks-embers { animation: ksFireOut .18s ease forwards; opacity: 0; }
+	.ks:global(.out) .ks-shard { animation: ksShard .62s cubic-bezier(.25,.6,.4,1) forwards; animation-delay: var(--d); }
+	.ks:global(.out) .ks-puff { animation: ksPuff .6s ease-out .08s forwards; }
 
 	/* ── Keyframes ─────────────────────────────────────────────────────────── */
 	@keyframes ksIn {
 		0%   { opacity: 0; transform: translateY(-16px) scale(.55) rotate(-12deg); }
 		70%  { opacity: 1; transform: translateY(0) scale(1.12) rotate(2deg); }
 		100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+	}
+	@keyframes ksSpark {
+		0%   { opacity: 0; transform: translate(0,0) scale(.5); }
+		20%  { opacity: 1; }
+		100% { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(.2); }
+	}
+	@keyframes ksWord {
+		0%   { opacity: 0; transform: rotate(-3deg) scale(.4) translateY(6px); }
+		20%  { opacity: 1; transform: rotate(-3deg) scale(1.14) translateY(0); }
+		35%  { transform: rotate(-3deg) scale(1) translateY(0); }
+		80%  { opacity: 1; }
+		100% { opacity: 0; transform: rotate(-3deg) scale(1) translateY(-12px); }
+	}
+	@keyframes ksBreath {
+		0%, 100% { transform: rotate(-3deg) scale(1); }
+		50%      { transform: rotate(-3deg) scale(1.028); }
 	}
 	@keyframes ksLevel {
 		0%   { transform: scale(1.7); }
@@ -373,8 +531,13 @@
 		100% { opacity: 1; transform: scaleX(1.06); }
 	}
 	@keyframes ksHeat {
-		from { filter: brightness(1) saturate(1); }
-		to   { filter: brightness(1.22) saturate(1.18); }
+		from { filter: brightness(1.02) saturate(1.06) drop-shadow(0 0 6px rgba(255,110,0,.75)); }
+		to   { filter: brightness(1.28) saturate(1.22) drop-shadow(0 0 14px rgba(255,150,25,.95)); }
+	}
+	/* Molten shimmer: slide the fire gradient up through the glyphs. */
+	@keyframes ksFireFill {
+		from { background-position: 50% 100%; }
+		to   { background-position: 50% 64%; }
 	}
 	@keyframes ksEmber {
 		0% { opacity: 0; transform: translate(0,0) scale(.6); } 15% { opacity: 1; }

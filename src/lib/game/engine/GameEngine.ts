@@ -161,7 +161,7 @@ export class GameEngine {
 			energySpentThisRun: 0,
 			firstTowerDamageWave: 0,
 			lastTowerDamageSource: undefined,
-			killstreak: { count: 0, timer: 0, best: 0, lastMilestone: 0 },
+			killstreak: { count: 0, best: 0, lastMilestone: 0 },
 		};
 	}
 
@@ -293,7 +293,6 @@ export class GameEngine {
 		this.updateShockwaves(effectiveDt);
 		this.updateShake(effectiveDt);
 		this.updateDeathEffects(effectiveDt);
-		this.updateKillstreak(effectiveDt);
 
 		this.checkGameOver();
 		this.checkMilestones();
@@ -547,34 +546,6 @@ export class GameEngine {
 			d.age += dt;
 			d.rotation += d.spin * dt;
 			if (d.age >= d.life) this.deathEffects.splice(i, 1);
-		}
-	}
-
-	/**
-	 * Tick the cosmetic killstreak timeout. Resets the chain when no kill
-	 * occurs within the window. Purely visual — no economy / combat effect.
-	 *
-	 * The timeout is suspended whenever the player isn't actively fighting:
-	 *   • inter-wave downtime (waveActive/subWaveActive false) — chain survives
-	 *     the full between-wave gap and any sub-wave pause.
-	 *   • no live enemies on the field — chain survives natural spawn lulls
-	 *     so a slow spawn rate or a long boss spawn delay can't break the combo.
-	 * The chain ONLY decays while there are enemies to fight and you stop
-	 * killing them. Tower damage always resets it immediately (see towerSystem).
-	 */
-	private updateKillstreak(dt: number): void {
-		const ks = this.state.killstreak;
-		if (!ks || ks.count === 0 || ks.timer <= 0) return;
-		// Suspend timeout during inter-wave / sub-wave pauses.
-		if (!this.state.wave.waveActive || !this.state.wave.subWaveActive) return;
-		// Suspend timeout when there is nothing on the field to kill — the
-		// chain must not bleed out during a spawn lull or boss spawn gap.
-		if (this.state.enemies.length === 0) return;
-		ks.timer -= dt;
-		if (ks.timer <= 0) {
-			ks.count = 0;
-			ks.timer = 0;
-			ks.lastMilestone = 0;
 		}
 	}
 

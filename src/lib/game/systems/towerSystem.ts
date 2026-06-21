@@ -132,7 +132,6 @@ export function damageTower(state: GameState, rawDamage: number, isBoss: boolean
 	// Any tower hit breaks the cosmetic kill chain — feedback only, no gameplay effect.
 	if (dmg > 0 && state.killstreak?.count > 0) {
 		state.killstreak.count = 0;
-		state.killstreak.timer = 0;
 		state.killstreak.lastMilestone = 0;
 	}
 	if (hpBefore > 0 && state.tower.hp <= 0) {

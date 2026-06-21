@@ -180,7 +180,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
 		critsDealt: 0,
 		energySpentThisRun: 0,
 		firstTowerDamageWave: 0,
-		killstreak: { count: 0, timer: 0, best: 0, lastMilestone: 0 },
+		killstreak: { count: 0, best: 0, lastMilestone: 0 },
 		...overrides,
 	};
 }
@@ -381,11 +381,10 @@ describe('Tower HP overkill / negative HP safety', () => {
 		const state = makeState();
 		state.tower.hp = 200;
 		state.tower.alive = true;
-		state.killstreak = { count: 25, timer: 2, best: 50, lastMilestone: 25 };
+		state.killstreak = { count: 25, best: 50, lastMilestone: 25 };
 
 		damageTower(state, 10, false);
 		expect(state.killstreak.count).toBe(0);
-		expect(state.killstreak.timer).toBe(0);
 		expect(state.killstreak.lastMilestone).toBe(0);
 		expect(state.towerDamageTaken).toBe(10);
 		expect(state.tower.hp).toBe(190); // damage applied but tower alive

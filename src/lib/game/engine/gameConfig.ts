@@ -52,11 +52,6 @@ export const GAME_CONFIG = {
 	MAX_DEATH_FX: 60,
 
 	// ─── Cosmetic killstreak tuning ────────────────────────────────────────
-	/** Seconds without a kill before the chain resets. The timeout is suspended
-	 *  entirely while no wave/sub-wave is active OR while the field has no live
-	 *  enemies, so the chain survives every inter-wave / sub-wave pause and any
-	 *  natural spawn lull — it only decays while you are actually fighting. */
-	KILLSTREAK_WINDOW: 4.0,
 	/** Counts at which the chain text colour / pulse escalates. The high tiers
 	 *  (500+) drive the "cooler the longer" HUD effects, with fire from 1000. */
 	KILLSTREAK_TIERS: [5, 10, 25, 50, 100, 500, 1000, 5000, 10000] as const,

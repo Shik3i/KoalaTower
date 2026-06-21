@@ -29,6 +29,12 @@
 	function pct(n: number): string {
 		return (n * 100).toFixed(1) + '%';
 	}
+
+	// HP fill ratio (0..1) for the bar; drives both width and the green→red tint.
+	const hpRatio = $derived(
+		snap ? Math.max(0, Math.min(1, snap.towerHp / Math.max(1, snap.towerMaxHp))) : 1,
+	);
+	const hpLevel = $derived(hpRatio < 0.3 ? 'crit' : hpRatio < 0.6 ? 'warn' : 'ok');
 </script>
 
 {#if snap?.runActive}
@@ -38,7 +44,10 @@
 		</button>
 		<div class="tp-content">
 			<div class="tp-title">Tower</div>
-			<div class="tp-row"><span class="tp-lbl">HP</span><span class="tp-val hp-val">{Math.ceil(snap.towerHp)}<span class="tp-max">/{snap.towerMaxHp}</span></span></div>
+			<div class="tp-hpbar" data-level={hpLevel} role="meter" aria-label="Tower HP" aria-valuenow={Math.ceil(snap.towerHp)} aria-valuemax={snap.towerMaxHp}>
+				<div class="tp-hpfill" style="width:{hpRatio * 100}%"></div>
+				<div class="tp-hptext"><span>HP</span><span>{Math.ceil(snap.towerHp)}/{snap.towerMaxHp}</span></div>
+			</div>
 			<div class="tp-row"><span class="tp-lbl">DMG</span><span class="tp-val">{fmt(snap.towerDamage)}</span></div>
 			<div class="tp-row"><span class="tp-lbl">APS</span><span class="tp-val">{snap.towerFireRate.toFixed(2)}</span></div>
 			{#if !compact}
@@ -131,13 +140,54 @@
 		font-weight: 500;
 	}
 
-	.hp-val {
-		color: var(--green);
+	/* HP rendered as a filled bar: green track that drains right-to-left and
+	   tints amber → red as it falls, with the HP label + value overlaid. */
+	.tp-hpbar {
+		position: relative;
+		height: 18px;
+		margin: 0.1rem 0 0.25rem;
+		border-radius: var(--radius-sm, 4px);
+		background: rgba(0, 0, 0, 0.45);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		overflow: hidden;
+	}
+	.tp-hpfill {
+		position: absolute;
+		inset: 0 auto 0 0;
+		background: linear-gradient(180deg, #4dffa0 0%, var(--green, #22c55e) 100%);
+		box-shadow: 0 0 8px rgba(60, 255, 150, 0.45) inset;
+		transition: width 0.18s ease-out;
+	}
+	.tp-hpbar[data-level='warn'] .tp-hpfill {
+		background: linear-gradient(180deg, #ffe27a 0%, #f5b301 100%);
+		box-shadow: 0 0 8px rgba(255, 200, 60, 0.45) inset;
+	}
+	.tp-hpbar[data-level='crit'] .tp-hpfill {
+		background: linear-gradient(180deg, #ff8a8a 0%, #e02424 100%);
+		box-shadow: 0 0 8px rgba(255, 80, 80, 0.5) inset;
+		animation: hpPulse 0.9s ease-in-out infinite;
+	}
+	.tp-hptext {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 0.4rem;
+		font-size: var(--fs-caption);
+		font-weight: 600;
+		color: #fff;
+		text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+		pointer-events: none;
+	}
+	.tp-hptext span:first-child {
+		color: var(--text-dim);
+		letter-spacing: 0.04em;
 	}
 
-	.tp-max {
-		color: var(--text-dim);
-		font-size: var(--fs-caption-sm);
+	@keyframes hpPulse {
+		0%, 100% { filter: brightness(1); }
+		50% { filter: brightness(1.45); }
 	}
 
 	@keyframes fadeIn {

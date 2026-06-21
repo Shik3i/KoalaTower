@@ -1,4 +1,4 @@
-import { building } from '$app/environment';
+import { building, dev } from '$app/environment';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
@@ -27,7 +27,11 @@ import { logServerError } from '$lib/server/errorLog';
  *
  * ## During dev / build-time prerendering
  *
- * - **Dev (Vite):** `build/prerendered/` does not exist → fall through.
+ * - **Dev (Vite):** guarded explicitly via `dev` below. A stale `build/`
+ *   directory left over from a previous `npm run build` WOULD otherwise be
+ *   picked up here and served instead of the live dev page (its hashed assets
+ *   then 404 on the dev server, so nothing hydrates). The `dev` short-circuit
+ *   keeps dev always on SvelteKit's live SSR regardless of a leftover build.
  * - **Build-time prerendering:** `building` is true → fall through.
  *   SvelteKit's own prerender logic handles file generation at build.
  */
@@ -45,7 +49,8 @@ function applySecurityHeaders(headers: Headers): void {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
-	if (building) return resolve(event);
+	// In dev, always use SvelteKit's live SSR — never serve a leftover build/.
+	if (dev || building) return resolve(event);
 
 	if (event.url.pathname.startsWith('/api/')) {
 		const response = await resolve(event);

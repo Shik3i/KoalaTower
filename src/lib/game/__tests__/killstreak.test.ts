@@ -86,17 +86,6 @@ describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 		expect(engine.state.killstreak.count).toBe(2);
 	});
 
-	it('refreshes the timeout window on each kill', () => {
-		const engine = freshEngine();
-		processEnemyDeath(engine.state, makeEnemy({ id: 1 }));
-		expect(engine.state.killstreak.timer).toBeCloseTo(GAME_CONFIG.KILLSTREAK_WINDOW, 5);
-		// Drain most of the window.
-		engine.state.killstreak.timer = 0.1;
-		// Another kill should refresh back to full window.
-		processEnemyDeath(engine.state, makeEnemy({ id: 2 }));
-		expect(engine.state.killstreak.timer).toBeCloseTo(GAME_CONFIG.KILLSTREAK_WINDOW, 5);
-	});
-
 	it('tracks the cosmetic best-count across the run', () => {
 		const engine = freshEngine();
 		for (let i = 1; i <= 7; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
@@ -148,44 +137,17 @@ describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 		expect(engine.damageNumbers.some((n) => n.kind === 'chain')).toBe(true);
 	});
 
-	it('resets the chain to 0 when update() lets the timer expire during an active wave with live enemies', () => {
-		const engine = freshEngine();
-		// Force wave 1 to be active so the killstreak timeout actually ticks.
-		// Set high spawn counts/interval so subWaveActive stays true during the test window.
-		engine.state.wave.currentWave = 1;
-		engine.state.wave.waveActive = true;
-		engine.state.wave.subWaveActive = true;
-		engine.state.wave.enemiesInWave = 99999;
-		engine.state.wave.enemiesInSubWave = 99999;
-		engine.state.wave.spawnInterval = 999;
-		// Timeout only ticks while there are live enemies on the field —
-		// park a healthy dummy enemy so the chain can actually bleed out.
-		engine.state.enemies.push(makeEnemy({ id: 999, hp: 1_000_000, maxHp: 1_000_000, alive: true }));
-		for (let i = 1; i <= 8; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
-		expect(engine.state.killstreak.count).toBe(8);
-		// Drain the window (4.0s) plus margin. Update dt is clamped to CLAMP_DELTA,
-		// so fastForward drives it in small steps.
-		fastForward(engine, GAME_CONFIG.KILLSTREAK_WINDOW + 0.05);
-		expect(engine.state.killstreak.count).toBe(0);
-		expect(engine.state.killstreak.timer).toBe(0);
-	});
-
 	it('does NOT reset killstreak during inter-wave downtime', () => {
 		const engine = freshEngine();
 		for (let i = 1; i <= 8; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
 		expect(engine.state.killstreak.count).toBe(8);
-		// Fast-forward through the full between-wave period (1.5s).
-		// The killstreak timeout must NOT tick while no wave is active.
+		// Fast-forward through the full between-wave period — chain must survive.
 		fastForward(engine, 1.6);
-		// Chain must survive the wave transition.
 		expect(engine.state.killstreak.count).toBe(8);
-		expect(engine.state.killstreak.timer).toBeGreaterThan(0);
 	});
 
 	it('does NOT reset killstreak while the field is empty mid-wave (spawn lull)', () => {
 		const engine = freshEngine();
-		// Active wave + sub-wave, but no live enemies on the field — the chain
-		// must survive a slow spawn gap or post-clear lull without bleeding out.
 		engine.state.wave.currentWave = 1;
 		engine.state.wave.waveActive = true;
 		engine.state.wave.subWaveActive = true;
@@ -195,27 +157,8 @@ describe('processEnemyDeath — killstreak increments (cosmetic-only)', () => {
 		engine.state.wave.currentTickIndex = 240;
 		for (let i = 1; i <= 6; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
 		expect(engine.state.killstreak.count).toBe(6);
-		fastForward(engine, GAME_CONFIG.KILLSTREAK_WINDOW + 1);
+		fastForward(engine, 10);
 		expect(engine.state.killstreak.count).toBe(6);
-		expect(engine.state.killstreak.timer).toBeCloseTo(GAME_CONFIG.KILLSTREAK_WINDOW, 5);
-	});
-
-	it('keeps best-count intact after the chain times out (vanity metric persists)', () => {
-		const engine = freshEngine();
-		// Force wave active so timeout ticks during fast-forward.
-		engine.state.wave.currentWave = 1;
-		engine.state.wave.waveActive = true;
-		engine.state.wave.subWaveActive = true;
-		engine.state.wave.enemiesInWave = 99999;
-		engine.state.wave.enemiesInSubWave = 99999;
-		engine.state.wave.spawnInterval = 999;
-		engine.state.wave.currentTickIndex = 240;
-		// Timeout only ticks with a live enemy on the field.
-		engine.state.enemies.push(makeEnemy({ id: 999, hp: 1_000_000, maxHp: 1_000_000, alive: true }));
-		for (let i = 1; i <= 12; i++) processEnemyDeath(engine.state, makeEnemy({ id: i }));
-		fastForward(engine, GAME_CONFIG.KILLSTREAK_WINDOW + 0.05);
-		expect(engine.state.killstreak.count).toBe(0);
-		expect(engine.state.killstreak.best).toBe(12);
 	});
 });
 
@@ -225,7 +168,6 @@ describe('GameEngine — killstreak reset on tower damage', () => {
 		const engine = new GameEngine();
 		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.state.killstreak.count = 15;
-		engine.state.killstreak.timer = GAME_CONFIG.KILLSTREAK_WINDOW;
 		engine.state.killstreak.lastMilestone = 10;
 		// Route through the real damage path so the reset logic actually executes.
 		const tower = engine.state.tower;
@@ -233,13 +175,12 @@ describe('GameEngine — killstreak reset on tower damage', () => {
 		damageTower(engine.state, 5, false);
 		expect(tower.hp).toBe(beforeHp - 5); // sanity: damage applied
 		expect(engine.state.killstreak.count).toBe(0);
-		expect(engine.state.killstreak.timer).toBe(0);
 		expect(engine.state.killstreak.lastMilestone).toBe(0);
 	});
 });
 
 describe('GameEngine — killstreak fresh per run', () => {
-	it('startRun resets count / best / timer / lastMilestone', () => {
+	it('startRun resets count / best / lastMilestone', () => {
 		const engine = new GameEngine();
 		engine.startRun({}, {}, {}, 0, [], 1);
 		engine.wireMuzzleFlash(() => {});
@@ -250,7 +191,6 @@ describe('GameEngine — killstreak fresh per run', () => {
 		engine.startRun({}, {}, {}, 0, [], 1);
 		expect(engine.state.killstreak.count).toBe(0);
 		expect(engine.state.killstreak.best).toBe(0);
-		expect(engine.state.killstreak.timer).toBe(0);
 		expect(engine.state.killstreak.lastMilestone).toBe(0);
 	});
 });
