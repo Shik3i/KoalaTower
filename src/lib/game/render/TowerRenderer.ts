@@ -9,6 +9,7 @@ export class TowerRenderer {
 	private towerGfx = new Graphics();
 	private arcsGfx = new Graphics();
 	private muzzleGfx = new Graphics();
+	private orbitalsGfx = new Graphics();
 	public rangeGfx = new Graphics();
 	public rangeContainer = new Container();
 
@@ -22,11 +23,12 @@ export class TowerRenderer {
 		this.container.x = x;
 		this.container.y = y;
 
-		// Additive glow layer for arcs + muzzle
+		// Additive glow layer for arcs + muzzle + orbitals
 		const glowLayer = new Container();
 		glowLayer.blendMode = 'add';
 		glowLayer.addChild(this.arcsGfx);
 		glowLayer.addChild(this.muzzleGfx);
+		glowLayer.addChild(this.orbitalsGfx);
 
 		this.container.addChild(this.towerGfx);
 		this.container.addChild(glowLayer);
@@ -102,7 +104,7 @@ export class TowerRenderer {
 		}
 	}
 
-	updateVisuals(time: number, hpPct: number): void {
+	updateVisuals(time: number, hpPct: number, multishotCount = 0): void {
 		const hpDanger = hpPct < 0.3;
 		const dangerPulse = Math.sin(time * 4.5) * 0.3 + 0.7;
 		const pulse = Math.sin(time * 0.75) * 0.25 + 0.75;
@@ -121,6 +123,20 @@ export class TowerRenderer {
 
 		// Rotate arcs
 		if (time > 0) this.arcsGfx.rotation += 0.015;
+
+		// Render multishot orbitals
+		this.orbitalsGfx.clear();
+		const count = Math.floor(multishotCount);
+		if (count > 0) {
+			const radius = GAME_CONFIG.TOWER_SIZE * 1.35;
+			for (let i = 0; i < count; i++) {
+				const angle = time * 1.2 + (Math.PI * 2 / count) * i;
+				const ox = Math.cos(angle) * radius;
+				const oy = Math.sin(angle) * radius;
+				this.orbitalsGfx.circle(ox, oy, 3.5).fill({ color: GAME_CONFIG.NEON_CYAN, alpha: 0.85 });
+				this.orbitalsGfx.circle(ox, oy, 5.5).stroke({ width: 1, color: GAME_CONFIG.NEON_CYAN, alpha: 0.35 });
+			}
+		}
 
 		// Muzzle flash
 		if (this._muzzleFlash > 0) {

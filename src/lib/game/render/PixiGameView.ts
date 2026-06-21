@@ -236,7 +236,7 @@ export class PixiGameView {
 		const hpPct = state.tower.alive ? state.tower.hp / state.tower.maxHp : 0;
 
 		this.background.update(effTime, rawDt);
-		this.tower.updateVisuals(effTime, hpPct);
+		this.tower.updateVisuals(effTime, hpPct, state.tower.stats.multishotCount);
 
 		if (state.runActive && !state.gameOver) {
 			const range = state.tower.stats.range;

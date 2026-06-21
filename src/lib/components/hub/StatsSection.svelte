@@ -50,6 +50,23 @@
 		deploymentReports: DeploymentReport[];
 	} = $props();
 
+	const recentReports = $derived(deploymentReports.slice(0, 8).reverse());
+	const maxWave = $derived(Math.max(...recentReports.map(r => r.finalWave), 10));
+	const maxAlloy = $derived(Math.max(...recentReports.map(r => r.alloyEarned), 100));
+	const totalKillsCount = $derived(enemyTypes.reduce((acc, et) => acc + (killsByType[et] ?? 0), 0));
+
+	const wavePoints = $derived(recentReports.map((r, idx) => {
+		const x = 40 + (idx * 420) / (recentReports.length - 1 || 1);
+		const y = 155 - (r.finalWave * 135) / maxWave;
+		return { x, y };
+	}));
+
+	const alloyPoints = $derived(recentReports.map((r, idx) => {
+		const x = 40 + (idx * 420) / (recentReports.length - 1 || 1);
+		const y = 155 - (r.alloyEarned * 135) / maxAlloy;
+		return { x, y };
+	}));
+
 	let selectedReport = $state<DeploymentReport | null>(null);
 	let reportTrigger = $state<HTMLElement | null>(null);
 	let reportModal = $state<HTMLDivElement>();
@@ -173,6 +190,98 @@
 			<div class="ir"><span class="il">Waves Completed</span><span class="iv">{formatCompact(lifetimeStats.totalWavesCompleted)}</span></div>
 			<div class="ir"><span class="il">Play Time</span><span class="iv">{formatPlayTime(lifetimeStats.totalPlayTimeSeconds)}</span></div>
 		</div>
+
+		{#if deploymentReports.length > 0}
+			<h3 class="stats-sub" style="margin-top:1.5rem">Recent Performance</h3>
+			<div class="chart-container">
+				<svg viewBox="0 0 500 200" class="performance-chart" aria-label="Line chart showing wave progression and alloy earned in recent deployments">
+					<line x1="40" y1="20" x2="460" y2="20" stroke="var(--border-neon)" stroke-opacity="0.1" />
+					<line x1="40" y1="65" x2="460" y2="65" stroke="var(--border-neon)" stroke-opacity="0.1" />
+					<line x1="40" y1="110" x2="460" y2="110" stroke="var(--border-neon)" stroke-opacity="0.1" />
+					<line x1="40" y1="155" x2="460" y2="155" stroke="var(--border-neon)" stroke-opacity="0.2" />
+
+					<text x="35" y="24" fill="var(--text-dim)" font-size="8" text-anchor="end">{maxWave}</text>
+					<text x="35" y="89" fill="var(--text-dim)" font-size="8" text-anchor="end">{Math.round(maxWave/2)}</text>
+					<text x="35" y="159" fill="var(--text-dim)" font-size="8" text-anchor="end">0</text>
+
+					<text x="465" y="24" fill="var(--yellow)" font-size="8" text-anchor="start">{formatCompact(maxAlloy)}</text>
+					<text x="465" y="89" fill="var(--yellow)" font-size="8" text-anchor="start">{formatCompact(maxAlloy/2)}</text>
+					<text x="465" y="159" fill="var(--yellow)" font-size="8" text-anchor="start">0</text>
+
+					{#each recentReports as r, idx}
+						{@const x = 40 + (idx * 420) / (recentReports.length - 1 || 1)}
+						<text x={x} y="174" fill="var(--text-dim)" font-size="8" text-anchor="middle">F{r.front}</text>
+						<text x={x} y="184" fill="var(--text-secondary)" font-size="7" font-weight="bold" text-anchor="middle">W{r.finalWave}</text>
+					{/each}
+
+					<path
+						d={wavePoints.map((p, idx) => (idx === 0 ? 'M' : 'L') + ' ' + p.x + ' ' + p.y).join(' ')}
+						fill="none"
+						stroke="var(--cyan)"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						style="filter: drop-shadow(0 0 3px rgba(0,255,255,0.4));"
+					/>
+
+					<path
+						d={alloyPoints.map((p, idx) => (idx === 0 ? 'M' : 'L') + ' ' + p.x + ' ' + p.y).join(' ')}
+						fill="none"
+						stroke="var(--yellow)"
+						stroke-width="1.8"
+						stroke-dasharray="3,3"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						style="filter: drop-shadow(0 0 2px rgba(255,221,68,0.3));"
+					/>
+
+					{#each wavePoints as p}
+						<circle cx={p.x} cy={p.y} r="3.5" fill="var(--bg-secondary)" stroke="var(--cyan)" stroke-width="2" />
+					{/each}
+					{#each alloyPoints as p}
+						<circle cx={p.x} cy={p.y} r="2.5" fill="var(--bg-secondary)" stroke="var(--yellow)" stroke-width="1.5" />
+					{/each}
+				</svg>
+				<div class="chart-legend">
+					<span class="legend-item"><span class="legend-dot cyan"></span> Wave Reached</span>
+					<span class="legend-item"><span class="legend-dot yellow dashed"></span> Alloy Earned</span>
+				</div>
+			</div>
+		{/if}
+
+		<h3 class="stats-sub" style="margin-top:1.5rem">Threat Elimination Breakdown</h3>
+		{#if totalKillsCount > 0}
+			<div class="kills-breakdown">
+				<div class="stacked-bar">
+					{#each enemyTypes as et}
+						{@const count = killsByType[et] ?? 0}
+						{@const pct = (count / totalKillsCount) * 100}
+						{#if pct > 1}
+							<div
+								class="bar-segment {et}"
+								style="width: {pct}%"
+								use:tooltip={`${ENEMY_TYPE_LABELS[et]}: ${count.toLocaleString()} kills (${pct.toFixed(1)}%)`}
+							></div>
+						{/if}
+					{/each}
+				</div>
+				<div class="breakdown-labels">
+					{#each enemyTypes as et}
+						{@const count = killsByType[et] ?? 0}
+						{@const pct = (count / totalKillsCount) * 100}
+						{#if count > 0}
+							<span class="breakdown-label">
+								<span class="label-color {et}"></span>
+								<span class="label-name">{ENEMY_TYPE_LABELS[et]}</span>
+								<span class="label-val">{pct.toFixed(0)}%</span>
+							</span>
+						{/if}
+					{/each}
+				</div>
+			</div>
+		{:else}
+			<p class="hsd" style="font-style:italic;">No kill telemetry recorded yet.</p>
+		{/if}
 
 		<h3 class="stats-sub" style="margin-top:1.5rem">Enemy Mastery</h3>
 		<p class="hsd" style="margin-bottom:.75rem">Defeat enemies to earn mastery levels. Each mastery level grants +1% damage against that enemy type, and Alloy bonuses are awarded automatically when thresholds are crossed.</p>
@@ -299,6 +408,35 @@
 	.mastery-pip { width:22px; height:22px; display:grid; place-items:center; border:1px solid var(--border-neon); border-radius:3px; color:var(--text-dim); font-family:var(--font-mono); font-size:var(--fs-caption-sm); }
 	.mastery-pip.earned { color:var(--yellow); border-color:rgba(255,221,68,.35); }
 	.mastery-pip.claimed { color:var(--green); border-color:rgba(68,255,136,.35); background:rgba(68,255,136,.06); }
+
+	.chart-container { max-width: 600px; padding: 1rem; background: var(--bg-tertiary); border: 1px solid var(--border-neon); border-radius: var(--radius-sm); margin-bottom: 1rem; }
+	.performance-chart { width: 100%; height: auto; }
+	.chart-legend { display: flex; justify-content: center; gap: 1.5rem; margin-top: 0.75rem; font-size: var(--fs-caption-sm); font-family: var(--font-mono); }
+	.legend-item { display: flex; align-items: center; gap: 0.4rem; color: var(--text-secondary); }
+	.legend-dot { width: 12px; height: 3px; border-radius: 1px; }
+	.legend-dot.cyan { background: var(--cyan); box-shadow: 0 0 4px var(--cyan); }
+	.legend-dot.yellow { background: var(--yellow); box-shadow: 0 0 4px var(--yellow); }
+	.legend-dot.dashed { border-top: 1px dashed var(--yellow); background: transparent; box-shadow: none; }
+
+	.kills-breakdown { max-width: 600px; padding: 0.8rem; background: var(--bg-tertiary); border: 1px solid var(--border-neon); border-radius: var(--radius-sm); margin-bottom: 1rem; }
+	.stacked-bar { display: flex; height: 16px; border-radius: 4px; overflow: hidden; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); margin-bottom: 0.6rem; }
+	.bar-segment { height: 100%; transition: width var(--transition-normal); cursor: help; }
+	.bar-segment.normal { background: #44ff88; box-shadow: inset 0 0 4px rgba(68,255,136,0.3); }
+	.bar-segment.fast { background: #ffdd44; box-shadow: inset 0 0 4px rgba(255,221,68,0.3); }
+	.bar-segment.tank { background: #ff4466; box-shadow: inset 0 0 4px rgba(255,68,102,0.3); }
+	.bar-segment.ranged { background: #ff44aa; box-shadow: inset 0 0 4px rgba(255,68,170,0.3); }
+	.bar-segment.boss { background: #cc66ff; box-shadow: inset 0 0 4px rgba(204,102,255,0.3); }
+	
+	.breakdown-labels { display: flex; flex-wrap: wrap; gap: 0.8rem 1.2rem; }
+	.breakdown-label { display: flex; align-items: center; gap: 0.35rem; font-family: var(--font-mono); font-size: var(--fs-caption); }
+	.label-color { width: 8px; height: 8px; border-radius: 2px; }
+	.label-color.normal { background: #44ff88; }
+	.label-color.fast { background: #ffdd44; }
+	.label-color.tank { background: #ff4466; }
+	.label-color.ranged { background: #ff44aa; }
+	.label-color.boss { background: #cc66ff; }
+	.label-name { color: var(--text-secondary); }
+	.label-val { color: var(--text-primary); font-weight: bold; }
 
 	.report-backdrop { position:fixed; inset:0; z-index:700; display:flex; align-items:center; justify-content:center; padding:1rem; background:rgba(5,7,16,.82); backdrop-filter:blur(5px); animation:fi .16s ease; }
 	.report-modal { width:min(760px,100%); max-height:min(86vh,820px); display:flex; flex-direction:column; overflow:hidden; border:1px solid rgba(0,255,255,.28); border-radius:var(--radius-md); background:var(--bg-secondary); box-shadow:0 0 90px rgba(0,0,0,.55), 0 0 44px rgba(0,255,255,.08); }

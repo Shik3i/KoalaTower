@@ -427,6 +427,7 @@
 					}
 					prevWave = st.wave.currentWave;
 					prevBossCount = st.bossesDefeated;
+					audio.tick(st);
 				}
 				refreshSnap();
 			},
