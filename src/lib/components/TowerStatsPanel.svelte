@@ -1,22 +1,11 @@
 <script lang="ts">
 	import type { GameSnapshot } from '$lib/game/engine/gameTypes';
 
-	let { snap }: { snap: GameSnapshot | null } = $props();
+	let { snap, mobile = false }: { snap: GameSnapshot | null; mobile?: boolean } = $props();
 	let compact = $state(false);
-	let isMobile = $state(false);
-
-	function onResize() {
-		isMobile = window.innerWidth < 900;
-	}
 
 	$effect(() => {
-		onResize();
-		window.addEventListener('resize', onResize);
-		return () => window.removeEventListener('resize', onResize);
-	});
-
-	$effect(() => {
-		if (isMobile) compact = true;
+		if (mobile) compact = true;
 	});
 
 	function fmt(n: number): string {
@@ -38,7 +27,7 @@
 </script>
 
 {#if snap?.runActive}
-	<div class="tower-panel" class:compact class:mobile={isMobile} role="region" aria-label="Tower stats">
+	<div class="tower-panel" class:compact class:mobile={mobile} role="region" aria-label="Tower stats">
 		<div class="tp-content">
 			<div class="tp-title">
 				<span class="tp-name">Tower</span>

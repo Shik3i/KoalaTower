@@ -3,22 +3,11 @@
 	import { EnemyType } from '$lib/game/engine/gameTypes';
 	import { computeEnemyConfig } from '$lib/game/balance/balanceMath';
 
-	let { snap }: { snap: GameSnapshot | null } = $props();
+	let { snap, mobile = false }: { snap: GameSnapshot | null; mobile?: boolean } = $props();
 	let compact = $state(false);
-	let isMobile = $state(false);
-
-	function onResize() {
-		isMobile = window.innerWidth < 900;
-	}
 
 	$effect(() => {
-		onResize();
-		window.addEventListener('resize', onResize);
-		return () => window.removeEventListener('resize', onResize);
-	});
-
-	$effect(() => {
-		if (isMobile) compact = true;
+		if (mobile) compact = true;
 	});
 
 	const enemyStats = $derived.by(() => {
@@ -46,7 +35,7 @@
 </script>
 
 {#if snap?.runActive && enemyStats}
-	<div class="enemy-panel" class:compact class:mobile={isMobile} role="region" aria-label="Enemy stats">
+	<div class="enemy-panel" class:compact class:mobile={mobile} role="region" aria-label="Enemy stats">
 		<div class="ep-content">
 			<div class="ep-title">
 				<span class="ep-name">Shapes</span>

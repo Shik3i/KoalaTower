@@ -73,6 +73,7 @@
 	let shiftHeld = $state(false);
 	let ctrlHeld = $state(false);
 	let showMobileSpeed = $state(false);
+	let showMobileMenu = $state(false);
 
 	let touchStartY = 0;
 	let touchEndY = 0;
@@ -1017,8 +1018,10 @@
 
 	<!-- Dropdown save menu, settings menu, etc. -->
 	<!-- Top Bar -->
-	<header class="topbar" onclick={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
-		<a href="/" class="tb-back" aria-label="Home" title="Home"><Icon name="back" size={18} /></a>
+	<header class="topbar" class:mobile={isMobile} onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
+		{#if !isMobile}
+			<a href="/" class="tb-back" aria-label="Home" title="Home"><Icon name="back" size={18} /></a>
+		{/if}
 		<h1 class="tb-brand">Flatland TD</h1>
 		<div class="tb-div"></div>
 	<div class="tb-stats">
@@ -1027,13 +1030,15 @@
 		{/if}
 		<div class="tb-pill coin-pill" use:tooltip={'Alloy — permanent material.\nKept between runs, spent in the Forge & Research Deck.'}><Icon name="alloy" size={15} />{#if saveLoaded}<span use:countUp={coins}>{coins.toLocaleString()}</span>{:else}<span>Loading</span>{/if}</div>
 		{#if snap?.runActive}
-			<div class="tb-pill cash-pill" use:tooltip={'Energy — this run only.\nHarvested from destroyed enemies, spent on Field Upgrades.\nResets when the tower falls.'}><Icon name="energy" size={15} /><span use:countUp={Math.floor(snap.cash)}>{Math.floor(snap.cash).toLocaleString()}</span></div>
+			{#if !isMobile}
+				<div class="tb-pill cash-pill" use:tooltip={'Energy — this run only.\nHarvested from destroyed enemies, spent on Field Upgrades.\nResets when the tower falls.'}><Icon name="energy" size={15} /><span use:countUp={Math.floor(snap.cash)}>{Math.floor(snap.cash).toLocaleString()}</span></div>
+			{/if}
 			<div class="tb-pill hp-pill" class:low={snap.towerHp / snap.towerMaxHp < 0.3} use:tooltip={'Tower HP — the run ends when this reaches 0.'}><Icon name="hp" size={15} /><span>{Math.ceil(snap.towerHp)}</span><span class="tb-max">/{snap.towerMaxHp}</span></div>
 			<div class="tb-pill kill-pill" title="Total enemies killed this run"><Icon name="kill" size={15} /><span use:countUp={snap.killCount}>{snap.killCount}</span></div>
 		{/if}
 	</div>
 		<div class="tb-actions">
-			{#if snap?.runActive}
+			{#if snap?.runActive && !isMobile}
 				<div class="spd-grp" title="Game speed — also: keys 1-4, Space to pause">
 					<div class="spd-col">
 						<button class="spd-btn spd-icon" class:on={paused} onclick={() => handleSpeed(0)} title="Pause (Space)" aria-label="Pause"><Icon name={paused ? 'play' : 'pause'} size={13} /></button>
@@ -1067,68 +1072,166 @@
 					{/if}
 				</div>
 			{/if}
-			<button class="ibtn" class:off={!settings.sfx} onclick={toggleSfx} aria-label="Toggle sound effects" use:tooltip={`Sound effects: ${settings.sfx ? 'ON' : 'OFF'}\nCombat & UI sounds. Click to toggle.`}><Icon name={settings.sfx ? 'soundOn' : 'soundOff'} size={17} /></button>
-			<button class="ibtn" class:off={!settings.music} onclick={toggleMusic} aria-label="Toggle music" use:tooltip={`Music: ${settings.music ? 'ON' : 'OFF'}\nAmbient background loop. Click to toggle.`}><Icon name={settings.music ? 'musicOn' : 'musicOff'} size={17} /></button>
-			<button class="ibtn" onclick={replayDeploymentTutorial} aria-label="Replay deployment tutorial" use:tooltip={'Replay the deployment tutorial on this page.'}><Icon name="help" size={17} /></button>
+			{#if !isMobile}
+				<button class="ibtn" class:off={!settings.sfx} onclick={toggleSfx} aria-label="Toggle sound effects" use:tooltip={`Sound effects: ${settings.sfx ? 'ON' : 'OFF'}\nCombat & UI sounds. Click to toggle.`}><Icon name={settings.sfx ? 'soundOn' : 'soundOff'} size={17} /></button>
+				<button class="ibtn" class:off={!settings.music} onclick={toggleMusic} aria-label="Toggle music" use:tooltip={`Music: ${settings.music ? 'ON' : 'OFF'}\nAmbient background loop. Click to toggle.`}><Icon name={settings.music ? 'musicOn' : 'musicOff'} size={17} /></button>
+				<button class="ibtn" onclick={replayDeploymentTutorial} aria-label="Replay deployment tutorial" use:tooltip={'Replay the deployment tutorial on this page.'}><Icon name="help" size={17} /></button>
+			{/if}
 			<div class="save-indicator" class:saving={showSaveIndicator} class:failed={saveStatus.writeFailed} role="status" aria-label={saveIndicatorText()} title={saveIndicatorText()}></div>
-			<div class="sv-wrap">
-				<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu" title="Export / Import / Reset save data"><Icon name="save" size={17} /></button>
-				{#if showSaveMenu}
-					<div class="sv-drop">
-						<button onclick={() => { handleExportSave(); showSaveMenu = false; }}><Icon name="export" size={15} /> Export</button>
-						<button onclick={() => { showImportDialog = true; showSaveMenu = false; }}><Icon name="import" size={15} /> Import</button>
-						<button onclick={() => { showResetConfirm = true; showSaveMenu = false; }}><Icon name="reset" size={15} /> Reset</button>
-						<button onclick={() => { showSaveMenu = false; }}><Icon name="close" size={15} /> Close</button>
-					</div>
-				{/if}
-			</div>
-			<div class="sv-wrap">
-				<button class="ibtn" onclick={() => showSettings = !showSettings} aria-label="Settings" title="Visual & performance settings"><Icon name="settings" size={17} /></button>
-				{#if showSettings}
-					<div class="sv-drop settings-drop">
-						<label class="set-row" title="Minimize animations">
-							<span>Reduced Motion</span>
-							<input type="checkbox" checked={settings.reducedMotion} onchange={(e) => updateSetting('reducedMotion', (e.target as HTMLInputElement).checked)} />
-						</label>
-						<label class="set-row" title="Shake on damage">
-							<span>Screen Shake</span>
-							<input type="checkbox" checked={settings.screenShake} onchange={(e) => updateSetting('screenShake', (e.target as HTMLInputElement).checked)} />
-						</label>
-						<label class="set-row" title="Death & hit effects">
-							<span>Particles</span>
-							<input type="checkbox" checked={settings.particles} onchange={(e) => updateSetting('particles', (e.target as HTMLInputElement).checked)} />
-						</label>
-						<label class="set-row" title="Show floating numbers">
-							<span>Damage Numbers</span>
-							<input type="checkbox" checked={settings.damageNumbers} onchange={(e) => updateSetting('damageNumbers', (e.target as HTMLInputElement).checked)} />
-						</label>
-						<label class="set-row" title="Reduce visual effects">
-							<span>Low Effects</span>
-							<input type="checkbox" checked={settings.lowEffectsMode} onchange={(e) => updateSetting('lowEffectsMode', (e.target as HTMLInputElement).checked)} />
-						</label>
-						<label class="set-row" title="Neon glow post-processing">
-							<span>Neon Bloom</span>
-							<input type="checkbox" checked={settings.bloom} onchange={(e) => updateSetting('bloom', (e.target as HTMLInputElement).checked)} />
-						</label>
-						<label class="set-row" title="Combat & UI sounds">
-							<span>Sound Effects</span>
-							<input type="checkbox" checked={settings.sfx} onchange={(e) => setSfx((e.target as HTMLInputElement).checked)} />
-						</label>
-						<label class="set-row" title="Ambient background loop">
-							<span>Music</span>
-							<input type="checkbox" checked={settings.music} onchange={(e) => setMusic((e.target as HTMLInputElement).checked)} />
-						</label>
-						<label class="set-row" title="Show real-time frames per second (FPS) counter">
-							<span>Show FPS</span>
-							<input type="checkbox" checked={settings.showFps} onchange={(e) => updateSetting('showFps', (e.target as HTMLInputElement).checked)} />
-						</label>
-					</div>
-				{/if}
-			</div>
-			<NotificationCenter />
-			<a href="/hub" class="hub-link" aria-label="Orbital Command" use:tooltip={'Orbital Command — Forge, Research Deck, Schematics, Fronts, Archives.'}><Icon name="hub" size={18} /></a>
+			{#if !isMobile}
+				<div class="sv-wrap">
+					<button class="ibtn" onclick={() => showSaveMenu = !showSaveMenu} aria-label="Save menu" title="Export / Import / Reset save data"><Icon name="save" size={17} /></button>
+					{#if showSaveMenu}
+						<div class="sv-drop">
+							<button onclick={() => { handleExportSave(); showSaveMenu = false; }}><Icon name="export" size={15} /> Export</button>
+							<button onclick={() => { showImportDialog = true; showSaveMenu = false; }}><Icon name="import" size={15} /> Import</button>
+							<button onclick={() => { showResetConfirm = true; showSaveMenu = false; }}><Icon name="reset" size={15} /> Reset</button>
+							<button onclick={() => { showSaveMenu = false; }}><Icon name="close" size={15} /> Close</button>
+						</div>
+					{/if}
+				</div>
+				<div class="sv-wrap">
+					<button class="ibtn" onclick={() => showSettings = !showSettings} aria-label="Settings" title="Visual & performance settings"><Icon name="settings" size={17} /></button>
+					{#if showSettings}
+						<div class="sv-drop settings-drop">
+							<label class="set-row" title="Minimize animations">
+								<span>Reduced Motion</span>
+								<input type="checkbox" checked={settings.reducedMotion} onchange={(e) => updateSetting('reducedMotion', (e.target as HTMLInputElement).checked)} />
+							</label>
+							<label class="set-row" title="Shake on damage">
+								<span>Screen Shake</span>
+								<input type="checkbox" checked={settings.screenShake} onchange={(e) => updateSetting('screenShake', (e.target as HTMLInputElement).checked)} />
+							</label>
+							<label class="set-row" title="Death & hit effects">
+								<span>Particles</span>
+								<input type="checkbox" checked={settings.particles} onchange={(e) => updateSetting('particles', (e.target as HTMLInputElement).checked)} />
+							</label>
+							<label class="set-row" title="Show floating numbers">
+								<span>Damage Numbers</span>
+								<input type="checkbox" checked={settings.damageNumbers} onchange={(e) => updateSetting('damageNumbers', (e.target as HTMLInputElement).checked)} />
+							</label>
+							<label class="set-row" title="Reduce visual effects">
+								<span>Low Effects</span>
+								<input type="checkbox" checked={settings.lowEffectsMode} onchange={(e) => updateSetting('lowEffectsMode', (e.target as HTMLInputElement).checked)} />
+							</label>
+							<label class="set-row" title="Neon glow post-processing">
+								<span>Neon Bloom</span>
+								<input type="checkbox" checked={settings.bloom} onchange={(e) => updateSetting('bloom', (e.target as HTMLInputElement).checked)} />
+							</label>
+							<label class="set-row" title="Combat & UI sounds">
+								<span>Sound Effects</span>
+								<input type="checkbox" checked={settings.sfx} onchange={(e) => setSfx((e.target as HTMLInputElement).checked)} />
+							</label>
+							<label class="set-row" title="Ambient background loop">
+								<span>Music</span>
+								<input type="checkbox" checked={settings.music} onchange={(e) => setMusic((e.target as HTMLInputElement).checked)} />
+							</label>
+							<label class="set-row" title="Show real-time frames per second (FPS) counter">
+								<span>Show FPS</span>
+								<input type="checkbox" checked={settings.showFps} onchange={(e) => updateSetting('showFps', (e.target as HTMLInputElement).checked)} />
+							</label>
+						</div>
+					{/if}
+				</div>
+				<NotificationCenter />
+				<a href="/hub" class="hub-link" aria-label="Orbital Command" use:tooltip={'Orbital Command — Forge, Research Deck, Schematics, Fronts, Archives.'}><Icon name="hub" size={18} /></a>
+			{/if}
+			{#if isMobile}
+				<button class="hamburger-btn" class:open={showMobileMenu} onclick={() => showMobileMenu = !showMobileMenu} aria-label={showMobileMenu ? 'Close menu' : 'Open menu'} title="Menu">
+					<span class="hamburger-line"></span>
+					<span class="hamburger-line"></span>
+					<span class="hamburger-line"></span>
+				</button>
+			{/if}
 		</div>
 	</header>
+
+	<!-- Mobile hamburger menu overlay -->
+	{#if isMobile && showMobileMenu}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="hamburger-overlay" onclick={() => showMobileMenu = false} onkeydown={(e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') showMobileMenu = false; }} role="button" tabindex="0" aria-label="Close menu"></div>
+		<div class="hamburger-menu" role="menu" tabindex="-1" onclick={e => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Escape') showMobileMenu = false; e.stopPropagation(); }} ontouchstart={e => e.stopPropagation()}>
+			<div class="hamburger-menu-header">
+				<span class="hamburger-menu-title">Menu</span>
+				<button class="hamburger-menu-close" onclick={() => showMobileMenu = false} aria-label="Close menu">✕</button>
+			</div>
+			<div class="hamburger-menu-items">
+				<a href="/" class="hm-item" onclick={() => showMobileMenu = false}><Icon name="back" size={16} /><span>Home</span></a>
+				{#if snap?.runActive}
+					<div class="hm-item hm-stat">
+						<Icon name="energy" size={16} />
+						<span>Energy</span>
+						<span class="hm-val">{Math.floor(snap.cash).toLocaleString()}</span>
+					</div>
+				{/if}
+				<button class="hm-item" class:off={!settings.sfx} onclick={() => { toggleSfx(); }}>
+					<Icon name={settings.sfx ? 'soundOn' : 'soundOff'} size={16} />
+					<span>Sound Effects</span>
+					<span class="hm-toggle">{settings.sfx ? 'ON' : 'OFF'}</span>
+				</button>
+				<button class="hm-item" class:off={!settings.music} onclick={() => { toggleMusic(); }}>
+					<Icon name={settings.music ? 'musicOn' : 'musicOff'} size={16} />
+					<span>Music</span>
+					<span class="hm-toggle">{settings.music ? 'ON' : 'OFF'}</span>
+				</button>
+				<button class="hm-item" onclick={() => { replayDeploymentTutorial(); showMobileMenu = false; }}>
+					<Icon name="help" size={16} /><span>Replay Tutorial</span>
+				</button>
+				<button class="hm-item" onclick={() => { handleExportSave(); showMobileMenu = false; }}>
+					<Icon name="export" size={16} /><span>Export Save</span>
+				</button>
+				<button class="hm-item" onclick={() => { showImportDialog = true; showMobileMenu = false; }}>
+					<Icon name="import" size={16} /><span>Import Save</span>
+				</button>
+				<button class="hm-item hm-danger" onclick={() => { showResetConfirm = true; showMobileMenu = false; }}>
+					<Icon name="reset" size={16} /><span>Reset Save</span>
+				</button>
+				<div class="hm-divider"></div>
+				<div class="hm-section-title">Settings</div>
+				<label class="hm-item hm-check">
+					<span>Reduced Motion</span>
+					<input type="checkbox" checked={settings.reducedMotion} onchange={(e) => updateSetting('reducedMotion', (e.target as HTMLInputElement).checked)} />
+				</label>
+				<label class="hm-item hm-check">
+					<span>Screen Shake</span>
+					<input type="checkbox" checked={settings.screenShake} onchange={(e) => updateSetting('screenShake', (e.target as HTMLInputElement).checked)} />
+				</label>
+				<label class="hm-item hm-check">
+					<span>Particles</span>
+					<input type="checkbox" checked={settings.particles} onchange={(e) => updateSetting('particles', (e.target as HTMLInputElement).checked)} />
+				</label>
+				<label class="hm-item hm-check">
+					<span>Damage Numbers</span>
+					<input type="checkbox" checked={settings.damageNumbers} onchange={(e) => updateSetting('damageNumbers', (e.target as HTMLInputElement).checked)} />
+				</label>
+				<label class="hm-item hm-check">
+					<span>Low Effects</span>
+					<input type="checkbox" checked={settings.lowEffectsMode} onchange={(e) => updateSetting('lowEffectsMode', (e.target as HTMLInputElement).checked)} />
+				</label>
+				<label class="hm-item hm-check">
+					<span>Neon Bloom</span>
+					<input type="checkbox" checked={settings.bloom} onchange={(e) => updateSetting('bloom', (e.target as HTMLInputElement).checked)} />
+				</label>
+				<label class="hm-item hm-check">
+					<span>Sound Effects</span>
+					<input type="checkbox" checked={settings.sfx} onchange={(e) => setSfx((e.target as HTMLInputElement).checked)} />
+				</label>
+				<label class="hm-item hm-check">
+					<span>Music</span>
+					<input type="checkbox" checked={settings.music} onchange={(e) => setMusic((e.target as HTMLInputElement).checked)} />
+				</label>
+				<label class="hm-item hm-check">
+					<span>Show FPS</span>
+					<input type="checkbox" checked={settings.showFps} onchange={(e) => updateSetting('showFps', (e.target as HTMLInputElement).checked)} />
+				</label>
+				<div class="hm-divider"></div>
+				<div class="hm-item hm-notifications">
+					<NotificationCenter />
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- ===== Tutorial ===== -->
 	{#key tutorialReplayKey}
@@ -1185,7 +1288,7 @@
 	<div class="game-body">
 		<!-- Left Panel -->
 		{#if !isMobile}
-			<aside class="panel left" class:coll={!leftPanelOpen} onclick={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
+			<aside class="panel left" class:coll={!leftPanelOpen} onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
 				<button class="ptog" onclick={() => leftPanelOpen = !leftPanelOpen}>{leftPanelOpen ? '◀' : '▶'}</button>
 				{#if leftPanelOpen}
 					<div class="pc">
@@ -1304,8 +1407,8 @@
 				<span>PAUSED</span>
 			</div>
 		{/if}
-		<TowerStatsPanel {snap} />
-		<EnemyStatsPanel {snap} />
+		<TowerStatsPanel {snap} mobile={isMobile} />
+		<EnemyStatsPanel {snap} mobile={isMobile} />
 		{#if showLaunchScreen}
 			<LaunchScreen
 				{saveLoaded}
@@ -1325,7 +1428,7 @@
 
 		<!-- Right Panel: only Battle Upgrades -->
 		{#if !isMobile}
-			<aside class="panel right" class:coll={!rightPanelOpen} onclick={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
+			<aside class="panel right" class:coll={!rightPanelOpen} onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
 				<button class="ptog" onclick={() => rightPanelOpen = !rightPanelOpen}>{rightPanelOpen ? '▶' : '◀'}</button>
 				{#if rightPanelOpen}
 					<div class="pc">
@@ -1343,7 +1446,7 @@
 
 	<!-- Mobile: battle upgrades drawer + nav -->
 	{#if isMobile}
-		<nav class="mn" onclick={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
+		<nav class="mn" onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
 			<button class="mnb" class:on={!showMobileUpgrades} onclick={() => showMobileUpgrades = false} title="Game canvas view"><span class="mni"><Icon name="range" size={20} /></span><span class="mnl">Game</span></button>
 			<button class="mnb" class:on={showMobileUpgrades} onclick={() => showMobileUpgrades = !showMobileUpgrades} title="Battle Upgrades panel"><span class="mni"><Icon name="offense" size={20} /></span><span class="mnl">Upgrades</span></button>
 			<a href="/hub" class="mnb" title="Orbital Command — Forge, Research, Archives"><span class="mni"><Icon name="hub" size={20} /></span><span class="mnl">Orbital</span></a>
@@ -1372,6 +1475,7 @@
 	.play-layout { display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden; background:var(--bg-primary); user-select:none; }
 	.fps-counter { position:absolute; top:12px; left:12px; font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--cyan); background:rgba(0,0,0,0.6); border:1px solid var(--border-neon); padding:2px 6px; border-radius:var(--radius-xs); z-index:10; pointer-events:none; text-shadow:0 0 4px rgba(0,255,255,0.4); }
 	.topbar { display:flex; align-items:center; padding:.3rem .65rem; gap:.4rem; background:rgba(7,8,18,.95); border-bottom:1px solid var(--border-neon); z-index:100; flex-shrink:0; position:relative; }
+	.topbar.mobile { overflow:visible; }
 	.tb-back { color:var(--text-dim); font-size:var(--fs-icon-md); text-decoration:none; padding:.1rem .3rem; border-radius:var(--radius-sm); transition:all var(--transition-fast); line-height:1; }
 	.tb-back:hover { color:var(--cyan); background:rgba(0,255,255,.06); }
 	.tb-brand { font-family:var(--font-display); font-weight:700; font-size:var(--fs-icon-md); letter-spacing:.04em; background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; white-space:nowrap; margin:0; }
@@ -1532,7 +1636,7 @@
 	.mnb.on { color:var(--cyan); }
 	.mnb.on::after { content:''; position:absolute; top:0; left:25%; right:25%; height:2px; background:var(--cyan); border-radius:0 0 2px 2px; box-shadow:0 0 8px rgba(0,255,255,.4); }
 	.mni { font-size:var(--fs-icon-lg); } .mnl { font-size:var(--fs-caption-sm); font-weight:500; }
-	.mob-upgrade-drawer { position:fixed; bottom:var(--mob-nav-h,48px); left:0; right:0; max-height:60vh; background:var(--bg-secondary); border-top:1px solid var(--border-neon-strong); border-radius:var(--radius-xl) var(--radius-xl) 0 0; z-index:150; overflow-y:auto; padding:0 .65rem .75rem; padding-bottom: calc(.75rem + env(safe-area-inset-bottom, 0px)); animation:mobDrawerIn .25s cubic-bezier(.34,1.56,.64,1); box-shadow:0 -8px 32px rgba(0,0,0,.5); will-change:transform; touch-action:none; }
+	.mob-upgrade-drawer { position:fixed; bottom:var(--mob-nav-h,48px); left:0; right:0; max-height:60vh; background:var(--bg-secondary); border-top:1px solid var(--border-neon-strong); border-radius:var(--radius-xl) var(--radius-xl) 0 0; z-index:150; overflow-y:auto; padding:0 .65rem .75rem; padding-bottom: calc(.75rem + env(safe-area-inset-bottom, 0px)); animation:mobDrawerIn .25s cubic-bezier(.34,1.56,.64,1); box-shadow:0 -8px 32px rgba(0,0,0,.5); will-change:transform; touch-action:pan-y; }
 	.mob-drawer-handle { width:40px; height:4px; background:var(--text-dim); opacity:0.3; border-radius:2px; margin:0.35rem auto 0.5rem; flex-shrink:0; }
 	.mob-ug-header { display:flex; justify-content:space-between; align-items:center; font-size:var(--fs-caption); color:var(--cyan); font-family:var(--font-mono); margin-bottom:.35rem; }
 	.mob-ug-close { color:var(--text-dim); font-size:var(--fs-body-sm); padding:.1rem .3rem; cursor:pointer; }
@@ -1551,6 +1655,7 @@
 			border-radius: 0;
 			animation: mobDrawerSideIn 0.25s ease-out;
 			padding-top: 1rem;
+			touch-action: manipulation;
 		}
 		.mob-drawer-handle {
 			display: none;
@@ -1611,13 +1716,12 @@
 	@keyframes mobDrawerIn { from{opacity:0;transform:translateY(100%)} to{opacity:1;transform:translateY(0)} }
 	@media(min-width:900px){ .mn,.mob-spd,.mob-upgrade-drawer{display:none} }
 	@media(max-width:899px){
-		/* Single compact row — never wrap (wrapping made the header eat ~25% of
-		   the screen). Redundant controls are hidden: HP/kills live in the bottom
-		   panels, and the sound/music/help toggles live in the Settings dropdown. */
-		.topbar{padding:.25rem .35rem;gap:.25rem;flex-wrap:nowrap;overflow:hidden}
+		/* Single compact row — items that don't fit move to the ☰ hamburger menu.
+		   overflow:visible so the mobile speed popup isn't clipped. */
+		.topbar{padding:.25rem .35rem;gap:.25rem;flex-wrap:nowrap;overflow:visible}
 		.tb-brand{display:none}
 		.tb-div{display:none}
-		.tb-stats{flex-wrap:nowrap;gap:.2rem;margin-left:.1rem;min-width:0;overflow-x:auto;scrollbar-width:none}
+		.tb-stats{flex-wrap:nowrap;gap:.2rem;margin-left:.1rem;min-width:0;overflow-x:auto;scrollbar-width:none;flex-shrink:1}
 		.tb-stats::-webkit-scrollbar{display:none}
 		.tb-pill{padding:.12rem .35rem;font-size:var(--fs-caption-sm);gap:.12rem;flex-shrink:0}
 		.tb-max{display:none}
@@ -1625,9 +1729,101 @@
 		.spd-grp{display:none}
 		.save-indicator{display:none}
 		.tb-actions{flex-shrink:0;gap:.1rem}
-		.tb-actions > .ibtn{display:none}
 		.ibtn{min-width:40px;min-height:40px;padding:.35rem}
 		.ptog{min-width:44px;min-height:44px}
 		:root{--mob-nav-h:48px}
+
+		/* ─── Hamburger button ─────────────────────────────────── */
+		.hamburger-btn {
+			display:inline-flex; flex-direction:column; align-items:center; justify-content:center;
+			gap:3px; width:40px; height:40px; padding:.35rem;
+			border-radius:var(--radius-sm); cursor:pointer;
+			transition:all var(--transition-fast);
+		}
+		.hamburger-btn:hover,.hamburger-btn.open { background:rgba(0,255,255,.08); }
+		.hamburger-line {
+			width:18px; height:2px; background:var(--text-dim); border-radius:1px;
+			transition:all var(--transition-fast);
+		}
+		.hamburger-btn.open .hamburger-line:nth-child(1) { transform:translateY(5px) rotate(45deg); }
+		.hamburger-btn.open .hamburger-line:nth-child(2) { opacity:0; }
+		.hamburger-btn.open .hamburger-line:nth-child(3) { transform:translateY(-5px) rotate(-45deg); }
+		.hamburger-btn:hover .hamburger-line { background:var(--cyan); }
+
+		/* ─── Hamburger overlay ────────────────────────────────── */
+		.hamburger-overlay {
+			position:fixed; inset:0; z-index:155;
+			background:rgba(7,8,18,.65); backdrop-filter:blur(2px);
+			-webkit-backdrop-filter:blur(2px);
+			animation:fi .15s ease;
+		}
+
+		/* ─── Hamburger menu panel ─────────────────────────────── */
+		.hamburger-menu {
+			position:fixed; top:0; right:0; bottom:0; width:min(300px, 80vw); z-index:156;
+			background:var(--bg-secondary); border-left:1px solid var(--border-neon-strong);
+			display:flex; flex-direction:column;
+			box-shadow:-8px 0 32px rgba(0,0,0,.5);
+			animation:hamburgerSlideIn .2s cubic-bezier(.22,1,.36,1);
+			overflow-y:auto;
+			padding-bottom:env(safe-area-inset-bottom, 0px);
+		}
+		@keyframes hamburgerSlideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
+
+		.hamburger-menu-header {
+			display:flex; justify-content:space-between; align-items:center;
+			padding:.6rem .75rem;
+			border-bottom:1px solid var(--border-neon);
+		}
+		.hamburger-menu-title {
+			font-family:var(--font-display); font-size:var(--fs-body); font-weight:700;
+			color:var(--cyan); letter-spacing:.04em;
+		}
+		.hamburger-menu-close {
+			color:var(--text-dim); font-size:var(--fs-body); padding:.2rem .4rem;
+			border-radius:var(--radius-sm); cursor:pointer; min-width:36px; min-height:36px;
+			display:inline-flex; align-items:center; justify-content:center;
+		}
+		.hamburger-menu-close:hover { color:var(--text-primary); background:rgba(255,255,255,.05); }
+
+		.hamburger-menu-items {
+			flex:1; padding:.3rem 0; display:flex; flex-direction:column;
+		}
+
+		/* ─── Hamburger menu items ──────────────────────────────── */
+		.hm-item {
+			display:flex; align-items:center; gap:.5rem;
+			width:100%; min-height:44px; padding:.5rem .75rem;
+			font-size:var(--fs-body-sm); color:var(--text-secondary);
+			text-decoration:none; text-align:left;
+			transition:all var(--transition-fast); cursor:pointer;
+			border:none; background:none; font-family:inherit;
+		}
+		.hm-item:hover { background:rgba(0,255,255,.04); color:var(--text-primary); }
+		.hm-item.off { color:var(--text-dim); opacity:.6; }
+		.hm-item.off:hover { opacity:.85; }
+		.hm-stat { cursor:default; }
+		.hm-stat:hover { background:transparent; color:var(--text-secondary); }
+		.hm-val { margin-left:auto; font-family:var(--font-mono); color:var(--green); font-size:var(--fs-caption-sm); }
+		.hm-toggle { margin-left:auto; font-family:var(--font-mono); font-size:var(--fs-caption-sm); color:var(--cyan); }
+		.hm-item.off .hm-toggle { color:var(--text-dim); }
+		.hm-danger { color:var(--red) !important; }
+		.hm-danger:hover { background:rgba(255,68,68,.06) !important; }
+		.hm-divider { height:1px; background:var(--border-neon); margin:.25rem .75rem; }
+		.hm-section-title {
+			padding:.35rem .75rem .15rem;
+			font-family:var(--font-mono); font-size:var(--fs-caption-sm);
+			color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em;
+		}
+		.hm-check {
+			display:flex; justify-content:space-between; align-items:center;
+		}
+		.hm-check input[type=checkbox] {
+			width:16px; height:16px; accent-color:var(--cyan); cursor:pointer; flex-shrink:0;
+		}
+		.hm-notifications {
+			padding:.25rem .75rem; min-height:auto; flex-wrap:wrap;
+		}
+		.hm-notifications:hover { background:transparent; }
 	}
 </style>
