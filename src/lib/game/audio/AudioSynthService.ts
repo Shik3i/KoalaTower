@@ -24,7 +24,7 @@ export class AudioSynthService {
 	private activeBoss = false;
 
 	constructor() {
-		this.ensureCtx();
+		// AudioContext is created lazily via ensureCtx() when playing or unlocking.
 	}
 
 	public ensureCtx(): AudioContext | null {
