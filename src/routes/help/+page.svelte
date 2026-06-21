@@ -28,7 +28,7 @@
 		{
 			id: 'enemies',
 			q: 'What enemy types exist?',
-			a: 'Five types, each with a unique outline shape: ■ Square = Normal (baseline), ◆ Diamond = Fast (1.8× Normal speed, 1.0× HP), ⬡ Hexagon = Tank (5× HP, larger, slower), ▶ Triangle = Ranged (stops just inside starter tower range and fires, 1.0× HP), ⬠ Pentagon = Boss (every 10 waves, 20× HP, very large). Watch their shapes to identify them instantly.',
+			a: 'Five types, each with a unique outline shape: ■ Square = Normal (baseline), ◆ Diamond = Fast (1.8× Normal speed, 0.8× HP), ⬡ Hexagon = Tank (5× HP, larger, slower), ▶ Triangle = Ranged (stops just inside starter tower range and fires, 0.5× HP), ⬠ Pentagon = Boss (every 10 waves, 20× HP, very large). Watch their shapes to identify them instantly.',
 		},
 		{
 			id: 'attack-speed-swarms',
@@ -318,7 +318,7 @@
 			<div class="help-card ws">
 				<div class="help-card-icon">🔥</div>
 				<h3>Attack Speed</h3>
-				<p>+0.1 attacks/sec per level. Continues from the Forge level when you buy more in deployment.</p>
+				<p>+0.05 attacks/sec per level. Continues from the Forge level when you buy more in deployment.</p>
 				<span class="card-tag">Shared curve</span>
 			</div>
 			<div class="help-card ws">

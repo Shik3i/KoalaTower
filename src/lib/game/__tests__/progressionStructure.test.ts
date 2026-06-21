@@ -233,11 +233,11 @@ describe('Armor / Resistance policy', () => {
 // ─── Enemy formula intact ──────────────────────────────────────────────────────
 
 describe('Enemy HP/damage formula intact', () => {
-	it('Front 1 anchors still pass (×50/6 enemy scale)', () => {
-		expect(front1EnemyDamage(1)).toBeCloseTo(9.83, 1);
-		expect(front1EnemyHp(1)).toBeCloseTo(19.58, 1);
-		expect(front1EnemyDamage(10)).toBeCloseTo(40.08, 1);
-		expect(front1EnemyHp(10)).toBeCloseTo(153, 0);
+	it('Front 1 anchors still pass with retuned HP and attack scales', () => {
+		expect(front1EnemyDamage(1)).toBeCloseTo(11.8, 1);
+		expect(front1EnemyHp(1)).toBeCloseTo(39.17, 1);
+		expect(front1EnemyDamage(10)).toBeCloseTo(48.1, 1);
+		expect(front1EnemyHp(10)).toBeCloseTo(306.06, 1);
 	});
 
 	it('wave 10000 returns finite positive values', () => {

@@ -1,6 +1,6 @@
 import type { UpgradeCategory, BlueprintId } from '../engine/gameTypes';
 import { UpgradeId, BlueprintId as BP } from '../engine/gameTypes';
-import { hybridCost, additiveEffect, roundedCost, formatBattleEffect as fmtEffect } from './upgradeScaling';
+import { hybridCost, additiveEffect, roundedCost, towerLikeFieldUpgradeCost, formatBattleEffect as fmtEffect } from './upgradeScaling';
 import { flatlandBaseDamageAtLevel } from './balanceMath';
 
 export interface BattleUpgradeDef {
@@ -16,6 +16,7 @@ export interface BattleUpgradeDef {
 	effectPerLevel: number;
 	effectCap?: number;
 	requiredBlueprint?: BlueprintId;
+	costModel?: 'rounded' | 'hybrid' | 'towerLike';
 }
 
 export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
@@ -26,22 +27,24 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		icon: '⚡',
 		category: 'offense',
 		maxLevel: 999,
-		baseCost: 13,
-		costGrowth: 1.20,
-		costExponent: 0,
+		baseCost: 30,
+		costGrowth: 1.05,
+		costExponent: 1.2,
 		effectPerLevel: 25,
+		costModel: 'towerLike',
 	},
 	{
 		id: UpgradeId.FireRate,
 		name: 'Attack Speed',
-		description: '+0.1 attacks per second per level.',
+		description: '+0.05 attacks per second per level.',
 		icon: '🔥',
 		category: 'offense',
 		maxLevel: 399,
-		baseCost: 13,
-		costGrowth: 1.20,
-		costExponent: 0,
-		effectPerLevel: 0.1,
+		baseCost: 30,
+		costGrowth: 1.05,
+		costExponent: 1.2,
+		effectPerLevel: 0.05,
+		costModel: 'towerLike',
 	},
 	{
 		id: UpgradeId.Range,
@@ -227,6 +230,9 @@ export function getBattleUpgradeDef(id: UpgradeId): BattleUpgradeDef | undefined
 export function getBattleUpgradeCost(id: UpgradeId, level: number): number {
 	const def = defMap.get(id);
 	if (!def) return Infinity;
+	if (def.costModel === 'towerLike') {
+		return towerLikeFieldUpgradeCost(level + 1, def.baseCost, def.costExponent, def.costGrowth);
+	}
 	if (def.costExponent === 0) {
 		return roundedCost(def.baseCost, def.costGrowth, level);
 	}

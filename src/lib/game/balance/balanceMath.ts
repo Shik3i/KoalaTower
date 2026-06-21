@@ -108,12 +108,12 @@ const REFERENCE_TIER_1_HP_ANCHORS: StatAnchor[] = [
 	{ wave: 1000, value: 742100000 },
 ];
 
-// One shared Flatland scale applied to the reference enemy anchor curves below
-// (HP and attack alike). 50/6 ≈ 8.333 keeps enemy difficulty tracking the
-// player's Damage baseline — a fresh tower deals 50 damage. (Was a flat ×20,
-// which left enemies far too tanky/dangerous after the Damage curve was softened.)
-export const FLTD_ENEMY_DAMAGE_SCALE = 50 / 6;
-export const FLTD_ENEMY_HP_SCALE = 50 / 6;
+// Flatland scales applied to the reference enemy anchor curves below.
+// HP uses the retuned target factor directly: Front 1 Wave 1 Basic ≈ 39 HP.
+// Attack is kept lower so early hits matter without instantly deleting the tower.
+export const FLTD_ENEMY_HP_SCALE = 16.67;
+export const FLTD_ENEMY_ATTACK_SCALE = 10;
+export const FLTD_ENEMY_DAMAGE_SCALE = 10;
 export const STARTER_DAMAGE = 50;
 
 // ─── Player Damage curve ─────────────────────────────────────────────────────
@@ -394,6 +394,14 @@ export function roundedCost(base: number, growth: number, level: number): number
 	return Math.round(base * Math.pow(growth, level));
 }
 
+/**
+ * Tower-like Field Upgrade cost for the cost of buying a specific 1-based level.
+ */
+export function towerLikeFieldUpgradeCost(levelToBuy: number, baseCost: number, costPower = 1.2, costGrowth = 1.05): number {
+	const level = Math.max(1, Math.floor(levelToBuy));
+	return Math.max(1, Math.round(baseCost * Math.pow(level, costPower) * Math.pow(costGrowth, level - 1)));
+}
+
 export function additiveEffect(perLevel: number, level: number, cap?: number): number {
 	const raw = level * perLevel;
 	return cap !== undefined ? Math.min(raw, cap) : raw;
@@ -426,10 +434,10 @@ export const ENEMY_TYPE_MODIFIERS: Record<EnemyType, {
 	reward: number;
 }> = {
 	[EnemyType.Normal]:  { hp: 1.0,  attack: 1.0,  speed: 1.0,  reward: 1.0 },
-	[EnemyType.Fast]:    { hp: 1.0,  attack: 1.0,  speed: 1.8,  reward: 1.3 },
+	[EnemyType.Fast]:    { hp: 0.8,  attack: 1.0,  speed: 1.8,  reward: 1.3 },
 	[EnemyType.Tank]:    { hp: 5.0,  attack: 1.5,  speed: 0.55, reward: 2.2 },
-	[EnemyType.Ranged]:  { hp: 1.0,  attack: 1.2,  speed: 0.8,  reward: 1.7 },
-	[EnemyType.Boss]:    { hp: 1.0,  attack: 1.0,  speed: 1.0,  reward: 1.0 },
+	[EnemyType.Ranged]:  { hp: 0.5,  attack: 1.2,  speed: 0.8,  reward: 1.7 },
+	[EnemyType.Boss]:    { hp: 20.0, attack: 1.0,  speed: 1.0,  reward: 1.0 },
 };
 
 export const ENEMY_BASE_ARMOR: Record<EnemyType, number> = {

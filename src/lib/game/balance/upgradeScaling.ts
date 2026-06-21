@@ -1,6 +1,6 @@
 import { UpgradeId } from '../engine/gameTypes';
-import { hybridCost, additiveEffect, roundedCost, formatCompact } from './balanceMath';
-export { hybridCost, additiveEffect, roundedCost };
+import { hybridCost, additiveEffect, roundedCost, towerLikeFieldUpgradeCost, formatCompact } from './balanceMath';
+export { hybridCost, additiveEffect, roundedCost, towerLikeFieldUpgradeCost };
 
 /**
  * Format the CURRENT effective stat value for UI display.

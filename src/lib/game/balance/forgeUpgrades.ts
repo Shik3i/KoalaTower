@@ -55,7 +55,7 @@ export const FORGE_UPGRADE_DEFS: ForgeUpgradeDef[] = [
 	{
 		id: UpgradeId.FireRate,
 		name: 'Attack Speed',
-		description: 'Permanent starting Attack Speed level. Each level = +0.1 attacks/sec.',
+		description: 'Permanent starting Attack Speed level. Each level = +0.05 attacks/sec.',
 		icon: '🔥', category: 'offense', maxLevel: 50, baseCost: 50, costGrowth: 1.24,
 	},
 	{

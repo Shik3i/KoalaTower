@@ -50,7 +50,7 @@ describe('Forge sets the starting level of the shared Field curve', () => {
 
 	it('Attack Speed: Forge level 1 == one in-run Attack Speed purchase', () => {
 		const forge = engineWithForge({ [UpgradeId.FireRate]: 1 });
-		expect(forge.state.tower.stats.fireRate).toBeCloseTo(1.1, 5);
+		expect(forge.state.tower.stats.fireRate).toBeCloseTo(1.05, 5);
 
 		const run = engineFresh();
 		run.buyBattleUpgrade(UpgradeId.FireRate);
@@ -94,6 +94,7 @@ describe('In-run cost continues from the Forge level', () => {
 		const e = engineWithForge({ [UpgradeId.Damage]: 3 });
 		expect(e.state.battleUpgrades[UpgradeId.Damage]).toBe(3);
 		const expectedCost = getBattleUpgradeCost(UpgradeId.Damage, 3);
+		e.state.cash = expectedCost;
 		const cashBefore = e.state.cash;
 		const ok = e.buyBattleUpgrade(UpgradeId.Damage);
 		expect(ok).toBe(true);

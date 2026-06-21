@@ -64,12 +64,13 @@ describe('Flatland TD Balance Polish Tests', () => {
 		expect(flatlandBaseDamageAtLevel(10)).toBe(483);
 	});
 
-	it('enemy type HP modifiers are correct (Fast/Ranged HP = 1.0x)', () => {
+	it('enemy type HP modifiers are correct (Fast/Ranged stay lower-HP)', () => {
 		expect(bossHpMultiplier(1)).toBe(20);
 		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Normal].hp).toBe(1.0);
-		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Fast].hp).toBe(1.0);
-		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Ranged].hp).toBe(1.0);
+		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Fast].hp).toBe(0.8);
+		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Ranged].hp).toBe(0.5);
 		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Tank].hp).toBe(5.0);
+		expect(ENEMY_TYPE_MODIFIERS[EnemyType.Boss].hp).toBe(20.0);
 	});
 
 	it('Front multipliers are mapped correctly', () => {
