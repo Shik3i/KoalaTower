@@ -422,6 +422,8 @@ function migrateV19toV20(save: SaveData): SaveData {
 		schemaVersion: CURRENT_SCHEMA_VERSION,
 		selectedSkin: (save as any).selectedSkin ?? 'classic',
 		unlockedSkins: Array.isArray((save as any).unlockedSkins) ? (save as any).unlockedSkins : ['classic'],
+		selectedBackground: (save as any).selectedBackground ?? 'void',
+		unlockedBackgrounds: Array.isArray((save as any).unlockedBackgrounds) ? (save as any).unlockedBackgrounds : ['void'],
 	};
 }
 
@@ -573,6 +575,10 @@ function ensureMetadata(save: SaveData): SaveData {
 		unlockedSkins: Array.isArray((save as any).unlockedSkins)
 			? (save as any).unlockedSkins
 			: ['classic'],
+		selectedBackground: (save as any).selectedBackground ?? 'void',
+		unlockedBackgrounds: Array.isArray((save as any).unlockedBackgrounds)
+			? (save as any).unlockedBackgrounds
+			: ['void'],
 	};
 }
 

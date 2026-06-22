@@ -40,7 +40,7 @@
 <div class="skins-container">
 	<div class="sec-header">
 		<h2>🎨 Customization</h2>
-		<p class="sec-desc">Re-tune the visual appearance and color profile of the tower core. Upgrades bought here modify colors for the core body, arcs, orbitals, range indicator, and muzzle flashes. Cosmetic only — does not alter defensive metrics.</p>
+		<p class="sec-desc">Re-tune the visual appearance and color profile of the tower core. Skins recolour the octagon body, inner rings, energy core, range indicator, and muzzle flashes. Cosmetic only — does not alter defensive metrics.</p>
 	</div>
 
 	<div class="skins-grid">
@@ -49,14 +49,10 @@
 			{@const active = selectedSkin === skin.id}
 			<div class="skin-card" class:active={active} class:locked={!unlocked}>
 				<!-- Visual Preview of Tower Colors -->
-				<div class="skin-preview" style="--core-fill: {hexToCssColor(skin.colors.coreFill)}; --core-stroke: {hexToCssColor(skin.colors.coreStroke)}; --arcs-stroke: {hexToCssColor(skin.colors.arcsStroke)}">
-					<div class="preview-orbitals">
-						<div class="preview-orb" style="background: {hexToCssColor(skin.colors.orbitalsColor)}; box-shadow: 0 0 8px {hexToCssColor(skin.colors.orbitalsColor)}"></div>
-						<div class="preview-orb" style="background: {hexToCssColor(skin.colors.orbitalsColor)}; box-shadow: 0 0 8px {hexToCssColor(skin.colors.orbitalsColor)}"></div>
-					</div>
-					<div class="preview-arc" style="border-color: {hexToCssColor(skin.colors.arcsStroke)}"></div>
+				<div class="skin-preview" style="--core-fill: {hexToCssColor(skin.colors.coreFill)}; --core-stroke: {hexToCssColor(skin.colors.coreStroke)}; --inner-stroke: {hexToCssColor(skin.colors.innerStroke1)}; --muzzle: {hexToCssColor(skin.colors.muzzleColor)}">
 					<div class="preview-core">
-						<div class="preview-center" style="background: {hexToCssColor(skin.colors.centerBright)}"></div>
+						<div class="preview-inner"></div>
+						<div class="preview-center" style="background: {hexToCssColor(skin.colors.centerBright)}; box-shadow: 0 0 10px var(--muzzle), 0 0 4px {hexToCssColor(skin.colors.centerBright)}"></div>
 					</div>
 				</div>
 
@@ -181,39 +177,20 @@
 		box-shadow: 0 0 12px var(--core-stroke);
 		z-index: 2;
 	}
+	/* Inner ring — mirrors the real tower's inner octagon stroke. */
+	.preview-inner {
+		position: absolute;
+		inset: 9px;
+		border: 1px solid var(--inner-stroke);
+		border-radius: 4px;
+		opacity: 0.6;
+	}
 	.preview-center {
 		width: 10px;
 		height: 10px;
 		border-radius: 50%;
 		transform: rotate(-45deg);
-	}
-	.preview-arc {
-		position: absolute;
-		width: 76px;
-		height: 76px;
-		border: 1px dashed var(--arcs-stroke);
-		border-radius: 50%;
-		animation: spinArc 8s linear infinite;
-		opacity: 0.5;
-	}
-	.preview-orbitals {
-		position: absolute;
-		width: 100px;
-		height: 100px;
-		animation: spinArc 5s linear infinite;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-	.preview-orb {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-	}
-
-	@keyframes spinArc {
-		from { transform: rotate(0deg); }
-		to { transform: rotate(360deg); }
+		z-index: 1;
 	}
 
 	.skin-info {
@@ -267,6 +244,7 @@
 	}
 	.skin-btn {
 		width: 100%;
+		min-height: 48px;
 		padding: 0.5rem;
 		border-radius: var(--radius-md);
 		font-weight: 600;
@@ -274,6 +252,9 @@
 		cursor:pointer;
 		transition: all var(--transition-fast);
 		border: 1px solid transparent;
+	}
+	.skin-btn:active:not(:disabled) {
+		transform: scale(0.96);
 	}
 	.active-btn {
 		background: transparent;

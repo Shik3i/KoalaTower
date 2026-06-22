@@ -1,6 +1,7 @@
 import { Application, Container } from 'pixi.js';
 import { AdvancedBloomFilter } from 'pixi-filters';
 import { GAME_CONFIG } from '../engine/gameConfig';
+import { getBackground } from '../balance/backgrounds';
 import type { GameEngine } from '../engine/GameEngine';
 import { createLayers, type GameLayers } from './PixiLayers';
 import { BackgroundRenderer } from './BackgroundRenderer';
@@ -148,8 +149,10 @@ export class PixiGameView {
 		const vw = this.app.screen.width;
 		const vh = this.app.screen.height;
 
-		const stars = generateStars(vw, vh, Math.floor(GAME_CONFIG.BACKGROUND_STARS * (vw / 800)));
-		this.background = new BackgroundRenderer(stars, vw, vh);
+		const bgTheme = getBackground(this.engine.state.selectedBackground);
+		const starCount = Math.floor(GAME_CONFIG.BACKGROUND_STARS * (vw / 800) * bgTheme.starDensity);
+		const stars = generateStars(vw, vh, starCount);
+		this.background = new BackgroundRenderer(stars, vw, vh, bgTheme);
 		this.tower = new TowerRenderer(vw / 2, vh / 2, this.engine.state.selectedSkin ?? 'classic');
 		this.enemy = new EnemyRenderer();
 		this.projectile = new ProjectileRenderer();

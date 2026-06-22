@@ -882,7 +882,8 @@
 			getTierNumber(selectedFront),
 			validChallenge,
 			save?.killsByType ?? {},
-			save?.selectedSkin ?? 'classic'
+			save?.selectedSkin ?? 'classic',
+			save?.selectedBackground ?? 'void'
 		);
 		syncSettingsToEngine(save?.settings ?? { ...DEFAULT_SETTINGS });
 		// Re-apply the player's last chosen game speed (clamped to what's unlocked).

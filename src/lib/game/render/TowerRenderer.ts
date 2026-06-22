@@ -9,7 +9,6 @@ export class TowerRenderer {
 	public skinId: string;
 
 	private towerGfx = new Graphics();
-	private arcsGfx = new Graphics();
 	private muzzleGfx = new Graphics();
 	// Pulsing energy core, drawn each frame strictly inside the octagon body.
 	// (Replaces the removed external orbitals — nothing renders outside the tower.)
@@ -30,10 +29,9 @@ export class TowerRenderer {
 		this.container.x = x;
 		this.container.y = y;
 
-		// Additive glow layer for arcs + muzzle + the inner energy core
+		// Additive glow layer for the muzzle flash + the inner energy core.
 		const glowLayer = new Container();
 		glowLayer.blendMode = 'add';
-		glowLayer.addChild(this.arcsGfx);
 		glowLayer.addChild(this.muzzleGfx);
 		glowLayer.addChild(this.coreGfx);
 

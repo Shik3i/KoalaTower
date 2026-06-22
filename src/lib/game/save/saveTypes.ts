@@ -102,6 +102,9 @@ export interface SaveData {
 	/** v20: Customization skins */
 	selectedSkin: string;
 	unlockedSkins: string[];
+	/** Customization backgrounds (battlefield themes). */
+	selectedBackground: string;
+	unlockedBackgrounds: string[];
 	/** Last game-speed preset the player chose; re-applied on each new run. */
 	preferredSpeed?: number;
 }
@@ -167,6 +170,8 @@ export function createDefaultSave(): SaveData {
 		deploymentReports: [],
 		selectedSkin: 'classic',
 		unlockedSkins: ['classic'],
+		selectedBackground: 'void',
+		unlockedBackgrounds: ['void'],
 		preferredSpeed: 1,
 	};
 }

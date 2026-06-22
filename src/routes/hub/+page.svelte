@@ -86,6 +86,7 @@
 	import BlackMarketSection from '$lib/components/hub/BlackMarketSection.svelte';
 	import ProfileSection from '$lib/components/hub/ProfileSection.svelte';
 	import SkinsSection from '$lib/components/hub/SkinsSection.svelte';
+	import BackgroundsSection from '$lib/components/hub/BackgroundsSection.svelte';
 	import { TOWER_SKINS } from '$lib/game/balance/skins';
 
 	type HubSectionId = 'workshop' | 'orders' | 'lab' | 'blueprints' | 'skins' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings' | 'profile';
@@ -102,6 +103,8 @@
 	let activeSection = $state<HubSectionId>('workshop');
 	let selectedSkin = $state('classic');
 	let unlockedSkins = $state<string[]>(['classic']);
+	let selectedBackground = $state('void');
+	let unlockedBackgrounds = $state<string[]>(['void']);
 	let buyMultiplier = $state<1 | 5 | 10 | 50 | 'max'>(1);
 	let workshopLevels = $state<Partial<Record<WorkshopUpgradeId, number>>>({});
 	let forgeLevels = $state<Partial<Record<UpgradeId, number>>>({});
@@ -182,6 +185,47 @@
 		const save = getCachedSave(); if (!save) return;
 		selectedSkin = save.selectedSkin ?? 'classic';
 		unlockedSkins = save.unlockedSkins ? [...save.unlockedSkins] : ['classic'];
+	}
+
+	function refreshBackgroundsState() {
+		const save = getCachedSave(); if (!save) return;
+		selectedBackground = save.selectedBackground ?? 'void';
+		unlockedBackgrounds = save.unlockedBackgrounds ? [...save.unlockedBackgrounds] : ['void'];
+	}
+
+	function handleSelectBackground(id: string) {
+		const save = getCachedSave(); if (!save) return;
+		if (!save.unlockedBackgrounds.includes(id)) {
+			toast('Background is locked.', 'error');
+			return;
+		}
+		save.selectedBackground = id;
+		persistSave(save);
+		selectedBackground = id;
+		unlockedBackgrounds = [...save.unlockedBackgrounds];
+		uiSound('click');
+		toast('Background equipped successfully.', 'success');
+	}
+
+	function handleBuyBackground(id: string, cost: number) {
+		const save = getCachedSave(); if (!save) return;
+		if (save.unlockedBackgrounds.includes(id)) {
+			toast('Background already unlocked.', 'info');
+			return;
+		}
+		if (save.totalAlloy < cost) {
+			toast('Not enough Alloy.', 'error');
+			return;
+		}
+		save.totalAlloy -= cost;
+		if (!save.unlockedBackgrounds.includes(id)) {
+			save.unlockedBackgrounds.push(id);
+		}
+		persistSave(save);
+		alloyStore.set(save.totalAlloy);
+		unlockedBackgrounds = [...save.unlockedBackgrounds];
+		uiSound('upgrade');
+		toast('Background purchased and unlocked!', 'success');
 	}
 
 	function handleSelectSkin(id: string) {
@@ -549,6 +593,8 @@
 				deploymentReports = [...(s.deploymentReports ?? [])];
 				selectedSkin = s.selectedSkin ?? 'classic';
 				unlockedSkins = s.unlockedSkins ? [...s.unlockedSkins] : ['classic'];
+				selectedBackground = s.selectedBackground ?? 'void';
+				unlockedBackgrounds = s.unlockedBackgrounds ? [...s.unlockedBackgrounds] : ['void'];
 			}
 		}
 	}
@@ -563,6 +609,8 @@
 		deploymentReports = [];
 		selectedSkin = 'classic';
 		unlockedSkins = ['classic'];
+		selectedBackground = 'void';
+		unlockedBackgrounds = ['void'];
 		toast(getOpLogMessage('saveReset'), 'warning');
 	}
 
@@ -774,6 +822,7 @@
 		};
 		refreshBlackMarketState();
 		refreshSkinsState();
+		refreshBackgroundsState();
 		refreshCommandOrders();
 		if (save?.frontBestWave) frontBestWave = { ...save.frontBestWave };
 		if (save?.killsByType) killsByType = { ...save.killsByType };
@@ -1164,14 +1213,23 @@
 					{buyBlueprint}
 				/>
 			{:else if activeSection === 'skins'}
-				<SkinsSection
-					{coins}
-					{selectedSkin}
-					{unlockedSkins}
-					{challengeHighScores}
-					onSelectSkin={handleSelectSkin}
-					onBuySkin={handleBuySkin}
-				/>
+				<div style="display: flex; flex-direction: column; gap: 3rem;">
+					<SkinsSection
+						{coins}
+						{selectedSkin}
+						{unlockedSkins}
+						{challengeHighScores}
+						onSelectSkin={handleSelectSkin}
+						onBuySkin={handleBuySkin}
+					/>
+					<BackgroundsSection
+						{coins}
+						{selectedBackground}
+						{unlockedBackgrounds}
+						onSelectBackground={handleSelectBackground}
+						onBuyBackground={handleBuyBackground}
+					/>
+				</div>
 			{:else if activeSection === 'blackMarket'}
 				<BlackMarketSection
 					bind:converterSourceFront

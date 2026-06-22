@@ -492,6 +492,8 @@ export interface GameState {
 	activeChallenge: ChallengeId | null;
 	/** Tower skin ID active for this run */
 	selectedSkin?: string;
+	/** Background theme ID active for this run */
+	selectedBackground?: string;
 	/** Per-run kill counts by enemy type — accumulated into save on game over. */
 	killsByType: Partial<Record<EnemyType, number>>;
 	/** Per-run shiny kills by type. */

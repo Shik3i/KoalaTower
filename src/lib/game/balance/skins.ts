@@ -12,8 +12,6 @@ export interface TowerSkin {
 		innerStroke2: number;
 		centerHex: number;
 		centerBright: number;
-		arcsStroke: number;
-		orbitalsColor: number;
 		muzzleColor: number;
 	};
 }
@@ -32,9 +30,23 @@ export const TOWER_SKINS: TowerSkin[] = [
 			innerStroke2: 0x0088FF, // GAME_CONFIG.NEON_BLUE
 			centerHex: 0x00FFFF,
 			centerBright: 0xFFFFFF,
-			arcsStroke: 0x00FFFF,
-			orbitalsColor: 0x00FFFF,
 			muzzleColor: 0xFFFFFF,
+		}
+	},
+	{
+		id: 'crimsonGuard',
+		name: 'Crimson Guard',
+		description: 'A free alternate finish — an aggressive red core for the impatient commander.',
+		cost: 0,
+		currency: 'alloy',
+		colors: {
+			coreFill: 0x661122,
+			coreStroke: 0xFF3355,
+			innerStroke1: 0xFF3355,
+			innerStroke2: 0xAA1133,
+			centerHex: 0xFF6677,
+			centerBright: 0xFFFFFF,
+			muzzleColor: 0xFF3355,
 		}
 	},
 	{
@@ -50,9 +62,23 @@ export const TOWER_SKINS: TowerSkin[] = [
 			innerStroke2: 0xFF7700,
 			centerHex: 0xFF7700,
 			centerBright: 0xFFFFFF,
-			arcsStroke: 0xFF7700,
-			orbitalsColor: 0xFF7700,
 			muzzleColor: 0xFF7700,
+		}
+	},
+	{
+		id: 'emberForge',
+		name: 'Ember Forge',
+		description: 'Molten amber plating that runs hotter the longer the war drags on.',
+		cost: 2500,
+		currency: 'alloy',
+		colors: {
+			coreFill: 0x5A2208,
+			coreStroke: 0xFF8A1E,
+			innerStroke1: 0xFFB347,
+			innerStroke2: 0xCC4400,
+			centerHex: 0xFFCC55,
+			centerBright: 0xFFF2D0,
+			muzzleColor: 0xFFAA33,
 		}
 	},
 	{
@@ -68,9 +94,23 @@ export const TOWER_SKINS: TowerSkin[] = [
 			innerStroke2: 0xFF0055,
 			centerHex: 0xFF00AA,
 			centerBright: 0xFFFFFF,
-			arcsStroke: 0xFF00AA,
-			orbitalsColor: 0xFF00AA,
 			muzzleColor: 0xFF00AA,
+		}
+	},
+	{
+		id: 'arcticPulse',
+		name: 'Arctic Pulse',
+		description: 'A glacial white-blue shell that radiates a cold, clinical calm.',
+		cost: 5000,
+		currency: 'alloy',
+		colors: {
+			coreFill: 0x123A55,
+			coreStroke: 0x9FE8FF,
+			innerStroke1: 0xCFF6FF,
+			innerStroke2: 0x4FB8E8,
+			centerHex: 0xEAFBFF,
+			centerBright: 0xFFFFFF,
+			muzzleColor: 0xCFF6FF,
 		}
 	},
 	{
@@ -86,8 +126,6 @@ export const TOWER_SKINS: TowerSkin[] = [
 			innerStroke2: 0x005511,
 			centerHex: 0x00FF33,
 			centerBright: 0xEEFFEE,
-			arcsStroke: 0x00FF33,
-			orbitalsColor: 0x00FF33,
 			muzzleColor: 0x00FF33,
 		}
 	},
@@ -105,8 +143,6 @@ export const TOWER_SKINS: TowerSkin[] = [
 			innerStroke2: 0xAA8800,
 			centerHex: 0xFFEEAA,
 			centerBright: 0xFFFFFF,
-			arcsStroke: 0xFFDD44,
-			orbitalsColor: 0xFFDD44,
 			muzzleColor: 0xFFDD44,
 		}
 	}

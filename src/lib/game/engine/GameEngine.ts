@@ -196,7 +196,8 @@ export class GameEngine {
 		tier: number = 1,
 		challenge: ChallengeId | null = null,
 		killsByType: Partial<Record<EnemyType, number>> = {},
-		selectedSkin = 'classic'
+		selectedSkin = 'classic',
+		selectedBackground = 'void'
 	): void {
 		resetEnemyIdCounter();
 		resetProjectileIdCounter();
@@ -226,6 +227,7 @@ export class GameEngine {
 		this.state.tier = tier;
 		this.state.activeChallenge = challenge;
 		this.state.selectedSkin = selectedSkin;
+		this.state.selectedBackground = selectedBackground;
 
 		// Precompute mastery damage bonuses from lifetime kill counts
 		this.state.masteryDmgBonus = {};
