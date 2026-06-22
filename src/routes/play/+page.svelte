@@ -508,13 +508,6 @@
 				refreshSnap();
 			},
 			onStateChange: () => { refreshSnap(); },
-			onAutosave: () => {
-				const save = getCachedSave();
-				if (save && engine?.state.runActive && !engine.state.gameOver) {
-					save.totalAlloy = engine.state.coins;
-					persistSave(save);
-				}
-			},
 			onGameOver: async (alloyEarned: number, _w: number) => {
 				const finishedRunToken = reportingRunToken;
 				if (finishedRunToken !== activeRunToken) return;
@@ -830,6 +823,13 @@
 		}
 		if (!engine) initEngine();
 		if (!engine) return;
+		// Guard: if a run is already active (e.g. navigating back from hub),
+		// just hide the launch screen — don't start a second deployment.
+		if (engine.state.runActive && !engine.state.gameOver) {
+			showLaunchScreen = false;
+			return;
+		}
+
 		// Re-wire callbacks before every run: checkGameOver() sets onGameOver=null
 		// after firing, so a reused engine would never trigger the game-over panel
 		// on subsequent deployments.

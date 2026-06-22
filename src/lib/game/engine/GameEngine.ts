@@ -69,8 +69,6 @@ export class GameEngine {
 	private onGameOver: ((coins: number, wave: number) => void) | null = null;
 	private onMilestone: ((text: string) => void) | null = null;
 	private onStateChange: (() => void) | null = null;
-	private onAutosave: (() => void) | null = null;
-	private autosaveTimer: number = 0;
 	private muzzleFlashCallback: MuzzleFlashCallback | null = null;
 	private unlockedFieldBlueprints: BlueprintId[] = [];
 	private statsDirty: boolean = true;
@@ -179,13 +177,11 @@ export class GameEngine {
 		onGameOver?: (coins: number, wave: number) => void;
 		onMilestone?: (text: string) => void;
 		onStateChange?: () => void;
-		onAutosave?: () => void;
 	}): void {
 		this.onSnapshot = opts.onSnapshot ?? null;
 		this.onGameOver = opts.onGameOver ?? null;
 		this.onMilestone = opts.onMilestone ?? null;
 		this.onStateChange = opts.onStateChange ?? null;
-		this.onAutosave = opts.onAutosave ?? null;
 	}
 
 	public startRun(
@@ -281,14 +277,6 @@ export class GameEngine {
 			this.updateDeathEffects(dt);
 			this.emitSnapshot(dt);
 			return;
-		}
-
-		// Periodic save during active runs so that browser crashes don't lose
-		// all in-deployment earnings.
-		this.autosaveTimer += dt;
-		if (this.autosaveTimer >= GAME_CONFIG.AUTOSAVE_INTERVAL / 1000) {
-			this.autosaveTimer = 0;
-			this.onAutosave?.();
 		}
 
 		const effectiveDt = Math.min(dt * this.speedMultiplier, GAME_CONFIG.CLAMP_DELTA);

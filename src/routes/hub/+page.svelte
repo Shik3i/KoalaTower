@@ -501,15 +501,13 @@
 		hubPageEl?.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 
-	// Deep-link section selection (C8).
-	// Uses SvelteKit's replaceState (not window.history) so page.url stays in sync
-	// with the browser URL bar after every switchSection() call.
-	$effect(() => {
-		const sectionParam = page.url.searchParams.get('section');
-		if (sectionParam && isHubSectionId(sectionParam) && activeSection !== sectionParam) {
-			activeSection = sectionParam;
-		}
-	});
+	// Deep-link section selection — only on page load.
+	// After initial sync, switchSection() owns the active section;
+	// SvelteKit's replaceState keeps the URL bar correct for bookmarks.
+	const sectionParam = page.url.searchParams.get('section');
+	if (sectionParam && isHubSectionId(sectionParam)) {
+		activeSection = sectionParam;
+	}
 
 	async function openImportDialog() {
 		showImportDialog = true;
