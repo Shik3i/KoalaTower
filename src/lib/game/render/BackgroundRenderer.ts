@@ -69,6 +69,25 @@ export class BackgroundRenderer {
 		}
 	}
 
+	/**
+	 * Re-fit the static background to a new canvas size. The atmospheric glow,
+	 * vignette and grid are all centred on (w/2, h/2), so without this they stay
+	 * anchored to the original dimensions and drift off-centre after a viewport
+	 * resize. Star positions are rescaled proportionally to keep the field evenly
+	 * covered rather than clustered in one corner.
+	 */
+	resize(width: number, height: number): void {
+		if (width <= 0 || height <= 0 || (width === this.width && height === this.height)) return;
+		const sx = width / this.width;
+		const sy = height / this.height;
+		this.width = width;
+		this.height = height;
+		for (const star of this.stars) { star.x *= sx; star.y *= sy; }
+		this.bgGfx.clear();
+		this.gridGfx.clear();
+		this.drawStatic();
+	}
+
 	update(time: number, _dt: number): void {
 		// Grid pulse — clamped to valid alpha range
 		this.gridGfx.alpha = Math.min(1, Math.max(0.1, Math.sin(time * 0.3) * 0.3 + 0.85));

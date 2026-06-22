@@ -39,18 +39,43 @@ export class ProjectileRenderer {
 				c.rotation = Math.atan2(proj.position.y - prev.y, proj.position.x - prev.x) + Math.PI / 2;
 			}
 
-			// Render trail
+			// Render trail as one continuous tapered ribbon (tail → head) instead of
+			// stippled circles: smoother streak, and a single connected fill per
+			// segment reads as a light-beam rather than a string of beads. Width
+			// grows toward the head; alpha fades toward the tail.
 			const meta = _meta.get(c);
 			if (meta && proj.trail.length > 1) {
 				const trailGfx = meta.trail;
 				trailGfx.clear();
 				const col = proj.color;
+				const pts = proj.trail;
+				const n = pts.length;
+				const headW = proj.isCrit ? 3 : 1.6;
 				const baseAlpha = proj.isCrit ? 0.5 : 0.35;
-				for (let i = 1; i < proj.trail.length; i++) {
-					const pt = proj.trail[i]!;
-					const t = i / proj.trail.length;
-					const r = (proj.isCrit ? 3 : 1.5) * t;
-					trailGfx.circle(pt.x - c.x, pt.y - c.y, r).fill({ color: col, alpha: baseAlpha * t * 0.7 });
+				// Perpendicular offsets along the path, scaled by a head-weighted taper.
+				for (let i = 1; i < n; i++) {
+					const p0 = pts[i - 1]!;
+					const p1 = pts[i]!;
+					let dx = p1.x - p0.x;
+					let dy = p1.y - p0.y;
+					const len = Math.hypot(dx, dy) || 1;
+					const px = -dy / len;
+					const py = dx / len;
+					const t0 = (i - 1) / (n - 1);
+					const t1 = i / (n - 1);
+					const w0 = headW * t0;
+					const w1 = headW * t1;
+					const x0 = p0.x - c.x;
+					const y0 = p0.y - c.y;
+					const x1 = p1.x - c.x;
+					const y1 = p1.y - c.y;
+					trailGfx
+						.moveTo(x0 + px * w0, y0 + py * w0)
+						.lineTo(x1 + px * w1, y1 + py * w1)
+						.lineTo(x1 - px * w1, y1 - py * w1)
+						.lineTo(x0 - px * w0, y0 - py * w0)
+						.closePath()
+						.fill({ color: col, alpha: baseAlpha * t1 * 0.85 });
 				}
 			}
 

@@ -256,6 +256,16 @@
 	onMount(() => {
 		const cm = () => { isMobile = window.innerWidth < 900; };
 		cm(); window.addEventListener('resize', cm);
+
+		// Keep the renderer's camera centred when the viewport OR the canvas area
+		// changes size (window resize, orientation flip, side-panel collapse). A
+		// ResizeObserver on the canvas host catches container-only changes that a
+		// window 'resize' event would miss; gameView.resize() recentres the world.
+		let resizeObserver: ResizeObserver | null = null;
+		if (container && typeof ResizeObserver !== 'undefined') {
+			resizeObserver = new ResizeObserver(() => gameView?.resize());
+			resizeObserver.observe(container);
+		}
 		reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 		systemReducedMotion = reducedMotionQuery.matches;
 		reducedMotionHandler = (event) => {
@@ -322,6 +332,7 @@
 			window.removeEventListener('resize', cm);
 			window.removeEventListener('keydown', onKey);
 			window.removeEventListener('keyup', onKeyUp);
+			resizeObserver?.disconnect();
 			u1(); u2(); u3(); u4(); u5(); u6(); u7(); unsubEngine();
 		};
 	});
@@ -1359,6 +1370,14 @@
 				{fps} FPS
 			</div>
 		{/if}
+		<!-- Ambient atmosphere overlay (CSS only — zero render-loop cost). A soft
+		     radial vignette plus faint CRT scanlines give the battlefield depth and
+		     an arcade-cabinet feel without touching the WebGL pipeline. Disabled in
+		     reduced/low-effects mode to keep the field flat and cheap. -->
+		{#if !settings.lowEffectsMode}
+			<div class="atmosphere" class:reduced={settings.reducedMotion} aria-hidden="true"></div>
+		{/if}
+
 		<!-- Low-HP vignette overlay (CSS — above canvas, below HUD panels). Pulses
 		     red when tower HP < 30%, stronger + faster when < 15%. -->
 		<div
@@ -1677,6 +1696,17 @@
 	/* Red radial-gradient overlay on the canvas. Pulses while HP < 30%,
 	   pulses faster + brighter while < 15%. Disabled (opacity 0) otherwise.
 	   `pointer-events:none` so it never blocks interaction. */
+	/* Ambient atmosphere: static dark vignette (depth) layered over very faint
+	   scanlines (arcade feel). Sits just above the canvas, below the HUD. z-index
+	   5 keeps it under the low-HP vignette (6) so damage feedback stays readable. */
+	.atmosphere { position:absolute; inset:0; pointer-events:none; z-index:5;
+		background:
+			repeating-linear-gradient(to bottom, rgba(0,0,0,0.10) 0px, rgba(0,0,0,0.10) 1px, transparent 1px, transparent 3px),
+			radial-gradient(ellipse at center, transparent 55%, rgba(3,4,12,0.35) 88%, rgba(2,3,9,0.6) 100%);
+	}
+	/* Drop the scanlines (but keep the vignette) when motion is reduced. */
+	.atmosphere.reduced { background:radial-gradient(ellipse at center, transparent 55%, rgba(3,4,12,0.35) 88%, rgba(2,3,9,0.6) 100%); }
+
 	.vignette { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .35s ease; z-index:6;
 		background:radial-gradient(ellipse at center, transparent 35%, rgba(255,40,80,0.18) 80%, rgba(255,40,80,0.35) 100%);
 		mix-blend-mode:screen; }

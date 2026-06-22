@@ -50,6 +50,13 @@ export class PixiGameView {
 	public initError: Error | null = null;
 	private bloomFilter: AdvancedBloomFilter | null = null;
 	private bloomActive = false;
+	// Adaptive bloom quality: if the frame rate stays low for a sustained window
+	// we drop bloom quality once (4 → 2) so weak GPUs keep a smooth framerate
+	// instead of the player having to disable effects by hand. One-way with a long
+	// window so it never flip-flops mid-fight.
+	private fpsAccum = 0;
+	private fpsFrames = 0;
+	private bloomDowngraded = false;
 	private callbacks: PixiGameViewCallbacks;
 	private handleContextLost: ((event: Event) => void) | null = null;
 	private handleContextRestored: (() => void) | null = null;
@@ -75,12 +82,17 @@ export class PixiGameView {
 		const vw = Math.max(400, Math.floor(rect.width));
 		const vh = Math.max(400, Math.floor(rect.height));
 
+		// Cap the render resolution at 2×. Beyond that the extra pixels cost GPU
+		// time for no visible gain (a 3× DPI phone would otherwise render 9× the
+		// pixels). At ≥2× the supersampling already smooths edges, so MSAA is only
+		// worth enabling at 1× — on low-DPI displays where there is no oversampling.
+		const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
 		await this.app.init({
 			width: vw,
 			height: vh,
 			background: GAME_CONFIG.CANVAS_BG,
-			antialias: true,
-			resolution: Math.max(1, window.devicePixelRatio || 1),
+			antialias: dpr < 2,
+			resolution: dpr,
 			autoDensity: true,
 			autoStart: false,
 			preference: 'webgl',
@@ -184,12 +196,17 @@ export class PixiGameView {
 
 		// Neon bloom — tuned for bright strokes on a near-black field.
 		this.bloomFilter = new AdvancedBloomFilter({
-			threshold: 0.35,
-			bloomScale: 1.1,
+			threshold: 0.25,
+			bloomScale: 1.3,
 			brightness: 1.0,
-			blur: 6,
+			blur: 7,
 			quality: 4,
 		});
+		// Pixi filters default to antialias:'off', which renders the whole stage
+		// into a non-AA intermediate texture and reintroduces the jagged edges the
+		// renderer's MSAA would otherwise smooth (most visible on rotating shapes).
+		// 'inherit' makes the bloom pass follow the renderer's antialias setting.
+		this.bloomFilter.antialias = 'inherit';
 		this.applyBloom(this.bloomWanted());
 	}
 
@@ -207,11 +224,39 @@ export class PixiGameView {
 		this.bloomActive = on;
 	}
 
+	/**
+	 * Watch the framerate while bloom is active and downgrade its quality once if
+	 * the average stays below ~50fps for a sustained ~3s window. One-way: once
+	 * downgraded it stays there for the session, so it can't oscillate.
+	 */
+	private adaptBloomQuality(dt: number): void {
+		if (this.bloomDowngraded || !this.bloomActive || !this.bloomFilter || dt <= 0) return;
+		this.fpsAccum += dt;
+		this.fpsFrames++;
+		if (this.fpsAccum < 3) return; // accumulate ~3s before judging
+		const avgFps = this.fpsFrames / this.fpsAccum;
+		this.fpsAccum = 0;
+		this.fpsFrames = 0;
+		if (avgFps < 50) {
+			this.bloomFilter.quality = 2;
+			this.bloomFilter.blur = 5;
+			this.bloomDowngraded = true;
+		}
+	}
+
 	public resize(): void {
-		// PixiJS resizeTo handles the canvas; recompute the camera for the new size.
 		if (this.app && this.initialized) {
+			// Force the renderer to read the container's new size *now* so app.screen
+			// is current before we recentre — resizeTo otherwise defers this to the
+			// next frame, leaving the camera one resize behind.
+			this.app.resize();
+			// Re-fit the canvas-pinned background (glow/vignette/grid/stars) so it
+			// stays centred and fully covers the new viewport.
+			this.background.resize(this.app.screen.width, this.app.screen.height);
 			const range = this.engine.state.tower?.stats?.range ?? 0;
 			const zoom = this.engine.state.runActive ? this.computeZoom(range) : 1;
+			// force:true so the world re-centres on the new canvas dimensions even
+			// when the zoom level itself is unchanged (the common case on resize).
 			this.applyCamera(zoom, true);
 			this.lastRange = -1;
 		}
@@ -318,6 +363,7 @@ export class PixiGameView {
 
 		// Toggle bloom live when the setting changes.
 		this.applyBloom(this.bloomWanted());
+		this.adaptBloomQuality(rawDt);
 
 		this.enemy.sync(state.enemies, effTime, settings.reducedMotion);
 		this.projectile.sync(state.projectiles);
