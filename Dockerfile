@@ -17,6 +17,9 @@ RUN apt-get update \
 
 # Dependencies layer (cached unless package.json changes)
 COPY package.json package-lock.json ./
+# Sync package.json version to the tag/release so the image always
+# reports the correct version even when the source file was stale.
+RUN sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VITE_APP_VERSION#v}\"/" package.json
 RUN npm ci
 
 # Source layer
