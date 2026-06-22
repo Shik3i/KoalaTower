@@ -1,0 +1,61 @@
+name: Auto-bump version
+
+# Runs ONLY on tag push — syncs package.json version to the tag,
+# commits the change back to main, and moves the tag onto the new commit.
+# Separated from ci.yml so a single `git push --follow-tags` triggers
+# at most 2 runs (this one + docker-publish) instead of 3.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    name: Sync package.json from tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Bump package.json to match tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION=$(node -e "console.log(require('./package.json').version)")
+          echo "Tag:    v${TAG_VERSION}"
+          echo "pkg:    ${PKG_VERSION}"
+
+          if [ "${TAG_VERSION}" = "${PKG_VERSION}" ]; then
+            echo "✅ Already in sync — nothing to do."
+            exit 0
+          fi
+
+          echo "🔄 Mismatch — updating package.json to ${TAG_VERSION}"
+
+          node -e "
+            const p = require('./package.json');
+            p.version = '${TAG_VERSION}';
+            require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2) + '\n');
+          "
+
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          git add package.json
+          git commit -m "release: sync package.json to ${GITHUB_REF_NAME} [skip ci]"
+
+          # Push to main. [skip ci] prevents ci.yml from running again.
+          git push origin HEAD:main
+
+          # Move the tag onto the bumped commit so docker-publish
+          # (triggered by the original tag push) still gets the
+          # correct version in its checkout.
+          git tag -f "${GITHUB_REF_NAME}"
+          git push --force origin "${GITHUB_REF_NAME}"
+
+          echo "✅ package.json → ${TAG_VERSION}, tag on $(git rev-parse HEAD)"

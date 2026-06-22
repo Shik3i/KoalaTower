@@ -3,8 +3,6 @@ name: CI
 on:
   push:
     branches: [main]
-    tags:
-      - "v*.*.*"
   pull_request:
     branches: [main]
 
@@ -12,55 +10,6 @@ permissions:
   contents: read
 
 jobs:
-  auto-bump-version:
-    name: Sync package.json version from tag
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-
-      - name: Bump package.json to match tag
-        run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          PKG_VERSION=$(node -e "console.log(require('./package.json').version)")
-          echo "Tag:    v${TAG_VERSION}"
-          echo "pkg:    ${PKG_VERSION}"
-
-          if [ "${TAG_VERSION}" = "${PKG_VERSION}" ]; then
-            echo "✅ Already in sync — nothing to do."
-            exit 0
-          fi
-
-          echo "🔄 Mismatch — updating package.json to ${TAG_VERSION}"
-
-          node -e "
-            const p = require('./package.json');
-            p.version = '${TAG_VERSION}';
-            require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2) + '\n');
-          "
-
-          git config user.name  'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-
-          git add package.json
-          git commit -m "release: sync package.json to ${GITHUB_REF_NAME} [skip ci]"
-
-          # Push the version-bump commit to main, then move the tag onto it.
-          git push origin HEAD:main
-
-          # Force the tag onto the new commit so the Docker publish workflow
-          # (triggered by the original tag push) still runs on the bumped commit.
-          # GitHub does not recurse workflows from GITHUB_TOKEN pushes.
-          git tag -f "${GITHUB_REF_NAME}"
-          git push --force origin "${GITHUB_REF_NAME}"
-
-          echo "✅ package.json → ${TAG_VERSION}, tag moved to $(git rev-parse HEAD)"
-
   check-and-test:
     name: Check & Test
     runs-on: ubuntu-latest
