@@ -17,7 +17,7 @@ import type {
 import type { SoundName } from '../audio/AudioManager';
 import { EnemyType, DEFAULT_SETTINGS, ChallengeId } from './gameTypes';
 import { createTowerState, applyBattleUpgrades, applyRegen } from '../systems/towerSystem';
-import { updateEnemySystem, updateProjectileSystem, updateTowerTargeting, resetProjectileIdCounter } from '../systems/enemySystem';
+import { updateEnemySystem, updateProjectileSystem, updateTowerTargeting, resetProjectileIdCounter, formatFloatingText } from '../systems/enemySystem';
 import { updateWaveSystem, removeDeadEnemies } from '../systems/waveSystem';
 import { getStartingEnergy } from '../systems/economySystem';
 import { resetEnemyIdCounter } from '../balance/enemies';
@@ -52,6 +52,9 @@ export class GameEngine {
 	public state: GameState;
 	public particles: Particle[] = [];
 	public damageNumbers: DamageNumber[] = [];
+	/** Enemy id → its currently-live aggregated damage number, for merging rapid
+	 * hits. Stale entries self-evict (a dead number reads life<=0 on next lookup). */
+	private dmgAggIndex = new Map<number, DamageNumber>();
 	public shockwaves: Shockwave[] = [];
 	public deathEffects: DeathEffect[] = [];
 	public shakeAmount: number = 0;
@@ -81,7 +84,7 @@ export class GameEngine {
 	public wireMuzzleFlash(cb: MuzzleFlashCallback): void {
 		this.muzzleFlashCallback = cb;
 		setFeedbackHooks({
-			addDmg: (x, y, text, color, kind) => this.addDamageNumber(x, y, text, color, kind),
+			addDmg: (x, y, text, color, kind, aggKey, aggValue) => this.addDamageNumber(x, y, text, color, kind, aggKey, aggValue),
 			addParticles: (x, y, color, count, speed) => this.addParticles(x, y, color, count, speed),
 			addShake: (amount) => this.addShake(amount),
 			triggerMuzzleFlash: () => this.muzzleFlashCallback?.(),
@@ -506,16 +509,35 @@ export class GameEngine {
 		}
 	}
 
-	public addDamageNumber(x: number, y: number, text: string, color: number, kind?: DamageNumberKind): void {
+	public addDamageNumber(x: number, y: number, text: string, color: number, kind?: DamageNumberKind, aggKey?: number, aggValue?: number): void {
 		if (!this.state.settings.damageNumbers) return;
+		const resolvedKind: DamageNumberKind = kind ?? 'damage';
+
+		// Aggregation: when a basic-damage number for this enemy is still alive,
+		// fold the new hit into it (sum + refresh + reposition) instead of pushing
+		// another. At slow fire the prior number has already expired, so this only
+		// kicks in under rapid fire — exactly the high-density spam it targets.
+		if (aggKey !== undefined && aggValue !== undefined && resolvedKind === 'damage') {
+			const existing = this.dmgAggIndex.get(aggKey);
+			if (existing && existing.life > 0 && existing.kind === 'damage') {
+				existing.aggValue = (existing.aggValue ?? 0) + aggValue;
+				existing.text = formatFloatingText('damage', existing.aggValue);
+				existing.life = existing.maxLife;
+				existing.alpha = 1;
+				existing.x = x;
+				existing.y = y;
+				existing.color = color;
+				return;
+			}
+		}
+
 		if (this.damageNumbers.length >= GAME_CONFIG.MAX_DAMAGE_NUMBERS) {
 			this.damageNumbers.shift();
 		}
-		const resolvedKind: DamageNumberKind = kind ?? 'damage';
 		// Lazy import avoided — pulling the style resolver up front would create a
 		// renderer→engine dependency. Mirror the ascent table here instead.
 		const ascent = DAMAGE_ASCENT[resolvedKind] ?? 30;
-		this.damageNumbers.push({
+		const dn: DamageNumber = {
 			x,
 			y,
 			text,
@@ -525,7 +547,13 @@ export class GameEngine {
 			alpha: 1,
 			kind: resolvedKind,
 			drift: ascent,
-		});
+		};
+		this.damageNumbers.push(dn);
+		// Register as the merge target for subsequent rapid hits on this enemy.
+		if (aggKey !== undefined && resolvedKind === 'damage') {
+			dn.aggValue = aggValue ?? 0;
+			this.dmgAggIndex.set(aggKey, dn);
+		}
 	}
 
 	/**
@@ -610,6 +638,7 @@ export class GameEngine {
 		this.state.projectiles = [];
 		this.particles = [];
 		this.damageNumbers = [];
+		this.dmgAggIndex.clear();
 		this.shockwaves = [];
 		this.deathEffects = [];
 		this.hitStopTimer = 0;

@@ -378,6 +378,9 @@ export interface DamageNumber {
 	kind?: DamageNumberKind;
 	/** Optional upward drift speed (px/s). Lower = sticks around longer in place. */
 	drift?: number;
+	/** Running total when this number is an aggregation target (rapid hits on the
+	 * same enemy merge into one rising number instead of spamming the field). */
+	aggValue?: number;
 }
 
 /** Expanding ring burst used for impact feedback (boss/crit kills). */
@@ -528,6 +531,16 @@ export interface GameSettings {
 	pauseOnHide: boolean;
 	/** Show FPS counter during gameplay. */
 	showFps: boolean;
+	/** Vibration feedback on mobile for milestones, hits, and purchases. */
+	haptics: boolean;
+	/**
+	 * Graphics quality preset. 'custom' means the individual effect toggles were
+	 * set by hand; the named presets are macros that write those toggles at once.
+	 */
+	graphicsQuality: 'custom' | 'low' | 'medium' | 'high';
+	/** Colour-blind-safe enemy palette. Shapes already differentiate types; this
+	 * remaps the hues for players who can't rely on the default colour code. */
+	colorblind: 'off' | 'deuteranopia' | 'protanopia' | 'tritanopia';
 }
 
 /** Tracks real-time research progress. */
@@ -589,5 +602,8 @@ export const DEFAULT_SETTINGS: GameSettings = {
 	bloom: true,
 	browserNotifications: false,
 	pauseOnHide: true,
-	showFps: false
+	showFps: false,
+	haptics: true,
+	graphicsQuality: 'custom',
+	colorblind: 'off'
 };

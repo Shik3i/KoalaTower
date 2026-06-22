@@ -38,7 +38,7 @@
 	<div class="sg">
 		{#each settingsList as s}
 			<div class="sr" role="group" aria-label={s.label}><div class="si"><span class="sl">{s.label}</span><span class="sd">{s.desc}</span></div>
-				<div class="tg" class:on={settings[s.key]} role="switch" aria-checked={settings[s.key]} aria-label={s.label} tabindex="0" onclick={() => onToggleSetting(s.key)} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleSetting(s.key); } }}>
+				<div class="tg" class:on={!!settings[s.key]} role="switch" aria-checked={!!settings[s.key]} aria-label={s.label} tabindex="0" onclick={() => onToggleSetting(s.key)} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleSetting(s.key); } }}>
 					<div class="tgk"></div>
 				</div>
 			</div>

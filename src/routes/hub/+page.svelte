@@ -968,7 +968,9 @@
 	function toggleSetting(key: keyof GameSettings) {
 		const save = getCachedSave(); if (!save) return;
 		const next = !settings[key];
-		save.settings[key] = next;
+		// settingsList only exposes boolean settings; Object.assign sidesteps the
+		// `never` target the widened keyof-union otherwise produces here.
+		Object.assign(save.settings, { [key]: next });
 		settingsStore.set({ ...save.settings });
 		persistSave(save);
 		// Enabling lab notifications needs OS permission — request it from this

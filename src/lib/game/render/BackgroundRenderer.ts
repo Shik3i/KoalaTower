@@ -7,9 +7,11 @@ export class BackgroundRenderer {
 	public height: number;
 	private bgGfx = new Graphics();
 	private gridGfx = new Graphics();
+	private starLayer = new Container();
 	private starGfxs: Graphics[] = [];
 	private stars: ReturnType<typeof import('./renderUtils').generateStars>;
 	private lastTwinkle = 0;
+	private zoomParallax = 1;
 
 	constructor(stars: ReturnType<typeof import('./renderUtils').generateStars>, width: number, height: number) {
 		this.width = width;
@@ -21,7 +23,7 @@ export class BackgroundRenderer {
 
 		// Stars with additive blend for glow — single parent Container
 		// avoids ~80 individual batch breaks vs per-Graphics blendMode.
-		const starLayer = new Container();
+		const starLayer = this.starLayer;
 		starLayer.blendMode = 'add';
 		for (const star of stars) {
 			const sg = new Graphics();
@@ -88,9 +90,27 @@ export class BackgroundRenderer {
 		this.drawStatic();
 	}
 
+	/**
+	 * Couple the (canvas-pinned) starfield to the camera zoom so it reads as a
+	 * distant backdrop: when the world zooms out the stars shrink slightly toward
+	 * centre, giving parallax depth the otherwise-static background lacks. Gentle
+	 * and clamped so it never looks like the stars are zooming with the action.
+	 */
+	setZoomParallax(zoom: number): void {
+		this.zoomParallax = Math.max(0.85, Math.min(1.1, 1 + (zoom - 1) * 0.2));
+	}
+
 	update(time: number, _dt: number): void {
 		// Grid pulse — clamped to valid alpha range
 		this.gridGfx.alpha = Math.min(1, Math.max(0.1, Math.sin(time * 0.3) * 0.3 + 0.85));
+
+		// Parallax: slow ambient drift + zoom-coupled scale, pivoted on the canvas
+		// centre so the field breathes with subtle depth rather than sitting flat.
+		const driftX = Math.sin(time * 0.05) * 6;
+		const driftY = Math.cos(time * 0.04) * 4;
+		this.starLayer.pivot.set(this.width / 2, this.height / 2);
+		this.starLayer.position.set(this.width / 2 + driftX, this.height / 2 + driftY);
+		this.starLayer.scale.set(this.zoomParallax);
 
 		// Stars twinkle (throttled to ~10 updates/sec for performance)
 		if (time - this.lastTwinkle < 0.1) return;

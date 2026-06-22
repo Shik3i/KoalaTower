@@ -608,6 +608,48 @@ export const ENEMY_COLORS: Record<EnemyType, number> = {
 	[EnemyType.Boss]:    0xFF44AA,
 };
 
+export type ColorblindMode = 'off' | 'deuteranopia' | 'protanopia' | 'tritanopia';
+
+/**
+ * Colour-blind-safe enemy palettes. Each set maximises hue separation along the
+ * axes the respective deficiency preserves (deuteran/protan keep blue↔yellow;
+ * tritan keeps red↔cyan), so the five enemy types stay distinguishable even
+ * when the default cyan/green/violet/orange/pink code collapses. Shapes still
+ * carry the primary signal — this is a secondary aid.
+ */
+export const COLORBLIND_PALETTES: Record<Exclude<ColorblindMode, 'off'>, Record<EnemyType, number>> = {
+	// Deuteranopia (red-green): lean on blue↔orange↔white↔magenta.
+	deuteranopia: {
+		[EnemyType.Normal]:  0x56B4E9, // sky blue
+		[EnemyType.Fast]:    0xF0E442, // yellow
+		[EnemyType.Tank]:    0x0072B2, // deep blue
+		[EnemyType.Ranged]:  0xE69F00, // orange
+		[EnemyType.Boss]:    0xCC79A7, // magenta-pink
+	},
+	// Protanopia (red-weak): similar axis, shift reds toward amber/blue.
+	protanopia: {
+		[EnemyType.Normal]:  0x56B4E9,
+		[EnemyType.Fast]:    0xF0E442,
+		[EnemyType.Tank]:    0x0072B2,
+		[EnemyType.Ranged]:  0xD55E00, // vermillion
+		[EnemyType.Boss]:    0xCC79A7,
+	},
+	// Tritanopia (blue-yellow): lean on red↔cyan↔pink↔green.
+	tritanopia: {
+		[EnemyType.Normal]:  0x00CED1, // cyan (preserved)
+		[EnemyType.Fast]:    0x2ECC71, // green
+		[EnemyType.Tank]:    0xFF4D6D, // red-pink
+		[EnemyType.Ranged]:  0xFF8844, // orange (preserved)
+		[EnemyType.Boss]:    0xC724B1, // magenta
+	},
+};
+
+/** Resolve an enemy type's display colour for the active colour-blind mode. */
+export function enemyDisplayColor(type: EnemyType, mode: ColorblindMode): number {
+	if (mode === 'off') return ENEMY_COLORS[type];
+	return COLORBLIND_PALETTES[mode][type];
+}
+
 // ─── Enemy config builder (tier-aware, piecewise power) ────────────────────
 
 export function computeEnemyConfig(

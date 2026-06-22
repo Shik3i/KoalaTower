@@ -303,6 +303,9 @@ export class PixiGameView {
 			this.world.position.set(cw / 2, ch / 2);
 			this.world.scale.set(zoom);
 		}
+
+		// Parallax: nudge the distant starfield's scale opposite the world zoom.
+		this.background?.setZoomParallax(zoom);
 	}
 
 	private lastTime = 0;
@@ -365,7 +368,7 @@ export class PixiGameView {
 		this.applyBloom(this.bloomWanted());
 		this.adaptBloomQuality(rawDt);
 
-		this.enemy.sync(state.enemies, effTime, settings.reducedMotion);
+		this.enemy.sync(state.enemies, effTime, settings.reducedMotion, settings.colorblind ?? 'off');
 		this.projectile.sync(state.projectiles);
 		this.effects.syncParticles(this.engine.particles, settings);
 		this.effects.syncShockwaves(this.engine.shockwaves, settings);

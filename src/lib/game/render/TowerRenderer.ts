@@ -11,7 +11,9 @@ export class TowerRenderer {
 	private towerGfx = new Graphics();
 	private arcsGfx = new Graphics();
 	private muzzleGfx = new Graphics();
-	private orbitalsGfx = new Graphics();
+	// Pulsing energy core, drawn each frame strictly inside the octagon body.
+	// (Replaces the removed external orbitals — nothing renders outside the tower.)
+	private coreGfx = new Graphics();
 	public rangeGfx = new Graphics();
 	public rangeContainer = new Container();
 	private readonly _skin: typeof TOWER_SKINS[number];
@@ -28,12 +30,12 @@ export class TowerRenderer {
 		this.container.x = x;
 		this.container.y = y;
 
-		// Additive glow layer for arcs + muzzle + orbitals
+		// Additive glow layer for arcs + muzzle + the inner energy core
 		const glowLayer = new Container();
 		glowLayer.blendMode = 'add';
 		glowLayer.addChild(this.arcsGfx);
 		glowLayer.addChild(this.muzzleGfx);
-		glowLayer.addChild(this.orbitalsGfx);
+		glowLayer.addChild(this.coreGfx);
 
 		this.container.addChild(this.towerGfx);
 		this.container.addChild(glowLayer);
@@ -123,6 +125,19 @@ export class TowerRenderer {
 			this.muzzleGfx.clear();
 			this.muzzleGfx.alpha = 0;
 		}
+
+		// Inner energy core — a living, breathing centre that flares on each shot.
+		// Drawn entirely within the octagon body (max radius ~0.41·TOWER_SIZE, well
+		// inside the s·0.58 inner ring) so the tower never gains anything external.
+		const s = GAME_CONFIG.TOWER_SIZE;
+		const beat = Math.sin(time * 2.2) * 0.5 + 0.5; // 0..1 idle breathing
+		const flare = this._muzzleFlash;               // 0..1 brief firing flare
+		const coreR = s * (0.1 + beat * 0.05 + flare * 0.08);
+		const core = this.coreGfx;
+		core.clear();
+		core.circle(0, 0, coreR * 1.8).fill({ color: c.centerBright, alpha: 0.1 + flare * 0.2 });
+		core.circle(0, 0, coreR).fill({ color: c.muzzleColor, alpha: 0.32 + beat * 0.15 + flare * 0.3 });
+		core.circle(0, 0, coreR * 0.5).fill({ color: 0xFFFFFF, alpha: 0.45 + flare * 0.4 });
 	}
 
 	updateRange(range: number, lastRange: number): number {

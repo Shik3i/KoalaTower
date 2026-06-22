@@ -489,6 +489,9 @@ function normalizeSettings(raw: unknown): GameSettings {
 		browserNotifications: s.browserNotifications ?? DEFAULT_SETTINGS.browserNotifications,
 		pauseOnHide: s.pauseOnHide ?? DEFAULT_SETTINGS.pauseOnHide,
 		showFps: s.showFps ?? DEFAULT_SETTINGS.showFps,
+		haptics: s.haptics ?? DEFAULT_SETTINGS.haptics,
+		graphicsQuality: s.graphicsQuality ?? DEFAULT_SETTINGS.graphicsQuality,
+		colorblind: s.colorblind ?? DEFAULT_SETTINGS.colorblind,
 	};
 }
 

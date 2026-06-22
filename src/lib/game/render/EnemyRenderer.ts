@@ -1,5 +1,6 @@
 import { Container, Graphics } from 'pixi.js';
 import type { Enemy } from '../engine/gameTypes';
+import { enemyDisplayColor, type ColorblindMode } from '../balance/balanceMath';
 
 interface EnemyMeta {
 	shape: Graphics;
@@ -14,6 +15,8 @@ interface EnemyMeta {
 	spinPhase: number;   // per-enemy starting angle
 	/** Last damage tier drawn so we only re-render cracks when the tier changes. */
 	dmgTier: number;
+	/** Colour-blind mode the shape was last drawn for; redraw when it changes. */
+	cb: ColorblindMode;
 }
 
 const _meta = new WeakMap<Container, EnemyMeta>();
@@ -39,7 +42,7 @@ export class EnemyRenderer {
 	private free: Container[] = [];
 	private activeIds = new Set<number>();
 
-	sync(enemies: Enemy[], time: number, reduced: boolean = false): void {
+	sync(enemies: Enemy[], time: number, reduced: boolean = false, colorblind: ColorblindMode = 'off'): void {
 		const activeIds = this.activeIds;
 		activeIds.clear();
 
@@ -49,10 +52,10 @@ export class EnemyRenderer {
 
 			let c = this.gfxMap.get(enemy.id);
 			if (!c) {
-				c = this.acquire(enemy, time);
+				c = this.acquire(enemy, time, colorblind);
 				this.gfxMap.set(enemy.id, c);
 			}
-			this.updateVisuals(c, enemy, time, reduced);
+			this.updateVisuals(c, enemy, time, reduced, colorblind);
 
 			c.x = enemy.position.x;
 			c.y = enemy.position.y;
@@ -68,7 +71,7 @@ export class EnemyRenderer {
 		}
 	}
 
-	private acquire(enemy: Enemy, time: number): Container {
+	private acquire(enemy: Enemy, time: number, colorblind: ColorblindMode): Container {
 		const pooled = this.free.pop();
 		if (pooled) {
 			const meta = _meta.get(pooled);
@@ -82,7 +85,8 @@ export class EnemyRenderer {
 				meta.spin = enemy.isBoss ? 0.25 * dir : (0.4 + (enemy.id % 5) * 0.12) * dir;
 				meta.spinPhase = (enemy.id % 7) * 0.9;
 				meta.dmgTier = -1; // force redraw on next updateVisuals
-				this.draw(enemy, meta.shape, meta.inner, meta.glow, 0);
+				meta.cb = colorblind;
+				this.draw(enemy, meta.shape, meta.inner, meta.glow, 0, colorblind);
 				pooled.visible = true;
 				return pooled;
 			}
@@ -102,19 +106,20 @@ export class EnemyRenderer {
 		_meta.set(c, {
 			shape, inner, glow,
 			type: enemy.type, size: enemy.size, boss: enemy.isBoss, shiny: enemy.isShiny,
-			spawnTime: time, spin, spinPhase: (enemy.id % 7) * 0.9, dmgTier: -1,
+			spawnTime: time, spin, spinPhase: (enemy.id % 7) * 0.9, dmgTier: -1, cb: colorblind,
 		});
-		this.draw(enemy, shape, inner, glow, 0);
+		this.draw(enemy, shape, inner, glow, 0, colorblind);
 		this.container.addChild(c);
 		return c;
 	}
 
-	private updateVisuals(c: Container, enemy: Enemy, time: number, reduced: boolean): void {
+	private updateVisuals(c: Container, enemy: Enemy, time: number, reduced: boolean, colorblind: ColorblindMode): void {
 		const meta = _meta.get(c);
 		if (!meta) return;
 
-		if (meta.type !== enemy.type || meta.size !== enemy.size || meta.boss !== enemy.isBoss || meta.shiny !== enemy.isShiny) {
-			this.draw(enemy, meta.shape, meta.inner, meta.glow, 0);
+		if (meta.type !== enemy.type || meta.size !== enemy.size || meta.boss !== enemy.isBoss || meta.shiny !== enemy.isShiny || meta.cb !== colorblind) {
+			meta.cb = colorblind;
+			this.draw(enemy, meta.shape, meta.inner, meta.glow, 0, colorblind);
 			meta.type = enemy.type;
 			meta.size = enemy.size;
 			meta.boss = enemy.isBoss;
@@ -126,7 +131,7 @@ export class EnemyRenderer {
 		// per-frame redraws while still showing progressive damage cracks.
 		const tier = getEnemyDamageTier(enemy.hp, enemy.maxHp, enemy.isBoss);
 		if (tier !== meta.dmgTier) {
-			this.drawDamageCracks(enemy, meta.inner, tier);
+			this.drawDamageCracks(enemy, meta.inner, tier, colorblind);
 			meta.dmgTier = tier;
 		}
 
@@ -176,9 +181,10 @@ export class EnemyRenderer {
 		}
 	}
 
-	private draw(enemy: Enemy, s: Graphics, inner: Graphics, glow: Graphics, tier: number = 0): void {
+	private draw(enemy: Enemy, s: Graphics, inner: Graphics, glow: Graphics, tier: number = 0, colorblind: ColorblindMode = 'off'): void {
 		const hw = enemy.size / 2;
-		const color = enemy.color;
+		// Shiny keeps its gold override; otherwise honour the colour-blind palette.
+		const color = enemy.isShiny ? enemy.color : enemyDisplayColor(enemy.type, colorblind);
 		const lw = enemy.isBoss ? 3 : 2;
 
 		s.clear();
@@ -262,11 +268,11 @@ export class EnemyRenderer {
 	 * plus a center notch. Tier 0 clears the inner layer back to its idle stroke.
 	 * Called only when the tier changes — never per-frame.
 	 */
-	private drawDamageCracks(enemy: Enemy, inner: Graphics, tier: number): void {
+	private drawDamageCracks(enemy: Enemy, inner: Graphics, tier: number, colorblind: ColorblindMode = 'off'): void {
 		inner.clear();
 		// Redraw the idle inner stroke first so cracks layer on top of the
 		// shape's identity outline.
-		const color = enemy.color;
+		const color = enemy.isShiny ? enemy.color : enemyDisplayColor(enemy.type, colorblind);
 		const hw = enemy.size / 2;
 		switch (enemy.shape) {
 			case 'square':

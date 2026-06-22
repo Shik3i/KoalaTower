@@ -8,7 +8,7 @@ import type { EnemyFrameIndex } from './spatialIndex';
 // Feedback helpers
 import type { SoundName } from '../audio/AudioManager';
 
-let _addDmg: ((x: number, y: number, text: string, color: number, kind?: DamageNumberKind) => void) | null = null;
+let _addDmg: ((x: number, y: number, text: string, color: number, kind?: DamageNumberKind, aggKey?: number, aggValue?: number) => void) | null = null;
 let _addParticles: ((x: number, y: number, color: number, count: number, speed?: number) => void) | null = null;
 let _addShake: ((amount: number) => void) | null = null;
 let _triggerMuzzleFlash: (() => void) | null = null;
@@ -48,7 +48,7 @@ function formatFloatingAmount(amount: number): string {
 }
 
 export function setFeedbackHooks(hooks: {
-	addDmg: (x: number, y: number, text: string, color: number, kind?: DamageNumberKind) => void;
+	addDmg: (x: number, y: number, text: string, color: number, kind?: DamageNumberKind, aggKey?: number, aggValue?: number) => void;
 	addParticles: (x: number, y: number, color: number, count: number, speed?: number) => void;
 	addShake?: (amount: number) => void;
 	triggerMuzzleFlash?: () => void;
@@ -333,7 +333,8 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 			const impactColor = proj.isCrit ? GAME_CONFIG.NEON_YELLOW : proj.color;
 			_addParticles?.(target.position.x, target.position.y, impactColor, proj.isCrit ? 5 : 3, 120);
 
-			// Damage number popup
+			// Damage number popup. Basic hits aggregate per-enemy (pass id + value)
+			// so rapid fire merges into one rising total; crits always pop solo.
 			const textKind: DamageNumberKind = proj.isCrit ? 'crit' : 'damage';
 			_addDmg?.(
 				target.position.x,
@@ -341,6 +342,8 @@ export function updateProjectileSystem(state: GameState, dt: number, enemyIndex?
 				formatFloatingText(textKind, effectiveDmg),
 				FLOATING_TEXT_COLORS[textKind],
 				textKind,
+				proj.isCrit ? undefined : target.id,
+				proj.isCrit ? undefined : effectiveDmg,
 			);
 
 			if (target.hp <= 0) {

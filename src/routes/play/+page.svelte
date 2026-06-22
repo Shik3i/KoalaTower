@@ -38,6 +38,7 @@
 	import { playForNotification } from '$lib/game/audio/uiSounds';
 	import NotificationCenter from '$lib/components/NotificationCenter.svelte';
 	import FieldUpgrades from '$lib/components/play/FieldUpgrades.svelte';
+	import HudOverlays from '$lib/components/play/HudOverlays.svelte';
 	import GameOverPanel from '$lib/components/play/GameOverPanel.svelte';
 	import LaunchScreen from '$lib/components/play/LaunchScreen.svelte';
 	import KillstreakCounter from '$lib/components/play/KillstreakCounter.svelte';
@@ -458,6 +459,9 @@
 		stateSettings.sfx = s.sfx;
 		stateSettings.music = s.music;
 		stateSettings.bloom = s.bloom;
+		stateSettings.haptics = s.haptics;
+		stateSettings.graphicsQuality = s.graphicsQuality;
+		stateSettings.colorblind = s.colorblind;
 	}
 
 	/** Connect an engine to the audio system. */
@@ -502,6 +506,7 @@
 						if (flavor) toast('👾 ' + flavor, 'info');
 						notifications.notify({ kind: 'boss', title: 'Boss sighted', detail: `Wave ${st.wave.currentWave}` });
 						audio.play('bossWarning');
+						haptic([0, 45, 35, 45]); // double buzz: incoming boss
 						// Brief one-shot boss intro flash overlay (CSS, ~700ms).
 						bossIntroWave = st.wave.currentWave;
 						bossIntroKey++;
@@ -511,6 +516,7 @@
 						const flavor = getOpLogMessage('bossDefeated');
 						if (flavor) toast('💥 ' + flavor, 'success');
 						notifications.notify({ kind: 'boss', title: 'Boss defeated', detail: flavor ?? undefined, icon: '💥' });
+						haptic(70); // solid thump: boss down
 					}
 					prevWave = st.wave.currentWave;
 					prevBossCount = st.bossesDefeated;
@@ -524,6 +530,7 @@
 				if (finishedRunToken !== activeRunToken) return;
 				refreshSnap();
 				audio.play('gameOver');
+				haptic([0, 90, 50, 140]); // heavy double thump: the tower has fallen
 				gameOverAlloy = alloyEarned;
 				gameOverWave = _w;
 				gameOverKills = engine?.state.killCount ?? 0;
@@ -760,6 +767,7 @@
 				const flavor = getOpLogMessage('waveMilestone', { wave });
 				toast('🏆 ' + (flavor || text), 'milestone');
 				audio.play('milestone');
+				haptic(30); // light tick: wave milestone
 			},
 		});
 	}
@@ -930,6 +938,7 @@
 
 		if (bought > 0) {
 			audio.play('upgrade');
+			haptic(15); // crisp tick: purchase confirmed
 			refreshSnap();
 			purchasedUpgrade = id;
 			setTimeout(() => { purchasedUpgrade = null; }, 400);
@@ -976,13 +985,51 @@
 		toast('Deployment tutorial restarted.', 'info');
 	}
 
-	function updateSetting(key: keyof GameSettings, value: boolean) {
+	const QUALITY_KEYS = new Set<keyof GameSettings>(['bloom', 'particles', 'screenShake', 'damageNumbers', 'lowEffectsMode']);
+
+	function updateSetting<K extends keyof GameSettings>(key: K, value: GameSettings[K]) {
 		const save = getCachedSave();
 		if (!save) return;
 		save.settings[key] = value;
+		// Toggling any effect by hand drops the preset to 'custom' so the dropdown
+		// never claims a preset that no longer matches the actual toggles.
+		if (QUALITY_KEYS.has(key)) save.settings.graphicsQuality = 'custom';
 		settingsStore.set({ ...save.settings });
 		persistSave(save);
-		if (engine) engine.state.settings[key] = value;
+		if (engine) {
+			engine.state.settings[key] = value;
+			engine.state.settings.graphicsQuality = save.settings.graphicsQuality;
+		}
+	}
+
+	/**
+	 * Apply a graphics-quality preset: a macro over the individual effect toggles.
+	 * Writes all affected keys + the preset name in one persisted batch so the
+	 * dropdown and the underlying toggles stay in sync. 'high' = everything on,
+	 * 'low' = bare minimum for weak devices, 'medium' = balanced.
+	 */
+	function applyQualityPreset(q: 'low' | 'medium' | 'high') {
+		const save = getCachedSave();
+		if (!save) return;
+		const presets = {
+			low:    { bloom: false, particles: false, screenShake: false, damageNumbers: true,  lowEffectsMode: true  },
+			medium: { bloom: true,  particles: true,  screenShake: true,  damageNumbers: true,  lowEffectsMode: false },
+			high:   { bloom: true,  particles: true,  screenShake: true,  damageNumbers: true,  lowEffectsMode: false },
+		}[q];
+		Object.assign(save.settings, presets, { graphicsQuality: q });
+		settingsStore.set({ ...save.settings });
+		persistSave(save);
+		if (engine) syncSettingsToEngine(save.settings);
+	}
+
+	/**
+	 * Fire a short vibration if haptics are enabled and the device supports it.
+	 * Gracefully no-ops on desktop / unsupported browsers. Patterns are kept
+	 * brief so they punctuate rather than distract.
+	 */
+	function haptic(pattern: number | number[]) {
+		if (!settings.haptics) return;
+		try { navigator.vibrate?.(pattern); } catch { /* unsupported */ }
 	}
 
 	function fmt(t: number): string {
@@ -1036,6 +1083,9 @@
 
 	<!-- Dropdown save menu, settings menu, etc. -->
 	<!-- Top Bar -->
+	<!-- Handlers are containment guards (stop bubbling to the canvas), not an
+	     interactive control — the landmark role is correct as-is. -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<header class="topbar" class:mobile={isMobile} onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
 		{#if !isMobile}
 			<a href="/" class="tb-back" aria-label="Home" title="Home"><Icon name="back" size={18} /></a>
@@ -1112,6 +1162,24 @@
 					<button class="ibtn" onclick={() => showSettings = !showSettings} aria-label="Settings" title="Visual & performance settings"><Icon name="settings" size={17} /></button>
 					{#if showSettings}
 						<div class="sv-drop settings-drop">
+							<label class="set-row set-select" title="Bundle of effect toggles. 'Custom' reflects hand-picked toggles below.">
+								<span>Quality</span>
+								<select value={settings.graphicsQuality} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === 'custom') return; applyQualityPreset(v as 'low' | 'medium' | 'high'); }}>
+									<option value="custom" disabled={settings.graphicsQuality !== 'custom'}>Custom</option>
+									<option value="low">Low</option>
+									<option value="medium">Medium</option>
+									<option value="high">High</option>
+								</select>
+							</label>
+							<label class="set-row set-select" title="Colour-blind-safe enemy palette (shapes still differ)">
+								<span>Colorblind</span>
+								<select value={settings.colorblind} onchange={(e) => updateSetting('colorblind', (e.target as HTMLSelectElement).value as GameSettings['colorblind'])}>
+									<option value="off">Off</option>
+									<option value="deuteranopia">Deuteranopia</option>
+									<option value="protanopia">Protanopia</option>
+									<option value="tritanopia">Tritanopia</option>
+								</select>
+							</label>
 							<label class="set-row" title="Minimize animations">
 								<span>Reduced Motion</span>
 								<input type="checkbox" checked={settings.reducedMotion} onchange={(e) => updateSetting('reducedMotion', (e.target as HTMLInputElement).checked)} />
@@ -1143,6 +1211,10 @@
 							<label class="set-row" title="Ambient background loop">
 								<span>Music</span>
 								<input type="checkbox" checked={settings.music} onchange={(e) => setMusic((e.target as HTMLInputElement).checked)} />
+							</label>
+							<label class="set-row" title="Vibration feedback on mobile devices">
+								<span>Haptics</span>
+								<input type="checkbox" checked={settings.haptics} onchange={(e) => updateSetting('haptics', (e.target as HTMLInputElement).checked)} />
 							</label>
 							<label class="set-row" title="Show real-time frames per second (FPS) counter">
 								<span>Show FPS</span>
@@ -1240,8 +1312,30 @@
 					<input type="checkbox" checked={settings.music} onchange={(e) => setMusic((e.target as HTMLInputElement).checked)} />
 				</label>
 				<label class="hm-item hm-check">
+					<span>Haptics</span>
+					<input type="checkbox" checked={settings.haptics} onchange={(e) => updateSetting('haptics', (e.target as HTMLInputElement).checked)} />
+				</label>
+				<label class="hm-item hm-check">
 					<span>Show FPS</span>
 					<input type="checkbox" checked={settings.showFps} onchange={(e) => updateSetting('showFps', (e.target as HTMLInputElement).checked)} />
+				</label>
+				<label class="hm-item hm-select">
+					<span>Quality</span>
+					<select value={settings.graphicsQuality} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; if (v === 'custom') return; applyQualityPreset(v as 'low' | 'medium' | 'high'); }}>
+						<option value="custom" disabled={settings.graphicsQuality !== 'custom'}>Custom</option>
+						<option value="low">Low</option>
+						<option value="medium">Medium</option>
+						<option value="high">High</option>
+					</select>
+				</label>
+				<label class="hm-item hm-select">
+					<span>Colorblind</span>
+					<select value={settings.colorblind} onchange={(e) => updateSetting('colorblind', (e.target as HTMLSelectElement).value as GameSettings['colorblind'])}>
+						<option value="off">Off</option>
+						<option value="deuteranopia">Deuteranopia</option>
+						<option value="protanopia">Protanopia</option>
+						<option value="tritanopia">Tritanopia</option>
+					</select>
 				</label>
 				<div class="hm-divider"></div>
 				<div class="hm-item hm-notifications">
@@ -1306,6 +1400,7 @@
 	<div class="game-body">
 		<!-- Left Panel -->
 		{#if !isMobile}
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 			<aside class="panel left" class:coll={!leftPanelOpen} onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
 				<button class="ptog" onclick={() => leftPanelOpen = !leftPanelOpen}>{leftPanelOpen ? '◀' : '▶'}</button>
 				{#if leftPanelOpen}
@@ -1370,44 +1465,16 @@
 				{fps} FPS
 			</div>
 		{/if}
-		<!-- Ambient atmosphere overlay (CSS only — zero render-loop cost). A soft
-		     radial vignette plus faint CRT scanlines give the battlefield depth and
-		     an arcade-cabinet feel without touching the WebGL pipeline. Disabled in
-		     reduced/low-effects mode to keep the field flat and cheap. -->
-		{#if !settings.lowEffectsMode}
-			<div class="atmosphere" class:reduced={settings.reducedMotion} aria-hidden="true"></div>
-		{/if}
-
-		<!-- Low-HP vignette overlay (CSS — above canvas, below HUD panels). Pulses
-		     red when tower HP < 30%, stronger + faster when < 15%. -->
-		<div
-			class="vignette"
-			class:critical={isCriticalHP}
-			class:severe={isSevereHP}
-			class:reduced={settings.reducedMotion || settings.lowEffectsMode}
-			aria-hidden="true"
-		></div>
-
-		<!-- Boss wave intro flash. {#key} re-triggers the CSS animation each time
-		     bossIntroKey increments so back-to-back boss waves re-play cleanly. -->
-		{#if bossIntroWave > 0}
-			<div class="boss-intro-host" aria-hidden="true">
-				{#key bossIntroKey}
-					<div class="boss-intro" class:reduced={settings.reducedMotion || settings.lowEffectsMode}>
-						<div class="boss-intro-label">⚠ BOSS WAVE ⚠</div>
-						<div class="boss-intro-wave">// Wave {bossIntroWave}</div>
-					</div>
-				{/key}
-			</div>
-		{/if}
-
-		<!-- Critical HP warning chip — small, lives above vignette so it isn't washed out. -->
-		{#if isCriticalHP && snap?.runActive}
-			<div class="hp-warn" class:flicker={isSevereHP && !settings.reducedMotion} aria-live="polite">
-				<span class="hp-warn-dot"></span>
-				Tower integrity critical
-			</div>
-		{/if}
+		<!-- Atmosphere, low-HP vignette, boss-wave flash, and critical-HP chip —
+		     all presentational CSS overlays, extracted to keep this file lean. -->
+		<HudOverlays
+			{settings}
+			{isCriticalHP}
+			{isSevereHP}
+			{bossIntroWave}
+			{bossIntroKey}
+			runActive={snap?.runActive ?? false}
+		/>
 
 		<!-- Cosmetic killstreak counter — top-right, appears at chain ≥ 5.
 		     2.5D comic / cell-shaded badge with a smoothly counting number, a
@@ -1454,6 +1521,7 @@
 
 		<!-- Right Panel: only Battle Upgrades -->
 		{#if !isMobile}
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 			<aside class="panel right" class:coll={!rightPanelOpen} onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
 				<button class="ptog" onclick={() => rightPanelOpen = !rightPanelOpen}>{rightPanelOpen ? '▶' : '◀'}</button>
 				{#if rightPanelOpen}
@@ -1472,6 +1540,7 @@
 
 	<!-- Mobile: battle upgrades drawer + nav -->
 	{#if isMobile}
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<nav class="mn" onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
 			<button class="mnb" class:on={!showMobileUpgrades} onclick={() => showMobileUpgrades = false} title="Game canvas view"><span class="mni"><Icon name="range" size={20} /></span><span class="mnl">Game</span></button>
 			<button class="mnb" class:on={showMobileUpgrades} onclick={() => showMobileUpgrades = !showMobileUpgrades} title="Battle Upgrades panel"><span class="mni"><Icon name="offense" size={20} /></span><span class="mnl">Upgrades</span></button>
@@ -1481,7 +1550,12 @@
 			<div
 				class="mob-upgrade-drawer"
 				bind:this={drawerElement}
+				role="dialog"
+				aria-label="Field upgrades"
+				aria-modal="false"
+				tabindex="-1"
 				onclick={e => e.stopPropagation()}
+				onkeydown={e => e.stopPropagation()}
 				ontouchstart={e => { e.stopPropagation(); handleTouchStart(e); }}
 				ontouchmove={handleTouchMove}
 				ontouchend={handleTouchEnd}
@@ -1545,6 +1619,8 @@
 	.set-row { display:flex; justify-content:space-between; align-items:center; min-height:44px; padding:.5rem .9rem; font-size:var(--fs-body-sm); color:var(--text-secondary); cursor:pointer; }
 	.set-row:hover { background:rgba(0,255,255,.04); }
 	.set-row input[type=checkbox] { width:16px; height:16px; accent-color:var(--cyan); cursor:pointer; }
+	.set-row select { background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); padding:.2rem .4rem; font-size:var(--fs-caption-sm); font-family:var(--font-mono); cursor:pointer; }
+	.set-select { cursor:default; }
 	.hub-link { padding:.25rem; border-radius:var(--radius-sm); color:var(--text-dim); font-size:var(--fs-body); text-decoration:none; transition:all var(--transition-fast); }
 	.hub-link:hover { color:var(--cyan); background:rgba(0,255,255,.08); }
 	/* Lives inline in the top bar (header) on mobile — compact, with a dropdown. */
@@ -1692,60 +1768,8 @@
 		}
 	}
 
-	/* ─── Low-HP vignette ───────────────────────────────────────────────── */
-	/* Red radial-gradient overlay on the canvas. Pulses while HP < 30%,
-	   pulses faster + brighter while < 15%. Disabled (opacity 0) otherwise.
-	   `pointer-events:none` so it never blocks interaction. */
-	/* Ambient atmosphere: static dark vignette (depth) layered over very faint
-	   scanlines (arcade feel). Sits just above the canvas, below the HUD. z-index
-	   5 keeps it under the low-HP vignette (6) so damage feedback stays readable. */
-	.atmosphere { position:absolute; inset:0; pointer-events:none; z-index:5;
-		background:
-			repeating-linear-gradient(to bottom, rgba(0,0,0,0.10) 0px, rgba(0,0,0,0.10) 1px, transparent 1px, transparent 3px),
-			radial-gradient(ellipse at center, transparent 55%, rgba(3,4,12,0.35) 88%, rgba(2,3,9,0.6) 100%);
-	}
-	/* Drop the scanlines (but keep the vignette) when motion is reduced. */
-	.atmosphere.reduced { background:radial-gradient(ellipse at center, transparent 55%, rgba(3,4,12,0.35) 88%, rgba(2,3,9,0.6) 100%); }
-
-	.vignette { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .35s ease; z-index:6;
-		background:radial-gradient(ellipse at center, transparent 35%, rgba(255,40,80,0.18) 80%, rgba(255,40,80,0.35) 100%);
-		mix-blend-mode:screen; }
-	.vignette.critical { opacity:1; animation:vignettePulse 1.4s ease-in-out infinite; }
-	.vignette.severe   { opacity:1; animation:vignettePulse .7s  ease-in-out infinite; background:radial-gradient(ellipse at center, transparent 25%, rgba(255,40,80,0.30) 70%, rgba(255,40,80,0.55) 100%); }
-	.vignette.reduced.critical, .vignette.reduced.severe { animation:none; opacity:.7; }
-	@keyframes vignettePulse { 0%,100%{opacity:.55} 50%{opacity:1} }
-
-	/* ─── Boss-wave intro flash ─────────────────────────────────────────── */
-	/* One-shot centered overlay shown for ~700ms when a boss wave starts.
-	   Purely additive — does not block input (pointer-events:none). */
-	.boss-intro-host { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:7; }
-	.boss-intro { text-align:center; font-family:var(--font-tech); text-transform:uppercase; letter-spacing:.18em;
-		color:var(--pink); text-shadow:0 0 16px rgba(255,68,170,.7), 0 0 36px rgba(255,68,170,.4);
-		animation:bossIntro .85s cubic-bezier(.22,1,.36,1) forwards; }
-	.boss-intro.reduced { animation:bossIntroReduced .5s ease forwards; }
-	.boss-intro-label { font-size:clamp(1.2rem, 3vw, 2rem); font-weight:700; }
-	.boss-intro-wave { font-size:clamp(.9rem, 2vw, 1.25rem); color:var(--text-secondary); margin-top:.35rem; letter-spacing:.25em; }
-	@keyframes bossIntro {
-		0%   { opacity:0; transform:scale(.85); }
-		15%  { opacity:1; transform:scale(1.05); }
-		25%  { transform:scale(1); }
-		75%  { opacity:1; }
-		100% { opacity:0; transform:scale(1.02); }
-	}
-	@keyframes bossIntroReduced { from{opacity:0} 30%{opacity:1} to{opacity:0} }
-
-	/* ─── Critical HP warning chip ──────────────────────────────────────── */
-	.hp-warn { position:absolute; top:18%; left:50%; transform:translateX(-50%);
-		display:inline-flex; align-items:center; gap:.4rem; padding:.3rem .75rem;
-		font-family:var(--font-mono); font-size:var(--fs-caption); font-weight:600;
-		color:var(--red); background:rgba(7,8,18,.85); border:1px solid rgba(255,68,68,.45);
-		border-radius:100px; z-index:8; pointer-events:none;
-		box-shadow:0 0 14px rgba(255,68,68,.25);
-		animation:hpWarnIn .25s ease; }
-	.hp-warn.flicker { animation:hpWarnFlicker .55s ease-in-out infinite; }
-	.hp-warn-dot { width:8px; height:8px; border-radius:50%; background:var(--red); box-shadow:0 0 8px var(--red); }
-	@keyframes hpWarnIn { from{opacity:0; transform:translate(-50%,-6px)} to{opacity:1; transform:translate(-50%,0)} }
-	@keyframes hpWarnFlicker { 0%,100%{opacity:1} 50%{opacity:.55} }
+	/* Atmosphere / low-HP vignette / boss-intro / critical-HP chip styles now
+	   live in HudOverlays.svelte alongside their markup. */
 
 
 	@keyframes fi { from{opacity:0} to{opacity:1} }
@@ -1857,6 +1881,12 @@
 		}
 		.hm-check input[type=checkbox] {
 			width:16px; height:16px; accent-color:var(--cyan); cursor:pointer; flex-shrink:0;
+		}
+		.hm-select { display:flex; justify-content:space-between; align-items:center; }
+		.hm-select select {
+			background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon);
+			border-radius:var(--radius-sm); padding:.3rem .5rem; font-size:var(--fs-caption-sm);
+			font-family:var(--font-mono); cursor:pointer; flex-shrink:0;
 		}
 		.hm-notifications {
 			padding:.25rem .75rem; min-height:auto; flex-wrap:wrap;
