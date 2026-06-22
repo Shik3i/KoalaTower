@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import Tutorial, { type TutorialStep } from '$lib/components/Tutorial.svelte';
-	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
+	import { alloyStore, settingsStore, highestWaveStore, totalRunsStore } from '$lib/stores/gameUiStore';
 	import { persistSave, getCachedSave, exportSave, exportSaveFromData, importSave, resetSave } from '$lib/game/save/saveService';
 	import type { SaveData } from '$lib/game/save/saveTypes';
 	import { buildWorkshopUpgradeList, getWorkshopUpgradeCost, FORGE_ECONOMY_WORKSHOP_IDS } from '$lib/game/balance/workshopUpgrades';
@@ -71,6 +71,7 @@
 	import { APP_VERSION } from '$lib/version';
 	import { CURRENT_SCHEMA_VERSION } from '$lib/game/save/saveTypes';
 	import { page } from '$app/state';
+	import { replaceState } from '$app/navigation';
 	import Icon from '$lib/components/Icon.svelte';
 	import SettingsSection from '$lib/components/hub/SettingsSection.svelte';
 	import SimulationSection from '$lib/components/hub/SimulationSection.svelte';
@@ -216,16 +217,16 @@
 			toast('Skin already unlocked.', 'info');
 			return;
 		}
-		if (save.totalCoins < cost) {
-			toast('Not enough Alloy coins.', 'error');
+		if (save.totalAlloy < cost) {
+			toast('Not enough Alloy.', 'error');
 			return;
 		}
-		save.totalCoins -= cost;
+		save.totalAlloy -= cost;
 		if (!save.unlockedSkins.includes(id)) {
 			save.unlockedSkins.push(id);
 		}
 		persistSave(save);
-		coinsStore.set(save.totalCoins);
+		alloyStore.set(save.totalAlloy);
 		unlockedSkins = [...save.unlockedSkins];
 		uiSound('upgrade');
 		toast('Skin purchased and unlocked!', 'success');
@@ -500,7 +501,9 @@
 		hubPageEl?.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 
-	// Deep-link section selection (C8)
+	// Deep-link section selection (C8).
+	// Uses SvelteKit's replaceState (not window.history) so page.url stays in sync
+	// with the browser URL bar after every switchSection() call.
 	$effect(() => {
 		const sectionParam = page.url.searchParams.get('section');
 		if (sectionParam && isHubSectionId(sectionParam) && activeSection !== sectionParam) {
@@ -542,7 +545,7 @@
 		if (r.success) {
 			const s = getCachedSave();
 			if (s) {
-				coinsStore.set(s.totalCoins);
+				alloyStore.set(s.totalAlloy);
 				highestWaveStore.set(s.highestWave);
 				totalRunsStore.set(s.totalRuns);
 				deploymentReports = [...(s.deploymentReports ?? [])];
@@ -555,7 +558,7 @@
 	async function confirmResetDialog() {
 		await resetSave();
 		closeResetDialog();
-		coinsStore.set(0);
+		alloyStore.set(0);
 		highestWaveStore.set(0);
 		totalRunsStore.set(0);
 		settingsStore.set({ ...DEFAULT_SETTINGS });
@@ -739,7 +742,7 @@
 	}
 
 	onMount(() => {
-		const u1 = coinsStore.subscribe(c => coins = c);
+		const u1 = alloyStore.subscribe(c => coins = c);
 		const u2 = settingsStore.subscribe(s => { settings = s; });
 		const u3 = highestWaveStore.subscribe(w => highestWave = w);
 		const u4 = totalRunsStore.subscribe(r => totalRuns = r);
@@ -815,14 +818,14 @@
 			const lv = save.workshopUpgrades[id] ?? 0;
 			if (lv >= maxLv) break;
 			const cost = getWorkshopUpgradeCost(id, lv);
-			if (save.totalCoins < cost) break;
-			save.totalCoins -= cost;
+			if (save.totalAlloy < cost) break;
+			save.totalAlloy -= cost;
 			save.workshopUpgrades[id] = lv + 1;
 			bought++;
 		}
 
 		if (bought > 0) {
-			coinsStore.set(save.totalCoins);
+			alloyStore.set(save.totalAlloy);
 			persistSave(save);
 			workshopLevels = { ...save.workshopUpgrades } as Record<WorkshopUpgradeId, number>;
 			uiSound('upgrade');
@@ -849,14 +852,14 @@
 			const lv = save.forgeUpgrades[id] ?? 0;
 			if (lv >= maxLv) break;
 			const cost = getForgeUpgradeCost(id, lv);
-			if (save.totalCoins < cost) break;
-			save.totalCoins -= cost;
+			if (save.totalAlloy < cost) break;
+			save.totalAlloy -= cost;
 			save.forgeUpgrades[id] = lv + 1;
 			bought++;
 		}
 
 		if (bought > 0) {
-			coinsStore.set(save.totalCoins);
+			alloyStore.set(save.totalAlloy);
 			persistSave(save);
 			forgeLevels = { ...save.forgeUpgrades } as Record<UpgradeId, number>;
 			uiSound('upgrade');
@@ -897,8 +900,8 @@
 		const res = claimOrder(commandOrderPool, save.commandOrders, slot);
 		if (!res) { toast('Order not complete yet.', 'info'); return; }
 		save.commandOrders = res.state;
-		save.totalCoins += res.reward;
-		coinsStore.set(save.totalCoins);
+		save.totalAlloy += res.reward;
+		alloyStore.set(save.totalAlloy);
 		persistSave(save);
 		refreshCommandOrders();
 		uiSound('upgrade');
@@ -911,8 +914,8 @@
 		const res = claimMilestone(save.commandOrders, milestone);
 		if (!res) { toast('Command Gift Box not ready.', 'info'); return; }
 		save.commandOrders = res.state;
-		save.totalCoins += res.reward;
-		coinsStore.set(save.totalCoins);
+		save.totalAlloy += res.reward;
+		alloyStore.set(save.totalAlloy);
 		persistSave(save);
 		refreshCommandOrders();
 		uiSound('upgrade');
@@ -925,8 +928,8 @@
 		const result = claimAllCompletedOrders(commandOrderPool, save.commandOrders);
 		if (!result) { toast('No completed orders to claim.', 'info'); return; }
 		save.commandOrders = result.state;
-		save.totalCoins += result.totalReward;
-		coinsStore.set(save.totalCoins);
+		save.totalAlloy += result.totalReward;
+		alloyStore.set(save.totalAlloy);
 		persistSave(save);
 		refreshCommandOrders();
 		uiSound('upgrade');
@@ -947,8 +950,8 @@
 		if (save.activeLab) { toast(getOpLogMessage('labAlreadyActive'), 'warning'); return; }
 		const cost = getLabCost(id, lv);
 		const duration = getLabDuration(id, lv);
-		if (save.totalCoins < cost) { toast(getOpLogMessage('workshopNotEnough'), 'error'); return; }
-		save.totalCoins -= cost;
+		if (save.totalAlloy < cost) { toast(getOpLogMessage('workshopNotEnough'), 'error'); return; }
+		save.totalAlloy -= cost;
 		const now = Date.now();
 		save.activeLab = {
 			labId: id,
@@ -956,7 +959,7 @@
 			startedAt: now,
 			finishesAt: now + duration,
 		};
-		coinsStore.set(save.totalCoins);
+		alloyStore.set(save.totalAlloy);
 		persistSave(save);
 		refreshLabProgress();
 		uiSound('upgrade');
@@ -1003,13 +1006,8 @@
 		activeSection = id;
 		if (id === 'orders') refreshCommandOrders();
 		if (typeof window !== 'undefined') {
-			const url = new URL(window.location.href);
-			if (id === 'workshop') {
-				url.searchParams.delete('section');
-			} else {
-				url.searchParams.set('section', id);
-			}
-			window.history.replaceState({}, '', url.toString());
+			const targetUrl = id === 'workshop' ? '/hub/' : `/hub/?section=${id}`;
+			replaceState(targetUrl, {});
 		}
 	}
 
@@ -1072,7 +1070,7 @@
 		<a href="/" class="hub-back">← Home</a>
 		<a href="/play" class="hub-deploy">→ Deploy</a>
 		<h1 class="hub-title">🛰️ Orbital Command</h1>
-		<div class="hub-coins">
+		<div class="hub-alloy">
 			<span use:tooltip={'Alloy — your permanent currency.\nEarned every deployment, spent in the Forge and Research Deck.\nNever lost when a tower falls.'}>🔩 {coins.toLocaleString()}</span>
 			<span class="hub-sm" use:tooltip={'Strange Matter — recovered through the Black Market.\nSpent on contraband procurements. Orbital Command does not authorize it.'}>◈ {strangeMatter.toLocaleString()}</span>
 			{#if bmUnlocked}
@@ -1459,7 +1457,7 @@
 	.hub-deploy { color:var(--cyan); font-size:var(--fs-body); font-weight:600; text-decoration:none; padding:.25rem .65rem; border:1px solid rgba(0,255,255,.25); border-radius:var(--radius-sm); transition:all var(--transition-fast); }
 	.hub-deploy:hover { color:var(--bg-primary); background:var(--cyan); border-color:var(--cyan); }
 	.hub-title { font-size:var(--fs-hero); font-weight:700; background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-	.hub-coins { margin-left:auto; display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:.35rem .5rem; font-family:var(--font-mono); font-size:var(--fs-mono-lg); color:var(--yellow); }
+	.hub-alloy { margin-left:auto; display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:.35rem .5rem; font-family:var(--font-mono); font-size:var(--fs-mono-lg); color:var(--yellow); }
 	.hub-sm { color:var(--violet); }
 	.hub-desc { padding:1.25rem 1.5rem .5rem; text-align:center; color:var(--text-secondary); font-size:var(--fs-body); line-height:1.7; max-width:900px; margin:0 auto; position:relative; z-index:1; }
 	.hub-body { display:flex; gap:2rem; padding:1.5rem; max-width:1400px; margin:0 auto; position:relative; z-index:1; min-height:calc(100vh - 64px); }
@@ -1538,7 +1536,7 @@
 		.hub-top{flex-wrap:wrap;row-gap:.4rem;padding:.6rem 1rem}
 		.hub-title{font-size:var(--fs-subheading)}
 		.hub-desc{padding:.75rem 1rem .25rem;font-size:var(--fs-body-sm);line-height:1.5}
-		.hub-coins{font-size:var(--fs-mono);width:100%;margin-left:0}
+		.hub-alloy{font-size:var(--fs-mono);width:100%;margin-left:0}
 		.hub-top-username{max-width:88px}
 	}
 	@media(max-width:380px){ .hub-nav-btn{font-size:var(--fs-caption);padding:.45rem .7rem} .hub-title{font-size:var(--fs-body)} }

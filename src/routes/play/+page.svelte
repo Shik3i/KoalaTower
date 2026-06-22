@@ -25,7 +25,7 @@
 	import { isChallengeUnlocked } from '$lib/game/balance/challenges';
 	import { persistSave, getCachedSave, exportSave, importSave, resetSave } from '$lib/game/save/saveService';
 	import { addDeploymentReport, createDeploymentReport, enemyTypeToReportLabel } from '$lib/game/deploymentReports';
-	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore, loadedStore } from '$lib/stores/gameUiStore';
+	import { alloyStore, settingsStore, highestWaveStore, totalRunsStore, loadedStore } from '$lib/stores/gameUiStore';
 	import { applyCommunityBuff, communityBuffStore } from '$lib/online/communityBuffClient';
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
 	import { checkAchievements } from '$lib/game/balance/achievements';
@@ -53,7 +53,7 @@
 	let rightPanelOpen = $state(true);
 	let showLaunchScreen = $state(true);
 	let showGameOver = $state(false);
-	let gameOverCoins = $state(0);
+	let gameOverAlloy = $state(0);
 	let gameOverWave = $state(0);
 	let gameOverKills = $state(0);
 	let gameOverBosses = $state(0);
@@ -263,7 +263,7 @@
 			syncSettingsToEngine(settings);
 		};
 		reducedMotionQuery.addEventListener('change', reducedMotionHandler);
-		const u1 = coinsStore.subscribe(c => coins = c);
+		const u1 = alloyStore.subscribe(c => coins = c);
 		const u2 = settingsStore.subscribe(s => { settings = s; syncSettingsToEngine(s); });
 		const u3 = highestWaveStore.subscribe(w => highestWave = w);
 		const u4 = totalRunsStore.subscribe(r => totalRuns = r);
@@ -508,12 +508,19 @@
 				refreshSnap();
 			},
 			onStateChange: () => { refreshSnap(); },
-			onGameOver: async (geoCoins: number, _w: number) => {
+			onAutosave: () => {
+				const save = getCachedSave();
+				if (save && engine?.state.runActive && !engine.state.gameOver) {
+					save.totalAlloy = engine.state.coins;
+					persistSave(save);
+				}
+			},
+			onGameOver: async (alloyEarned: number, _w: number) => {
 				const finishedRunToken = reportingRunToken;
 				if (finishedRunToken !== activeRunToken) return;
 				refreshSnap();
 				audio.play('gameOver');
-				gameOverCoins = geoCoins;
+				gameOverAlloy = alloyEarned;
 				gameOverWave = _w;
 				gameOverKills = engine?.state.killCount ?? 0;
 				gameOverBosses = engine?.state.bossesDefeated ?? 0;
@@ -534,7 +541,7 @@
 					const buffedEarned = applyCommunityBuff(runCoinsEarned, currentBuffPercent);
 					const communityBuffBonus = buffedEarned - runCoinsEarned;
 
-					save.totalCoins = engine.state.coins + communityBuffBonus;
+					save.totalAlloy = engine.state.coins + communityBuffBonus;
 					save.totalRuns = engine.state.totalRuns;
 					save.highestWave = Math.max(save.highestWave, engine.state.highestWave);
 
@@ -545,8 +552,8 @@
 					save.bestKillstreak = Math.max(save.bestKillstreak ?? 0, engine.state.killstreak?.best ?? 0);
 
 					if (communityBuffBonus > 0) {
-						gameOverCoins += communityBuffBonus;
-						coinsStore.set(save.totalCoins);
+						gameOverAlloy += communityBuffBonus;
+						alloyStore.set(save.totalAlloy);
 						toast('🛰️ Community Alloy Boost — +' + communityBuffBonus.toLocaleString() + ' Alloy', 'success');
 					}
 
@@ -577,12 +584,12 @@
 						save.masteryAchievements = save.masteryAchievements ?? {};
 						for (const reward of newMasteryRewards) {
 							save.masteryAchievements[reward.key] = true;
-							save.totalCoins += reward.alloy;
-							gameOverCoins += reward.alloy;
+							save.totalAlloy += reward.alloy;
+							gameOverAlloy += reward.alloy;
 							toast('🏅 ' + reward.name + ' — +' + reward.alloy.toLocaleString() + ' Alloy!', 'milestone');
 							notifications.notify({ kind: 'achievement', title: reward.name, detail: `+${reward.alloy.toLocaleString()} Alloy`, icon: '🏅' });
 						}
-						coinsStore.set(save.totalCoins);
+						alloyStore.set(save.totalAlloy);
 					}
 
 					const reachedWave = engine.state.wave.currentWave;
@@ -694,14 +701,14 @@
 					let totalReward = 0;
 					for (const a of earned) {
 						(save.achievements as Record<string, boolean>)[a.id] = true;
-						save.totalCoins += a.reward;
+						save.totalAlloy += a.reward;
 						totalReward += a.reward;
 						toast('🏆 ' + a.name + ' — +' + a.reward.toLocaleString() + ' Alloy!', 'milestone');
 						notifications.notify({ kind: 'achievement', title: a.name, detail: `+${a.reward.toLocaleString()} Alloy` });
 						playForNotification('achievement');
 					}
 					if (totalReward > 0) {
-						gameOverCoins += totalReward;
+						gameOverAlloy += totalReward;
 					}
 
 					const realTimeSeconds = runStartedAtMs > 0
@@ -725,7 +732,7 @@
 					});
 					save.deploymentReports = addDeploymentReport(save.deploymentReports, report);
 
-					coinsStore.set(save.totalCoins);
+					alloyStore.set(save.totalAlloy);
 					highestWaveStore.set(save.highestWave);
 					totalRunsStore.set(save.totalRuns);
 					const persisted = await persistSave(save);
@@ -942,7 +949,7 @@
 		snap = null;
 		resetSave().then(() => {
 			showResetConfirm = false;
-			coinsStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0);
+			alloyStore.set(0); highestWaveStore.set(0); totalRunsStore.set(0);
 			settingsStore.set({ ...DEFAULT_SETTINGS });
 			toast(getOpLogMessage('saveReset'), 'warning');
 		});
@@ -1028,7 +1035,7 @@
 		{#if snap?.runActive}
 			<div class="tb-pill wave-pill" title="Current wave number"><Icon name="wave" size={15} /><span use:countUp={snap.wave}>{snap.wave}</span></div>
 		{/if}
-		<div class="tb-pill coin-pill" use:tooltip={'Alloy — permanent material.\nKept between runs, spent in the Forge & Research Deck.'}><Icon name="alloy" size={15} />{#if saveLoaded}<span use:countUp={coins}>{coins.toLocaleString()}</span>{:else}<span>Loading</span>{/if}</div>
+		<div class="tb-pill alloy-pill" use:tooltip={'Alloy — permanent material.\nKept between runs, spent in the Forge & Research Deck.'}><Icon name="alloy" size={15} />{#if saveLoaded}<span use:countUp={coins}>{coins.toLocaleString()}</span>{:else}<span>Loading</span>{/if}</div>
 		{#if snap?.runActive}
 			{#if !isMobile}
 				<div class="tb-pill cash-pill" use:tooltip={'Energy — this run only.\nHarvested from destroyed enemies, spent on Field Upgrades.\nResets when the tower falls.'}><Icon name="energy" size={15} /><span use:countUp={Math.floor(snap.cash)}>{Math.floor(snap.cash).toLocaleString()}</span></div>
@@ -1243,7 +1250,7 @@
 		<GameOverPanel
 			wave={gameOverWave}
 			best={highestWave}
-			coins={gameOverCoins}
+			alloy={gameOverAlloy}
 			kills={gameOverKills}
 			bosses={gameOverBosses}
 			cash={gameOverCash}
@@ -1266,7 +1273,7 @@
 				<p class="dlg-d">Paste your save JSON below.</p>
 				<textarea bind:value={importText} rows={5}></textarea>
 				<div class="dlg-a">
-					<button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(r.error ?? getOpLogMessage('saveImportFailed'), 'error', 6000); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { coinsStore.set(s.totalCoins); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button>
+					<button class="dlg-p" onclick={async () => { const r = await importSave(importText); if (r.success) { toast(getOpLogMessage('saveImported'), 'success'); importText = ''; } else { toast(r.error ?? getOpLogMessage('saveImportFailed'), 'error', 6000); } showImportDialog = false; if (r.success) { const s = getCachedSave(); if (s) { alloyStore.set(s.totalAlloy); highestWaveStore.set(s.highestWave); totalRunsStore.set(s.totalRuns); } } }}>Import</button>
 					<button class="dlg-s" onclick={() => { showImportDialog = false; importText = ''; }}>Cancel</button>
 				</div>
 			</div>
@@ -1484,7 +1491,7 @@
 	.tb-pill { display:flex; align-items:center; gap:.2rem; padding:.15rem .5rem; font-size:var(--fs-mono); font-family:var(--font-mono); border-radius:100px; background:var(--bg-tertiary); border:1px solid var(--border-neon); }
 	.tb-max { color:var(--text-secondary); font-size:var(--fs-caption-sm); }
 	.wave-pill span:last-child { color:var(--cyan); }
-	.coin-pill span:last-child { color:var(--yellow); }
+	.alloy-pill span:last-child { color:var(--yellow); }
 	.cash-pill span:last-child { color:var(--green); }
 	.hp-pill span:nth-child(2) { color:#FF9988; }
 	.hp-pill.low span:nth-child(2) { color:#FF4444; animation:hpDanger 0.5s ease-in-out infinite; }

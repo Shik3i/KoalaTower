@@ -78,7 +78,7 @@ koala-tower/
 │   │   │   └── flatlandNews.ts       # 18 news items
 │   │   ├── stores/
 │   │   │   ├── gameStore.ts          # Engine reference
-│   │   │   └── gameUiStore.ts        # Coins, settings, save state
+│   │   │   └── gameUiStore.ts        # Alloy, settings, save state
 │   │   ├── utils/
 │   │   │   └── viewportPlacement.ts  # Tooltip positioning math
 │   │   └── game/

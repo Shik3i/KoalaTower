@@ -64,7 +64,7 @@ function createUIStore() {
 
 export const uiStore = createUIStore();
 
-export const coinsStore: Writable<number> = writable(0);
+export const alloyStore: Writable<number> = writable(0);
 export const settingsStore: Writable<GameSettings> = writable({ ...DEFAULT_SETTINGS });
 export const highestWaveStore: Writable<number> = writable(0);
 export const totalRunsStore: Writable<number> = writable(0);

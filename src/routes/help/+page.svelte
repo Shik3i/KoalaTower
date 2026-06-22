@@ -234,7 +234,7 @@
 				<span class="info-badge">Temporary</span>
 				<p>Harvested from destroyed shapes during a deployment. Spent on <strong>Field Upgrades</strong> to supercharge the tower. Lost when the tower is destroyed. Boosted by <strong>Energy Amp</strong> Field/Forge levels and the permanent <strong>Energy Bonus</strong>.</p>
 			</div>
-			<div class="info-card coin">
+			<div class="info-card alloy">
 				<div class="info-icon">🔩</div>
 				<h3>Alloy</h3>
 				<span class="info-badge">Permanent</span>
@@ -564,7 +564,7 @@
 	.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
 	.info-card { padding:1.25rem; background:var(--bg-glass); border:1px solid var(--border-neon); border-radius:var(--radius-md); text-align:center; position:relative; overflow:hidden; }
 	.info-card.gold { border-color:rgba(0,255,255,.3); }
-	.info-card.coin { border-color:rgba(255,221,68,.3); }
+	.info-card.alloy { border-color:rgba(255,221,68,.3); }
 	.info-icon { font-size:2rem; margin-bottom:.3rem; display:block; }
 	.info-card h3 { font-size:var(--fs-subheading); color:var(--text-primary); margin-bottom:.2rem; }
 	.info-badge { display:inline-block; font-size:var(--fs-caption-sm); font-weight:600; padding:.15rem .5rem; border-radius:100px; background:rgba(0,255,255,.08); color:var(--cyan); margin-bottom:.55rem; text-transform:uppercase; letter-spacing:.05em; font-family:var(--font-mono); }

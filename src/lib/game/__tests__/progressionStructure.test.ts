@@ -378,7 +378,7 @@ describe('Schematics save migration', () => {
 	it('old save (v10) migrates: Schematics initialized to 0, owned paths preserved', () => {
 		const legacy = {
 			schemaVersion: 10,
-			lastUpdated: 1, totalRuns: 5, highestWave: 120, totalCoins: 999,
+			lastUpdated: 1, totalRuns: 5, highestWave: 120, totalAlloy: 999,
 			unlockedBlueprints: [BlueprintId.ExtendedCoreOptics, BlueprintId.PlatedCoreShell],
 			frontBestWave: { [TierId.Tier1]: 120 },
 		};
@@ -393,11 +393,11 @@ describe('Schematics save migration', () => {
 		expect(migrated!.unlockedBlueprints).toContain(BlueprintId.PlatedCoreShell);
 		// Existing progress preserved.
 		expect(migrated!.highestWave).toBe(120);
-		expect(migrated!.totalCoins).toBe(999);
+		expect(migrated!.totalAlloy).toBe(999);
 	});
 
 	it('a very old save (v1) still ends up with a valid Schematics ledger', () => {
-		const ancient = { schemaVersion: 1, lastUpdated: 1, totalRuns: 1, highestWave: 1, totalCoins: 1 };
+		const ancient = { schemaVersion: 1, lastUpdated: 1, totalRuns: 1, highestWave: 1, totalAlloy: 1 };
 		const migrated = migrateSave(ancient as unknown as Record<string, unknown>);
 		expect(migrated).not.toBeNull();
 		expect(normalizeSchematics(migrated!.schematicsByFront)[1]).toBe(0);

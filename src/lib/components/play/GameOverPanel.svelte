@@ -5,7 +5,7 @@
 	let {
 		wave,
 		best,
-		coins,
+		alloy,
 		kills,
 		bosses,
 		cash,
@@ -20,7 +20,7 @@
 	}: {
 		wave: number;
 		best: number;
-		coins: number;
+		alloy: number;
 		kills: number;
 		bosses: number;
 		cash: number;
@@ -55,7 +55,7 @@
 		{/if}
 		<p class="go-loop">Alloy and Orbital upgrades stay with you. Energy and Field Upgrades reset for the next deployment.</p>
 		<div class="go-stats">
-			<div class="go-s"><span class="go-si"><Icon name="alloy" size={20} /></span><span class="go-sv">+{coins.toLocaleString()}</span><span class="go-sl">Alloy</span></div>
+			<div class="go-s"><span class="go-si"><Icon name="alloy" size={20} /></span><span class="go-sv">+{alloy.toLocaleString()}</span><span class="go-sl">Alloy</span></div>
 			<div class="go-sd"></div>
 			<div class="go-s"><span class="go-si"><Icon name="kill" size={20} /></span><span class="go-sv">{kills.toLocaleString()}</span><span class="go-sl">Kills</span></div>
 			<div class="go-sd"></div>

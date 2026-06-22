@@ -131,7 +131,7 @@ describe('v14→v15 migration wipes combat Forge, keeps economy, no crash', () =
 			lastUpdated: Date.now(),
 			totalRuns: 1,
 			highestWave: 30,
-			totalCoins: 500,
+			totalAlloy: 500,
 			workshopUpgrades: {
 				baseDamage: 10,        // legacy combat — should be stripped
 				startingHp: 25,        // legacy combat — should be stripped

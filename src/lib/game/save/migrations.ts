@@ -127,7 +127,7 @@ function migrateV0toV1(data: Record<string, unknown>): any {
 		saveId: generateSaveId('fltd-legacy'),
 		totalRuns: (data.totalRuns as number) || 0,
 		highestWave: (data.highestWave as number) || 0,
-		totalCoins: (data.totalCoins as number) || 0,
+		totalAlloy: (data.totalAlloy as number) || (data.totalCoins as number) || 0,
 		workshopUpgrades: (data.workshopUpgrades as Record<string, number>) || {},
 		forgeUpgrades: {},
 		dailyTasks: createDefaultCommandOrdersState(), // legacy — cleaned by v16→v17
@@ -499,7 +499,7 @@ export function validateSaveData(data: unknown): data is SaveData {
 	if (typeof d.lastUpdated !== 'number' || !Number.isFinite(d.lastUpdated)) return false;
 	if (typeof d.totalRuns !== 'number' || !Number.isFinite(d.totalRuns) || d.totalRuns < 0) return false;
 	if (typeof d.highestWave !== 'number' || !Number.isFinite(d.highestWave) || d.highestWave < 0) return false;
-	if (typeof d.totalCoins !== 'number' || !Number.isFinite(d.totalCoins) || d.totalCoins < 0) return false;
+	if (typeof d.totalAlloy !== 'number' || !Number.isFinite(d.totalAlloy) || d.totalAlloy < 0) return false;
 	// Validate critical collections — wrong types here would crash at runtime.
 	// null/undefined is allowed (ensureMetadata repairs those); non-object/non-array types are rejected.
 	if (d.workshopUpgrades !== undefined && d.workshopUpgrades !== null) {
@@ -530,7 +530,7 @@ function ensureMetadata(save: SaveData): SaveData {
 		createdAt: save.createdAt || new Date(now).toISOString(),
 		saveId: save.saveId || generateSaveId(),
 		lastUpdated: normalizeTimestamp((save as any).lastUpdated) || now,
-		totalCoins: normalizeNonNegativeInteger((save as any).totalCoins),
+		totalAlloy: normalizeNonNegativeInteger((save as any).totalAlloy ?? (save as any).totalCoins),
 		highestWave: normalizeNonNegativeInteger((save as any).highestWave),
 		totalRuns: normalizeNonNegativeInteger((save as any).totalRuns),
 		totalAlloyEarned: normalizeNonNegativeInteger((save as any).totalAlloyEarned),

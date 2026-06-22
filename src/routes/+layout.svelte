@@ -10,7 +10,7 @@
 	import '../app.css';
 	import { onMount } from 'svelte';
 	import { loadSave, persistSave, getCachedSave, didLastLoadCreateDefaultSave } from '$lib/game/save/saveService';
-	import { coinsStore, settingsStore, highestWaveStore, totalRunsStore, loadedStore } from '$lib/stores/gameUiStore';
+	import { alloyStore, settingsStore, highestWaveStore, totalRunsStore, loadedStore } from '$lib/stores/gameUiStore';
 	import { LAB_DEFS } from '$lib/game/balance/labs';
 	import { APP_VERSION, SUPPORT_URL, GITHUB_URL, SITE_URL, REDDIT_URL } from '$lib/version';
 	import { isSupportUrlConfigured } from '$lib/game/balance/blackMarket';
@@ -107,7 +107,7 @@
 		void accountStore.refresh();
 		try {
 			const save = await loadSave();
-			coinsStore.set(save.totalCoins);
+			alloyStore.set(save.totalAlloy);
 			settingsStore.set(save.settings);
 			highestWaveStore.set(save.highestWave);
 			totalRunsStore.set(save.totalRuns);
@@ -174,7 +174,7 @@
 			}
 
 			if (changed) {
-				coinsStore.set(save.totalCoins);
+				alloyStore.set(save.totalAlloy);
 				highestWaveStore.set(save.highestWave);
 				totalRunsStore.set(save.totalRuns);
 				persistSave(save);

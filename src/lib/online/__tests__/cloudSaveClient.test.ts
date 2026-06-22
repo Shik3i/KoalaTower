@@ -59,11 +59,11 @@ describe('cloud save client', () => {
 
 	it('full fetch includes the save payload', async () => {
 		const original = globalThis.fetch;
-		globalThis.fetch = makeFetch(() => jsonResponse(200, { ok: true, exists: true, metadata: META, saveJson: { totalCoins: 5 } })) as typeof fetch;
+		globalThis.fetch = makeFetch(() => jsonResponse(200, { ok: true, exists: true, metadata: META, saveJson: { totalAlloy: 5 } })) as typeof fetch;
 		try {
 			const r = await fetchCloudSaveFull();
 			expect(r.ok).toBe(true);
-			if (r.ok) expect(r.saveJson?.totalCoins).toBe(5);
+			if (r.ok) expect(r.saveJson?.totalAlloy).toBe(5);
 		} finally {
 			globalThis.fetch = original;
 		}
@@ -77,10 +77,10 @@ describe('cloud save client', () => {
 			return Promise.resolve(jsonResponse(200, { ok: true, ...META }));
 		}) as unknown as typeof fetch;
 		try {
-			const r = await uploadCloudSave({ totalCoins: 5 }, 17, '0.5.7');
+			const r = await uploadCloudSave({ totalAlloy: 5 }, 17, '0.5.7');
 			expect(r.ok).toBe(true);
 			if (r.ok) expect(r.metadata.saveHash).toBe('abc');
-			expect((sentBody as { saveJson: { totalCoins: number } }).saveJson.totalCoins).toBe(5);
+			expect((sentBody as { saveJson: { totalAlloy: number } }).saveJson.totalAlloy).toBe(5);
 		} finally {
 			globalThis.fetch = original;
 		}
@@ -90,7 +90,7 @@ describe('cloud save client', () => {
 		const original = globalThis.fetch;
 		globalThis.fetch = makeFetch(() => Promise.reject(new Error('offline'))) as typeof fetch;
 		try {
-			const r = await uploadCloudSave({ totalCoins: 5 }, 17, '0.5.7');
+			const r = await uploadCloudSave({ totalAlloy: 5 }, 17, '0.5.7');
 			expect(r.ok).toBe(false);
 			if (!r.ok) expect(r.offline).toBe(true);
 		} finally {

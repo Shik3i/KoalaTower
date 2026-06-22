@@ -121,7 +121,7 @@
 					owned
 						? `${item.name}\nProcured.${item.status === 'scaffold' ? '\nFull effect remains reserved for a later update.' : ''}`
 						: item.status === 'scaffold'
-							? `${item.name}\nComing later — procurement is not available yet.\nPlanned cost: ◈ ${item.cost} Strange Matter`
+							? `${item.name}\nNot yet available.\nPlanned cost: ◈ ${item.cost} Strange Matter`
 							: item.requirement && !reqOk
 								? `${item.name}\nLocked — first procure ${BLACK_MARKET_UNLOCKS.find(u => u.id === item.requirement)?.name ?? ''}.\nCost: ◈ ${item.cost} Strange Matter`
 								: `${item.name}\nCost: ◈ ${item.cost} Strange Matter${aff ? '' : ' — not enough recovered yet'}`
@@ -139,7 +139,7 @@
 					{#if owned}
 						<span class="ucnx">OWNED{item.status === 'scaffold' ? ' · effect pending' : ''}</span>
 					{:else if item.status === 'scaffold'}
-						<span class="ucnx">COMING LATER</span>
+						<span class="ucnx">RESERVED</span>
 					{:else if item.requirement && !reqOk}
 						<span class="ucnx">Requires {BLACK_MARKET_UNLOCKS.find(u => u.id === item.requirement)?.name}</span>
 					{:else}

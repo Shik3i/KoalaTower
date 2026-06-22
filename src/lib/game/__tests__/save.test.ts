@@ -8,7 +8,7 @@ describe('Save Migration', () => {
 	it('should create a default save with correct schema version', () => {
 		const save = createDefaultSave();
 		expect(save.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-		expect(save.totalCoins).toBe(0);
+		expect(save.totalAlloy).toBe(0);
 		expect(save.totalRuns).toBe(0);
 		expect(save.highestWave).toBe(0);
 		expect(save.strangeMatter).toBe(0);
@@ -27,7 +27,7 @@ describe('Save Migration', () => {
 		const v0Data = {
 			totalRuns: 5,
 			highestWave: 20,
-			totalCoins: 1000,
+			totalAlloy: 1000,
 			workshopUpgrades: { baseDamage: 3 },
 			disableScreenShake: true,
 		};
@@ -36,7 +36,7 @@ describe('Save Migration', () => {
 		expect(migrated!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
 		expect(migrated!.totalRuns).toBe(5);
 		expect(migrated!.highestWave).toBe(20);
-		expect(migrated!.totalCoins).toBe(1000);
+		expect(migrated!.totalAlloy).toBe(1000);
 		expect(migrated!.settings.screenShake).toBe(false);
 		expect(migrated!.createdAt).toBeTruthy();
 		expect(migrated!.saveId).toBeTruthy();
@@ -51,7 +51,7 @@ describe('Save Migration', () => {
 		const legacyV0 = {
 			totalRuns: 42,
 			highestWave: 137,
-			totalCoins: 98765,
+			totalAlloy: 98765,
 			// v0 workshop keys that get renamed downstream (cashBonus→energyBonus, startingCash→startingEnergy)
 			workshopUpgrades: { baseDamage: 10, cashBonus: 4, startingCash: 2 },
 			// v0 lab keys renamed downstream (coinEfficiency→alloyEfficiency)
@@ -64,7 +64,7 @@ describe('Save Migration', () => {
 		// Core progress preserved
 		expect(migrated!.totalRuns).toBe(42);
 		expect(migrated!.highestWave).toBe(137);
-		expect(migrated!.totalCoins).toBe(98765);
+		expect(migrated!.totalAlloy).toBe(98765);
 		// Workshop key renames applied
 		expect(migrated!.workshopUpgrades.energyBonus).toBe(4);
 		expect(migrated!.workshopUpgrades.startingEnergy).toBe(2);
@@ -80,7 +80,7 @@ describe('Save Migration', () => {
 	});
 
 	it('should backfill missing settings and stat fields on a sparse save', () => {
-		const sparse = { schemaVersion: 8, lastUpdated: 1, totalRuns: 1, highestWave: 1, totalCoins: 1 };
+		const sparse = { schemaVersion: 8, lastUpdated: 1, totalRuns: 1, highestWave: 1, totalAlloy: 1 };
 		const migrated = migrateSave(sparse as unknown as Record<string, unknown>);
 		expect(migrated).not.toBeNull();
 		expect(typeof migrated!.settings.sfx).toBe('boolean');
@@ -97,7 +97,7 @@ describe('Save Migration', () => {
 			lastUpdated: 1,
 			totalRuns: 1,
 			highestWave: 1,
-			totalCoins: 1,
+			totalAlloy: 1,
 			strangeMatter: -99,
 			lifetimeStrangeMatterEarned: '14.8',
 			lastWeeklyBlackMarketShipmentClaimedAt: -5,
@@ -121,7 +121,7 @@ describe('Save Migration', () => {
 			lastUpdated: 1,
 			totalRuns: 1,
 			highestWave: 1,
-			totalCoins: 1,
+			totalAlloy: 1,
 			lastDailyContractCompletedAt: '123',
 			lastDailyContractDeploymentAt: '456',
 		};
@@ -134,7 +134,7 @@ describe('Save Migration', () => {
 	it('should add blackMarketIntroSeen default false for v12→v13 migration', () => {
 		const v12 = {
 			schemaVersion: 12,
-			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalCoins: 1,
+			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalAlloy: 1,
 			strangeMatter: 5,
 			blackMarketUnlocks: {},
 		};
@@ -147,7 +147,7 @@ describe('Save Migration', () => {
 	it('should add bestKillstreak default 0 for v13→v14 migration', () => {
 		const v13 = {
 			schemaVersion: 13,
-			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalCoins: 1,
+			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalAlloy: 1,
 			blackMarketUnlocks: {},
 			blackMarketIntroSeen: true,
 		};
@@ -160,7 +160,7 @@ describe('Save Migration', () => {
 	it('should preserve an existing bestKillstreak through migration', () => {
 		const v13 = {
 			schemaVersion: 13,
-			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalCoins: 1,
+			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalAlloy: 1,
 			blackMarketUnlocks: {},
 			bestKillstreak: 1234,
 		};
@@ -171,7 +171,7 @@ describe('Save Migration', () => {
 	it('should preserve blackMarketIntroSeen true from v13 saves', () => {
 		const v13 = {
 			schemaVersion: 13,
-			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalCoins: 1,
+			lastUpdated: 1, totalRuns: 1, highestWave: 1, totalAlloy: 1,
 			strangeMatter: 5,
 			blackMarketUnlocks: {},
 			blackMarketIntroSeen: true,
@@ -187,7 +187,7 @@ describe('Save Migration', () => {
 			lastUpdated: Number.POSITIVE_INFINITY,
 			totalRuns: -4,
 			highestWave: Number.NaN,
-			totalCoins: Number.POSITIVE_INFINITY,
+			totalAlloy: Number.POSITIVE_INFINITY,
 			totalAlloyEarned: -100,
 			totalKills: '12.9',
 			totalBossesDefeated: {},
@@ -207,7 +207,7 @@ describe('Save Migration', () => {
 		expect(migrated).not.toBeNull();
 		expect(migrated!.totalRuns).toBe(0);
 		expect(migrated!.highestWave).toBe(0);
-		expect(migrated!.totalCoins).toBe(0);
+		expect(migrated!.totalAlloy).toBe(0);
 		expect(migrated!.totalAlloyEarned).toBe(0);
 		expect(migrated!.totalKills).toBe(12);
 		expect(migrated!.totalBossesDefeated).toBe(0);
@@ -233,7 +233,7 @@ describe('Save Migration', () => {
 			lastUpdated: 1,
 			totalRuns: 2,
 			highestWave: 12,
-			totalCoins: 300,
+			totalAlloy: 300,
 			totalAlloyEarned: 400,
 			blackMarketUnlocks: {},
 			blackMarketIntroSeen: true,
@@ -245,7 +245,7 @@ describe('Save Migration', () => {
 		expect(once).not.toBeNull();
 		expect(twice).not.toBeNull();
 		expect(twice!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-		expect(twice!.totalCoins).toBe(300);
+		expect(twice!.totalAlloy).toBe(300);
 		expect(twice!.highestWave).toBe(12);
 		expect(twice!.bestKillstreak).toBe(55);
 		expect(twice!.frontBestWave.tier1).toBe(12);
@@ -351,7 +351,7 @@ describe('FLTD_SAVE Export/Import Encoding', () => {
 	});
 
 	it('should handle legacy plain JSON import', async () => {
-		const legacy = JSON.stringify({ schemaVersion: 1, lastUpdated: 1, totalRuns: 0, highestWave: 0, totalCoins: 0 });
+		const legacy = JSON.stringify({ schemaVersion: 1, lastUpdated: 1, totalRuns: 0, highestWave: 0, totalAlloy: 0 });
 		const decoded = await decodeSaveContainer(legacy);
 		expect(decoded.success).toBe(true);
 		expect(decoded.isLegacy).toBe(true);
@@ -372,8 +372,8 @@ describe('FLTD_SAVE Export/Import Encoding', () => {
 
 describe('schemaVersion string bypass regression', () => {
 	it('string "5" migrates the same as numeric 5', () => {
-		const fromString = migrateSave({ schemaVersion: '5' as unknown as number, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalCoins: 50 } as Record<string, unknown>);
-		const fromNumber = migrateSave({ schemaVersion: 5, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalCoins: 50 } as Record<string, unknown>);
+		const fromString = migrateSave({ schemaVersion: '5' as unknown as number, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalAlloy: 50 } as Record<string, unknown>);
+		const fromNumber = migrateSave({ schemaVersion: 5, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalAlloy: 50 } as Record<string, unknown>);
 		expect(fromString).not.toBeNull();
 		expect(fromNumber).not.toBeNull();
 		expect(fromString!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
@@ -382,34 +382,34 @@ describe('schemaVersion string bypass regression', () => {
 	});
 
 	it('string "abc" schemaVersion is treated as v0 and migrates cleanly', () => {
-		const result = migrateSave({ schemaVersion: 'abc' as unknown as number, totalRuns: 3, highestWave: 7, totalCoins: 100 } as Record<string, unknown>);
+		const result = migrateSave({ schemaVersion: 'abc' as unknown as number, totalRuns: 3, highestWave: 7, totalAlloy: 100 } as Record<string, unknown>);
 		expect(result).not.toBeNull();
 		expect(result!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
 		expect(result!.highestWave).toBe(7);
 	});
 
 	it('missing schemaVersion is treated as v0', () => {
-		const result = migrateSave({ totalRuns: 2, highestWave: 5, totalCoins: 20 } as Record<string, unknown>);
+		const result = migrateSave({ totalRuns: 2, highestWave: 5, totalAlloy: 20 } as Record<string, unknown>);
 		expect(result).not.toBeNull();
 		expect(result!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
 	});
 
 	it('negative schemaVersion is treated as v0', () => {
-		const result = migrateSave({ schemaVersion: -1, totalRuns: 1, highestWave: 1, totalCoins: 0 } as Record<string, unknown>);
+		const result = migrateSave({ schemaVersion: -1, totalRuns: 1, highestWave: 1, totalAlloy: 0 } as Record<string, unknown>);
 		expect(result).not.toBeNull();
 		expect(result!.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
 	});
 
 	it('float schemaVersion 5.9 is floored to 5', () => {
-		const fromFloat = migrateSave({ schemaVersion: 5.9, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalCoins: 50 } as Record<string, unknown>);
-		const fromInt = migrateSave({ schemaVersion: 5, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalCoins: 50 } as Record<string, unknown>);
+		const fromFloat = migrateSave({ schemaVersion: 5.9, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalAlloy: 50 } as Record<string, unknown>);
+		const fromInt = migrateSave({ schemaVersion: 5, lastUpdated: 1, totalRuns: 1, highestWave: 10, totalAlloy: 50 } as Record<string, unknown>);
 		expect(fromFloat).not.toBeNull();
 		expect(fromFloat!.schemaVersion).toBe(fromInt!.schemaVersion);
 	});
 });
 
 describe('validateSaveData malformed-field regression', () => {
-	const base = { schemaVersion: CURRENT_SCHEMA_VERSION, lastUpdated: 1, totalRuns: 0, highestWave: 0, totalCoins: 0 };
+	const base = { schemaVersion: CURRENT_SCHEMA_VERSION, lastUpdated: 1, totalRuns: 0, highestWave: 0, totalAlloy: 0 };
 
 	it('rejects workshopUpgrades as string', () => {
 		expect(validateSaveData({ ...base, workshopUpgrades: 'garbage' })).toBe(false);

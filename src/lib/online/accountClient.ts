@@ -90,7 +90,7 @@ export async function loginAccount(username: string, password: string): Promise<
 }
 
 export async function logoutAccount(): Promise<void> {
-	await safeApiJson('/api/auth/logout', { method: 'POST' }, { timeoutMs: 2500 });
+	await safeApiJson('/api/auth/logout', { method: 'POST', body: '{}' }, { timeoutMs: 2500 });
 	// Local gameplay is untouched — only the online account session is cleared.
 	accountStore.clear();
 }

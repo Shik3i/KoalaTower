@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { coinsStore, loadedStore } from '$lib/stores/gameUiStore';
+	import { alloyStore, loadedStore } from '$lib/stores/gameUiStore';
 	import { SITE_URL } from '$lib/version';
 	import FlatlandNews from '$lib/components/FlatlandNews.svelte';
 	import { HOME_SUBTITLES, HOME_SUBTITLE_ROTATION_MS, HOME_SUBTITLE_RESERVED_LINES } from '$lib/home/subtitles';
@@ -34,7 +34,7 @@
 	let saveLoaded = $state(false);
 
 	onMount(() => {
-		const unsub1 = coinsStore.subscribe(c => coins = c);
+		const unsub1 = alloyStore.subscribe(c => coins = c);
 		const unsub2 = loadedStore.subscribe(l => saveLoaded = l);
 		return () => { unsub1(); unsub2(); };
 	});
@@ -104,10 +104,10 @@
 				</a>
 			</div>
 			{#if coins > 0}
-				<div class="coin-display">
-					<span class="coin-icon">🔩</span>
-					<span class="coin-amount">{coins.toLocaleString()}</span>
-					<span class="coin-label">Alloy</span>
+				<div class="alloy-display">
+					<span class="alloy-icon">🔩</span>
+					<span class="alloy-amount">{coins.toLocaleString()}</span>
+					<span class="alloy-label">Alloy</span>
 				</div>
 			{/if}
 		</div>
@@ -370,7 +370,7 @@
 		font-size: 0.9rem;
 	}
 
-	.coin-display {
+	.alloy-display {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.4rem;
@@ -383,16 +383,16 @@
 		animation: fadeInUp 0.4s ease;
 	}
 
-	.coin-icon {
+	.alloy-icon {
 		font-size: var(--fs-icon-md);
 	}
 
-	.coin-amount {
+	.alloy-amount {
 		color: var(--yellow);
 		font-weight: 600;
 	}
 
-	.coin-label {
+	.alloy-label {
 		color: var(--text-dim);
 		font-size: var(--fs-body-sm);
 	}

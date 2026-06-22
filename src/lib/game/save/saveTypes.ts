@@ -29,7 +29,7 @@ export interface SaveData {
 	saveId: string;
 	totalRuns: number;
 	highestWave: number;
-	totalCoins: number;
+	totalAlloy: number;
 	/**
 	 * Economy-only permanent Forge upgrades (Alloy Bonus, Energy Bonus, Starting
 	 * Energy). Combat Forge stats moved to `forgeUpgrades` in v15.
@@ -125,7 +125,7 @@ export function createDefaultSave(): SaveData {
 		saveId: generateSaveId(),
 		totalRuns: 0,
 		highestWave: 0,
-		totalCoins: 0,
+		totalAlloy: 0,
 		workshopUpgrades: {},
 		forgeUpgrades: {},
 		labResearch: {},

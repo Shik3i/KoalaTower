@@ -174,7 +174,7 @@ async function postJson(path, body, expectStatus) {
 		const r = await fetch(BASE + '/api/cloud-save', {
 			method: 'PUT',
 			headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
-			body: JSON.stringify({ saveJson: { totalCoins: 42 }, schemaVersion: 17, gameVersion: 'smoke' }),
+			body: JSON.stringify({ saveJson: { totalAlloy: 42 }, schemaVersion: 17, gameVersion: 'smoke' }),
 			signal: c.signal
 		});
 		const text = await r.text(); clearTimeout(t);
@@ -187,7 +187,7 @@ async function postJson(path, body, expectStatus) {
 		const r = await fetch(BASE + '/api/cloud-save?includeSave=1', { signal: c.signal, headers: cookie ? { cookie } : {} });
 		const text = await r.text(); clearTimeout(t);
 		const json = text ? JSON.parse(text) : {};
-		return { ok: r.status === 200 && json.exists === true && json.saveJson?.totalCoins === 42, status: r.status };
+		return { ok: r.status === 200 && json.exists === true && json.saveJson?.totalAlloy === 42, status: r.status };
 	})();
 	check('GET /api/cloud-save?includeSave=1', cs1.ok, 'status=' + cs1.status);
 

@@ -527,8 +527,8 @@ describe('Cost Formulas', () => {
 
 describe('Balance Simulator', () => {
 	it('fresh strategies should show progression spread', () => {
-		const confused = simulateRun({}, {}, 5000, 1, 'confused', []);
-		const reasonable = simulateRun({}, {}, 5000, 1, 'reasonable', []);
+		const confused = simulateRun({}, {}, {}, 5000, 1, 'confused', []);
+		const reasonable = simulateRun({}, {}, {}, 5000, 1, 'reasonable', []);
 		// Confused dies early (wave 1-2), reasonable survives longer
 		expect(confused.finalWave).toBeGreaterThanOrEqual(1);
 		expect(reasonable.finalWave).toBeGreaterThanOrEqual(confused.finalWave);
@@ -536,15 +536,15 @@ describe('Balance Simulator', () => {
 	});
 
 	it('fresh reasonable should reach further than confused', () => {
-		const confused = simulateRun({}, {}, 5000, 1, 'confused', []);
-		const reasonable = simulateRun({}, {}, 5000, 1, 'reasonable', []);
+		const confused = simulateRun({}, {}, {}, 5000, 1, 'confused', []);
+		const reasonable = simulateRun({}, {}, {}, 5000, 1, 'reasonable', []);
 		expect(reasonable.finalWave).toBeGreaterThanOrEqual(confused.finalWave);
 	});
 
 	it('fresh strategies show spread with Schematic path gating', () => {
-		const fresh = simulateRun({}, {}, 5000, 1, 'optimal', []);
-		const fr = simulateRun({}, {}, 5000, 1, 'reasonable', []);
-		const cf = simulateRun({}, {}, 5000, 1, 'confused', []);
+		const fresh = simulateRun({}, {}, {}, 5000, 1, 'optimal', []);
+		const fr = simulateRun({}, {}, {}, 5000, 1, 'reasonable', []);
+		const cf = simulateRun({}, {}, {}, 5000, 1, 'confused', []);
 		// Core requirement: fresh optimal well below old 40-wave target
 		expect(fresh.finalWave).toBeLessThan(45);
 		expect(fr.finalWave).toBeLessThan(45);
@@ -552,12 +552,12 @@ describe('Balance Simulator', () => {
 	});
 
 	it('fresh optimal cannot reach wave 45 with starters only', () => {
-		const result = simulateRun({}, {}, 5000, 1, 'optimal', []);
+		const result = simulateRun({}, {}, {}, 5000, 1, 'optimal', []);
 		expect(result.finalWave).toBeLessThan(45);
 	});
 
 	it('starter-only runs should have locked upgrades skipped', () => {
-		const result = simulateRun({}, {}, 5000, 1, 'optimal', []);
+		const result = simulateRun({}, {}, {}, 5000, 1, 'optimal', []);
 		expect(result.lockedUpgradesSkipped).toBeGreaterThan(0);
 	});
 
@@ -565,8 +565,8 @@ describe('Balance Simulator', () => {
 		// With 5 foundry levels (3 damage, 2 HP) + early reconstructed paths, the
 		// tower should survive through the early waves better than a fresh account.
 		// Seed 42 for deterministic comparison
-		const fresh = simulateRun({}, {}, 5000, 1, 'optimal', [], 42);
-		const upgraded = simulateRun({
+		const fresh = simulateRun({}, {}, {}, 5000, 1, 'optimal', [], 42);
+		const upgraded = simulateRun({}, {
 			[WorkshopUpgradeId.BaseDamage]: 3,
 			[WorkshopUpgradeId.StartingHp]: 2,
 		}, {}, 5000, 1, 'optimal', [BlueprintId.PlatedCoreShell, BlueprintId.ExtendedCoreOptics], 42);
@@ -581,19 +581,19 @@ describe('Balance Simulator', () => {
 			[WorkshopUpgradeId.BaseFireRate]: 25,
 		};
 		// Run with a fixed seed for deterministic comparison
-		const wsRun = simulateRun(ws, {}, 5000, 1, 'optimal', allBPs, 42);
-		const labRun = simulateRun(ws, { damageResearch: 20, attackSpeedResearch: 15, healthResearch: 10 }, 5000, 1, 'optimal', allBPs, 42);
+		const wsRun = simulateRun({}, ws, {}, 5000, 1, 'optimal', allBPs, 42);
+		const labRun = simulateRun({}, ws, { damageResearch: 20, attackSpeedResearch: 15, healthResearch: 10 }, 5000, 1, 'optimal', allBPs, 42);
 		expect(labRun.finalWave).toBeGreaterThanOrEqual(wsRun.finalWave);
 	});
 
 	it('tier 2 should be harder than tier 1 for same build', () => {
 		const allBPs = Object.values(BlueprintId);
-		const tier1 = simulateRun({
+		const tier1 = simulateRun({}, {
 			[WorkshopUpgradeId.BaseDamage]: 35,
 			[WorkshopUpgradeId.StartingHp]: 20,
 			[WorkshopUpgradeId.BaseFireRate]: 20,
 		}, { damageResearch: 5 }, 5000, 1, 'optimal', allBPs);
-		const tier2 = simulateRun({
+		const tier2 = simulateRun({}, {
 			[WorkshopUpgradeId.BaseDamage]: 35,
 			[WorkshopUpgradeId.StartingHp]: 20,
 			[WorkshopUpgradeId.BaseFireRate]: 20,
@@ -602,7 +602,7 @@ describe('Balance Simulator', () => {
 	});
 
 	it('simulation should not crash at high waves', () => {
-		const result = simulateRun({}, {}, 5000, 1, 'optimal', []);
+		const result = simulateRun({}, {}, {}, 5000, 1, 'optimal', []);
 		expect(result.finalWave).toBeGreaterThan(0);
 		expect(result.totalKills).toBeGreaterThan(0);
 	});
@@ -630,7 +630,7 @@ describe('Balance Simulator', () => {
 	});
 
 	it('locked upgrades should be skipped by simulator', () => {
-		const result = simulateRun({}, {}, 5000, 1, 'optimal', []);
+		const result = simulateRun({}, {}, {}, 5000, 1, 'optimal', []);
 		expect(result.lockedUpgradesSkipped).toBeGreaterThan(0);
 	});
 
@@ -641,8 +641,8 @@ describe('Balance Simulator', () => {
 			[WorkshopUpgradeId.StartingHp]: 10,
 			[WorkshopUpgradeId.BaseFireRate]: 5,
 		};
-		const confused = simulateRun(ws, {}, 5000, 1, 'confused', allBPs);
-		const optimal = simulateRun(ws, {}, 5000, 1, 'optimal', allBPs);
+		const confused = simulateRun({}, ws, {}, 5000, 1, 'confused', allBPs);
+		const optimal = simulateRun({}, ws, {}, 5000, 1, 'optimal', allBPs);
 		// With moderate workshop investment, optimal should outperform confused
 		expect(optimal.finalWave).toBeGreaterThanOrEqual(confused.finalWave);
 	});
@@ -651,8 +651,8 @@ describe('Balance Simulator', () => {
 		const ws = { [WorkshopUpgradeId.BaseDamage]: 10, [WorkshopUpgradeId.StartingHp]: 5 };
 		const allBPs = Object.values(BlueprintId);
 		// Use fixed seed for deterministic comparison
-		const fresh = simulateRun(ws, {}, 5000, 1, 'optimal', [], 42);
-		const unlocked = simulateRun(ws, {}, 5000, 1, 'optimal', allBPs, 42);
+		const fresh = simulateRun({}, ws, {}, 5000, 1, 'optimal', [], 42);
+		const unlocked = simulateRun({}, ws, {}, 5000, 1, 'optimal', allBPs, 42);
 		expect(unlocked.finalWave).toBeGreaterThanOrEqual(fresh.finalWave);
 	});
 });
@@ -1007,7 +1007,7 @@ describe('Tower Starting Stats', () => {
 	});
 
 	it('starting Alloy is 0 on a fresh save', () => {
-		expect(createDefaultSave().totalCoins).toBe(0);
+		expect(createDefaultSave().totalAlloy).toBe(0);
 	});
 
 	it('first Regen upgrade gives 0.5 HP/s', () => {
@@ -1135,18 +1135,18 @@ describe('Shiny Enemies', () => {
 
 describe('Fresh Progression Bounds', () => {
 	it('fresh optimal does not reach wave 45', () => {
-		const result = simulateRun({}, {}, 5000, 1, 'optimal', []);
+		const result = simulateRun({}, {}, {}, 5000, 1, 'optimal', []);
 		expect(result.finalWave).toBeLessThan(45);
 	});
 
 	it('fresh confused dies very early', () => {
-		const result = simulateRun({}, {}, 5000, 1, 'confused', []);
+		const result = simulateRun({}, {}, {}, 5000, 1, 'confused', []);
 		expect(result.finalWave).toBeLessThan(5);
 	});
 
 	it('after few Forge upgrades improves beyond fresh', () => {
-		const fresh = simulateRun({}, {}, 5000, 1, 'optimal', [], 42);
-		const upgraded = simulateRun({
+		const fresh = simulateRun({}, {}, {}, 5000, 1, 'optimal', [], 42);
+		const upgraded = simulateRun({}, {
 			[WorkshopUpgradeId.BaseDamage]: 3,
 			[WorkshopUpgradeId.StartingHp]: 2,
 		}, {}, 5000, 1, 'optimal', [], 42);
@@ -1163,7 +1163,7 @@ describe('Fresh Progression Bounds', () => {
 		};
 		const labs = { damageResearch: 30, healthResearch: 20, attackSpeedResearch: 10 };
 		const allBPs = Object.values(BlueprintId);
-		const result = simulateRun(ws, labs, 5000, 1, 'optimal', allBPs);
+		const result = simulateRun({}, ws, labs, 5000, 1, 'optimal', allBPs);
 		expect(result.finalWave).toBeGreaterThan(5);
 	});
 });
@@ -1328,6 +1328,7 @@ describe('Simulator Scenarios', () => {
 	it('all predefined scenarios produce finite results', () => {
 		for (const scenario of SCENARIOS) {
 			const result = simulateRun(
+				scenario.forge ?? {},
 				scenario.workshop,
 				scenario.labs,
 				5000,
@@ -1357,9 +1358,9 @@ describe('Simulator Scenarios', () => {
 			[WorkshopUpgradeId.BaseDamage]: 20,
 			[WorkshopUpgradeId.StartingHp]: 10,
 		};
-		const t1 = simulateRun(ws, {}, 5000, 1, 'optimal', []);
-		const t2 = simulateRun(ws, {}, 5000, 2, 'optimal', []);
-		const t3 = simulateRun(ws, {}, 5000, 3, 'optimal', []);
+		const t1 = simulateRun({}, ws, {}, 5000, 1, 'optimal', []);
+		const t2 = simulateRun({}, ws, {}, 5000, 2, 'optimal', []);
+		const t3 = simulateRun({}, ws, {}, 5000, 3, 'optimal', []);
 		expect(t2.finalWave).toBeLessThanOrEqual(t1.finalWave);
 		expect(t3.finalWave).toBeLessThanOrEqual(t2.finalWave);
 	});

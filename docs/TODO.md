@@ -5,7 +5,7 @@
 - [x] Polish wave announcement animation (boss-specific pink theme)
 - [x] Add boss warning before boss wave (escort-first spawning signals danger)
 - [x] Improve damage number overlap handling (better sizing, stroke for readability)
-- [x] Improve coin/cash gain popups (larger, color-coded)
+- [x] Improve alloy/energy gain popups (larger, color-coded)
 - [x] Add boss health bar at top of screen during boss waves
 - [x] Add wave milestone notifications with toasts
 - [x] Add tower firing muzzle flash

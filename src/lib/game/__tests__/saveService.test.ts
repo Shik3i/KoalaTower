@@ -27,7 +27,7 @@ describe('saveService import/load parity', () => {
 		const legacy = JSON.stringify({
 			totalRuns: 7,
 			highestWave: 22,
-			totalCoins: 1500,
+			totalAlloy: 1500,
 			workshopUpgrades: { baseDamage: 2 },
 		});
 
@@ -38,14 +38,14 @@ describe('saveService import/load parity', () => {
 		expect(imported?.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
 		expect(imported?.totalRuns).toBe(7);
 		expect(imported?.highestWave).toBe(22);
-		expect(imported?.totalCoins).toBe(1500);
+		expect(imported?.totalAlloy).toBe(1500);
 	});
 
 	it('load and import repair equivalent old saves to equivalent modern progress fields', async () => {
 		const oldSave = {
 			totalRuns: 3,
 			highestWave: 18,
-			totalCoins: 900,
+			totalAlloy: 900,
 			labLevels: { coinEfficiency: 2 },
 			workshopUpgrades: { cashBonus: 4 },
 		};
@@ -64,7 +64,7 @@ describe('saveService import/load parity', () => {
 		expect(imported?.schemaVersion).toBe(loaded.schemaVersion);
 		expect(imported?.totalRuns).toBe(loaded.totalRuns);
 		expect(imported?.highestWave).toBe(loaded.highestWave);
-		expect(imported?.totalCoins).toBe(loaded.totalCoins);
+		expect(imported?.totalAlloy).toBe(loaded.totalAlloy);
 		expect(imported?.workshopUpgrades.energyBonus).toBe(loaded.workshopUpgrades.energyBonus);
 		expect(imported?.labLevels.alloyEfficiency).toBe(loaded.labLevels.alloyEfficiency);
 	});
@@ -73,7 +73,7 @@ describe('saveService import/load parity', () => {
 		const oldSave = {
 			totalRuns: 2,
 			highestWave: 12,
-			totalCoins: 400,
+			totalAlloy: 400,
 		};
 
 		store.set('geocore-td-save', oldSave);
@@ -93,7 +93,7 @@ describe('saveService import/load parity', () => {
 			lastUpdated: 1,
 			totalRuns: 0,
 			highestWave: 0,
-			totalCoins: 0,
+			totalAlloy: 0,
 		}));
 
 		expect(malformed.success).toBe(false);
@@ -105,7 +105,7 @@ describe('saveService import/load parity', () => {
 	it('roundtrips a current FLTD_SAVE export container without losing important fields', async () => {
 		const { importSave, getCachedSave } = await import('../save/saveService');
 		const current = createDefaultSave();
-		current.totalCoins = 12345;
+		current.totalAlloy = 12345;
 		current.highestWave = 77;
 		current.totalRuns = 9;
 		current.strangeMatter = 6;
@@ -116,7 +116,7 @@ describe('saveService import/load parity', () => {
 		const imported = getCachedSave();
 		expect(result.success).toBe(true);
 		expect(result.isLegacy).not.toBe(true);
-		expect(imported?.totalCoins).toBe(12345);
+		expect(imported?.totalAlloy).toBe(12345);
 		expect(imported?.highestWave).toBe(77);
 		expect(imported?.totalRuns).toBe(9);
 		expect(imported?.strangeMatter).toBe(6);
