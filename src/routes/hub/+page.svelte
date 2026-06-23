@@ -71,7 +71,7 @@
 	import { APP_VERSION } from '$lib/version';
 	import { CURRENT_SCHEMA_VERSION } from '$lib/game/save/saveTypes';
 	import { page } from '$app/state';
-	import { replaceState } from '$app/navigation';
+	import { replaceState, afterNavigate } from '$app/navigation';
 	import Icon from '$lib/components/Icon.svelte';
 	import SettingsSection from '$lib/components/hub/SettingsSection.svelte';
 	import SimulationSection from '$lib/components/hub/SimulationSection.svelte';
@@ -1052,12 +1052,22 @@
 	}
 
 	function switchSection(id: typeof activeSection) {
-		if (id !== activeSection) uiSound('click');
+		// Switch the tab FIRST and unconditionally — no side effect below is allowed
+		// to block it. A throw in uiSound / refreshCommandOrders / replaceState here
+		// would otherwise leave the user stuck on the current tab on every click.
+		const changed = id !== activeSection;
 		activeSection = id;
-		if (id === 'orders') refreshCommandOrders();
-		if (typeof window !== 'undefined') {
-			const targetUrl = id === 'workshop' ? '/hub/' : `/hub/?section=${id}`;
-			replaceState(targetUrl, {});
+		try { if (id === 'orders') refreshCommandOrders(); } catch (e) { console.error('[hub] refreshCommandOrders failed', e); }
+		try { if (changed) uiSound('click'); } catch { /* audio is best-effort */ }
+		try {
+			if (typeof window !== 'undefined') {
+				const targetUrl = id === 'workshop' ? '/hub/' : `/hub/?section=${id}`;
+				replaceState(targetUrl, {});
+			}
+		} catch (e) {
+			// Shallow routing can be unavailable very early in hydration; the tab has
+			// already switched, so just log and move on.
+			console.error('[hub] replaceState failed', e);
 		}
 	}
 
@@ -1093,15 +1103,14 @@
 		if (showRestoreConfirm) tick().then(() => restoreConfirmDialogEl?.focus());
 	});
 
-	// Keep the active section in sync with the URL's ?section= param for in-app
-	// navigations that land on the hub while it is ALREADY mounted (notification
-	// deep-links, the play-page hub icon, browser back/forward). The init-time
-	// read above only fires on first mount, so without this the URL and the
-	// visible section desync — the page looks "stuck" on the wrong tab and
-	// notifications don't take you where they point. Reading page.url makes this
-	// effect re-run on every navigation; switchSection's replaceState writes a URL
-	// that maps back to the same section, so this can't loop.
-	$effect(() => {
+	// Sync the active section from the URL's ?section= param ONLY on real
+	// navigations (notification deep-links via goto(), the play-page hub link,
+	// browser back/forward). We deliberately use afterNavigate, NOT an $effect on
+	// page.url: in this SPA (ssr=false) switchSection updates the URL with shallow
+	// replaceState, which does NOT update page.url — so an effect reading page.url
+	// would see the stale initial section and revert every tab click. afterNavigate
+	// never fires for shallow replaceState, so it can't fight switchSection.
+	afterNavigate(() => {
 		const raw = page.url.searchParams.get('section');
 		const target: HubSectionId = raw && isHubSectionId(raw) ? raw : 'workshop';
 		if (target !== activeSection) {
