@@ -18,6 +18,8 @@ import {
 	claimMilestone,
 	applyCounterDeltas,
 	createDefaultCommandOrdersState,
+	ensureBoard,
+	applyBoardRefresh,
 	shouldRefreshBoard,
 	refreshBoard,
 	boardRefreshRemainingMs,
@@ -117,15 +119,38 @@ describe('visible queue + claiming', () => {
 		expect(claimOrder(pool, state, first.slot)).toBeNull();
 	});
 
-	it('allows claiming any completed order, even if far-off in the pool', () => {
+	it('board-gated: a never-revealed order is NOT claimable even if counters satisfy it (anti-exploit)', () => {
+		// Regression for "21 orders in 20 minutes": cumulative metric counters could
+		// auto-complete the whole 25-pool and let you claim orders the 4h board never
+		// revealed. With an admitted board, only revealed orders are claimable.
 		const pool = generateCommandOrders('2026-W25', FRESH);
-		const farOrder = pool[20]!;
-		const state = { ...freshState(), counters: applyCounterDeltas({}, { [farOrder.key]: 99999 } as any) };
-		// Completed orders are always claimable — they don't need to be in the active visible list.
-		expect(canClaimOrder(pool, state, farOrder.slot)).toBe(true);
-		const res = claimOrder(pool, state, farOrder.slot);
-		expect(res).not.toBeNull();
-		expect(res!.reward).toBe(farOrder.reward);
+		let state = ensureBoard(freshState(), pool);
+		const farOrder = pool.find((o) => !state.admittedSlots!.includes(o.slot))!;
+		state = { ...state, counters: applyCounterDeltas(state.counters, { [farOrder.key]: 99999 } as any) };
+		expect(isOrderComplete(farOrder, state.counters)).toBe(true);
+		expect(canClaimOrder(pool, state, farOrder.slot)).toBe(false);
+		expect(getCompletedOrders(pool, state).some((o) => o.slot === farOrder.slot)).toBe(false);
+	});
+
+	it('board-gated: an admitted order IS claimable once completed', () => {
+		const pool = generateCommandOrders('2026-W25', FRESH);
+		let state = ensureBoard(freshState(), pool);
+		const active = getActiveOrders(pool, state)[0]!;
+		expect(state.admittedSlots!.includes(active.slot)).toBe(true);
+		state = { ...state, counters: applyCounterDeltas(state.counters, { [active.key]: active.target } as any) };
+		expect(canClaimOrder(pool, state, active.slot)).toBe(true);
+	});
+
+	it('board-gated: a completed-unclaimed order stays claimable after the board refresh prunes it', () => {
+		// The admitted set is never pruned mid-week, so a completed order you didn't
+		// claim yet survives the 4h refresh that drops it from the active board.
+		const pool = generateCommandOrders('2026-W25', FRESH);
+		let state = ensureBoard(freshState(), pool);
+		const active = getActiveOrders(pool, state)[0]!;
+		state = { ...state, counters: applyCounterDeltas(state.counters, { [active.key]: active.target } as any) };
+		state = applyBoardRefresh(state, pool, Date.now());
+		expect(state.boardSlots!.includes(active.slot)).toBe(false); // pruned from active board
+		expect(canClaimOrder(pool, state, active.slot)).toBe(true);   // …but still claimable
 	});
 
 	it('stops at 25 completed orders per week', () => {

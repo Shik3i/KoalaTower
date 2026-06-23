@@ -448,24 +448,34 @@ export class EffectsRenderer {
 		recapKills: Partial<Record<EnemyType, number>> = {},
 		nextWaveTypes: EnemyType[] = [],
 		nextWaveIsBoss: boolean = false,
+		alphaOverride: number | null = null,
 	): void {
-		if (waveActive || currentWave <= 0) {
-			if (this.waveVisible) { this.hideAllWaveObjects(); this.waveVisible = false; }
-			return;
-		}
-
-		// Fit the fade to the actual gap so the announce reaches full opacity
-		// well before the next wave starts and only fades out at the very end.
-		// Fade-in occupies the first ~33%, full-opacity dwell covers the middle,
-		// fade-out occupies the last ~15%.
-		const progress = Math.min(1, betweenWaveTimer / BETWEEN_WAVE_TIME);
-		const fadeIn = Math.min(1, progress * 3);
-		const fadeOut = progress > 0.85 ? Math.max(0, (1 - progress) / 0.15) : 1;
-		const alpha = Math.min(fadeIn, fadeOut);
-
-		if (alpha < 0.01) {
-			if (this.waveVisible) { this.hideAllWaveObjects(); this.waveVisible = false; }
-			return;
+		// When the caller drives visibility on a real-time clock (alphaOverride),
+		// the announce can persist past the next wave's start — it just rides on the
+		// supplied alpha and ignores the game-time betweenWaveTimer / waveActive gate.
+		// Otherwise fall back to the legacy game-time fade fit to the wave gap.
+		let alpha: number;
+		if (alphaOverride !== null) {
+			if (currentWave <= 0 || alphaOverride <= 0.01) {
+				if (this.waveVisible) { this.hideAllWaveObjects(); this.waveVisible = false; }
+				return;
+			}
+			alpha = Math.min(1, alphaOverride);
+		} else {
+			if (waveActive || currentWave <= 0) {
+				if (this.waveVisible) { this.hideAllWaveObjects(); this.waveVisible = false; }
+				return;
+			}
+			// Fade-in occupies the first ~33%, full-opacity dwell covers the middle,
+			// fade-out occupies the last ~15% of the gap.
+			const progress = Math.min(1, betweenWaveTimer / BETWEEN_WAVE_TIME);
+			const fadeIn = Math.min(1, progress * 3);
+			const fadeOut = progress > 0.85 ? Math.max(0, (1 - progress) / 0.15) : 1;
+			alpha = Math.min(fadeIn, fadeOut);
+			if (alpha < 0.01) {
+				if (this.waveVisible) { this.hideAllWaveObjects(); this.waveVisible = false; }
+				return;
+			}
 		}
 
 		this.waveVisible = true;

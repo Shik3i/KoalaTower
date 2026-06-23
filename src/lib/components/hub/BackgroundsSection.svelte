@@ -33,7 +33,7 @@
 		<p class="sec-desc">Swap the deep-space field, glow, grid, and starlight behind the action. Cosmetic only — does not alter visibility of enemies or projectiles.</p>
 	</div>
 
-	<div class="bg-grid">
+	<div class="bg-card-grid">
 		{#each BACKGROUNDS as bg}
 			{@const unlocked = isUnlocked(bg)}
 			{@const active = selectedBackground === bg.id}
@@ -94,7 +94,7 @@
 	.sec-header h2 { font-family:var(--font-display); font-size:var(--fs-subheading); font-weight:700; color:var(--text-primary); margin:0 0 0.25rem 0; }
 	.sec-desc { color:var(--text-secondary); font-size:var(--fs-body-sm); margin:0; line-height:1.45; }
 
-	.bg-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.2rem; }
+	.bg-card-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.2rem; }
 
 	.bg-card { background:var(--bg-secondary); border:1px solid var(--border-neon); border-radius:var(--radius-lg); padding:1.2rem; display:flex; flex-direction:column; gap:1rem; transition:all var(--transition-normal); position:relative; overflow:hidden; }
 	.bg-card:hover { border-color:var(--border-neon-strong); box-shadow:0 4px 20px rgba(0,255,255,0.08); }

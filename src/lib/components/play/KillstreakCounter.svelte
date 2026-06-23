@@ -176,7 +176,7 @@
 	   Cosmetic only — never grants anything. */
 
 	.ks {
-		position: absolute; top: 2.9rem; right: 1.1rem;
+		position: absolute; top: 1.2rem; right: 1.1rem;
 		z-index: 8; pointer-events: none;
 		isolation: isolate;
 		transform-origin: 70% 50%;
@@ -446,7 +446,7 @@
 	.ks.reduced .ks-debris { display: none; }
 
 	@media (max-width: 899px) {
-		.ks { top: 2.5rem; right: .6rem; }
+		.ks { top: .9rem; right: .6rem; }
 		.ks-num { font-size: 2.5rem; }
 		.ks-x { font-size: 1.2rem; }
 	}

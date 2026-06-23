@@ -34,16 +34,24 @@ export class ProjectileRenderer {
 			c.x = proj.position.x;
 			c.y = proj.position.y;
 
-			if (proj.trail.length >= 2) {
+			const meta = _meta.get(c);
+
+			// Rotate ONLY the body + ring to face the travel direction. The
+			// container itself stays unrotated so the trail — which is drawn in
+			// world-relative coordinates below — keeps its true world orientation.
+			// (Rotating the container would spin the already-correct trail off in
+			// an apparently random direction.)
+			if (meta && proj.trail.length >= 2) {
 				const prev = proj.trail[proj.trail.length - 2]!;
-				c.rotation = Math.atan2(proj.position.y - prev.y, proj.position.x - prev.x) + Math.PI / 2;
+				const heading = Math.atan2(proj.position.y - prev.y, proj.position.x - prev.x) + Math.PI / 2;
+				meta.body.rotation = heading;
+				meta.ring.rotation = heading;
 			}
 
 			// Render trail as one continuous tapered ribbon (tail → head) instead of
 			// stippled circles: smoother streak, and a single connected fill per
 			// segment reads as a light-beam rather than a string of beads. Width
 			// grows toward the head; alpha fades toward the tail.
-			const meta = _meta.get(c);
 			if (meta && proj.trail.length > 1) {
 				const trailGfx = meta.trail;
 				trailGfx.clear();
@@ -124,6 +132,8 @@ export class ProjectileRenderer {
 		meta.trail.clear();
 		meta.body.clear();
 		meta.ring.clear();
+		meta.body.rotation = 0;
+		meta.ring.rotation = 0;
 		meta.crit = proj.isCrit;
 		meta.color = proj.color;
 

@@ -129,7 +129,7 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 	{
 		id: UpgradeId.MaxHp,
 		name: 'Max HP',
-		description: '+100 max HP per level. Doubles base HP on first purchase.',
+		description: 'Max HP on a rising curve — +100 early, scaling toward ~+500 per level deep in.',
 		icon: '❤️',
 		category: 'defense',
 		maxLevel: 399,
@@ -171,7 +171,7 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 	{
 		id: UpgradeId.Regen,
 		name: 'Regen',
-		description: '+0.50 HP/sec per level. First level enables regen from zero.',
+		description: 'HP/sec on a rising curve — +0.5 early, scaling toward ~+1.0 per level. First level enables regen.',
 		icon: '💚',
 		category: 'defense',
 		maxLevel: 20,
@@ -179,7 +179,7 @@ export const BATTLE_UPGRADE_DEFS: BattleUpgradeDef[] = [
 		costGrowth: 1.012,
 		costExponent: 1.0,
 		effectPerLevel: 0.50,
-		effectCap: 10.0,
+		effectCap: 15.0,
 		costModel: 'towerLike',
 	},
 	{
@@ -282,6 +282,20 @@ export function getBattleUpgradeEffect(id: UpgradeId, level: number): number {
 	}
 	const def = defMap.get(id);
 	if (!def) return 0;
+	// Max HP and Regen scale on a gentle quadratic curve (like Damage) instead of a
+	// flat per-level bonus, so the per-level GAIN grows with level: HP climbs from
+	// +100 early toward ~+500 deep; Regen from +0.5 toward ~+1.0. The `L·(L−1)` term
+	// is zero at level 0 and 1, so early game is provably identical to the old flat
+	// curve (level-1 HP = +100, level-1 Regen = +0.5) and only later levels accelerate.
+	// Single source of truth — tower, simulator, forge, and the upgrade panel all read this.
+	if (id === UpgradeId.MaxHp || id === UpgradeId.Regen) {
+		const L = Math.max(0, Math.floor(level));
+		// Regen's quad term is tuned so the curve reaches its 15 HP/s cap EXACTLY at
+		// maxLevel 20 — no dead levels: 0.5·20 + (5/380)·20·19 = 15.
+		const quad = id === UpgradeId.MaxHp ? 0.5 : 5 / 380;
+		const total = def.effectPerLevel * L + quad * L * (L - 1);
+		return def.effectCap != null ? Math.min(def.effectCap, total) : total;
+	}
 	return additiveEffect(def.effectPerLevel, level, def.effectCap);
 }
 

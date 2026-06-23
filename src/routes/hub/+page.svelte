@@ -939,6 +939,7 @@
 			counters: { ...save.commandOrders.counters },
 			boardRefreshedAt: save.commandOrders.boardRefreshedAt,
 			boardSlots: save.commandOrders.boardSlots ? [...save.commandOrders.boardSlots] : undefined,
+			admittedSlots: save.commandOrders.admittedSlots ? [...save.commandOrders.admittedSlots] : undefined,
 		};
 	}
 
@@ -1092,9 +1093,29 @@
 		if (showRestoreConfirm) tick().then(() => restoreConfirmDialogEl?.focus());
 	});
 
+	// Keep the active section in sync with the URL's ?section= param for in-app
+	// navigations that land on the hub while it is ALREADY mounted (notification
+	// deep-links, the play-page hub icon, browser back/forward). The init-time
+	// read above only fires on first mount, so without this the URL and the
+	// visible section desync — the page looks "stuck" on the wrong tab and
+	// notifications don't take you where they point. Reading page.url makes this
+	// effect re-run on every navigation; switchSection's replaceState writes a URL
+	// that maps back to the same section, so this can't loop.
+	$effect(() => {
+		const raw = page.url.searchParams.get('section');
+		const target: HubSectionId = raw && isHubSectionId(raw) ? raw : 'workshop';
+		if (target !== activeSection) {
+			activeSection = target;
+			if (target === 'orders') refreshCommandOrders();
+		}
+	});
+
 	$effect(() => {
 		if (!bmUnlocked && activeSection === 'blackMarket') {
+			// Bounce locked deep-links back to workshop AND fix the URL so the
+			// sync effect above doesn't immediately re-select blackMarket.
 			activeSection = 'workshop';
+			if (typeof window !== 'undefined') replaceState('/hub/', {});
 		}
 		if (activeSection === 'blackMarket') {
 			refreshBmCopy();

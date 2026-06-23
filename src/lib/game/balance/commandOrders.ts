@@ -194,6 +194,19 @@ export interface CommandOrdersState {
 	 * on legacy saves; `ensureBoard` seeds it on first load.
 	 */
 	boardSlots?: number[];
+	/**
+	 * Every slot ever ADMITTED to the board this week (a superset of boardSlots that
+	 * is never pruned until the weekly rollover). Completion and claiming are gated
+	 * on membership here so cumulative metric counters can't auto-complete and let
+	 * you claim orders that were never revealed by the 4h board refresh — that was
+	 * the "21 orders in 20 minutes" exploit. Undefined on legacy saves; `ensureBoard`
+	 * seeds it from the current board + already-claimed slots.
+	 */
+	admittedSlots?: number[];
+}
+
+function uniqSorted(slots: number[]): number[] {
+	return Array.from(new Set(slots)).sort((a, b) => a - b);
 }
 
 export function createDefaultCommandOrdersState(): CommandOrdersState {
@@ -297,14 +310,22 @@ function fillBoard(board: number[], pool: CommandOrderInstance[], state: Command
  * which refills only happen on the timer.
  */
 export function ensureBoard(state: CommandOrdersState, pool: CommandOrderInstance[]): CommandOrdersState {
-	if (state.boardSlots !== undefined) return state;
-	const started: number[] = [];
-	for (const o of pool) {
-		if (started.length >= COMMAND_ORDERS_VISIBLE) break;
-		if (!slotIsActive(o.slot, pool, state)) continue;
-		if (isOrderStarted(o, state.counters)) started.push(o.slot);
+	if (state.boardSlots !== undefined && state.admittedSlots !== undefined) return state;
+	let boardSlots = state.boardSlots;
+	if (boardSlots === undefined) {
+		const started: number[] = [];
+		for (const o of pool) {
+			if (started.length >= COMMAND_ORDERS_VISIBLE) break;
+			if (!slotIsActive(o.slot, pool, state)) continue;
+			if (isOrderStarted(o, state.counters)) started.push(o.slot);
+		}
+		boardSlots = fillBoard(started, pool, state);
 	}
-	return { ...state, boardSlots: fillBoard(started, pool, state) };
+	// Seed the admitted set from the board plus anything already claimed — those
+	// were legitimately revealed. Orders the cumulative counters happen to satisfy
+	// but that were never on the board are deliberately NOT admitted.
+	const admittedSlots = uniqSorted([...(state.admittedSlots ?? []), ...boardSlots, ...state.claimedOrderSlots]);
+	return { ...state, boardSlots, admittedSlots };
 }
 
 /**
@@ -314,7 +335,11 @@ export function ensureBoard(state: CommandOrdersState, pool: CommandOrderInstanc
  */
 export function applyBoardRefresh(state: CommandOrdersState, pool: CommandOrderInstance[], now = Date.now()): CommandOrdersState {
 	const kept = (state.boardSlots ?? []).filter(slot => slotIsActive(slot, pool, state));
-	return { ...state, boardSlots: fillBoard(kept, pool, state), boardRefreshedAt: now };
+	const boardSlots = fillBoard(kept, pool, state);
+	// Record every newly revealed slot so it stays claimable after completion even
+	// once the board prunes it on a later refresh.
+	const admittedSlots = uniqSorted([...(state.admittedSlots ?? []), ...boardSlots]);
+	return { ...state, boardSlots, admittedSlots, boardRefreshedAt: now };
 }
 
 export function boardRefreshRemainingMs(state: CommandOrdersState, now = Date.now()): number {
@@ -420,8 +445,13 @@ export const getVisibleTasks = getActiveOrders;
  * These orders are claimable and survive board refresh + reload.
  */
 export function getCompletedOrders(pool: CommandOrderInstance[], state: CommandOrdersState): CommandOrderInstance[] {
+	const admitted = state.admittedSlots;
 	const result: CommandOrderInstance[] = [];
 	for (const o of pool) {
+		// Only orders actually revealed by the board can be completed/claimed — this
+		// closes the cumulative-counter bypass of the 4h refresh gate. Legacy saves
+		// (no admitted set) keep the old pool-wide behaviour until ensureBoard seeds it.
+		if (admitted !== undefined && !admitted.includes(o.slot)) continue;
 		if (isOrderClaimed(state, o.slot)) continue;
 		if (isOrderComplete(o, state.counters)) result.push(o);
 	}
@@ -437,6 +467,9 @@ export function getCompletedOrders(pool: CommandOrderInstance[], state: CommandO
 export function canClaimOrder(pool: CommandOrderInstance[], state: CommandOrdersState, slot: number): boolean {
 	if (state.completedCount >= COMMAND_ORDERS_MAX_PER_WEEK) return false;
 	if (isOrderClaimed(state, slot)) return false;
+	// Gate on board admission so never-revealed orders can't be claimed (see
+	// getCompletedOrders). Legacy saves without an admitted set keep old behaviour.
+	if (state.admittedSlots !== undefined && !state.admittedSlots.includes(slot)) return false;
 	const order = pool.find((t) => t.slot === slot);
 	if (!order) return false;
 	return isOrderComplete(order, state.counters);

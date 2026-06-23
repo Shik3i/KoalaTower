@@ -4,14 +4,26 @@
 	let {
 		controller,
 		vertical = 'top',
+		horizontal = 'center',
 		offsetRem = 3,
 		zIndex = 300,
 	}: {
 		controller: ToastController;
 		vertical?: 'top' | 'bottom';
+		horizontal?: 'center' | 'left' | 'right';
 		offsetRem?: number;
 		zIndex?: number;
 	} = $props();
+
+	// Horizontal placement. Centered keeps the translateX(-50%) trick; left/right
+	// pin to the edge with the stack's items aligned to that same edge.
+	const hStyle = $derived(
+		horizontal === 'left'
+			? 'left:1rem; align-items:flex-start;'
+			: horizontal === 'right'
+				? 'right:1rem; align-items:flex-end;'
+				: 'left:50%; transform:translateX(-50%); align-items:center;',
+	);
 </script>
 
 <!--
@@ -21,7 +33,7 @@
 -->
 <div
 	class="toast-stack"
-	style="{vertical}:{offsetRem}rem; z-index:{zIndex};"
+	style="{vertical}:{offsetRem}rem; {hStyle} z-index:{zIndex};"
 	aria-live="polite"
 	aria-atomic="false"
 	role="status"
@@ -38,8 +50,6 @@
 <style>
 	.toast-stack {
 		position: fixed;
-		left: 50%;
-		transform: translateX(-50%);
 		display: flex;
 		flex-direction: column;
 		gap: .3rem;

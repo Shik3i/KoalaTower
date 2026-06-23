@@ -8,6 +8,10 @@ export class AudioSynthService {
 
 	private sfxEnabled = true;
 	private musicEnabled = false;
+	/** Gameplay gate: music only plays while a run is live, independent of the
+	 *  `musicEnabled` user setting. Set false on game-over / leaving the run so
+	 *  the ambient pad and boss drone don't linger after the tower falls. */
+	private musicActive = false;
 	private unlocked = false;
 	private lastError: string | null = null;
 
@@ -65,9 +69,25 @@ export class AudioSynthService {
 			});
 		}
 		this.unlocked = true;
-		if (this.musicEnabled) this.startMusic();
+		this.reconcileMusic();
 		this.lastError = null;
 		return true;
+	}
+
+	/** Start or stop the ambient music to match the current gates. Music plays
+	 *  only when enabled (setting), active (in a run), and unlocked. */
+	private reconcileMusic(): void {
+		if (this.musicEnabled && this.musicActive && this.unlocked) {
+			this.startMusic();
+		} else {
+			this.stopMusic();
+		}
+	}
+
+	/** Couple music to the run lifecycle (called on run start / game-over / leave). */
+	public setMusicActive(on: boolean): void {
+		this.musicActive = on;
+		this.reconcileMusic();
 	}
 
 	public setSfxEnabled(on: boolean): void {
@@ -76,11 +96,7 @@ export class AudioSynthService {
 
 	public setMusicEnabled(on: boolean): void {
 		this.musicEnabled = on;
-		if (on) {
-			if (this.unlocked) this.startMusic();
-		} else {
-			this.stopMusic();
-		}
+		this.reconcileMusic();
 	}
 
 	public getLastError(): string | null {
@@ -295,7 +311,7 @@ export class AudioSynthService {
 	}
 
 	public tick(state: any): void {
-		if (!this.ctx || !this.musicEnabled) return;
+		if (!this.ctx || !this.musicEnabled || !this.musicActive) return;
 		const now = this.ctx.currentTime;
 
 		let hasFast = false;

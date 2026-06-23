@@ -1436,7 +1436,7 @@ describe('Dead-level regression (capped upgrades fixed in this pass)', () => {
 		{ id: UpgradeId.Multishot,      maxLevel: 84, cap: 0.50 },
 		{ id: UpgradeId.CritChance,     maxLevel: 75, cap: 0.75 },
 		{ id: UpgradeId.DefensePercent, maxLevel: 50, cap: 0.50 },
-		{ id: UpgradeId.Regen,          maxLevel: 20, cap: 10.0  },
+		{ id: UpgradeId.Regen,          maxLevel: 20, cap: 15.0  },
 	];
 
 	it('fixed upgrades: maxLevel in defs matches expected value', () => {
@@ -1475,10 +1475,10 @@ describe('Dead-level regression (capped upgrades fixed in this pass)', () => {
 		expect(getBattleUpgradeEffect(UpgradeId.DefensePercent, 50)).toBeCloseTo(0.50, 4);
 	});
 
-	it('Regen maxLevel 20 → effect capped at 10.0', () => {
+	it('Regen maxLevel 20 → effect capped at 15.0 (curve reaches cap exactly at max)', () => {
 		const def = BATTLE_UPGRADE_DEFS.find(d => d.id === UpgradeId.Regen)!;
 		expect(def.maxLevel).toBe(20);
-		expect(getBattleUpgradeEffect(UpgradeId.Regen, 20)).toBeCloseTo(10.0, 4);
+		expect(getBattleUpgradeEffect(UpgradeId.Regen, 20)).toBeCloseTo(15.0, 4);
 	});
 });
 

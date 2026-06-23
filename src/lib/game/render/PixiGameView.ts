@@ -64,6 +64,21 @@ export class PixiGameView {
 	private _prevPreviewKey = '';
 	private _prevPreviewTypes: EnemyType[] = [];
 
+	// ─── Wave-announce (real-time, speed-independent) ────────────────────────
+	// The banner shown after a wave is cleared runs on a real-time clock so it
+	// stays up for a fixed wall-clock duration at any game speed, and lingers
+	// (semi-transparent) into the next wave instead of vanishing the instant the
+	// next wave starts. Captured at the moment a wave clears, then faded by hand.
+	private static readonly WAVE_ANNOUNCE_MS = 3000;
+	private _waveAnnActive = false;
+	private _waveAnnStartReal = 0;
+	private _waveAnnWave = 0;
+	private _waveAnnTotal = 0;
+	private _waveAnnRecap: Partial<Record<EnemyType, number>> = {};
+	private _waveAnnPreview: EnemyType[] = [];
+	private _waveAnnIsBoss = false;
+	private _prevWaveActive = false;
+
 	constructor(domContainer: HTMLElement, engine: GameEngine, callbacks: PixiGameViewCallbacks = {}) {
 		this.domContainer = domContainer;
 		this.engine = engine;
@@ -377,17 +392,46 @@ export class PixiGameView {
 		this.effects.syncShockwaves(this.engine.shockwaves, settings);
 		this.effects.syncDamageNumbers(this.engine.damageNumbers, settings);
 		this.effects.syncDeathEffects(this.engine.deathEffects, settings, effTime);
+		// Wave-announce on a real-time clock (see field block). Trigger the banner
+		// on the wave-active → gap transition (a wave was just cleared), capturing
+		// the next-wave preview, then fade it over WAVE_ANNOUNCE_MS of real time
+		// regardless of game speed — letting the next wave begin underneath it.
 		const nextIsBoss = isNextWaveBoss(state);
+		const waveActiveNow = state.wave.waveActive;
+		if (this._prevWaveActive && !waveActiveNow && state.wave.currentWave > 0) {
+			this._waveAnnActive = true;
+			this._waveAnnStartReal = now;
+			this._waveAnnWave = state.wave.currentWave;
+			this._waveAnnTotal = state.wave.enemiesInWave;
+			this._waveAnnRecap = state.wave.killsByTypeThisWave ?? {};
+			this._waveAnnPreview = this.getPreviewWaveTypes(state, nextIsBoss);
+			this._waveAnnIsBoss = nextIsBoss;
+		}
+		this._prevWaveActive = waveActiveNow;
+
+		let annAlpha = 0;
+		if (this._waveAnnActive) {
+			const elapsed = now - this._waveAnnStartReal;
+			const D = PixiGameView.WAVE_ANNOUNCE_MS;
+			if (elapsed >= D) {
+				this._waveAnnActive = false;
+			} else {
+				const fadeIn = Math.min(1, elapsed / 300);
+				const fadeOut = elapsed > D - 700 ? Math.max(0, (D - elapsed) / 700) : 1;
+				annAlpha = Math.min(fadeIn, fadeOut);
+			}
+		}
 		this.effects.syncWaveAnnounce(
-			state.wave.currentWave,
-			state.wave.enemiesInWave,
-			state.wave.betweenWaveTimer,
-			state.wave.waveActive,
+			this._waveAnnWave,
+			this._waveAnnTotal,
+			0,
+			false,
 			this.app.screen.width,
 			this.app.screen.height,
-			state.wave.killsByTypeThisWave ?? {},
-			state.wave.waveActive ? [] : this.getPreviewWaveTypes(state, nextIsBoss),
-			nextIsBoss,
+			this._waveAnnRecap,
+			this._waveAnnPreview,
+			this._waveAnnIsBoss,
+			annAlpha,
 		);
 
 		this.app.render();

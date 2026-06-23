@@ -1,12 +1,15 @@
 <script lang="ts">
 	import type { GameSnapshot } from '$lib/game/engine/gameTypes';
+	import { towerStatsCompact } from '$lib/stores/uiLayoutPrefs';
 
 	let { snap, mobile = false }: { snap: GameSnapshot | null; mobile?: boolean } = $props();
-	let compact = $state(false);
-
-	$effect(() => {
-		if (mobile) compact = true;
-	});
+	// Collapse state persists across runs/reloads via localStorage (shared on all
+	// platforms) so a player who collapses this panel keeps it collapsed — and
+	// vice-versa — exactly as requested.
+	const compact = $derived($towerStatsCompact);
+	function toggleCompact() {
+		$towerStatsCompact = !$towerStatsCompact;
+	}
 
 	function fmt(n: number): string {
 		if (n < 1000) return n < 10 ? n.toFixed(1) : n.toFixed(0);
@@ -31,7 +34,7 @@
 		<div class="tp-content">
 			<div class="tp-title">
 				<span class="tp-name">Tower</span>
-				<button class="tp-toggle" onclick={() => compact = !compact} aria-label={compact ? 'Expand' : 'Collapse'}>
+				<button class="tp-toggle" onclick={toggleCompact} aria-label={compact ? 'Expand' : 'Collapse'}>
 					{compact ? '+' : '−'}
 				</button>
 			</div>

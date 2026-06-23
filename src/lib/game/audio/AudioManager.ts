@@ -23,6 +23,7 @@ export type SoundName =
 class AudioManagerImpl {
 	private sfxEnabled = true;
 	private musicEnabled = false;
+	private musicActive = false;
 	private unlocked = false;
 	private lastError: string | null = null;
 
@@ -43,6 +44,7 @@ class AudioManagerImpl {
 				this.synthInstance = new m.AudioSynthService();
 				this.synthInstance.setSfxEnabled(this.sfxEnabled);
 				this.synthInstance.setMusicEnabled(this.musicEnabled);
+				this.synthInstance.setMusicActive(this.musicActive);
 				if (this.unlocked) {
 					this.synthInstance.unlock();
 				}
@@ -83,6 +85,19 @@ class AudioManagerImpl {
 		} else if (on && typeof window !== 'undefined') {
 			this.preloadSynth().then((synth) => {
 				synth.setMusicEnabled(on);
+			}).catch(() => {});
+		}
+	}
+
+	/** Couple music playback to the run lifecycle: true on run start, false on
+	 *  game-over / leaving the run. Independent of the `music` user setting. */
+	setMusicActive(on: boolean): void {
+		this.musicActive = on;
+		if (this.synthInstance) {
+			this.synthInstance.setMusicActive(on);
+		} else if (on && typeof window !== 'undefined') {
+			this.preloadSynth().then((synth) => {
+				synth.setMusicActive(on);
 			}).catch(() => {});
 		}
 	}

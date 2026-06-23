@@ -2,13 +2,14 @@
 	import type { GameSnapshot } from '$lib/game/engine/gameTypes';
 	import { EnemyType } from '$lib/game/engine/gameTypes';
 	import { computeEnemyConfig } from '$lib/game/balance/balanceMath';
+	import { enemyStatsCompact } from '$lib/stores/uiLayoutPrefs';
 
 	let { snap, mobile = false }: { snap: GameSnapshot | null; mobile?: boolean } = $props();
-	let compact = $state(false);
-
-	$effect(() => {
-		if (mobile) compact = true;
-	});
+	// Collapse state persists across runs/reloads via localStorage (see TowerStatsPanel).
+	const compact = $derived($enemyStatsCompact);
+	function toggleCompact() {
+		$enemyStatsCompact = !$enemyStatsCompact;
+	}
 
 	const enemyStats = $derived.by(() => {
 		if (!snap?.runActive) return null;
@@ -39,7 +40,7 @@
 		<div class="ep-content">
 			<div class="ep-title">
 				<span class="ep-name">Shapes</span>
-				<button class="ep-toggle" onclick={() => compact = !compact} aria-label={compact ? 'Expand' : 'Collapse'}>
+				<button class="ep-toggle" onclick={toggleCompact} aria-label={compact ? 'Expand' : 'Collapse'}>
 					{compact ? '+' : '−'}
 				</button>
 			</div>

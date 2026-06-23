@@ -19,9 +19,8 @@
 </script>
 
 <!-- Ambient atmosphere overlay (CSS only — zero render-loop cost). A soft
-     radial vignette plus faint CRT scanlines give the battlefield depth and
-     an arcade-cabinet feel without touching the WebGL pipeline. Disabled in
-     reduced/low-effects mode to keep the field flat and cheap. -->
+     radial vignette gives the battlefield depth without touching the WebGL
+     pipeline. Disabled in low-effects mode to keep the field flat and cheap. -->
 {#if !settings.lowEffectsMode}
 	<div class="atmosphere" class:reduced={settings.reducedMotion} aria-hidden="true"></div>
 {/if}
@@ -58,15 +57,11 @@
 {/if}
 
 <style>
-	/* Atmosphere: scanlines + vignette. z-index 5 keeps it under the low-HP
-	   vignette (6) so damage feedback stays readable. */
-	.atmosphere { position:absolute; inset:0; pointer-events:none; z-index:5;
-		background:
-			repeating-linear-gradient(to bottom, rgba(0,0,0,0.10) 0px, rgba(0,0,0,0.10) 1px, transparent 1px, transparent 3px),
-			radial-gradient(ellipse at center, transparent 55%, rgba(3,4,12,0.35) 88%, rgba(2,3,9,0.6) 100%);
-	}
-	/* Drop the scanlines (but keep the vignette) when motion is reduced. */
-	.atmosphere.reduced { background:radial-gradient(ellipse at center, transparent 55%, rgba(3,4,12,0.35) 88%, rgba(2,3,9,0.6) 100%); }
+	/* Atmosphere: soft edge vignette only. z-index 5 keeps it under the low-HP
+	   vignette (6) so damage feedback stays readable. (CRT scanlines were
+	   removed — they read as a distracting dotted filter over the field.) */
+	.atmosphere, .atmosphere.reduced { position:absolute; inset:0; pointer-events:none; z-index:5;
+		background:radial-gradient(ellipse at center, transparent 55%, rgba(3,4,12,0.35) 88%, rgba(2,3,9,0.6) 100%); }
 
 	.vignette { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .35s ease; z-index:6;
 		background:radial-gradient(ellipse at center, transparent 35%, rgba(255,40,80,0.18) 80%, rgba(255,40,80,0.35) 100%);

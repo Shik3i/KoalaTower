@@ -30,6 +30,7 @@
 	import { getOpLogMessage } from '$lib/game/balance/operationLog';
 	import { checkAchievements } from '$lib/game/balance/achievements';
 	import { engineStore } from '$lib/stores/gameStore';
+	import { fieldPanelOpen } from '$lib/stores/uiLayoutPrefs';
 	import { audio } from '$lib/game/audio/AudioManager';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import { createToastStore } from '$lib/stores/toastStore';
@@ -51,7 +52,7 @@
 
 	let isMobile = $state(false);
 	let leftPanelOpen = $state(false);
-	let rightPanelOpen = $state(true);
+	// Right Field Upgrades panel open/closed — persisted across runs via localStorage.
 	let showLaunchScreen = $state(true);
 	let showGameOver = $state(false);
 	let gameOverAlloy = $state(0);
@@ -250,6 +251,9 @@
 	const hpRatio = $derived(snap?.runActive && snap.towerMaxHp > 0 ? snap.towerHp / snap.towerMaxHp : 1);
 	const isCriticalHP = $derived(snap?.runActive === true && hpRatio < 0.3);
 	const isSevereHP = $derived(snap?.runActive === true && hpRatio < 0.15);
+	// True while a live (non-game-over) run is in progress. Used to make the
+	// top-right control pause in place rather than navigate away mid-run.
+	const inRun = $derived(snap?.runActive === true && snap?.gameOver !== true);
 
 	const toasts = createToastStore(2200);
 	const toast = toasts.push;
@@ -312,6 +316,8 @@
 					});
 					engine.wireMuzzleFlash(() => gameView?.triggerMuzzleFlash());
 					wireAudio();
+					// Resume gameplay music if we're returning to a live (paused) run.
+					if (engine.state.runActive && !engine.state.gameOver) audio.setMusicActive(true);
 					gameView.start();
 				}
 				refreshSnap();
@@ -348,6 +354,7 @@
 			engine.setCallbacks({});
 			engineStore.set(engine);
 		}
+		audio.setMusicActive(false); // silence gameplay music while away from the play screen
 		gameView?.stop();
 		gameView?.destroy();
 		gameView = null;
@@ -529,6 +536,7 @@
 				const finishedRunToken = reportingRunToken;
 				if (finishedRunToken !== activeRunToken) return;
 				refreshSnap();
+				audio.setMusicActive(false); // stop the ambient pad + boss drone when the tower falls
 				audio.play('gameOver');
 				haptic([0, 90, 50, 140]); // heavy double thump: the tower has fallen
 				gameOverAlloy = alloyEarned;
@@ -859,6 +867,7 @@
 		showMobileUpgrades = false;
 		speed = 1; paused = false;
 		audio.unlock();
+		audio.setMusicActive(true); // gameplay music starts with the run
 		audio.play('waveStart');
 		coinsAtRunStart = coins;
 		runStartedAtMs = Date.now();
@@ -893,6 +902,17 @@
 		gameView?.start();
 		refreshSnap();
 		toast('▶ ' + getOpLogMessage('deploymentStart'), 'success');
+	}
+
+	// Top-right control. During a live run it pauses/resumes IN PLACE instead of
+	// navigating to Orbital Command — leaving mid-run felt like an abort. A
+	// deliberate exit is still one click away via the Field Upgrades → Orbital
+	// Command link. Outside a run the icon navigates normally (anchor default).
+	function onHubIconClick(e: MouseEvent) {
+		if (inRun) {
+			e.preventDefault();
+			handleSpeed(0);
+		}
 	}
 
 	function handleSpeed(preset: number) {
@@ -1080,7 +1100,7 @@
 </svelte:head>
 
 <div class="play-layout" role="main">
-	<Toasts controller={toasts} vertical="top" offsetRem={3} />
+	<Toasts controller={toasts} vertical="top" horizontal="left" offsetRem={3} />
 
 	<!-- Dropdown save menu, settings menu, etc. -->
 	<!-- Top Bar -->
@@ -1225,7 +1245,15 @@
 					{/if}
 				</div>
 				<NotificationCenter />
-				<a href="/hub" class="hub-link" aria-label="Orbital Command" use:tooltip={'Orbital Command — Forge, Research Deck, Schematics, Fronts, Archives.'}><Icon name="hub" size={18} /></a>
+				<a
+					href="/hub"
+					class="hub-link"
+					aria-label={inRun ? (paused ? 'Resume run' : 'Pause run') : 'Orbital Command'}
+					use:tooltip={inRun
+						? 'Pause / resume the run. To leave for Orbital Command, use the “→ Orbital Command” link under Field Upgrades.'
+						: 'Orbital Command — Forge, Research Deck, Schematics, Fronts, Archives.'}
+					onclick={onHubIconClick}
+				><Icon name={inRun ? (paused ? 'play' : 'pause') : 'hub'} size={18} /></a>
 			{/if}
 			{#if isMobile}
 				<button class="hamburger-btn" class:open={showMobileMenu} onclick={() => showMobileMenu = !showMobileMenu} aria-label={showMobileMenu ? 'Close menu' : 'Open menu'} title="Menu">
@@ -1523,9 +1551,9 @@
 		<!-- Right Panel: only Battle Upgrades -->
 		{#if !isMobile}
 			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-			<aside class="panel right" class:coll={!rightPanelOpen} onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
-				<button class="ptog" onclick={() => rightPanelOpen = !rightPanelOpen}>{rightPanelOpen ? '▶' : '◀'}</button>
-				{#if rightPanelOpen}
+			<aside class="panel right" class:coll={!$fieldPanelOpen} onclick={e => e.stopPropagation()} onkeydown={e => e.stopPropagation()} ontouchstart={e => e.stopPropagation()}>
+				<button class="ptog" onclick={() => $fieldPanelOpen = !$fieldPanelOpen}>{$fieldPanelOpen ? '▶' : '◀'}</button>
+				{#if $fieldPanelOpen}
 					<div class="pc">
 						<div class="ps"><div class="pst">⚡ Field Upgrades</div>
 							{#if snap?.runActive}
