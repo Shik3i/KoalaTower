@@ -1527,7 +1527,7 @@
 			<span>·</span>
 			<a href="/privacy">Privacy</a>
 			<span>·</span>
-			<a href="/imprint">Imprint</a>
+			<a href="https://koalastuff.net/legal">Imprint</a>
 		</div>
 		{#if showBackToTop}
 			<button class="back-to-top" onclick={scrollToTop} aria-label="Scroll back to top" use:tooltip={'Scroll back to top'}>

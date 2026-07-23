@@ -85,7 +85,7 @@ async function postJson(path, body, expectStatus) {
 	console.log('');
 
 	// ── HTML routes ───────────────────────────────────────────
-	for (const p of ['/', '/play/', '/help/', '/hub/', '/privacy/', '/imprint/']) {
+	for (const p of ['/', '/play/', '/help/', '/hub/', '/privacy/']) {
 		const r = await get(p);
 		const hasHtml = r.text.includes('<html') || r.text.includes('<!doctype');
 		check('GET ' + p, r.ok && hasHtml, 'status=' + r.status + (hasHtml ? '' : ' no-html'));

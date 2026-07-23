@@ -254,7 +254,7 @@ onDestroy(() => {
 		<span class="lf-sep" aria-hidden="true">·</span>
 		<a href="/privacy" class="lf-link" aria-current={page.route.id === '/privacy' ? 'page' : undefined}>Privacy</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
-		<a href="/imprint" class="lf-link" aria-current={page.route.id === '/imprint' ? 'page' : undefined}>Imprint</a>
+		<a href="https://koalastuff.net/legal" class="lf-link">Imprint</a>
 		<span class="lf-sep" aria-hidden="true">·</span>
 		{#if account}
 			<a href="/hub?section=profile" class="lf-link lf-account-link" aria-current={page.route.id === '/hub' && page.url.searchParams.get('section') === 'profile' ? 'page' : undefined}>👤 {account.displayName}</a>
