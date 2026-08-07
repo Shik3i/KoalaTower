@@ -35,5 +35,8 @@
     "idb-keyval": "^6.2.1",
     "pixi-filters": "^6.1.5",
     "pixi.js": "^8.6.6"
+  },
+  "overrides": {
+    "cookie": "0.7.2"
   }
 }
