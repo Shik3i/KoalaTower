@@ -27,6 +27,7 @@ import { seedBattleUpgradesFromForge } from '../balance/forgeUpgrades';
 import { isFieldUpgradeUnlocked } from '../balance/blueprints';
 import { setFeedbackHooks } from '../systems/enemySystem';
 import { buildEnemyFrameIndex } from '../systems/spatialIndex';
+import { createRunRng, nextRunRandom } from './runRng';
 
 export type MuzzleFlashCallback = () => void;
 
@@ -197,7 +198,8 @@ export class GameEngine {
 		challenge: ChallengeId | null = null,
 		killsByType: Partial<Record<EnemyType, number>> = {},
 		selectedSkin = 'classic',
-		selectedBackground = 'void'
+		selectedBackground = 'void',
+		runSeed?: number
 	): void {
 		resetEnemyIdCounter();
 		resetProjectileIdCounter();
@@ -218,6 +220,9 @@ export class GameEngine {
 		const prevViewHeight = this.state.viewHeight;
 
 		this.state = this.createInitialState();
+		const runRng = createRunRng(runSeed);
+		this.state.runSeed = runRng.seed;
+		this.state.rngState = runRng;
 		this.state.workshopUpgrades = { ...workshopUpgrades } as Record<WorkshopUpgradeId, number>;
 		// Seed the run's Field upgrade levels from the permanent Forge levels.
 		// In-run Field purchases continue (value AND cost) from these levels.
@@ -267,6 +272,11 @@ export class GameEngine {
 		this.state.wave.betweenWaveTimer = 1.0;
 		this.emitImmediateSnapshot();
 		this.onStateChange?.();
+	}
+
+	/** Draw from the deterministic gameplay stream for run rewards or systems. */
+	public nextRandom(): number {
+		return nextRunRandom(this.state.rngState);
 	}
 
 	public update(dt: number): void {
@@ -365,6 +375,7 @@ export class GameEngine {
 			elapsedTime: this.state.elapsedTime,
 			gameOver: this.state.gameOver,
 			runActive: this.state.runActive,
+			runSeed: this.state.runSeed,
 			highestWave: this.state.highestWave,
 			enemyCount: this.state.enemies.length,
 			speed: this.speedMultiplier,
@@ -493,6 +504,8 @@ export class GameEngine {
 
 	public addParticles(x: number, y: number, color: number, count: number, speed: number = 80): void {
 		if (!this.state.settings.particles) return;
+		// Presentation-only randomness stays outside the gameplay stream so
+		// particle settings cannot change a run's deterministic outcome.
 		const maxCount = this.state.settings.lowEffectsMode ? Math.min(count, 5) : Math.min(count, GAME_CONFIG.MAX_PARTICLES - this.particles.length);
 		for (let i = 0; i < maxCount; i++) {
 			const angle = Math.random() * Math.PI * 2;

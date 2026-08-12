@@ -21,6 +21,7 @@ import {
 import { getChallengeSpawnMultiplier } from '../balance/challenges';
 import { getWaveCompletionBonus, getWaveCoinReward } from './economySystem';
 import { BETWEEN_WAVE_TIME } from '../engine/gameConfig';
+import { nextRunRandom } from '../engine/runRng';
 
 export function startNewWave(state: GameState): void {
 	// Snapshot the wave we are leaving before the counters reset, so the
@@ -75,7 +76,8 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 		while (wave.spawnTimer >= SPAWN_TICK_SECONDS && wave.currentTickIndex < SPAWN_TICKS_PER_WAVE) {
 			wave.spawnTimer -= SPAWN_TICK_SECONDS;
 
-			const spawnCount = getSpawnCountForTick(wave.currentWave, state.tier ?? 1, state.activeChallenge);
+			const random = () => nextRunRandom(state.rngState);
+			const spawnCount = getSpawnCountForTick(wave.currentWave, state.tier ?? 1, state.activeChallenge, random);
 			wave.spawnBacklog = (wave.spawnBacklog ?? 0) + spawnCount;
 			wave.enemiesInWave += spawnCount;
 			wave.enemiesInSubWave += spawnCount;
@@ -154,6 +156,7 @@ export function getSpawnCountForTick(
 
 function spawnEnemy(state: GameState, forceBoss: boolean): void {
 	const challenge = state.activeChallenge;
+	const random = () => nextRunRandom(state.rngState);
 	let type: EnemyType;
 
 	const front = state.tier ?? 1;
@@ -166,13 +169,13 @@ function spawnEnemy(state: GameState, forceBoss: boolean): void {
 		// FastSwarm: force all non-boss spawns to Fast type
 		type = (challenge === ChallengeId.FastSwarm)
 			? EnemyType.Fast
-			: (types.length === 1 ? types[0]! : types[Math.floor(Math.random() * types.length)]!);
+			: (types.length === 1 ? types[0]! : types[Math.floor(random() * types.length)]!);
 	}
 
 	const isBoss = type === EnemyType.Boss;
-	const isShiny = !isBoss && Math.random() < 0.05;
+	const isShiny = !isBoss && random() < 0.05;
 
-	const { x, y } = getSpawnPosition(state);
+	const { x, y } = getSpawnPosition(state, random);
 	const enemy = createEnemy(type, waveNum, x, y, state.tier ?? 1, isShiny);
 
 	// Apply challenge modifiers
@@ -192,17 +195,17 @@ function spawnEnemy(state: GameState, forceBoss: boolean): void {
 	state.wave.enemiesSpawnedInSubWave++;
 }
 
-function getSpawnPosition(state: GameState): { x: number; y: number } {
+function getSpawnPosition(state: GameState, random: () => number): { x: number; y: number } {
 	const w = state.viewWidth || 800;
 	const h = state.viewHeight || 800;
 	const margin = 10;
-	const side = Math.floor(Math.random() * 4);
+	const side = Math.floor(random() * 4);
 
 	switch (side) {
-		case 0: return { x: margin + Math.random() * (w - margin * 2), y: -margin };
-		case 1: return { x: w + margin, y: margin + Math.random() * (h - margin * 2) };
-		case 2: return { x: margin + Math.random() * (w - margin * 2), y: h + margin };
-		case 3: return { x: -margin, y: margin + Math.random() * (h - margin * 2) };
+		case 0: return { x: margin + random() * (w - margin * 2), y: -margin };
+		case 1: return { x: w + margin, y: margin + random() * (h - margin * 2) };
+		case 2: return { x: margin + random() * (w - margin * 2), y: h + margin };
+		case 3: return { x: -margin, y: margin + random() * (h - margin * 2) };
 		default: return { x: -margin, y: -margin };
 	}
 }

@@ -4,6 +4,7 @@ import { damageTower, applyThorns, applyLifesteal, computeDamageToTower } from '
 import { calculateEnergyFromKill, getAlloyIncomeMultiplier, getBossCoinReward } from './economySystem';
 import { calculateEnemyDamage, createProjectileDamageContext } from './damageSystem';
 import type { EnemyFrameIndex } from './spatialIndex';
+import { nextRunRandom } from '../engine/runRng';
 
 // Feedback helpers
 import type { SoundName } from '../audio/AudioManager';
@@ -432,7 +433,8 @@ export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: 
 	if (!nearest) return;
 
 	const extraCount = Math.floor(state.tower.stats.multishotCount);
-	const multishotTriggers = Math.random() < state.tower.stats.multishotChance;
+	const random = () => nextRunRandom(state.rngState);
+	const multishotTriggers = random() < state.tower.stats.multishotChance;
 	const targetCount = multishotTriggers ? (1 + extraCount) : 1;
 
 	const targets = findNearestEnemies(state, range, targetCount, enemyIndex);
@@ -452,7 +454,7 @@ export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: 
 	_addParticles?.(towerEdgeX, towerEdgeY, GAME_CONFIG.NEON_CYAN, 4, 60);
 
 	// Always fire one main projectile
-	const mainIsCrit = Math.random() < state.tower.stats.critChance;
+	const mainIsCrit = random() < state.tower.stats.critChance;
 	const mainDamage = mainIsCrit
 		? state.tower.stats.damage * state.tower.stats.critMultiplier
 		: state.tower.stats.damage;
@@ -468,13 +470,13 @@ export function updateTowerTargeting(state: GameState, dt: number, enemyIndex?: 
 	// Roll for multishot: fire extra projectiles on success
 	if (multishotTriggers) {
 		for (let i = 0; i < extraCount; i++) {
-			const isCrit = Math.random() < state.tower.stats.critChance;
+			const isCrit = random() < state.tower.stats.critChance;
 			const damage = isCrit
 				? state.tower.stats.damage * state.tower.stats.critMultiplier
 				: state.tower.stats.damage;
 
-			const offsetX = (Math.random() - 0.5) * 14;
-			const offsetY = (Math.random() - 0.5) * 14;
+			const offsetX = (random() - 0.5) * 14;
+			const offsetY = (random() - 0.5) * 14;
 
 			const targetForProj = targets[(i + 1) % targets.length] || mainTarget;
 

@@ -1,3 +1,5 @@
+import type { RunRngState } from './runRng';
+
 export interface Vec2 {
 	x: number;
 	y: number;
@@ -513,6 +515,10 @@ export interface GameState {
 	 * feeds into economy, damage, or progression. Reset by startRun.
 	 */
 	killstreak: KillstreakState;
+	/** Public seed for deterministic run reproduction and future verification. */
+	runSeed?: number;
+	/** Mutable gameplay RNG state; intentionally not used for cosmetic effects. */
+	rngState?: RunRngState;
 }
 
 export interface GameSettings {
@@ -565,6 +571,7 @@ export interface GameSnapshot {
 	elapsedTime: number;
 	gameOver: boolean;
 	runActive: boolean;
+	runSeed?: number;
 	highestWave: number;
 	enemyCount: number;
 	speed: number;

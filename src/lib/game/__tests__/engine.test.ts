@@ -17,6 +17,44 @@ describe('GameEngine — run lifecycle', () => {
 		expect(engine.state.cash).toBe(100); // getStartingEnergy baseline
 		expect(engine.state.tower.hp).toBeGreaterThan(0);
 		expect(engine.state.tower.alive).toBe(true);
+		expect(Number.isInteger(engine.state.runSeed)).toBe(true);
+	});
+
+	it('exposes the supplied seed and reproduces the gameplay stream', () => {
+		const first = new GameEngine();
+		const second = new GameEngine();
+		const startArgs: Parameters<GameEngine['startRun']> = [{}, {}, {}, 0, [], 1, null, {}, 'classic', 'void', 0xCAFE];
+
+		first.startRun(...startArgs);
+		second.startRun(...startArgs);
+
+		expect(first.state.runSeed).toBe(0xCAFE);
+		expect(first.getLastSnapshot()?.runSeed).toBe(0xCAFE);
+		expect(Array.from({ length: 12 }, () => first.nextRandom()))
+			.toEqual(Array.from({ length: 12 }, () => second.nextRandom()));
+	});
+
+	it('replays the same gameplay spawn sequence for the same seed', () => {
+		const first = new GameEngine();
+		const second = new GameEngine();
+		const startArgs: Parameters<GameEngine['startRun']> = [{}, {}, {}, 0, [], 1, null, {}, 'classic', 'void', 0xBEEF];
+
+		first.startRun(...startArgs);
+		second.startRun(...startArgs);
+		for (let i = 0; i < 40; i++) {
+			first.update(0.1);
+			second.update(0.1);
+		}
+
+		const enemies = (engine: GameEngine) => engine.state.enemies.map((enemy) => ({
+			type: enemy.type,
+			isShiny: enemy.isShiny,
+			x: enemy.position.x,
+			y: enemy.position.y,
+			hp: enemy.hp,
+		}));
+		expect(enemies(first)).toEqual(enemies(second));
+		expect(first.state.rngState).toEqual(second.state.rngState);
 	});
 
 	it('setSpeed clamps to [0.1, 10] and pauses at 0', () => {
@@ -105,10 +143,10 @@ describe('GameEngine — enemy spawn placement uses the live viewport', () => {
 	it('spawns relative to state.viewWidth/viewHeight, not the 800px fallback', () => {
 		// Regression: the renderer used to write __viewW on the engine object while
 		// waveSystem read state.viewWidth — so spawns always fell back to 800.
-		const randomValues = [0.01, 0.3, 0.3, 0.3, 0.5];
-		vi.spyOn(Math, 'random').mockImplementation(() => randomValues.shift() ?? 0.3);
 		const engine = new GameEngine();
-		engine.startRun({}, {}, {}, 0, [], 1);
+		// Seed 23 makes the first spawn tick schedule an enemy and choose the
+		// right edge, keeping this regression independent of Math.random mocks.
+		engine.startRun({}, {}, {}, 0, [], 1, null, {}, 'classic', 'void', 23);
 		engine.state.viewWidth = 2000;
 		engine.state.viewHeight = 2000;
 

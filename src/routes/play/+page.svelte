@@ -550,6 +550,7 @@
 				showGameOver = true;
 				const save = getCachedSave();
 				if (save && engine) {
+					const runEngine = engine;
 					const isNewBest = engine.state.highestWave > save.highestWave;
 					const runCoinsEarned = Math.max(0, engine.state.coins - coinsAtRunStart);
 
@@ -641,7 +642,7 @@
 						if (bossesThisRun > 0) {
 							for (let bossIndex = 1; bossIndex <= bossesThisRun; bossIndex++) {
 								const bossWave = bossIndex * 10;
-								const bossReward = rollBossSchematicReward(frontNum, bossWave);
+								const bossReward = rollBossSchematicReward(frontNum, bossWave, () => runEngine.nextRandom());
 								if (bossReward > 0) {
 									schematicsThisRun += bossReward;
 									addSchematics(save.schematicsByFront, frontNum, bossReward);
