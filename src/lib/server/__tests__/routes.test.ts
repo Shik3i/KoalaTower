@@ -3,6 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { closeDatabase, openDatabase } from '../db';
+import { clearRateLimits } from '../rateLimit';
 import { getCommunityBuff } from '../communityBuff';
 import { createSupportCode } from '../supportCode';
 import { GET as getCloudSave } from '../../../routes/api/cloud-save/+server';
@@ -34,6 +35,7 @@ function jsonRequest(payload: Record<string, unknown>): Request {
 describe('online API route guards', () => {
 	afterEach(() => {
 		closeDatabase();
+		clearRateLimits();
 		delete process.env.KOFI_WEBHOOK_SECRET;
 		delete process.env.DATABASE_PATH;
 	});
@@ -69,6 +71,7 @@ describe('online API route guards', () => {
 	it('records a client error into the app error log', async () => {
 		useTempDatabase();
 		const response = await postClientError({
+			getClientAddress: () => '127.0.0.1',
 			request: new Request('http://localhost/api/client-error', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json', 'user-agent': 'vitest' },
@@ -83,6 +86,7 @@ describe('online API route guards', () => {
 	it('ignores a client error report with no message', async () => {
 		useTempDatabase();
 		const response = await postClientError({
+			getClientAddress: () => '127.0.0.1',
 			request: new Request('http://localhost/api/client-error', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
@@ -92,6 +96,24 @@ describe('online API route guards', () => {
 		expect(await response.json()).toMatchObject({ ok: true, recorded: false });
 		const count = (openDatabase().prepare('SELECT COUNT(*) AS n FROM app_error_logs').get() as { n: number }).n;
 		expect(count).toBe(0);
+	});
+
+	it('rate-limits repeated client error reports per address', async () => {
+		useTempDatabase();
+		clearRateLimits();
+		const event = () => ({
+			getClientAddress: () => '192.0.2.10',
+			request: new Request('http://localhost/api/client-error', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ message: 'spam' })
+			})
+		});
+
+		for (let i = 0; i < 8; i++) {
+			expect((await postClientError(event() as never)).status).toBe(200);
+		}
+		expect((await postClientError(event() as never)).status).toBe(429);
 	});
 });
 

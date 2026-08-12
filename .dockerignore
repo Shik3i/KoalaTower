@@ -16,4 +16,5 @@ docker-compose*
 examples/
 docs/
 scripts/
+!scripts/patch-adapter-node.mjs
 src/**/__tests__/

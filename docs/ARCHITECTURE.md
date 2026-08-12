@@ -2,7 +2,7 @@
 
 ## Overview
 
-Flatland TD is a fully client-side, static web application. It uses a layered architecture to keep game logic, rendering, and UI separate.
+Flatland TD is a local-first SvelteKit application. Gameplay remains client-side and offline-capable, while an optional Node/SQLite backend provides auth, cloud-save, support, and operations features. The layered architecture keeps game logic, rendering, UI, and online routes separate.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -154,8 +154,8 @@ Implemented online features:
 - Scaffolds (schema-only, no UI this pass): unverified leaderboard entries, challenge config, entitlements.
 
 **Known technical debt:**
-- **`serve_prerendered()` workaround:** `@sveltejs/adapter-node` 5.5.5 sirv-based streaming deadlocks on Node 20+ on some hosts. The `Dockerfile` uses a `sed` patch to remove the middleware from the Polka chain, and `src/hooks.server.ts` serves prerendered files via `readFileSync`. When adapter-node is upgraded, re-evaluate whether the sed and hook can be removed.
-- **CSRF `checkOrigin` deprecation:** `svelte.config.js` uses `csrf: { checkOrigin: false }`, which is deprecated in favour of `trustedOrigins`. The Ko-fi webhook needs `application/x-www-form-urlencoded` POSTs. Future SvelteKit versions may require a hook-based bypass. Note that, independent of this flag, state-changing JSON routes are CSRF-protected at the application layer: `readJsonObject` (`src/lib/server/api.ts`) rejects any request that is not `Content-Type: application/json`, which a cross-site page cannot set without a CORS preflight the server never approves. The webhook uses its own form-aware reader and is not affected.
+- **`serve_prerendered()` workaround:** `@sveltejs/adapter-node` 5.5.5 sirv-based streaming deadlocks on Node 20+ on some hosts. `scripts/patch-adapter-node.mjs`, invoked by `npm run build`, removes the middleware from the Polka chain, rebases the adapter's asset directory, and lets `src/hooks.server.ts` serve prerendered files via `readFileSync`. When adapter-node is upgraded, re-evaluate the patch and hook.
+- **CSRF boundary for Ko-fi:** `svelte.config.js` uses `trustedOrigins: ['*']` because Ko-fi sends an external `application/x-www-form-urlencoded` webhook without a browser `Origin`. State-changing JSON routes remain protected at the application layer: `readJsonObject` (`src/lib/server/api.ts`) rejects requests without `Content-Type: application/json`, which a cross-site page cannot set without a CORS preflight the server never approves. Keep this boundary narrow: any future form-based mutation needs its own verification and rate limit.
 - **Cloud restore reload:** Cloud save restore currently calls `location.reload()` after import. A proper state-reinitialization (without a full page reload) would be preferable.
 - **Node 22:** The Dockerfile locks to Node 20 LTS until the streaming deadlock is confirmed fixed on Node 22+.
 

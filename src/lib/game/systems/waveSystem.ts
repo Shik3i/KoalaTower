@@ -15,8 +15,10 @@ import {
 	SPAWN_TICKS_PER_WAVE,
 	MAX_ACTIVE_ENEMIES,
 	baseSpawnChancePercent,
+	spawnDensityMultiplier,
 	availableEnemyTypes,
 } from '../balance/balanceMath';
+import { getChallengeSpawnMultiplier } from '../balance/challenges';
 import { getWaveCompletionBonus, getWaveCoinReward } from './economySystem';
 import { BETWEEN_WAVE_TIME } from '../engine/gameConfig';
 
@@ -66,7 +68,6 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 	}
 
 	const isBossWave = wave.currentWave % 10 === 0 || state.activeChallenge === ChallengeId.BossRush;
-	const spawnChance = baseSpawnChancePercent(wave.currentWave) / 100;
 
 	// Tick-random spawning: every 1/8 second rolls once against the wave spawn chance.
 	if (wave.currentTickIndex !== undefined && wave.currentTickIndex < SPAWN_TICKS_PER_WAVE) {
@@ -74,11 +75,10 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 		while (wave.spawnTimer >= SPAWN_TICK_SECONDS && wave.currentTickIndex < SPAWN_TICKS_PER_WAVE) {
 			wave.spawnTimer -= SPAWN_TICK_SECONDS;
 
-			if (Math.random() < spawnChance) {
-				wave.spawnBacklog = (wave.spawnBacklog ?? 0) + 1;
-				wave.enemiesInWave++;
-				wave.enemiesInSubWave++;
-			}
+			const spawnCount = getSpawnCountForTick(wave.currentWave, state.tier ?? 1, state.activeChallenge);
+			wave.spawnBacklog = (wave.spawnBacklog ?? 0) + spawnCount;
+			wave.enemiesInWave += spawnCount;
+			wave.enemiesInSubWave += spawnCount;
 
 			wave.currentTickIndex++;
 
@@ -130,6 +130,26 @@ export function updateWaveSystem(state: GameState, dt: number): void {
 		const healAfterWave = Math.max(30, Math.round(state.tower.maxHp * 0.25));
 		state.tower.hp = Math.min(state.tower.hp + healAfterWave, state.tower.maxHp);
 	}
+}
+
+/**
+ * Roll the number of enemies scheduled by one spawn tick. Fractional expected
+ * counts are Bernoulli-rounded; values above one schedule multiple enemies in
+ * the same tick so high Front density does not silently disappear at the
+ * eight-rolls-per-second ceiling.
+ */
+export function getSpawnCountForTick(
+	wave: number,
+	front: number,
+	challenge: ChallengeId | null = null,
+	random: () => number = Math.random
+): number {
+	const expected = (baseSpawnChancePercent(wave) / 100)
+		* spawnDensityMultiplier(front)
+		* getChallengeSpawnMultiplier(challenge);
+	const guaranteed = Math.floor(expected);
+	const fractional = expected - guaranteed;
+	return guaranteed + (fractional > 0 && random() < fractional ? 1 : 0);
 }
 
 function spawnEnemy(state: GameState, forceBoss: boolean): void {

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { getEnemyCountForWave, getSpawnIntervalForWave, getEnemyTypeForWave, createEnemy } from '../balance/enemies';
-import { EnemyType } from '../engine/gameTypes';
+import { ChallengeId, EnemyType } from '../engine/gameTypes';
 import { enemySpawnWeightsForWave, expectedEnemiesPerWave } from '../balance/balanceMath';
+import { getSpawnCountForTick } from '../systems/waveSystem';
 
 describe('Wave Scaling', () => {
 	it('should have increasing enemy counts per wave', () => {
@@ -49,6 +50,12 @@ describe('Wave Scaling', () => {
 
 	it('Front does not alter the Basic/Fast/Tank/Ranged mix table', () => {
 		expect(getEnemyTypeForWave(20, 1)).toEqual(getEnemyTypeForWave(20, 5));
+	});
+
+	it('runtime spawn rolls apply Front density and Fast Swarm pressure', () => {
+		expect(getSpawnCountForTick(100, 16, null, () => 0)).toBe(2);
+		expect(getSpawnCountForTick(100, 1, null, () => 0.99)).toBe(0);
+		expect(getSpawnCountForTick(100, 1, ChallengeId.FastSwarm, () => 0.5)).toBe(1);
 	});
 });
 
@@ -175,7 +182,7 @@ describe('Spawner Integration & Pacing', () => {
 
 			// Run update loop further
 			let furtherTime = 0;
-			while (furtherTime < 35 && state.wave.enemiesSpawned < state.wave.enemiesInWave) {
+			while (furtherTime < 90 && state.wave.enemiesSpawned < state.wave.enemiesInWave) {
 				updateWaveSystem(state as any, 0.125);
 				// Simulate immediate kills to prevent recapping
 				state.wave.enemiesKilled += state.enemies.length;

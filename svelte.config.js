@@ -6,6 +6,11 @@ const config = {
 	preprocess: vitePreprocess(),
 	kit: {
 		adapter: adapter(),
+		csrf: {
+			// Ko-fi sends the webhook as a cross-site form POST without an Origin
+			// header. JSON mutation routes retain their application-level CSRF guard.
+			trustedOrigins: ['*']
+		},
 		prerender: {
 			entries: ['*']
 		}

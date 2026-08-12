@@ -2,6 +2,7 @@ import type { RequestEvent } from './$types';
 import { ok } from '$lib/server/api';
 import { openDatabase } from '$lib/server/db';
 import { logServerError } from '$lib/server/errorLog';
+import { isRateLimited } from '$lib/server/rateLimit';
 
 export const prerender = false;
 
@@ -18,6 +19,13 @@ const MAX_BODY_BYTES = 16 * 1024;
  */
 export async function POST(event: RequestEvent): Promise<Response> {
 	try {
+		if (isRateLimited(`client-error:${event.getClientAddress()}`, 8, 60_000)) {
+			return ok({ recorded: false, rateLimited: true }, {
+				status: 429,
+				headers: { 'retry-after': '60' }
+			});
+		}
+
 		const contentLength = Number(event.request.headers.get('content-length') ?? 0);
 		if (contentLength > MAX_BODY_BYTES) return ok({ recorded: false });
 		const text = await event.request.text();

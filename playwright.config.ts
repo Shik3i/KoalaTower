@@ -1,13 +1,13 @@
+import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { defineConfig, devices } from '@playwright/test';
 
 /**
  * E2E smoke tests live in `e2e/` (outside `src/`) so Vitest never picks them up.
  *
- * We run against the real production build (the adapter-node server), not the
- * dev server: it serves the prerendered HTML + hashed client assets + /api
- * routes exactly like deployment, so hydration and routing behave as in prod.
- * (The dev server's on-demand module loading is unreliable under headless
- * automation.) The runtime crashes we want to catch reproduce here.
+ * We run against the real adapter-node production server, not Vite preview or
+ * the dev server. The build step applies the same guarded adapter workaround
+ * used by the Docker image before this server starts.
  */
 const PORT = 4173;
 
@@ -23,14 +23,17 @@ export default defineConfig({
 		trace: 'on-first-retry'
 	},
 	projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-	// Use SvelteKit's `vite preview` server (not `node build/index.js`): the
-	// adapter-node output relies on a Docker-only sirv patch and deadlocks under
-	// Node 20+ when run directly, whereas vite preview serves the built app with
-	// correct SSR/hydration + /api routes. Build separately (see test:e2e) so
-	// this readiness probe only waits on the fast server start.
 	webServer: {
-		command: `npm run preview -- --port ${PORT} --strictPort`,
+		command: 'node build',
 		url: `http://localhost:${PORT}`,
+		env: {
+			PORT: String(PORT),
+			NODE_ENV: 'test',
+			DATABASE_PATH: resolve(tmpdir(), `flatland-td-e2e-${process.pid}.db`),
+			SESSION_SECRET: 'e2e-session-secret',
+			AUTH_PASSWORD_PEPPER: 'e2e-password-pepper',
+			KOFI_WEBHOOK_SECRET: 'e2e-kofi-secret'
+		},
 		reuseExistingServer: !process.env.CI,
 		timeout: 60_000
 	}

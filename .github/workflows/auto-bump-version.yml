@@ -1,9 +1,7 @@
-name: Auto-bump version
+name: Validate release version
 
-# Runs ONLY on tag push — syncs package.json version to the tag,
-# commits the change back to main, and moves the tag onto the new commit.
-# Separated from ci.yml so a single `git push --follow-tags` triggers
-# at most 2 runs (this one + docker-publish) instead of 3.
+# Runs ONLY on tag push. Release tags are immutable: the package version must
+# already match the tag before the tag is pushed.
 
 on:
   push:
@@ -11,7 +9,7 @@ on:
       - "v*.*.*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   bump:
@@ -20,42 +18,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Bump package.json to match tag
+      - name: Validate package.json version
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           PKG_VERSION=$(node -e "console.log(require('./package.json').version)")
           echo "Tag:    v${TAG_VERSION}"
           echo "pkg:    ${PKG_VERSION}"
 
-          if [ "${TAG_VERSION}" = "${PKG_VERSION}" ]; then
-            echo "✅ Already in sync — nothing to do."
-            exit 0
+          if [ "${TAG_VERSION}" != "${PKG_VERSION}" ]; then
+            echo "ERROR: package.json version ${PKG_VERSION} does not match tag v${TAG_VERSION}." >&2
+            echo "Update package.json, commit it, and create a new immutable tag." >&2
+            exit 1
           fi
 
-          echo "🔄 Mismatch — updating package.json to ${TAG_VERSION}"
-
-          node -e "
-            const p = require('./package.json');
-            p.version = '${TAG_VERSION}';
-            require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2) + '\n');
-          "
-
-          git config user.name  'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-
-          git add package.json
-          git commit -m "release: sync package.json to ${GITHUB_REF_NAME} [skip ci]"
-
-          # Push to main. [skip ci] prevents ci.yml from running again.
-          git push origin HEAD:main
-
-          # Move the tag onto the bumped commit so docker-publish
-          # (triggered by the original tag push) still gets the
-          # correct version in its checkout.
-          git tag -f "${GITHUB_REF_NAME}"
-          git push --force origin "${GITHUB_REF_NAME}"
-
-          echo "✅ package.json → ${TAG_VERSION}, tag on $(git rev-parse HEAD)"
+          echo "✅ package.json matches immutable tag v${TAG_VERSION}"

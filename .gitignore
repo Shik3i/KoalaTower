@@ -9,3 +9,6 @@ playwright-report/
 .env
 .env.local
 .env.production
+.agents/
+.claude/
+.codex/

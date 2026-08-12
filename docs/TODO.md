@@ -34,9 +34,9 @@
 - [x] Implementation of Tiers 1–5 with multipliers and alloy scaling
 - [x] Schematic path reconstruction system
 - [x] Lab research with offline time tracking + browser notifications
-- [ ] Fix enemy attack cooldown — ranged enemies should actually shoot
+- [x] Fix enemy attack cooldown — ranged enemies shoot projectiles and have regression coverage
 - [x] Add elite/shiny enemy variants with glow-based visual distinction
-- [ ] Full challenge mode implementations (Fast Swarm, Glass Tower, Boss Rush — currently scaffolds)
+- [x] Challenge modes: Fast Swarm, Glass Tower, and Boss Rush runtime modifiers with regression coverage
 - [ ] Prestige/ascension system
 
 ## Performance

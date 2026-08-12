@@ -19,6 +19,11 @@ export function isChallengeUnlocked(id: ChallengeId, frontBestWave: FrontBestWav
 	return (frontBestWave[req.front] ?? 0) >= req.wave;
 }
 
+/** Runtime spawn multiplier for challenges that change wave pressure. */
+export function getChallengeSpawnMultiplier(id: ChallengeId | null): number {
+	return id === ChallengeId.FastSwarm ? 3 : 1;
+}
+
 export const CHALLENGES: ChallengeDef[] = [
 	{
 		id: ChallengeId.FastSwarm,
