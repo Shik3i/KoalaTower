@@ -95,6 +95,22 @@ export async function logoutAccount(): Promise<void> {
 	accountStore.clear();
 }
 
+export async function deleteAccount(password: string): Promise<AuthFormResult> {
+	const r = await safeApiJson<{ deleted: boolean }>(
+		'/api/auth/account',
+		{ method: 'DELETE', body: JSON.stringify({ password }) },
+		{ timeoutMs: 8000 }
+	);
+	if (r.ok && r.data?.deleted) {
+		accountStore.clear();
+		return { ok: true, message: 'Account deleted.' };
+	}
+	if (!r.ok && !r.offline && r.status === 401) {
+		return { ok: false, message: 'Invalid password.' };
+	}
+	return { ok: false, message: authMessage(r) };
+}
+
 export function getCurrentAccount(): AccountInfo | null {
 	return get(accountStore).account;
 }

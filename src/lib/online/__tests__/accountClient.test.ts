@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { get } from 'svelte/store';
-import { accountStore, registerAccount, loginAccount, logoutAccount } from '../accountClient';
+import { accountStore, registerAccount, loginAccount, logoutAccount, deleteAccount } from '../accountClient';
 
 function jsonResponse(status: number, body: unknown): Response {
 	return new Response(JSON.stringify(body), {
@@ -89,5 +89,32 @@ describe('account client', () => {
 			globalThis.fetch = original;
 		}
 		expect(get(accountStore).account).toBeNull();
+	});
+
+	it('account deletion clears the account store only after the server confirms deletion', async () => {
+		accountStore.set(SAMPLE_ACCOUNT);
+		const original = globalThis.fetch;
+		globalThis.fetch = makeFetch(() => jsonResponse(200, { ok: true, deleted: true })) as typeof fetch;
+		try {
+			const result = await deleteAccount('correct-horse-battery');
+			expect(result.ok).toBe(true);
+			expect(get(accountStore).account).toBeNull();
+		} finally {
+			globalThis.fetch = original;
+		}
+	});
+
+	it('keeps the account state when deletion fails', async () => {
+		accountStore.set(SAMPLE_ACCOUNT);
+		const original = globalThis.fetch;
+		globalThis.fetch = makeFetch(() => jsonResponse(401, { ok: false, error: { message: 'Invalid password' } })) as typeof fetch;
+		try {
+			const result = await deleteAccount('wrong-password');
+			expect(result.ok).toBe(false);
+			expect(result.message).toBe('Invalid password.');
+			expect(get(accountStore).account?.id).toBe('acc-1');
+		} finally {
+			globalThis.fetch = original;
+		}
 	});
 });

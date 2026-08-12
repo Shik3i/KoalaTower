@@ -145,6 +145,69 @@ export function destroySession(cookies: Cookies, db?: Db): void {
 	clearSessionCookie(cookies);
 }
 
+/**
+ * Permanently remove an account's private data while retaining public
+ * community-run rows as explicitly anonymized history.
+ *
+ * The transaction deliberately handles relations explicitly instead of
+ * relying only on SQLite foreign-key actions. That keeps the deletion policy
+ * visible and also covers historical tables whose owner columns are not FKs.
+ */
+export function deleteAccountData(db: Db, accountId: string): boolean {
+	return db.transaction(() => {
+		const account = db.prepare('SELECT id FROM accounts WHERE id = ?').get(accountId) as { id: string } | undefined;
+		if (!account) return false;
+
+		const localIdentities = db.prepare('SELECT local_player_id FROM player_identities WHERE account_id = ?').all(accountId) as { local_player_id: string }[];
+		const anonymizeLeaderboard = db.prepare(`
+UPDATE leaderboard_runs
+SET account_id = NULL,
+	local_player_id = NULL,
+	display_name = 'Deleted account'
+WHERE account_id = ?
+`);
+		anonymizeLeaderboard.run(accountId);
+
+		for (const identity of localIdentities) {
+			const localPlayerId = identity.local_player_id;
+			db.prepare(`
+UPDATE leaderboard_runs
+SET account_id = NULL,
+	local_player_id = NULL,
+	display_name = 'Deleted account'
+WHERE local_player_id = ?
+`).run(localPlayerId);
+			db.prepare(`
+UPDATE kofi_events
+SET matched_owner_type = NULL,
+	matched_owner_id = NULL,
+	support_code = NULL,
+	raw_json = '{}'
+WHERE matched_owner_type = 'local_identity' AND matched_owner_id = ?
+`).run(localPlayerId);
+			db.prepare('DELETE FROM entitlements WHERE owner_type = \'local_identity\' AND owner_id = ?').run(localPlayerId);
+		}
+
+		// Private online data is deleted, not soft-deleted.
+		db.prepare('DELETE FROM sessions WHERE account_id = ?').run(accountId);
+		db.prepare('DELETE FROM cloud_saves WHERE account_id = ?').run(accountId);
+		db.prepare('DELETE FROM entitlements WHERE owner_type = \'account\' AND owner_id = ?').run(accountId);
+		db.prepare(`
+UPDATE kofi_events
+SET matched_owner_type = NULL,
+	matched_owner_id = NULL,
+	support_code = NULL,
+	raw_json = '{}'
+WHERE matched_owner_type = 'account' AND matched_owner_id = ?
+`).run(accountId);
+		db.prepare('UPDATE app_error_logs SET user_id = NULL WHERE user_id = ?').run(accountId);
+		db.prepare('DELETE FROM player_identities WHERE account_id = ?').run(accountId);
+
+		const result = db.prepare('DELETE FROM accounts WHERE id = ?').run(accountId);
+		return result.changes === 1;
+	})();
+}
+
 export function getSessionAccount(cookies: Cookies, db?: Db): SessionAccount | null {
 	const token = cookies.get(SESSION_COOKIE_NAME);
 	if (!token) return null;

@@ -12,11 +12,16 @@
 		schematics = 0,
 		frontName = '',
 		killstreak = 0,
+		communityScore = 0,
+		communityLeaderboardEligible = false,
+		communityLeaderboardStatus = 'idle',
+		communityLeaderboardMessage = '',
 		autoDeploymentArmed = false,
 		autoDeploymentCountdown = 0,
 		onCancelAutoDeployment,
 		onRedeploy,
 		onExport,
+		onSubmitLeaderboard,
 	}: {
 		wave: number;
 		best: number;
@@ -27,11 +32,16 @@
 		schematics?: number;
 		frontName?: string;
 		killstreak?: number;
+		communityScore?: number;
+		communityLeaderboardEligible?: boolean;
+		communityLeaderboardStatus?: 'idle' | 'submitting' | 'submitted' | 'offline' | 'error';
+		communityLeaderboardMessage?: string;
 		autoDeploymentArmed?: boolean;
 		autoDeploymentCountdown?: number;
 		onCancelAutoDeployment?: () => void;
 		onRedeploy: () => void;
 		onExport: () => void;
+		onSubmitLeaderboard?: () => void;
 	} = $props();
 
 	// First run (best === 0) still counts as a new record if any wave was reached.
@@ -66,6 +76,21 @@
 		{/if}
 		{#if schematics > 0}
 			<div class="go-schem">📐 +{schematics.toLocaleString()} {frontName} Schematics recovered</div>
+		{/if}
+		{#if communityLeaderboardEligible}
+			<div class="go-leaderboard">
+				<div class="go-lb-title">🏆 Community Board <span>UNVERIFIED</span></div>
+				<div class="go-lb-score">Community score: <strong>{communityScore.toLocaleString()}</strong></div>
+				<p>Client-submitted fun ranking. This is not an official or cheat-resistant score.</p>
+				{#if communityLeaderboardStatus === 'submitted'}
+					<div class="go-lb-ok">✓ {communityLeaderboardMessage}</div>
+				{:else}
+					<button class="go-btn2" onclick={onSubmitLeaderboard} disabled={communityLeaderboardStatus === 'submitting'}>
+						{communityLeaderboardStatus === 'submitting' ? 'Publishing…' : 'Submit to Community Board'}
+					</button>
+					{#if communityLeaderboardMessage}<div class="go-lb-error">{communityLeaderboardMessage}</div>{/if}
+				{/if}
+			</div>
 		{/if}
 		{#if autoDeploymentArmed}
 			<div class="go-auto">
@@ -104,6 +129,15 @@
 	.go-loop { color:var(--text-secondary); font-size:var(--fs-body-sm); line-height:1.4; margin:.45rem auto .75rem; max-width:20rem; }
 	.go-stats { display:flex; align-items:center; justify-content:center; gap:.8rem; margin-bottom:.5rem; padding:.6rem .75rem; background:rgba(0,0,0,.12); border-radius:var(--radius-md); }
 	.go-schem { font-size:var(--fs-body-sm); color:var(--cyan); margin-bottom:.5rem; font-family:var(--font-mono); }
+	.go-leaderboard { margin:.65rem 0; padding:.65rem .75rem; border:1px solid rgba(255,221,68,.25); border-radius:var(--radius-sm); background:rgba(255,221,68,.04); text-align:left; }
+	.go-lb-title { color:var(--yellow); font-family:var(--font-display); font-size:var(--fs-body-sm); }
+	.go-lb-title span { color:var(--text-dim); font-family:var(--font-mono); font-size:var(--fs-caption-sm); margin-left:.35rem; }
+	.go-lb-score { margin-top:.25rem; color:var(--text-secondary); font-family:var(--font-mono); font-size:var(--fs-caption); }
+	.go-lb-score strong { color:var(--yellow); }
+	.go-leaderboard p { margin:.35rem 0 .55rem; color:var(--text-dim); font-size:var(--fs-caption-sm); line-height:1.4; }
+	.go-leaderboard .go-btn2 { width:100%; }
+	.go-lb-ok { color:var(--green); font-size:var(--fs-caption); }
+	.go-lb-error { margin-top:.35rem; color:var(--red); font-size:var(--fs-caption-sm); }
 	.go-auto { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.45rem .55rem; margin-bottom:.65rem; background:rgba(136,68,255,.08); border:1px solid rgba(136,68,255,.25); border-radius:var(--radius-sm); color:var(--violet); font-family:var(--font-mono); font-size:var(--fs-caption); }
 	.go-auto button { padding:.3rem .45rem; border:1px solid var(--border-neon); border-radius:var(--radius-sm); color:var(--text-secondary); }
 	.go-stats-sub { display:flex; justify-content:center; gap:1rem; font-size:var(--fs-caption); color:var(--text-secondary); margin-bottom:1rem; font-family:var(--font-mono); }

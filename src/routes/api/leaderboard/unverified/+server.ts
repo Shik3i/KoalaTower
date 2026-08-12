@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { RequestEvent } from './$types';
 import { fail, ok, readJsonObject } from '$lib/server/api';
+import { getSessionAccount } from '$lib/server/auth';
 import { openDatabase } from '$lib/server/db';
 import { isRateLimited } from '$lib/server/rateLimit';
 import { validateDisplayName, validateLocalPlayerId, validateOptionalIsoDate, validatePositiveInt } from '$lib/server/validation';
@@ -9,7 +10,7 @@ export const prerender = false;
 
 export function GET(): Response {
 	const rows = openDatabase().prepare(`
-SELECT id, display_name AS displayName, local_player_id AS localPlayerId, front_id AS frontId, wave, score, game_version AS gameVersion, created_at AS createdAt
+SELECT id, display_name AS displayName, front_id AS frontId, wave, score, game_version AS gameVersion, created_at AS createdAt
 FROM leaderboard_runs
 WHERE leaderboard_type = 'unverified' AND verified = 0
 ORDER BY score DESC, wave DESC, created_at ASC
@@ -22,8 +23,9 @@ export async function POST(event: RequestEvent): Promise<Response> {
 	if (isRateLimited(`leaderboard:${event.getClientAddress()}`)) return fail(429, 'rate_limited', 'Please wait before submitting again');
 	const body = await readJsonObject(event, 8 * 1024);
 	if (!body) return fail(400, 'bad_request', 'Invalid request body');
+	const account = event.cookies ? getSessionAccount(event.cookies) : null;
 	const localPlayerId = validateLocalPlayerId(body.localPlayerId);
-	const displayName = validateDisplayName(body.displayName);
+	const displayName = validateDisplayName(body.displayName, account?.display_name ?? 'Flatland Player');
 	const frontId = validatePositiveInt(body.frontId, 'Front', 1, 99);
 	const wave = validatePositiveInt(body.wave, 'Wave', 1, 100_000);
 	const score = validatePositiveInt(body.score, 'Score', 0, 10_000_000_000);
@@ -36,14 +38,15 @@ export async function POST(event: RequestEvent): Promise<Response> {
 	const now = new Date().toISOString();
 	const id = randomUUID();
 	openDatabase().prepare(`
-INSERT INTO leaderboard_runs (
-	id, leaderboard_type, local_player_id, display_name, front_id, wave, score,
+	INSERT INTO leaderboard_runs (
+	id, leaderboard_type, account_id, local_player_id, display_name, front_id, wave, score,
 	run_started_at, run_ended_at, game_version, verified, created_at
-) VALUES (?, 'unverified', ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+) VALUES (?, 'unverified', ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
 `).run(
 		id,
+		account?.id ?? null,
 		localPlayerId.value,
-		displayName.value,
+		account?.display_name ?? displayName.value,
 		frontId.value,
 		wave.value,
 		score.value,

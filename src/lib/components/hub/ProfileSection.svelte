@@ -6,7 +6,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { tooltip } from '$lib/components/tooltip';
 	import type { LocalPlayerIdentity } from '$lib/online/localIdentity';
-	import type { AccountInfo } from '$lib/online/accountClient';
+	import type { AccountInfo, AuthFormResult } from '$lib/online/accountClient';
 	import type { CloudSaveMetadata } from '$lib/online/cloudSaveClient';
 
 	let {
@@ -49,7 +49,8 @@
 		confirmUploadCloud,
 		handleLogin,
 		handleRegister,
-		copySupportCode
+		copySupportCode,
+		handleDeleteAccount
 	}: {
 		// Bindable Form Fields
 		localProfileName: string;
@@ -91,6 +92,7 @@
 		handleLogin: () => void;
 		handleRegister: () => void;
 		copySupportCode: () => void;
+		handleDeleteAccount: (password: string) => Promise<AuthFormResult>;
 	} = $props();
 
 	// Local Form Validation Derived Info
@@ -133,6 +135,11 @@
 	}
 
 	let regPasswordStrength = $derived(getPasswordStrength(regPassword));
+	let showDeleteAccount = $state(false);
+	let deletePassword = $state('');
+	let deleteAcknowledged = $state(false);
+	let deleteError = $state('');
+	let deleteBusy = $state(false);
 
 	function switchAuthMode(mode: 'login' | 'register') {
 		authMode = mode;
@@ -156,6 +163,26 @@
 		if (days > 0) return `${days}d ${hours}h`;
 		if (hours > 0) return `${hours}h ${minutes}m`;
 		return `${minutes}m`;
+	}
+
+	function cancelDeleteAccount() {
+		showDeleteAccount = false;
+		deletePassword = '';
+		deleteAcknowledged = false;
+		deleteError = '';
+	}
+
+	async function submitDeleteAccount() {
+		if (!deleteAcknowledged || deletePassword.length === 0 || deleteBusy) return;
+		deleteBusy = true;
+		deleteError = '';
+		try {
+			const result = await handleDeleteAccount(deletePassword);
+			if (result.ok) cancelDeleteAccount();
+			else deleteError = result.message;
+		} finally {
+			deleteBusy = false;
+		}
 	}
 </script>
 
@@ -200,6 +227,25 @@
 			<h3>Account: {account.displayName}</h3>
 			<p class="acct-status">Logged in as <strong>{account.username}</strong>. Cloud saves and future verified features use this account. Local play keeps working if you log out or go offline.</p>
 			<button class="hub-action" onclick={handleLogout} disabled={authBusy}>{authBusy ? 'Working…' : 'Log out'}</button>
+			<div class="account-delete">
+				<h4>Delete Account</h4>
+				<p class="cloud-desc">Permanently deletes the account, sessions, cloud save, supporter links, and linked server identity data. Existing community leaderboard rows remain only as <strong>Deleted account</strong>.</p>
+				{#if !showDeleteAccount}
+					<button class="hub-action hub-danger" onclick={() => showDeleteAccount = true} disabled={authBusy}>Delete account…</button>
+				{:else}
+					<form class="delete-form" onsubmit={(event) => { event.preventDefault(); void submitDeleteAccount(); }}>
+						<label class="local-profile-label">Current password
+							<input type="password" bind:value={deletePassword} autocomplete="current-password" placeholder="Confirm with password" />
+						</label>
+						<label class="delete-check"><input type="checkbox" bind:checked={deleteAcknowledged} /> I understand this cannot be undone.</label>
+						{#if deleteError}<p class="auth-err">{deleteError}</p>{/if}
+						<div class="cloud-actions">
+							<button class="hub-action hub-danger" type="submit" disabled={!deleteAcknowledged || deletePassword.length === 0 || deleteBusy || authBusy}>{deleteBusy ? 'Deleting…' : 'Delete permanently'}</button>
+							<button class="hub-action" type="button" onclick={cancelDeleteAccount} disabled={deleteBusy}>Cancel</button>
+						</div>
+					</form>
+				{/if}
+			</div>
 			<div class="cloud-section">
 				<h4>Cloud Save</h4>
 				<p class="cloud-desc">Manual backup/sync. Cloud save never auto-overwrites your local data — you choose when to upload or restore.</p>
@@ -402,6 +448,12 @@
 	.cloud-err { color:var(--red); font-size:var(--fs-caption-sm); margin:.25rem 0; }
 	.cloud-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.35rem; }
 	.cloud-actions .hub-action { margin:0; }
+	.account-delete { max-width:760px; margin-top:1rem; padding:.85rem 1rem; background:rgba(255,68,68,.04); border:1px solid rgba(255,68,68,.25); border-radius:var(--radius-sm); }
+	.account-delete h4 { margin:0 0 .35rem; color:var(--red); font-family:var(--font-display); }
+	.account-delete strong { color:var(--text-primary); }
+	.delete-form { max-width:340px; margin-top:.65rem; }
+	.delete-form input[type='password'] { display:block; box-sizing:border-box; width:100%; margin-top:.2rem; padding:.45rem .55rem; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border-neon); border-radius:var(--radius-sm); font-family:var(--font-mono); }
+	.delete-check { display:flex; gap:.45rem; align-items:flex-start; margin:.65rem 0; color:var(--text-secondary); font-size:var(--fs-caption); line-height:1.4; }
 	
 	.auth-tabs { display:flex; gap:.25rem; margin:.5rem 0; }
 	.auth-tab { padding:.35rem .9rem; font-size:var(--fs-caption); color:var(--text-secondary); background:transparent; border:1px solid var(--border-neon); border-radius:var(--radius-sm); cursor:pointer; }

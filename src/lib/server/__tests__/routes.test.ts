@@ -8,7 +8,7 @@ import { getCommunityBuff } from '../communityBuff';
 import { createSupportCode } from '../supportCode';
 import { GET as getCloudSave } from '../../../routes/api/cloud-save/+server';
 import { POST as postKofiWebhook } from '../../../routes/api/kofi/webhook/+server';
-import { POST as postUnverifiedLeaderboard } from '../../../routes/api/leaderboard/unverified/+server';
+import { GET as getUnverifiedLeaderboard, POST as postUnverifiedLeaderboard } from '../../../routes/api/leaderboard/unverified/+server';
 import { POST as postClientError } from '../../../routes/api/client-error/+server';
 
 // Ko-fi posts urlencoded bodies whose `data` field is a JSON string.
@@ -66,6 +66,32 @@ describe('online API route guards', () => {
 			})
 		} as never);
 		expect(response.status).toBe(400);
+	});
+
+	it('stores unverified community runs without exposing local identity ids', async () => {
+		useTempDatabase();
+		const response = await postUnverifiedLeaderboard({
+			getClientAddress: () => '127.0.0.1',
+			cookies: { get: () => undefined },
+			request: new Request('http://localhost/api/leaderboard/unverified', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					localPlayerId: '11111111-1111-4111-8111-111111111111',
+					displayName: 'Commander',
+					frontId: 1,
+					wave: 10,
+					score: 100,
+					gameVersion: 'test'
+				})
+			})
+		} as never);
+		expect(response.status).toBe(201);
+
+		const listing = await getUnverifiedLeaderboard();
+		const payload = await listing.json() as { entries: Array<Record<string, unknown>> };
+		expect(payload.entries[0]).toMatchObject({ displayName: 'Commander', frontId: 1, wave: 10, score: 100 });
+		expect(payload.entries[0]).not.toHaveProperty('localPlayerId');
 	});
 
 	it('records a client error into the app error log', async () => {

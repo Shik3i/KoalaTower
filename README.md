@@ -171,6 +171,7 @@ Flatland TD keeps **local-first gameplay** as a hard rule:
 - API failures are treated as offline state, not gameplay failures
 - the service worker bypasses `/api/`, while cached gameplay assets remain available offline
 - unverified leaderboard scores are community/fun only
+- account deletion removes private online data; linked leaderboard history is anonymized as `Deleted account`
 - verified challenge leaderboard will require login and stricter validation later
 
 Backend environment variables:

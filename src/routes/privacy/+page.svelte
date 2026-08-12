@@ -57,6 +57,8 @@
 				<li>No login is required for normal gameplay</li>
 				<li>Local saves are not overwritten automatically</li>
 				<li>Unverified leaderboard scores are community/fun only</li>
+				<li>Deleting an account removes sessions, cloud saves, supporter links, and linked server identity data</li>
+				<li>Historical leaderboard rows linked to a deleted account are retained only as <strong>Deleted account</strong> with identifiers removed</li>
 				<li>Verified challenge leaderboards will require stricter validation later</li>
 			</ul>
 		</section>

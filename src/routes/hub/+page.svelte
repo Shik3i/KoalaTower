@@ -65,7 +65,7 @@
 		type LocalPlayerIdentity
 	} from '$lib/online/localIdentity';
 	import { communityBuffStore, type CommunityBuffState } from '$lib/online/communityBuffClient';
-	import { accountStore, registerAccount, loginAccount, logoutAccount, type AccountInfo } from '$lib/online/accountClient';
+	import { accountStore, registerAccount, loginAccount, logoutAccount, deleteAccount, type AccountInfo } from '$lib/online/accountClient';
 	import { fetchCloudSaveMeta, fetchCloudSaveFull, uploadCloudSave, type CloudSaveMetadata } from '$lib/online/cloudSaveClient';
 	import { getSupportCode } from '$lib/online/supportCode';
 	import { APP_VERSION } from '$lib/version';
@@ -85,12 +85,13 @@
 	import LabSection from '$lib/components/hub/LabSection.svelte';
 	import BlackMarketSection from '$lib/components/hub/BlackMarketSection.svelte';
 	import ProfileSection from '$lib/components/hub/ProfileSection.svelte';
+	import LeaderboardSection from '$lib/components/hub/LeaderboardSection.svelte';
 	import SkinsSection from '$lib/components/hub/SkinsSection.svelte';
 	import BackgroundsSection from '$lib/components/hub/BackgroundsSection.svelte';
 	import { TOWER_SKINS } from '$lib/game/balance/skins';
 
-	type HubSectionId = 'workshop' | 'orders' | 'lab' | 'blueprints' | 'skins' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'settings' | 'profile';
-	const HUB_SECTION_IDS: HubSectionId[] = ['workshop', 'orders', 'lab', 'blueprints', 'skins', 'blackMarket', 'tiers', 'challenges', 'simulation', 'stats', 'settings', 'profile'];
+	type HubSectionId = 'workshop' | 'orders' | 'lab' | 'blueprints' | 'skins' | 'blackMarket' | 'tiers' | 'challenges' | 'simulation' | 'stats' | 'leaderboard' | 'settings' | 'profile';
+	const HUB_SECTION_IDS: HubSectionId[] = ['workshop', 'orders', 'lab', 'blueprints', 'skins', 'blackMarket', 'tiers', 'challenges', 'simulation', 'stats', 'leaderboard', 'settings', 'profile'];
 
 	function isHubSectionId(value: string): value is HubSectionId {
 		return HUB_SECTION_IDS.includes(value as HubSectionId);
@@ -121,6 +122,7 @@
 		{ title: 'Schematics Later', desc: 'After you recover Schematics from a Front, this tab reconstructs new upgrade paths. If it is empty now, that is normal.', target: '[data-section="blueprints"]', placement: 'right' },
 		{ title: 'Fronts', desc: 'Front 1 is always open. Push deeper to unlock harder Fronts with better rewards; Special Operations appear after campaign milestones.', target: '[data-section="tiers"]', placement: 'right' },
 		{ title: 'Archives', desc: 'Archives track campaign stats, enemy mastery achievements, and telemetry from previous deployments.', target: '[data-section="stats"]', placement: 'right' },
+		{ title: 'Community Board', desc: 'Browse optional community runs. These scores are public fun data and are explicitly unverified.', target: '[data-section="leaderboard"]', placement: 'right' },
 		{ title: 'Profile', desc: 'Set your display name, register an account, and manage cloud backups to protect your progress.', target: '[data-section="profile"]', placement: 'right' },
 		{ title: 'Systems', desc: 'Systems holds visual and audio preferences, along with tools to manually export, import, or reset your local save.', target: '[data-section="settings"]', placement: 'right' },
 		{ title: 'Deploy Again', desc: 'Spend Alloy, start research, then return to the fight. Field upgrades reset each run; Orbital upgrades do not.', target: '.hub-deploy', placement: 'bottom' },
@@ -700,6 +702,23 @@
 		// Local save is untouched; cloud view clears with the account.
 	}
 
+	async function handleDeleteAccount(password: string) {
+		authBusy = true;
+		try {
+			const result = await deleteAccount(password);
+			if (result.ok) {
+				cloudMeta = null;
+				cloudExists = false;
+				cloudChecked = false;
+				cloudError = null;
+				toast('Account and linked online data deleted.', 'success');
+			}
+			return result;
+		} finally {
+			authBusy = false;
+		}
+	}
+
 	async function refreshCloudStatus() {
 		cloudBusy = true; cloudError = null;
 		try {
@@ -1041,6 +1060,7 @@
 		{ id: 'challenges' as const, label: 'Special Operations', icon: '⚡' },
 		{ id: 'simulation' as const, label: 'Simulation', icon: '🧪' },
 		{ id: 'stats' as const, label: 'Archives', icon: '📊' },
+		{ id: 'leaderboard' as const, label: 'Community Board', icon: '🏆' },
 		{ id: 'profile' as const, label: 'Profile', icon: '👤' },
 		{ id: 'settings' as const, label: 'Systems', icon: '⚙' },
 	];
@@ -1307,6 +1327,8 @@
 					{challengeHighScores}
 					{deploymentReports}
 				/>
+			{:else if activeSection === 'leaderboard'}
+				<LeaderboardSection />
 			{:else if activeSection === 'profile'}
 				<ProfileSection
 					bind:localProfileName
@@ -1346,6 +1368,7 @@
 					handleLogin={handleLogin}
 					handleRegister={handleRegister}
 					copySupportCode={copySupportCode}
+					handleDeleteAccount={handleDeleteAccount}
 				/>
 			{:else if activeSection === 'settings'}
 				<SettingsSection

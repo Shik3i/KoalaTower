@@ -37,6 +37,10 @@
 	import { notifications } from '$lib/stores/notificationStore';
 	import { saveStatusStore, type SaveStatus } from '$lib/stores/saveStatusStore';
 	import { playForNotification } from '$lib/game/audio/uiSounds';
+	import { loadLocalIdentity } from '$lib/online/localIdentity';
+	import { submitUnverifiedLeaderboard } from '$lib/online/leaderboardClient';
+	import { calculateUnverifiedScore } from '$lib/game/balance/communityLeaderboard';
+	import { APP_VERSION } from '$lib/version';
 	import NotificationCenter from '$lib/components/NotificationCenter.svelte';
 	import FieldUpgrades from '$lib/components/play/FieldUpgrades.svelte';
 	import HudOverlays from '$lib/components/play/HudOverlays.svelte';
@@ -61,6 +65,10 @@
 	let gameOverBosses = $state(0);
 	let gameOverCash = $state(0);
 	let gameOverKillstreak = $state(0);
+	let gameOverCommunityScore = $state(0);
+	let communityLeaderboardEligible = $state(false);
+	let communityLeaderboardStatus = $state<'idle' | 'submitting' | 'submitted' | 'offline' | 'error'>('idle');
+	let communityLeaderboardMessage = $state('');
 	let gameOverSchematics = $state(0);
 	let gameOverFrontName = $state('');
 	let runStartedAtMs = $state(0);
@@ -547,6 +555,18 @@
 				gameOverSchematics = 0;
 				gameOverFrontName = '';
 				gameOverKillstreak = engine?.state.killstreak?.best ?? 0;
+				const completedRun = engine?.state;
+				communityLeaderboardEligible = completedRun != null && completedRun.activeChallenge === null && _w > 0;
+				gameOverCommunityScore = completedRun
+					? calculateUnverifiedScore({
+						front: getTierNumber(selectedFront),
+						wave: _w,
+						kills: completedRun.killCount,
+						bosses: completedRun.bossesDefeated,
+					})
+					: 0;
+				communityLeaderboardStatus = 'idle';
+				communityLeaderboardMessage = '';
 				showGameOver = true;
 				const save = getCachedSave();
 				if (save && engine) {
@@ -971,6 +991,38 @@
 		}
 	}
 
+	async function submitCommunityLeaderboard() {
+		if (!engine || !communityLeaderboardEligible || communityLeaderboardStatus === 'submitting' || communityLeaderboardStatus === 'submitted') return;
+		const save = getCachedSave();
+		if (!save) {
+			communityLeaderboardStatus = 'error';
+			communityLeaderboardMessage = 'Local save is not ready.';
+			return;
+		}
+
+		communityLeaderboardStatus = 'submitting';
+		communityLeaderboardMessage = '';
+		const identity = loadLocalIdentity();
+		const result = await submitUnverifiedLeaderboard({
+			localPlayerId: identity.localPlayerId,
+			displayName: identity.displayName,
+			frontId: getTierNumber(save.selectedFront),
+			wave: gameOverWave,
+			score: gameOverCommunityScore,
+			...(runStartedAtMs > 0 ? { runStartedAt: new Date(runStartedAtMs).toISOString() } : {}),
+			runEndedAt: new Date().toISOString(),
+			gameVersion: APP_VERSION || 'unknown',
+		});
+
+		if (result.ok) {
+			communityLeaderboardStatus = 'submitted';
+			communityLeaderboardMessage = 'Published as an unverified community run.';
+		} else {
+			communityLeaderboardStatus = result.offline ? 'offline' : 'error';
+			communityLeaderboardMessage = result.message;
+		}
+	}
+
 	async function handleExportSave() {
 		const s = await exportSave();
 		const copied = await writeClipboardText(s);
@@ -1392,11 +1444,16 @@
 			schematics={gameOverSchematics}
 			frontName={gameOverFrontName}
 			killstreak={gameOverKillstreak}
+			communityScore={gameOverCommunityScore}
+			communityLeaderboardEligible={communityLeaderboardEligible}
+			communityLeaderboardStatus={communityLeaderboardStatus}
+			communityLeaderboardMessage={communityLeaderboardMessage}
 			{autoDeploymentArmed}
 			{autoDeploymentCountdown}
 			onCancelAutoDeployment={cancelAutoDeployment}
 			onRedeploy={startRun}
 			onExport={handleExportSave}
+			onSubmitLeaderboard={submitCommunityLeaderboard}
 		/>
 	{/if}
 
