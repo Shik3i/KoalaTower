@@ -2,7 +2,7 @@
 
 ## Overview
 
-Flatland TD is a local-first SvelteKit application. Gameplay remains client-side and offline-capable, while an optional Node/SQLite backend provides auth, cloud-save, support, and operations features. The layered architecture keeps game logic, rendering, UI, and online routes separate.
+Flatland TD is a local-first SvelteKit application. Gameplay remains client-side and offline-capable, while an optional Node/SQLite backend provides auth, cloud-save, support, operations, account deletion, and leaderboard features. The layered architecture keeps game logic, rendering, UI, and online routes separate.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -67,6 +67,9 @@ koala-tower/
 │   ├── app.css               # Design tokens + global styles
 │   ├── lib/
 │   │   ├── version.ts
+│   │   ├── online/               # Browser clients for optional online APIs
+│   │   ├── server/               # Auth, SQLite, migrations, online route helpers
+│   │   ├── pwa/                  # Service-worker registration and update handling
 │   │   ├── components/
 │   │   │   ├── Tutorial.svelte       # Reusable step-by-step overlay
 │   │   │   ├── BossHealthBar.svelte  # ARIA progressbar for boss waves
@@ -75,7 +78,7 @@ koala-tower/
 │   │   │   ├── FlatlandNews.svelte   # Rotating humorous news
 │   │   │   └── Icon.svelte           # SVG icon component
 │   │   ├── content/
-│   │   │   └── flatlandNews.ts       # 18 news items
+│   │   │   └── flatlandNews.ts       # 120 news items
 │   │   ├── stores/
 │   │   │   ├── gameStore.ts          # Engine reference
 │   │   │   └── gameUiStore.ts        # Alloy, settings, save state
@@ -91,6 +94,8 @@ koala-tower/
 │   │       ├── save/         # IndexedDB persistence
 │   │       └── __tests__/    # Vitest unit tests
 │   ├── routes/
+│   │   ├── admin/             # Read-only server-gated operations panel
+│   │   ├── api/               # Auth, cloud-save, support, leaderboard, and health APIs
 │   │   ├── +layout.svelte    # Global footer + lab polling + toasts
 │   │   ├── +error.svelte     # Themed error page (404/500)
 │   │   ├── +page.svelte      # Home / landing page
@@ -120,7 +125,7 @@ koala-tower/
 ## Progression Systems
 
 ### Forge (Workshop)
-13 permanent tower upgrades bought with Alloy. Pre-installed before every deployment. Max levels range from 19–6000.
+14 permanent tower upgrades bought with Alloy. Pre-installed before every deployment. Max levels range from 19–6000.
 
 ### Research Deck (Lab)
 5 time-based orbital research projects. Run in real time (offline too). Multiplicative bonuses stack with Forge. Browser notifications for completion.
@@ -128,11 +133,11 @@ koala-tower/
 ### Schematics
 Per-Front design fragments. Bosses have a wave-scaled chance to drop repeatable Schematics (about 28% at Wave 10, reaching 100% at Wave 1000), first-time wave milestones grant larger guaranteed one-time drops, and the Schematics tab reconstructs compatible upgrade paths from them. Internal Blueprint IDs remain as legacy compatibility names; there is no separate "find the blueprint first" state.
 
-### Fronts (Tiers)
-16 Fronts across 4 bands (Perimeter → Redline → Blacksite → Anomaly) with escalating difficulty and Schematics rewards. Unlocked by reaching wave milestones on previous Fronts within the same band.
+### Fronts (internal TierId compatibility)
+16 Fronts across 4 bands (Perimeter → Redline → Blacksite → Anomaly) with escalating difficulty and Schematics rewards. Fronts unlock sequentially from the previous Front; transitions into Redline, Blacksite, and Anomaly use higher milestone gates.
 
 ### Achievements
-42 achievements across 6 categories (deployments, best wave, shapes destroyed, bosses defeated, field upgrades, alloy earned). Each awards Alloy.
+39 achievements across 7 categories (deployments, best wave, shapes destroyed, bosses defeated, field upgrades, alloy earned, killstreak). Each awards Alloy.
 
 ### Black Market
 Hidden local-first Strange Matter system. Supports weekly shipments, daily pickup, optional support copy, contraband quality-of-life unlocks (auto-deployment, speed unlocks, schematic converter), and a discovery storyboard. No backend, payment, or online check is required for rewards.
@@ -141,7 +146,7 @@ Hidden local-first Strange Matter system. Supports weekly shipments, daily picku
 Weekly official Alloy assignments issued by Orbital Command. Up to 25 orders per local week with 5 visible at a time on a board that refreshes every 4 hours. Every 5 completed orders unlocks a Command Gift Box. Rewards are Alloy only — no Strange Matter, no premium currency. No streaks or login punishment.
 
 ### Optional Online Foundation
-Optional online features run in the same SvelteKit Node server that serves the frontend. SQLite lives at `DATABASE_PATH` (Docker default: `/data/flatland.db`) and is initialized by source-controlled migrations. Normal gameplay remains local-first: no login, backend, or network access is required after the app is loaded/cached. The service worker bypasses `/api/`, and frontend helpers (`src/lib/online/*`) treat any API failure/timeout as offline state and never block gameplay.
+Optional online features run in the same SvelteKit Node server that serves the frontend. SQLite lives at `DATABASE_PATH` (default: `/data/flatland.db`) and is initialized by source-controlled migrations. Normal gameplay remains local-first: no login, backend, or network access is required after the app is loaded/cached. The service worker bypasses `/api/`, and frontend helpers (`src/lib/online/*`) treat any API failure/timeout as offline state and never block gameplay.
 
 Implemented online features:
 - **Auth** — optional username/password accounts (`/api/auth/register|login|logout|me`). `httpOnly` session cookies; no password or token in `localStorage`. Local play keeps working logged-out or offline.
@@ -162,7 +167,7 @@ Implemented online features:
 - **Cloud restore reload:** Cloud save restore currently calls `location.reload()` after import. A proper state-reinitialization (without a full page reload) would be preferable.
 - **Node 22:** The Dockerfile locks to Node 20 LTS until the streaming deadlock is confirmed fixed on Node 22+.
 
-Intentionally out of scope / not implemented: guilds, payment/shop UI, personal paid power, supporter badge/skin entitlement UI, OAuth, email/password reset, and automatic cloud-save overwrite. Ko-fi support never grants personal power.
+Intentionally out of scope / not implemented: the full damage-type/resistance combat pipeline and UI, guilds, payment/shop UI, personal paid power, supporter badge/skin entitlement UI, OAuth, email/password reset, and automatic cloud-save overwrite. Current resistance values for Fronts 9–16 are placeholder scaffolding only. Ko-fi support never grants personal power.
 
 ## Deployment
 
@@ -178,10 +183,10 @@ Browser → Reverse Proxy (Caddy/Traefik/Nginx) → Node :8080
 ```
 
 ### SQLite
-Server-side data (accounts, sessions, cloud saves, Ko-fi events, community buff events) lives in SQLite at `DATABASE_PATH` (default `/data/flatland.db`). Migrations run automatically on first access and record versions in `schema_migrations`. WAL mode is enabled when the filesystem supports it. Back up the `.db`, `.db-wal`, and `.db-shm` files together.
+Server-side data (accounts, sessions, cloud saves, Ko-fi events, community buff events, community leaderboard rows, verified challenge tickets/runs, and error logs) lives in SQLite at `DATABASE_PATH` (default `/data/flatland.db`). Migrations run automatically on first access and record versions in `schema_migrations`. WAL mode is enabled when the filesystem supports it. Back up the `.db`, `.db-wal`, and `.db-shm` files together.
 
 ### Environment variables
-Required in production: `SESSION_SECRET`, `AUTH_PASSWORD_PEPPER`, `KOFI_WEBHOOK_SECRET`, `DATABASE_PATH`. See `README.md` and `.env.example` for the full list. No `PUBLIC_` prefix for secrets — all secret env vars are server-only.
+Required in production: `SESSION_SECRET` and `AUTH_PASSWORD_PEPPER`; `KOFI_WEBHOOK_SECRET` is required for an active Ko-fi webhook. `DATABASE_PATH` is optional and defaults to `/data/flatland.db`. See `README.md` and `.env.example` for the full list. No `PUBLIC_` prefix for secrets — all secret env vars are server-only.
 
 ### Docker Compose
 `docker-compose.example.yml` provides a production-ready Caddy reverse-proxy setup with persistent volume, optional read-only root filesystem, security hardening, and a healthcheck.

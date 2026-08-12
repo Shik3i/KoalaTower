@@ -18,13 +18,13 @@ A beautiful, fully playable idle tower defense game built with **Svelte 5 + Type
 
 Flatland is at war with **hostile geometric shapes**. Deploy towers from orbit, harvest Energy from destroyed enemies to overclock your tower mid-battle, and refine Alloy for permanent upgrades. When the tower falls — deploy a new one. Research endures.
 
-- 🏗️ **13 Forge upgrades** — permanent pre-installed improvements (Damage, Fire Rate, Range, HP, Crit, Lifesteal, Thorns...)
+- 🏗️ **14 Forge upgrades** — permanent pre-installed improvements (Damage, Fire Rate, Range, HP, Crit, Lifesteal, Thorns...)
 - 🔬 **5 Research Deck projects** — real-time orbital research with offline progress
-- ⚡ **14 Field upgrades** — temporary overclocks per deployment (Offense, Defense, Utility)
+- ⚡ **16 Field upgrades** — temporary overclocks per deployment (Offense, Defense, Utility)
 - 🌍 **16 Fronts (4 bands × 4 Fronts)** — escalating difficulty with better Alloy rewards and per-Front Schematics
 - 📑 **Schematics** — per-Front currency from wave-scaled boss drops and first-clear milestones, used to reconstruct upgrade paths
 - 🛰️ **Command Orders** — weekly official Alloy assignments with gift box milestones and board refresh cooldowns
-- 🏆 **42 Achievements** — deploy towers, destroy shapes, earn Alloy rewards
+- 🏆 **39 Achievements** — deploy towers, destroy shapes, earn Alloy rewards
 - 👾 **5 Enemy types** — Normal ■, Fast ◆, Tank ⬡, Ranged ▶, Boss ⬠ — each visually distinct
 - ⚡ **3 Special Operations** — challenge modes with modified rules
 - 💥 **Cosmetic killstreak chain** — visual-only feedback for clean waves, surviving wave lulls and resetting on tower damage (no economy tie-in)
@@ -62,7 +62,7 @@ npm test            # run the Vitest suite
 | Renderer | **PixiJS v8** (WebGL + AdvancedBloomFilter) |
 | Storage | **IndexedDB** via idb-keyval |
 | Audio | Procedural **Web Audio API** (no asset files) |
-| Testing | **Vitest** (400+ tests across 20+ files) |
+| Testing | **Vitest** (660 tests across 51 files) + Playwright smoke |
 | Build | **Vite** + @sveltejs/adapter-node |
 | Container | Single-container **Docker** Node server |
 | PWA | Installable + offline-ready via SvelteKit service worker |
@@ -77,8 +77,12 @@ src/
 ├── app.html                 # HTML shell + SEO meta/OG/Twitter tags
 ├── lib/
 │   ├── components/          # Tutorial, BossHealthBar, Stats panels, News, Icon
+│   ├── online/              # Browser clients for optional online APIs
+│   ├── server/              # Auth, SQLite, migrations, online route helpers
+│   ├── pwa/                 # Service-worker registration and update handling
 │   ├── stores/              # Reactive Svelte stores (Alloy, settings, engine)
-│   ├── content/             # Flatland News (18 humorous items)
+│   ├── content/             # Flatland News (120 humorous items)
+│   ├── utils/               # countUp action, viewport math
 │   └── game/
 │       ├── engine/          # GameEngine + GameConfig + GameTypes
 │       ├── systems/         # Wave, Enemy, Tower, Projectile, Economy (pure functions)
@@ -88,8 +92,9 @@ src/
 │       ├── audio/           # Procedural Web Audio SFX + music
 │       ├── save/            # IndexedDB persistence + schema migrations
 │       └── __tests__/       # Vitest unit tests
-├── utils/                   # countUp action, viewport math
 └── routes/
+    ├── admin/               # Read-only server-gated operations panel
+    ├── api/                 # Auth, cloud-save, support, leaderboard, and health APIs
     ├── +layout.svelte       # Global footer nav + lab polling + toasts
     ├── +error.svelte        # Themed 404/500 error page
     ├── +page.svelte         # Landing page with animated stars + news
@@ -188,7 +193,7 @@ Backend environment variables:
 | `PUBLIC_ONLINE_FEATURES_ENABLED` | optional public flag for online feature visibility |
 | `ADMIN_USERNAMES` | comma-separated account usernames granted the read-only admin panel; **server-only**, never `PUBLIC_`; empty/missing means no admins |
 
-SQLite migrations run on first server DB access and record applied versions in `schema_migrations`. WAL mode is enabled when the environment supports it. Production requires `DATABASE_PATH`, `SESSION_SECRET`, `AUTH_PASSWORD_PEPPER`, and (for the Ko-fi webhook) `KOFI_WEBHOOK_SECRET`. Docker persists SQLite in the `/data` volume.
+SQLite migrations run on first server DB access and record applied versions in `schema_migrations`. WAL mode is enabled when the environment supports it. Production requires `SESSION_SECRET` and `AUTH_PASSWORD_PEPPER`; `KOFI_WEBHOOK_SECRET` is required for the Ko-fi webhook to accept events. `DATABASE_PATH` is optional and defaults to `/data/flatland.db`. Docker persists SQLite in the `/data` volume.
 
 Auth foundation notes:
 
@@ -259,13 +264,13 @@ npm run check       # TypeScript strict typecheck
 npm run build       # Production build verification
 ```
 
-Test coverage includes: enemy scaling formulas, upgrade cost curves, save migration/import integrity, progression requirements, wave system, viewport placement math, killstreak/cosmetic-chain tests, floating-text classification, and enemy damage-state helpers.
+Test coverage includes: enemy scaling formulas, upgrade cost curves, save migration/import integrity, progression requirements, wave system, viewport placement math, killstreak/cosmetic-chain tests, floating-text classification, enemy damage-state helpers, online route behavior, account deletion, database migrations, and verified-run ticket/replay validation.
 
 ---
 
 ## 🚧 Alpha Notes
 
-Flatland TD v0.12.0 — **Pre-Release** — is alpha software. It is local-first, offline-friendly, and playable without login, analytics, backend APIs, cloud saves, or payment checks.
+Flatland TD v0.12.0 — **Alpha Release** — is alpha software. It is local-first, offline-friendly, and playable without login, analytics, backend APIs, cloud saves, or payment checks.
 
 Known limits: all 16 Fronts are structurally active, but high-end Blacksite/Anomaly mechanics are still scaffolded and not final balance. The Outsourced Research Lab is visible as Coming Later and is not active. Black Market support links are optional; Daily Pickup and Weekly Shipment rewards are never gated by payment or online checks.
 

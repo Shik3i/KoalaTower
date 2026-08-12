@@ -9,7 +9,36 @@
 - Added migration 3 for verified run tickets, challenge IDs, and one-time verified-run IDs.
 - Account deletion anonymizes linked verified and community leaderboard history as `Deleted account` while deleting private sessions, cloud saves, identities, entitlements, and supporter links.
 - Added replay determinism, ticket lifecycle, duplicate-submit, forged-result, and migration coverage.
-- Release checks: `npm run check`, `npm test`, production build, Playwright smoke, and Docker runtime smoke.
+- Release checks: `npm run check` (0 errors/warnings), `npm test` (51 files / 660 tests), production build, Playwright smoke, Docker build, fresh-DB migration, and in-container runtime smoke.
+
+## v0.11.2 — Orbital Command tabs and service worker
+
+- Fixed Orbital Command tab switching getting stuck.
+- Hardened service-worker registration and update handling.
+
+## v0.11.1 — Runtime, economy, and persistence fixes
+
+- Fixed render, audio, routing, economy, UI persistence, and Command Orders issues.
+- Corrected HP and regeneration scaling and closed the Command Orders exploit.
+
+## v0.11.0 — Hub customization
+
+- Added Hub customization surfaces and background themes.
+
+## v0.10.5 — Audit hardening
+
+- Hardened CSRF boundaries, terminology, autosave behavior, simulator alignment, and Hub keyboard navigation.
+
+## v0.10.0–v0.10.4 — Performance and customization
+
+- Added the initial tower-skin shop and mobile gesture/input improvements.
+- Added balance, renderer, stat-panel, notification, and multiple hot-path performance fixes.
+
+## v0.9.12–v0.9.19 — Combat feedback and runtime polish
+
+- Added and refined the cosmetic killstreak presentation.
+- Added ranged projectiles, 360° multishot, FPS reporting, render optimizations, lazy procedural audio, dynamic music, Quadtree targeting, and interactive SVG statistics.
+- Hardened audio lifecycle handling and dynamic boss progression.
 
 ## v0.9.11 — Schematic documentation audit
 

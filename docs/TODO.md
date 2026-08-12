@@ -30,13 +30,14 @@
 - [x] Improved first-50-waves balancing (gentler start, progressive ramp)
 - [x] Battle upgrade costs lowered, effects increased for better early-game feel
 - [x] Workshop upgrade costs lowered, more achievable after first runs
-- [x] Add tier unlock logic based on highest wave (front-based progression)
-- [x] Implementation of Tiers 1–5 with multipliers and alloy scaling
+- [x] Add Front unlock logic based on highest wave (front-based progression)
+- [x] Implementation of 16 Fronts across 4 bands with multipliers and Alloy scaling
 - [x] Schematic path reconstruction system
 - [x] Lab research with offline time tracking + browser notifications
 - [x] Fix enemy attack cooldown — ranged enemies shoot projectiles and have regression coverage
 - [x] Add elite/shiny enemy variants with glow-based visual distinction
 - [x] Challenge modes: Fast Swarm, Glass Tower, and Boss Rush runtime modifiers with regression coverage
+- [ ] Complete damage-type/resistance combat pipeline and UI for Fronts 9–16 (current values are placeholder scaffolding)
 - [ ] Prestige/ascension system
 
 ## Performance
@@ -60,15 +61,17 @@
 
 ## Features
 - [x] Procedural sound effects and music (Web Audio API, no asset files)
-- [x] Achievement system with 42 achievements + alloy rewards
+- [x] Achievement system with 39 achievements + Alloy rewards
 - [x] Tutorial system (Deployment page + Orbital Command hub tutorial, replayable)
 - [x] SEO: og:image, JSON-LD (WebApplication + FAQPage), sitemap.xml, robots.txt
 - [x] Global footer navigation across all pages
 - [x] Loading state with spinner (instant page render, buttons disabled until save loaded)
 - [x] Browser notifications for lab research completion (opt-in)
 - [x] Save export/import with encoding + checksums
-- [x] Flatland News (18 rotating humorous news items on landing page)
-- [x] Deterministic Special Operations with account-bound verified challenge leaderboard
+- [x] Flatland News (120 rotating humorous news items on landing page)
+- [x] Deterministic local Special Operations with runtime modifiers and regression coverage
+- [x] Account deletion with private-data removal and leaderboard anonymization
+- [x] Separate unverified community leaderboard and server-validated verified challenge leaderboard
 - [x] Stats page with charts (per-run data)
-- [ ] Tower skins / customization
-- [ ] Social sharing / OpenGraph image (1200×630 PNG for maximum platform compatibility)
+- [x] Tower skins / customization (initial cosmetic set)
+- [ ] Dedicated social-sharing preview image (1200×630 PNG; basic Open Graph metadata already exists)
