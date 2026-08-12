@@ -68,7 +68,7 @@
 - [x] Browser notifications for lab research completion (opt-in)
 - [x] Save export/import with encoding + checksums
 - [x] Flatland News (18 rotating humorous news items on landing page)
-- [ ] Full challenge implementations
+- [x] Deterministic Special Operations with account-bound verified challenge leaderboard
 - [x] Stats page with charts (per-run data)
 - [ ] Tower skins / customization
 - [ ] Social sharing / OpenGraph image (1200×630 PNG for maximum platform compatibility)

@@ -152,6 +152,32 @@ CREATE TABLE IF NOT EXISTS app_error_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_app_error_logs_created_at ON app_error_logs(created_at DESC);
 `
+	},
+	{
+		id: 3,
+		name: 'verified_challenge_runs',
+		sql: `
+ALTER TABLE leaderboard_runs ADD COLUMN challenge_id TEXT;
+ALTER TABLE leaderboard_runs ADD COLUMN verified_run_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_leaderboard_runs_verified_challenge
+	ON leaderboard_runs(leaderboard_type, challenge_id, score DESC, wave DESC, created_at ASC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_leaderboard_runs_verified_run_id
+	ON leaderboard_runs(verified_run_id) WHERE verified_run_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS verified_challenge_runs (
+	id TEXT PRIMARY KEY,
+	challenge_id TEXT NOT NULL,
+	account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+	seed INTEGER NOT NULL,
+	ruleset_hash TEXT NOT NULL,
+	started_at TEXT NOT NULL,
+	expires_at TEXT NOT NULL,
+	submitted_at TEXT,
+	status TEXT NOT NULL CHECK (status IN ('issued', 'accepted', 'rejected', 'expired'))
+);
+CREATE INDEX IF NOT EXISTS idx_verified_challenge_runs_account ON verified_challenge_runs(account_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_verified_challenge_runs_expiry ON verified_challenge_runs(expires_at);
+`
 	}
 ];
 

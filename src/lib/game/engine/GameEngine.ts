@@ -199,7 +199,8 @@ export class GameEngine {
 		killsByType: Partial<Record<EnemyType, number>> = {},
 		selectedSkin = 'classic',
 		selectedBackground = 'void',
-		runSeed?: number
+		runSeed?: number,
+		verifiedMode = false
 	): void {
 		resetEnemyIdCounter();
 		resetProjectileIdCounter();
@@ -233,6 +234,7 @@ export class GameEngine {
 		this.state.activeChallenge = challenge;
 		this.state.selectedSkin = selectedSkin;
 		this.state.selectedBackground = selectedBackground;
+		this.state.verifiedMode = verifiedMode;
 
 		// Precompute mastery damage bonuses from lifetime kill counts
 		this.state.masteryDmgBonus = {};
@@ -247,10 +249,15 @@ export class GameEngine {
 		this.unlockedFieldBlueprints = [...unlockedBlueprints];
 		this.statsDirty = true;
 
-		// Restore viewport dimensions so spawns, tower position, and
-		// enemy pathing use the actual canvas size
-		if (prevViewWidth != null) this.state.viewWidth = prevViewWidth;
-		if (prevViewHeight != null) this.state.viewHeight = prevViewHeight;
+		// Normal runs preserve their live canvas dimensions. Ranked runs use the
+		// fixed GAME_CONFIG viewport so the server can reproduce the same pathing.
+		if (!verifiedMode) {
+			if (prevViewWidth != null) this.state.viewWidth = prevViewWidth;
+			if (prevViewHeight != null) this.state.viewHeight = prevViewHeight;
+		} else {
+			this.state.viewWidth = GAME_CONFIG.VIEW_WIDTH;
+			this.state.viewHeight = GAME_CONFIG.VIEW_HEIGHT;
+		}
 
 		this.state.tower = createTowerState(this.state);
 
@@ -376,6 +383,7 @@ export class GameEngine {
 			gameOver: this.state.gameOver,
 			runActive: this.state.runActive,
 			runSeed: this.state.runSeed,
+			verifiedMode: this.state.verifiedMode,
 			highestWave: this.state.highestWave,
 			enemyCount: this.state.enemies.length,
 			speed: this.speedMultiplier,
@@ -411,6 +419,7 @@ export class GameEngine {
 	}
 
 	public buyBattleUpgrade(id: UpgradeId): boolean {
+		if (this.state.verifiedMode) return false;
 		const currentLevel = this.state.battleUpgrades[id] ?? 0;
 		const upgrades = buildBattleUpgradeList();
 		const upgrade = upgrades.find(u => u.id === id);

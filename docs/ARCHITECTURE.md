@@ -151,7 +151,10 @@ Implemented online features:
 - **Ko-fi webhook** (`/api/kofi/webhook`) — accepts the Ko-fi `data=<json>` form payload (and raw JSON), verifies the payload's `verification_token` against `KOFI_WEBHOOK_SECRET`, redacts the token before storing, is idempotent on `message_id`, and only verified EUR events create a community buff. In production a missing `KOFI_WEBHOOK_SECRET` disables the endpoint entirely (no event, no buff).
 - **Admin / operations panel** (`/admin`) — a read-only ops panel gated server-side by the server-only `ADMIN_USERNAMES` list (comma-separated, case-insensitive; no `PUBLIC_` equivalent). Guarded in `src/routes/admin/+layout.server.ts` and again in each `+page.server.ts` via `requireAdmin` (`src/lib/server/admin.ts`); non-admins get a `404`. Shows overview cards plus Users/Ko-fi/Community-buff/Error-log tables, never exposing hashes, peppers, tokens, cookies, or full cloud-save JSON. v1 has no mutating actions.
 - **Error log** — unexpected server errors are persisted (truncated, secret-free) into `app_error_logs` via `handleError` in `src/hooks.server.ts` + `src/lib/server/errorLog.ts`, retained to the latest 1000 rows. No Docker logs/socket or shell execution involved.
-- Scaffolds (schema-only, no UI this pass): unverified leaderboard entries, challenge config, entitlements.
+- **Community leaderboard** — `/api/leaderboard/unverified` stores explicitly unverified client-submitted standard-run data for a fun ranking only.
+- **Verified challenge leaderboard** — `/api/leaderboard/verified/start` issues an account-bound one-time ticket; `/api/leaderboard/verified` replays the fixed server ruleset and writes only server-calculated results. The official board is separate from the community board.
+- **Account deletion** — `/api/auth/account` deletes private account data and anonymizes linked leaderboard rows as `Deleted account`; verified tickets are account-cascaded and cannot be submitted after deletion.
+- Challenge rules, seed, viewport, and fixed timestep are versioned in `src/lib/game/balance/verifiedChallenges.ts` and hashed before a ranked result is stored.
 
 **Known technical debt:**
 - **`serve_prerendered()` workaround:** `@sveltejs/adapter-node` 5.5.5 sirv-based streaming deadlocks on Node 20+ on some hosts. `scripts/patch-adapter-node.mjs`, invoked by `npm run build`, removes the middleware from the Polka chain, rebases the adapter's asset directory, and lets `src/hooks.server.ts` serve prerendered files via `readFileSync`. When adapter-node is upgraded, re-evaluate the patch and hook.
@@ -159,7 +162,7 @@ Implemented online features:
 - **Cloud restore reload:** Cloud save restore currently calls `location.reload()` after import. A proper state-reinitialization (without a full page reload) would be preferable.
 - **Node 22:** The Dockerfile locks to Node 20 LTS until the streaming deadlock is confirmed fixed on Node 22+.
 
-Intentionally out of scope / not implemented: leaderboard frontend, automatic leaderboard submission, verified challenge leaderboard, guilds, challenge run UI, account deletion UI, payment/shop UI, personal paid power, supporter badge/skin entitlement UI, OAuth, email/password reset, and automatic cloud-save overwrite. Ko-fi support never grants personal power.
+Intentionally out of scope / not implemented: guilds, payment/shop UI, personal paid power, supporter badge/skin entitlement UI, OAuth, email/password reset, and automatic cloud-save overwrite. Ko-fi support never grants personal power.
 
 ## Deployment
 

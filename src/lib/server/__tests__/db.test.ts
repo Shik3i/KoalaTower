@@ -18,12 +18,16 @@ describe('online database migrations', () => {
 			'challenge_configs',
 			'entitlements',
 			'kofi_events',
-			'community_buff_events'
+			'community_buff_events',
+			'verified_challenge_runs'
 		]) {
 			expect(names.has(table)).toBe(true);
 		}
 		const version = db.prepare('SELECT MAX(id) AS version FROM schema_migrations').get() as { version: number };
 		expect(version.version).toBe(latestMigrationId);
+		const leaderboardColumns = new Set((db.prepare('PRAGMA table_info(leaderboard_runs)').all() as { name: string }[]).map((column) => column.name));
+		expect(leaderboardColumns.has('challenge_id')).toBe(true);
+		expect(leaderboardColumns.has('verified_run_id')).toBe(true);
 		db.close();
 	});
 });

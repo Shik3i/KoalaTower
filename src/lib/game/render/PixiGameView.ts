@@ -46,6 +46,8 @@ export class PixiGameView {
 	private time = 0;
 	private lastRange = 0;
 	private loopScheduled = false;
+	private verifiedAccumulator = 0;
+	private previousVerifiedMode = false;
 
 	public muzzleFlash = 0;
 	public initError: Error | null = null;
@@ -137,11 +139,14 @@ export class PixiGameView {
 
 		this.domContainer.appendChild(canvas);
 
-		// Store actual viewport size in engine state for spawn calculations
-		this.engine.state.viewWidth = this.app.screen.width;
-		this.engine.state.viewHeight = this.app.screen.height;
+		// Store actual viewport size in engine state for normal spawn calculations.
+		// Ranked runs replace this with the fixed simulation viewport at startRun().
+		if (!this.engine.state.verifiedMode) {
+			this.engine.state.viewWidth = this.app.screen.width;
+			this.engine.state.viewHeight = this.app.screen.height;
+		}
 		// Update tower position in engine state to match viewport center
-		if (this.engine.state.tower) {
+		if (this.engine.state.tower && !this.engine.state.verifiedMode) {
 			this.engine.state.tower.position.x = this.app.screen.width / 2;
 			this.engine.state.tower.position.y = this.app.screen.height / 2;
 		}
@@ -299,14 +304,20 @@ export class PixiGameView {
 	 */
 	private applyCamera(zoom: number, force = false): void {
 		if (!force && zoom === this.currentZoom) return;
-		this.currentZoom = zoom;
 		const cw = this.app.screen.width;
 		const ch = this.app.screen.height;
-		const worldW = cw / zoom;
-		const worldH = ch / zoom;
+		const verified = this.engine.state.verifiedMode === true;
+		const visualZoom = verified
+			? Math.min(zoom, cw / GAME_CONFIG.VIEW_WIDTH, ch / GAME_CONFIG.VIEW_HEIGHT)
+			: zoom;
+		this.currentZoom = visualZoom;
+		const worldW = verified ? GAME_CONFIG.VIEW_WIDTH : cw / visualZoom;
+		const worldH = verified ? GAME_CONFIG.VIEW_HEIGHT : ch / visualZoom;
 
-		this.engine.state.viewWidth = worldW;
-		this.engine.state.viewHeight = worldH;
+		if (!verified) {
+			this.engine.state.viewWidth = worldW;
+			this.engine.state.viewHeight = worldH;
+		}
 		this.tower.x = worldW / 2;
 		this.tower.y = worldH / 2;
 		this.tower.container.x = worldW / 2;
@@ -319,11 +330,11 @@ export class PixiGameView {
 		if (this.world) {
 			this.world.pivot.set(worldW / 2, worldH / 2);
 			this.world.position.set(cw / 2, ch / 2);
-			this.world.scale.set(zoom);
+			this.world.scale.set(visualZoom);
 		}
 
 		// Parallax: nudge the distant starfield's scale opposite the world zoom.
-		this.background?.setZoomParallax(zoom);
+		this.background?.setZoomParallax(visualZoom);
 	}
 
 	private lastTime = 0;
@@ -341,7 +352,22 @@ export class PixiGameView {
 		this.tower.muzzleFlash = this.muzzleFlash;
 
 		try {
-			this.engine.update(rawDt);
+			const verified = this.engine.state.verifiedMode === true;
+			if (verified !== this.previousVerifiedMode) {
+				this.verifiedAccumulator = 0;
+				this.previousVerifiedMode = verified;
+			}
+			if (verified) {
+				this.verifiedAccumulator += rawDt;
+				let steps = 0;
+				while (this.verifiedAccumulator >= GAME_CONFIG.VERIFIED_STEP_SECONDS && steps < 20) {
+					this.engine.update(GAME_CONFIG.VERIFIED_STEP_SECONDS);
+					this.verifiedAccumulator -= GAME_CONFIG.VERIFIED_STEP_SECONDS;
+					steps++;
+				}
+			} else {
+				this.engine.update(rawDt);
+			}
 		} catch (e) {
 			console.error('[PixiGameView] Engine update crashed:', e);
 			// Continue the render loop so the canvas doesn't freeze permanently
@@ -359,7 +385,10 @@ export class PixiGameView {
 			const range = state.tower.stats.range;
 			// Zoom the camera out once the range ring would pass the edge margin.
 			const desiredZoom = this.computeZoom(range);
-			if (Math.abs(desiredZoom - this.currentZoom) > 0.0005) {
+			const effectiveZoom = state.verifiedMode
+				? Math.min(desiredZoom, this.app.screen.width / GAME_CONFIG.VIEW_WIDTH, this.app.screen.height / GAME_CONFIG.VIEW_HEIGHT)
+				: desiredZoom;
+			if (Math.abs(effectiveZoom - this.currentZoom) > 0.0005) {
 				this.applyCamera(desiredZoom);
 				this.lastRange = -1; // tower recentred → redraw the ring
 			}

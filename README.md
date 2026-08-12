@@ -114,7 +114,7 @@ src/
 docker build -t flatland-td .
 
 # With a version label
-docker build --build-arg VITE_APP_VERSION=v0.8.1 -t flatland-td:v0.8.1 .
+docker build --build-arg VITE_APP_VERSION=v0.12.0 -t flatland-td:v0.12.0 .
 ```
 
 ### Run
@@ -172,7 +172,8 @@ Flatland TD keeps **local-first gameplay** as a hard rule:
 - the service worker bypasses `/api/`, while cached gameplay assets remain available offline
 - unverified leaderboard scores are community/fun only
 - account deletion removes private online data; linked leaderboard history is anonymized as `Deleted account`
-- verified challenge leaderboard will require login and stricter validation later
+- verified challenge runs require login, a server-issued one-time ticket, and server-side deterministic replay validation
+- official verified scores use fixed challenge rules; client-provided score, wave, seed, and ranking data are never trusted
 
 Backend environment variables:
 
@@ -232,8 +233,8 @@ Admin / operations panel (`/admin`):
 ### Publishing a release
 
 ```bash
-git tag v0.5.0
-git push origin v0.5.0
+git tag v0.12.0
+git push origin v0.12.0
 # → CI builds multi-arch image + pushes to GHCR with SBOM attestation
 ```
 
@@ -264,7 +265,7 @@ Test coverage includes: enemy scaling formulas, upgrade cost curves, save migrat
 
 ## 🚧 Alpha Notes
 
-Flatland TD v0.8.1 — **Pre-Release** — is alpha software. It is local-first, offline-friendly, and playable without login, analytics, backend APIs, cloud saves, or payment checks.
+Flatland TD v0.12.0 — **Pre-Release** — is alpha software. It is local-first, offline-friendly, and playable without login, analytics, backend APIs, cloud saves, or payment checks.
 
 Known limits: all 16 Fronts are structurally active, but high-end Blacksite/Anomaly mechanics are still scaffolded and not final balance. The Outsourced Research Lab is visible as Coming Later and is not active. Black Market support links are optional; Daily Pickup and Weekly Shipment rewards are never gated by payment or online checks.
 

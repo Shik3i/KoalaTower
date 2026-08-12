@@ -24,6 +24,8 @@ export const GAME_CONFIG = {
 	AUTOSAVE_INTERVAL: 10000,
 	UI_SNAPSHOT_INTERVAL: 150,
 	CLAMP_DELTA: 0.10,
+	/** Fixed simulation step for server-replayable ranked challenge runs. */
+	VERIFIED_STEP_SECONDS: 1 / 60,
 	BACKGROUND_STARS: 80,
 	BACKGROUND_GRID_SIZE: 60,
 	CANVAS_BG: 0x070812,

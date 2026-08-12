@@ -519,6 +519,8 @@ export interface GameState {
 	runSeed?: number;
 	/** Mutable gameplay RNG state; intentionally not used for cosmetic effects. */
 	rngState?: RunRngState;
+	/** Ranked challenge runs use a fixed viewport and fixed timestep contract. */
+	verifiedMode?: boolean;
 }
 
 export interface GameSettings {
@@ -572,6 +574,7 @@ export interface GameSnapshot {
 	gameOver: boolean;
 	runActive: boolean;
 	runSeed?: number;
+	verifiedMode?: boolean;
 	highestWave: number;
 	enemyCount: number;
 	speed: number;

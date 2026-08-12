@@ -6,6 +6,7 @@
  */
 
 import { ChallengeId, EnemyType, type GameState } from '../engine/gameTypes';
+import { GAME_CONFIG } from '../engine/gameConfig';
 import {
 	createEnemy,
 	resetEnemyIdCounter,
@@ -196,8 +197,8 @@ function spawnEnemy(state: GameState, forceBoss: boolean): void {
 }
 
 function getSpawnPosition(state: GameState, random: () => number): { x: number; y: number } {
-	const w = state.viewWidth || 800;
-	const h = state.viewHeight || 800;
+	const w = state.verifiedMode ? GAME_CONFIG.VIEW_WIDTH : (state.viewWidth || 800);
+	const h = state.verifiedMode ? GAME_CONFIG.VIEW_HEIGHT : (state.viewHeight || 800);
 	const margin = 10;
 	const side = Math.floor(random() * 4);
 

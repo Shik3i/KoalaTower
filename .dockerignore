@@ -17,4 +17,5 @@ examples/
 docs/
 scripts/
 !scripts/patch-adapter-node.mjs
+!scripts/smoke.mjs
 src/**/__tests__/

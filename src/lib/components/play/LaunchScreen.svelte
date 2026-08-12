@@ -247,6 +247,9 @@
 			<span class="sc-bi"></span>
 			<span class="sc-bt"><Icon name="play" size={16} /> {saveLoaded ? deployLabel : 'Loading save...'}</span>
 		</button>
+		{#if selectedChallenge}
+			<p class="ranked-note">🛡️ Account holders receive a server ticket for the official ranking. Ranked runs use a fixed Front 1 loadout, seed, viewport, and speed; without a ticket the challenge remains playable but unranked.</p>
+		{/if}
 		{#if saveLoaded}
 			<p class="sc-hint"><kbd>Enter</kbd> start · <kbd>Space</kbd> pause · <kbd>1-4</kbd> speed</p>
 		{:else}
@@ -323,6 +326,7 @@
 	.sc-btn:hover .sc-bi { opacity:1; }
 	.sc-bt { position:relative; z-index:1; display:inline-flex; align-items:center; gap:.35rem; }
 	.sc-hint { margin-top:.5rem; font-size:var(--fs-caption-sm); color:var(--text-secondary); }
+	.ranked-note { max-width:42rem; margin:.55rem auto 0; color:var(--green); font-size:var(--fs-caption-sm); line-height:1.45; }
 	.sc-hint kbd { padding:.08rem .3rem; background:var(--bg-tertiary); border-radius:3px; font-family:var(--font-mono); font-size:var(--fs-caption-sm); border:1px solid var(--border-neon); }
 	@media (max-width:720px) {
 		.start-ol { padding:.5rem; align-items:flex-start; }

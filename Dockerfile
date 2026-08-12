@@ -49,6 +49,9 @@ ENV DATABASE_PATH=/data/flatland.db
 COPY --from=build /app/build ./build
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
+# Keep the documented runtime smoke command available in the image. It uses
+# only Node's built-in fetch and never ships source or dev dependencies.
+COPY --from=build /app/scripts/smoke.mjs ./scripts/smoke.mjs
 
 # Persistent SQLite volume — mount at runtime, e.g. -v flatland-data:/data
 RUN mkdir -p /data

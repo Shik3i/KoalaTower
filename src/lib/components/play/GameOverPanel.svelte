@@ -16,12 +16,18 @@
 		communityLeaderboardEligible = false,
 		communityLeaderboardStatus = 'idle',
 		communityLeaderboardMessage = '',
+		verifiedScore = 0,
+		verifiedChallengeName = '',
+		verifiedLeaderboardEligible = false,
+		verifiedLeaderboardStatus = 'idle',
+		verifiedLeaderboardMessage = '',
 		autoDeploymentArmed = false,
 		autoDeploymentCountdown = 0,
 		onCancelAutoDeployment,
 		onRedeploy,
 		onExport,
 		onSubmitLeaderboard,
+		onSubmitVerifiedLeaderboard,
 	}: {
 		wave: number;
 		best: number;
@@ -36,12 +42,18 @@
 		communityLeaderboardEligible?: boolean;
 		communityLeaderboardStatus?: 'idle' | 'submitting' | 'submitted' | 'offline' | 'error';
 		communityLeaderboardMessage?: string;
+		verifiedScore?: number;
+		verifiedChallengeName?: string;
+		verifiedLeaderboardEligible?: boolean;
+		verifiedLeaderboardStatus?: 'idle' | 'submitting' | 'submitted' | 'offline' | 'error';
+		verifiedLeaderboardMessage?: string;
 		autoDeploymentArmed?: boolean;
 		autoDeploymentCountdown?: number;
 		onCancelAutoDeployment?: () => void;
 		onRedeploy: () => void;
 		onExport: () => void;
 		onSubmitLeaderboard?: () => void;
+		onSubmitVerifiedLeaderboard?: () => void;
 	} = $props();
 
 	// First run (best === 0) still counts as a new record if any wave was reached.
@@ -92,6 +104,21 @@
 				{/if}
 			</div>
 		{/if}
+		{#if verifiedLeaderboardEligible}
+			<div class="go-leaderboard go-verified">
+				<div class="go-lb-title">🛡️ Verified Challenge Board <span>OFFICIAL · {verifiedChallengeName}</span></div>
+				<div class="go-lb-score">Server-calculated score: <strong>{verifiedScore.toLocaleString()}</strong></div>
+				<p>Fixed seed, loadout, viewport, and timestep replayed server-side. Your score is not accepted from the client.</p>
+				{#if verifiedLeaderboardStatus === 'submitted'}
+					<div class="go-lb-ok">✓ {verifiedLeaderboardMessage}</div>
+				{:else}
+					<button class="go-btn2" onclick={onSubmitVerifiedLeaderboard} disabled={verifiedLeaderboardStatus === 'submitting'}>
+						{verifiedLeaderboardStatus === 'submitting' ? 'Validating…' : 'Submit to Official Board'}
+					</button>
+					{#if verifiedLeaderboardMessage}<div class="go-lb-error">{verifiedLeaderboardMessage}</div>{/if}
+				{/if}
+			</div>
+		{/if}
 		{#if autoDeploymentArmed}
 			<div class="go-auto">
 				<span>Auto Deployment armed: {autoDeploymentCountdown}s</span>
@@ -130,6 +157,7 @@
 	.go-stats { display:flex; align-items:center; justify-content:center; gap:.8rem; margin-bottom:.5rem; padding:.6rem .75rem; background:rgba(0,0,0,.12); border-radius:var(--radius-md); }
 	.go-schem { font-size:var(--fs-body-sm); color:var(--cyan); margin-bottom:.5rem; font-family:var(--font-mono); }
 	.go-leaderboard { margin:.65rem 0; padding:.65rem .75rem; border:1px solid rgba(255,221,68,.25); border-radius:var(--radius-sm); background:rgba(255,221,68,.04); text-align:left; }
+	.go-verified { border-color:rgba(68,255,136,.28); background:rgba(68,255,136,.04); }
 	.go-lb-title { color:var(--yellow); font-family:var(--font-display); font-size:var(--fs-body-sm); }
 	.go-lb-title span { color:var(--text-dim); font-family:var(--font-mono); font-size:var(--fs-caption-sm); margin-left:.35rem; }
 	.go-lb-score { margin-top:.25rem; color:var(--text-secondary); font-family:var(--font-mono); font-size:var(--fs-caption); }

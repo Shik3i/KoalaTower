@@ -101,6 +101,14 @@ async function postJson(path, body, expectStatus) {
 		check('GET /api/version', r.ok, r.text.slice(0, 60));
 	}
 	{
+		const r = await get('/api/leaderboard/verified');
+		check('GET /api/leaderboard/verified', r.ok && r.text.includes('"leaderboardType":"verified"'), r.text.slice(0, 80));
+	}
+	{
+		const r = await postJson('/api/leaderboard/verified/start', { challengeId: 'fastSwarm' }, 401);
+		check('Verified challenge start without account → 401', r.ok, 'status=' + r.status);
+	}
+	{
 		const r = await get('/api/community-buff');
 		check('GET /api/community-buff', r.ok, r.text.slice(0, 60));
 	}

@@ -40,6 +40,8 @@
 	import { loadLocalIdentity } from '$lib/online/localIdentity';
 	import { submitUnverifiedLeaderboard } from '$lib/online/leaderboardClient';
 	import { calculateUnverifiedScore } from '$lib/game/balance/communityLeaderboard';
+	import { calculateVerifiedChallengeScore } from '$lib/game/balance/verifiedChallenges';
+	import { startVerifiedChallenge, submitVerifiedChallenge, type VerifiedChallengeTicket } from '$lib/online/verifiedLeaderboardClient';
 	import { APP_VERSION } from '$lib/version';
 	import NotificationCenter from '$lib/components/NotificationCenter.svelte';
 	import FieldUpgrades from '$lib/components/play/FieldUpgrades.svelte';
@@ -69,6 +71,12 @@
 	let communityLeaderboardEligible = $state(false);
 	let communityLeaderboardStatus = $state<'idle' | 'submitting' | 'submitted' | 'offline' | 'error'>('idle');
 	let communityLeaderboardMessage = $state('');
+	let verifiedRun = $state<VerifiedChallengeTicket | null>(null);
+	let verifiedLeaderboardEligible = $state(false);
+	let verifiedLeaderboardStatus = $state<'idle' | 'submitting' | 'submitted' | 'offline' | 'error'>('idle');
+	let verifiedLeaderboardMessage = $state('');
+	let gameOverVerifiedScore = $state(0);
+	let verifiedStartBusy = $state(false);
 	let gameOverSchematics = $state(0);
 	let gameOverFrontName = $state('');
 	let runStartedAtMs = $state(0);
@@ -565,8 +573,18 @@
 						bosses: completedRun.bossesDefeated,
 					})
 					: 0;
+				verifiedLeaderboardEligible = completedRun != null
+					&& completedRun.verifiedMode === true
+					&& verifiedRun != null
+					&& completedRun.activeChallenge === verifiedRun.challengeId
+					&& _w > 0;
+				gameOverVerifiedScore = completedRun
+					? calculateVerifiedChallengeScore({ wave: _w, kills: completedRun.killCount, bosses: completedRun.bossesDefeated })
+					: 0;
 				communityLeaderboardStatus = 'idle';
 				communityLeaderboardMessage = '';
+				verifiedLeaderboardStatus = 'idle';
+				verifiedLeaderboardMessage = '';
 				showGameOver = true;
 				const save = getCachedSave();
 				if (save && engine) {
@@ -864,7 +882,7 @@
 		gameView.start();
 	}
 
-	function startRun() {
+	async function startRun() {
 		if (!saveLoaded) {
 			toast('Save still loading. Deployment will be ready in a moment.', 'info');
 			return;
@@ -877,6 +895,26 @@
 			showLaunchScreen = false;
 			return;
 		}
+		if (verifiedStartBusy) return;
+		verifiedStartBusy = true;
+		const save = getCachedSave();
+		const validChallenge = selectedChallenge && isChallengeUnlocked(selectedChallenge, frontBestWave) ? selectedChallenge : null;
+		let rankedTicket: VerifiedChallengeTicket | null = null;
+		if (validChallenge) {
+			const ticketResult = await startVerifiedChallenge(validChallenge);
+			if (ticketResult.ok) {
+				rankedTicket = ticketResult.data;
+			} else if (ticketResult.status === 401) {
+				toast('Log in to submit this Special Ops run to the verified ranking.', 'info');
+			} else {
+				toast('Verified ticket unavailable. This Special Ops run will be unranked.', 'warning');
+			}
+		}
+		verifiedRun = rankedTicket;
+		verifiedLeaderboardEligible = false;
+		verifiedLeaderboardStatus = 'idle';
+		verifiedLeaderboardMessage = '';
+		verifiedStartBusy = false;
 
 		// Re-wire callbacks before every run: checkGameOver() sets onGameOver=null
 		// after firing, so a reused engine would never trigger the game-over panel
@@ -894,30 +932,29 @@
 		runStartedAtMs = Date.now();
 		activeRunToken++;
 		reportingRunToken = activeRunToken;
-		const save = getCachedSave();
 		// Clamp the chosen front to what's actually unlocked, then persist it.
 		if (!unlockedFronts.includes(selectedFront)) selectedFront = TierId.Tier1;
 		// Record whether this is the highest unlocked Front (daily-task tracking).
 		deployedOnHighestFront = unlockedFronts.length > 0 && selectedFront === unlockedFronts[unlockedFronts.length - 1];
 		if (save) { save.selectedFront = selectedFront; persistSave(save); }
 		const unlockedBPs = (save?.unlockedBlueprints ?? []) as import('$lib/game/engine/gameTypes').BlueprintId[];
-		// Validate challenge is still unlocked (defensive — selection persists across sessions)
-		const validChallenge = selectedChallenge && isChallengeUnlocked(selectedChallenge, frontBestWave) ? selectedChallenge : null;
 		engine.startRun(
-			save?.workshopUpgrades ?? {},
-			save?.forgeUpgrades ?? {},
-			save?.labLevels ?? {},
+			rankedTicket ? {} : (save?.workshopUpgrades ?? {}),
+			rankedTicket ? {} : (save?.forgeUpgrades ?? {}),
+			rankedTicket ? {} : (save?.labLevels ?? {}),
 			coins,
-			unlockedBPs,
-			getTierNumber(selectedFront),
+			rankedTicket ? [] : unlockedBPs,
+			rankedTicket ? rankedTicket.tier : getTierNumber(selectedFront),
 			validChallenge,
-			save?.killsByType ?? {},
-			save?.selectedSkin ?? 'classic',
-			save?.selectedBackground ?? 'void'
+			rankedTicket ? {} : (save?.killsByType ?? {}),
+			rankedTicket ? 'classic' : (save?.selectedSkin ?? 'classic'),
+			rankedTicket ? 'void' : (save?.selectedBackground ?? 'void'),
+			rankedTicket?.seed,
+			Boolean(rankedTicket)
 		);
 		syncSettingsToEngine(save?.settings ?? { ...DEFAULT_SETTINGS });
 		// Re-apply the player's last chosen game speed (clamped to what's unlocked).
-		const prefSpeed = save?.preferredSpeed ?? 1;
+		const prefSpeed = rankedTicket ? 1 : (save?.preferredSpeed ?? 1);
 		const maxSpeed = getMaxUnlockedSpeed(save?.blackMarketUnlocks);
 		engine.setSpeed(Math.min(prefSpeed, maxSpeed) || 1);
 		gameView?.start();
@@ -938,6 +975,10 @@
 
 	function handleSpeed(preset: number) {
 		if (!engine) return;
+		if (engine.state.verifiedMode && preset !== 0) {
+			toast('Verified challenges run at fixed speed for replay validation.', 'info');
+			return;
+		}
 		if (preset === 0) {
 			engine.togglePause();
 			toast(engine.isPaused() ? getOpLogMessage('pauseGame') : getOpLogMessage('resumeGame'), 'info');
@@ -1614,9 +1655,11 @@
 				{#if $fieldPanelOpen}
 					<div class="pc">
 						<div class="ps"><div class="pst">⚡ Field Upgrades</div>
-							{#if snap?.runActive}
+							{#if snap?.runActive && !snap.verifiedMode}
 								<FieldUpgrades {snap} bind:upgradeCategory bind:buyMultiplier purchasedId={purchasedUpgrade} onBuy={buyBattleUpgrade} />
 								<div class="hub-shortcut"><a href="/hub">⚙ Forge · Research · Archives →</a></div>
+							{:else if snap?.runActive && snap.verifiedMode}
+								<div class="pe">Verified challenge: fixed Front 1 loadout. Field upgrades are locked for fair replay validation.</div>
 							{:else}<div class="pe">Start a run to buy upgrades. The tower arrives pre-configured with mild disappointment.</div>{/if}
 						</div>
 					</div>
@@ -1652,7 +1695,11 @@
 					<span>⚡ Field Upgrades</span>
 					<button class="mob-ug-close" onclick={() => showMobileUpgrades = false}>✕</button>
 				</div>
-				<FieldUpgrades {snap} bind:upgradeCategory bind:buyMultiplier scrollList purchasedId={purchasedUpgrade} onBuy={buyBattleUpgrade} />
+				{#if snap.verifiedMode}
+					<div class="pe">Verified challenge: fixed loadout.</div>
+				{:else}
+					<FieldUpgrades {snap} bind:upgradeCategory bind:buyMultiplier scrollList purchasedId={purchasedUpgrade} onBuy={buyBattleUpgrade} />
+				{/if}
 			</div>
 		{/if}
 	{/if}

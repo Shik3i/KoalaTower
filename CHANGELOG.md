@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.12.0 — Verified challenge leaderboard
+
+- Added account-bound verified challenge run tickets with one-time submission and expiry.
+- Added a server-side deterministic replay validator. Ranked runs use server-defined challenge seeds, fixed Front 1 rules, fixed loadout, fixed viewport, and fixed simulation timestep.
+- Added an official Verified Challenge Leaderboard whose score, verification hash, and rank are calculated server-side. Client-provided score values are never trusted.
+- Kept the existing Community Leaderboard explicitly unverified and separate from the official ranking.
+- Added migration 3 for verified run tickets, challenge IDs, and one-time verified-run IDs.
+- Account deletion anonymizes linked verified and community leaderboard history as `Deleted account` while deleting private sessions, cloud saves, identities, entitlements, and supporter links.
+- Added replay determinism, ticket lifecycle, duplicate-submit, forged-result, and migration coverage.
+- Release checks: `npm run check`, `npm test`, production build, Playwright smoke, and Docker runtime smoke.
+
 ## v0.9.11 — Schematic documentation audit
 
 - Audited the Schematic path reconstruction rollout and removed stale public documentation that still described a separate Blueprint discovery/RNG step.

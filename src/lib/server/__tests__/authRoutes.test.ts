@@ -111,6 +111,7 @@ describe('auth routes (register/login)', () => {
 		db.prepare('INSERT INTO cloud_saves (id, account_id, save_json, schema_version, game_version, save_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run('cloud-1', account.id, '{}', 1, 'test', 'hash', now, now);
 		db.prepare('INSERT INTO leaderboard_runs (id, leaderboard_type, account_id, local_player_id, display_name, front_id, wave, score, game_version, verified, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('run-account', 'unverified', account.id, localPlayerId, 'Erase Me', 1, 10, 100, 'test', 0, now);
 		db.prepare('INSERT INTO leaderboard_runs (id, leaderboard_type, account_id, local_player_id, display_name, front_id, wave, score, game_version, verified, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('run-local', 'unverified', null, localPlayerId, 'Erase Me', 1, 9, 90, 'test', 0, now);
+		db.prepare('INSERT INTO leaderboard_runs (id, leaderboard_type, account_id, local_player_id, display_name, front_id, wave, score, game_version, verified, created_at, challenge_id, verified_run_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('run-verified', 'verified', account.id, null, 'Erase Me', 1, 12, 120, 'test', 1, now, 'fastSwarm', 'ticket-1');
 		db.prepare('INSERT INTO entitlements (id, owner_type, owner_id, entitlement_type, entitlement_key, source, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run('ent-1', 'account', account.id, 'badge', 'supporter', 'test', now);
 		db.prepare('INSERT INTO kofi_events (id, event_id, raw_json, amount, currency, support_code, matched_owner_type, matched_owner_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run('kofi-1', 'event-1', '{}', 1, 'EUR', 'code', 'account', account.id, now);
 		db.prepare('INSERT INTO app_error_logs (created_at, level, source, message, user_id) VALUES (?, ?, ?, ?, ?)').run(now, 'error', 'test', 'private', account.id);
@@ -126,6 +127,7 @@ describe('auth routes (register/login)', () => {
 		expect((db.prepare('SELECT COUNT(*) AS count FROM player_identities').get() as { count: number }).count).toBe(0);
 		expect((db.prepare('SELECT COUNT(*) AS count FROM entitlements').get() as { count: number }).count).toBe(0);
 		expect(db.prepare('SELECT account_id, local_player_id, display_name FROM leaderboard_runs ORDER BY id').all()).toEqual([
+			{ account_id: null, local_player_id: null, display_name: 'Deleted account' },
 			{ account_id: null, local_player_id: null, display_name: 'Deleted account' },
 			{ account_id: null, local_player_id: null, display_name: 'Deleted account' }
 		]);
