@@ -25,7 +25,7 @@
     "svelte-check": "^4.6.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.1",
-    "vitest": "^3.1.1"
+    "vitest": "^5.0.3"
   },
   "dependencies": {
     "@fontsource/orbitron": "^5.2.8",

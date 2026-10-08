@@ -27,7 +27,12 @@ for (const file of files) {
 	if (patched !== original) await writeFile(path, patched);
 }
 
-if (prerenderPatches === 0 || dirPatches === 0) {
+// adapter-node >= 5.5.7 defines `dir` in build/env.js, which already sits at the build root.
+const envDirAtBuildRoot = /const dir = path\.dirname\(fileURLToPath\(import\.meta\.url\)\);/.test(
+	await readFile(join(process.cwd(), 'build', 'env.js'), 'utf8').catch(() => '')
+);
+
+if (prerenderPatches === 0 || (dirPatches === 0 && !envDirAtBuildRoot)) {
 	throw new Error(
 		`adapter-node patch targets not found (serve_prerendered=${prerenderPatches}, dir=${dirPatches}); adapter output changed`
 	);
