@@ -3,7 +3,7 @@
 # @sveltejs/adapter-node 5.5.5 deadlocks on Node 22+ on some hosts when
 # streaming prerendered HTML.  Node 20 is the most recent LTS that works
 # reliably here.  When adapter-node is updated, try Node 22 again.
-FROM node:20-bookworm-slim AS build
+FROM node:22.23.4-bookworm-slim AS build
 
 ARG VITE_APP_VERSION=DEV
 ENV VITE_APP_VERSION=${VITE_APP_VERSION}
@@ -33,7 +33,7 @@ RUN npm run build
 RUN npm prune --omit=dev && npm cache clean --force
 
 # ── Runtime stage ───────────────────────────────────────────────────
-FROM node:20-bookworm-slim AS runtime
+FROM node:22.23.4-bookworm-slim AS runtime
 
 WORKDIR /app
 
